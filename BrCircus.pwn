@@ -26,15 +26,11 @@
 #define COLOR_LIGHTRED 0xFF6347FF
 
 //Limits
-#define MAX_HP 100.00
 #define MAX_RATE 3000
-#define MAX_SLOTS 16
+#define MAX_SLOTS 25
 #define MAX_MOD 7
 #define MAX_PROPERTIES 2
-#define MAX_CL_ACTORS 4
 #define MAX_CLOWNS 20
-#define MAX_TRANSPORT 6
-#define MAX_PVP_PLAYERS 30
 #define MAX_RELIABLE_TARGETS 5
 #define MAX_PVP_PANEL_ITEMS 5
 
@@ -58,6 +54,7 @@
 #define GRADE_B 2
 #define GRADE_C 3
 
+//Item props
 #define PROPERTY_NONE 0
 #define PROPERTY_DAMAGE 1
 #define PROPERTY_DEFENSE 2
@@ -111,8 +108,8 @@ enum pInfo {
 	InventoryItems[MAX_SLOTS][iInfo],
 	Skin,
 	Admin,
-	Wins,
-	Loses,
+	Kills,
+	Deaths,
 	Damage,
 	Defense,
 	Dodge,
@@ -122,13 +119,10 @@ enum pInfo {
 };
 new PlayerInfo[MAX_PLAYERS][pInfo];
 new PlayerUpdater[MAX_PLAYERS];
-new currentTour = 1;
 new SelectedSlot[MAX_PLAYERS] = -1;
 new bool:IsInventoryOpen[MAX_PLAYERS] = false;
 new bool:IsDeath[MAX_PLAYERS] = false;
-new Actors[MAX_CL_ACTORS];
 new bool:PlayerConnect[MAX_PLAYERS] = false;
-new Transport[MAX_TRANSPORT];
 new bool:IsBattleBegins = false;
 new bool:IsReady[MAX_PLAYERS] = false;
 new bool:IsEntered[MAX_PLAYERS] = false;
@@ -156,46 +150,13 @@ enum PvpResItem
 	Float:Score
 };
 new PvpRes[MAX_PVP_PLAYERS][PvpResItem];
-//
-new npcclowns[MAX_PVP_PLAYERS][128] = {
-	{"Xion"},
-	{"Citan"},
-	{"Avilione"},
-	{"K_G"},
-	{"Remainer"},
-	{"Adamantium_Cat"},
-	{"Annitta"},
-	{"Tim_Faters"},
-	{"Rakudai"},
-	{"Firecaster"},
-	{"Powersturbo"},
-	{"Gynes"},
-	{"Sterneneisen"},
-	{"Shichisu"},
-	{"Water"},
-	{"Des_Mayoko"},
-	{"Maddoshi"},
-	{"Ringshu"},
-	{"Exiseon"},
-	{"Little_Mousy"},
-	{"Flexchuits"},
-	{"Akeafar"},
-	{"Waitmebabby"},
-	{"Bloodvinserex"},
-	{"Heizou"},
-	{"Naomich"},
-	{"Aspa"},
-	{"Chock"},
-	{"Chipsek"},
-	{"Ognesvin"}
-};
+
 new Registration[2] = { -1, -1 };
 new MatchTimer;
 new ReadyTimerTicks;
 enum TopItem
 {
 	Name[128],
-	Class[64],
 	Rate
 };
 new RatingTop[MAX_PVP_PLAYERS][TopItem];
@@ -204,11 +165,7 @@ new Text:WorldTime;
 new WorldTime_Timer;
 new Text:GamemodeName;
 
-new PlayerText:TourPanelBox[MAX_PLAYERS];
-new PlayerText:TourPlayerName1[MAX_PLAYERS];
-new PlayerText:TourPlayerName2[MAX_PLAYERS];
 new PlayerText:HPBar[MAX_PLAYERS];
-new PlayerText:TourScoreBar[MAX_PLAYERS];
 new PlayerText:InvBox[MAX_PLAYERS];
 new PlayerText:InvSlot[MAX_PLAYERS][MAX_SLOTS];
 new PlayerText:PanelInfo[MAX_PLAYERS];
@@ -223,41 +180,10 @@ new PlayerText:btn_use[MAX_PLAYERS];
 new PlayerText:btn_info[MAX_PLAYERS];
 new PlayerText:btn_del[MAX_PLAYERS];
 new PlayerText:btn_quick[MAX_PLAYERS];
-new PlayerText:blue_flag[MAX_PLAYERS];
-new PlayerText:red_flag[MAX_PLAYERS];
 new PlayerText:inv_ico[MAX_PLAYERS];
 new PlayerText:InvSlotCount[MAX_PLAYERS][MAX_SLOTS];
-new PlayerText:EBox[MAX_PLAYERS][MAX_EFFECTS];
-new PlayerText:EBox_Time[MAX_PLAYERS][MAX_EFFECTS];
-new PlayerText:SkillIco[MAX_PLAYERS][MAX_SKILLS];
-new PlayerText:SkillButton[MAX_PLAYERS][MAX_SKILLS];
-new PlayerText:SkillTime[MAX_PLAYERS][MAX_SKILLS];
 
 //Bases
-new DimakClowns[10][64] = {
-	{"Dmitriy_Staroverov"},
-	{"Irina_Novichkova"},
-	{"Maxim_Loginov"},
-	{"Olga_Tsurikova"},
-	{"Lusi_Staroverova"},
-	{"Stanislav_Tihov"},
-	{"Vladimir_Skorkin"},
-	{"Michail_Medvedik"},
-	{"Alexander_Shaikin"},
-	{"Michail_Edemsky"}
-};
-new VovakClowns[10][64] = {
-	{"Alexander_Zhukov"},
-	{"Tatyana_Cherusheva"},
-	{"Arkadiy_Zharikov"},
-	{"Vladimir_Zuev"},
-	{"Ilya_Staroverov"},
-	{"Larisa_Zueva"},
-	{"Walter_White"},
-	{"Andrey_Zhiganov"},
-	{"Michail_Staroverov"},
-	{"Michail_Krasyukov"}
-};
 new RateColors[9][16] = {
 	{"85200c"},
 	{"666666"},
@@ -280,43 +206,11 @@ new HexRateColors[9][1] = {
 	{0x76a5afff},
 	{0x6d9eebff}
 };
-new all_male_skins[11][1] = {
-	{83},	
-	{84},	
-	{120},	
-	{264},	
-	{147},	
-	{127},	
-	{204},	
-	{114},	
-	{97},	
-	{161},	
-	{287}
-};
-new all_female_skins[11][1] = {
-	{91},	
-	{214},	
-	{141},	
-	{152},	
-	{150},	
-	{169},	
-	{298},	
-	{195},	
-	{140},	
-	{198},	
-	{191}	
-};
 //Pickups
 new home_enter;
 new home_quit;
 new adm_enter;
 new adm_quit;
-new cafe_enter;
-new cafe_quit;
-new rest_enter;
-new rest_quit;
-new shop_enter;
-new shop_quit;
 new start_tp1;
 new start_tp2;
 
@@ -364,8 +258,6 @@ public OnGameModeExit()
 {
 	DeleteTextDraws();
 	KillTimer(WorldTime_Timer);
-	for (new i = 0; i < MAX_CL_ACTORS; i++)
-		DestroyActor(Actors[i]);
 	return 1;
 }
 
@@ -377,10 +269,7 @@ public OnPlayerRequestClass(playerid, classid)
 		OnPlayerLogin(playerid);
 	else
 	{
-		SendClientMessage(playerid, COLOR_LIGHTRED, "Access denied.");
-		if (PlayerConnect[playerid])
-			OnPlayerDisconnect(playerid, 1);
-		Kick(playerid);
+		//TODO
 	}
 	return 1;
 }
@@ -410,13 +299,17 @@ public OnPlayerDisconnect(playerid, reason)
 	DeletePlayerTextDraws(playerid);
 	IsInventoryOpen[playerid] = false;
 	SelectedSlot[playerid] = -1;
+
 	for (new i = 0; i < 10; i++)
 	    if (IsPlayerAttachedObjectSlotUsed(playerid, i))
 	        RemovePlayerAttachedObject(playerid, i);
+
 	PlayerConnect[playerid] = false;
+
 	for (new i = 0; i < 2; i++)
 	    if (Registration[i] == playerid)
 	        Registration[i] = -1;
+
 	return 1;
 }
 
@@ -462,41 +355,46 @@ public OnPlayerCommandText(playerid, cmdtext[])
 	new string[255];
 	if (strcmp("/spawn", cmdtext, true, 10) == 0)
 	{
+		if(PlayerInfo[playerid][Admin] == 0)
+			return 0;
+
 	    SetPlayerPos(playerid, 224.0761,-1839.8217,3.6037);
 	    SetPlayerInterior(playerid, 0);
 		return 1;
 	}
 	if (strcmp("/kill", cmdtext, true, 10) == 0)
 	{
+		if(PlayerInfo[playerid][Admin] == 0)
+			return 0;
+
 	    SetPlayerHealthEx(playerid, 0);
 		return 1;
 	}
 	if (strcmp("/arena1", cmdtext, true, 10) == 0)
 	{
+		if(PlayerInfo[playerid][Admin] == 0)
+			return 0;
+			
 	    SetPlayerPos(playerid, -2443.683,-1633.3514,767.6721);
 	    SetPlayerInterior(playerid, 0);
 		return 1;
 	}
 	if (strcmp("/arena2", cmdtext, true, 10) == 0)
 	{
+		if(PlayerInfo[playerid][Admin] == 0)
+			return 0;
+			
 	    SetPlayerPos(playerid, -2256.331,-1625.8031,767.6721);
 	    SetPlayerInterior(playerid, 0);
 		return 1;
 	}
 	if (strcmp("/arena3", cmdtext, true, 10) == 0)
 	{
+		if(PlayerInfo[playerid][Admin] == 0)
+			return 0;
+			
 	    SetPlayerPos(playerid, -2353.16186,-1630.952,723.561);
 	    SetPlayerInterior(playerid, 0);
-		return 1;
-	}
-	if (strcmp("/weapon", cmdtext, true, 10) == 0)
-	{
-	    GivePlayerWeapon(playerid, 33, 100000);
-	    return 1;
-	}
-	if (strcmp("/add", cmdtext, true, 10) == 0)
-	{
-	    //
 		return 1;
 	}
 	return 0;
@@ -528,42 +426,6 @@ public OnPlayerPickUpPickup(playerid, pickupid)
 	    SetPlayerInterior(playerid, 1);
 	    SetCameraBehindPlayer(playerid);
 	}
-	else if (pickupid == cafe_enter) {
-	    SetPlayerPos(playerid, 458.0106,-88.7452,999.5547);
-	    SetPlayerFacingAngle(playerid, 90);
-	    SetPlayerInterior(playerid, 4);
-	    SetCameraBehindPlayer(playerid);
-	}
-	else if (pickupid == cafe_quit) {
-	    SetPlayerPos(playerid, 184.4775,-1826.0322,4.1454);
-	    SetPlayerFacingAngle(playerid, 180);
-	    SetPlayerInterior(playerid, 0);
-	    SetCameraBehindPlayer(playerid);
-	}
-	else if (pickupid == rest_enter) {
-	    SetPlayerPos(playerid, 376.8676,-191.2918,1000.6328);
-	    SetPlayerFacingAngle(playerid, 0);
-	    SetPlayerInterior(playerid, 17);
-	    SetCameraBehindPlayer(playerid);
-	}
-	else if (pickupid == rest_quit) {
-	    SetPlayerPos(playerid, 265.0115,-1824.9915,3.9249);
-	    SetPlayerFacingAngle(playerid, 180);
-	    SetPlayerInterior(playerid, 0);
-	    SetCameraBehindPlayer(playerid);
-	}
-	else if (pickupid == shop_enter) {
-	    SetPlayerPos(playerid, -27.0887,-55.6914,1003.5469);
-	    SetPlayerFacingAngle(playerid, 355);
-	    SetPlayerInterior(playerid, 6);
-	    SetCameraBehindPlayer(playerid);
-	}
-	else if (pickupid == shop_quit) {
-	    SetPlayerPos(playerid, 256.2769,-1788.2694,4.2751);
-	    SetPlayerFacingAngle(playerid, 180);
-	    SetPlayerInterior(playerid, 0);
-	    SetCameraBehindPlayer(playerid);
-	}
 	else if (pickupid == start_tp1) {
 	    if (playerid == Registration[0] && IsMatchRunned) {
 	        SetPlayerPos(playerid, -2444.4160,-1633.3875,767.6721);
@@ -589,29 +451,6 @@ public OnPlayerKeyStateChange(playerid, newkeys, oldkeys)
 {
     if(newkeys & 1024) SelectTextDraw(playerid,0xCCCCFF65);
     else if(newkeys & 16) {
-        if(IsPlayerInRangeOfPoint(playerid,2.0,-23.4700,-57.3214,1003.5469)) {
-			new listitems[] = "Предмет\tЦена\n{999999}Бейсбольная бита\t{00CC00}25$\n{21aa18}Ноутбук\t{00CC00}75$\n{cc0000}Водительские права\t{00CC00}200$\n{e38614}Расписка Шажка\t{00CC00}800$";
-            ShowPlayerDialog(playerid, 3000, DIALOG_STYLE_TABLIST_HEADERS, "Circus 24/7", listitems, "Купить", "Выход");
-        }
-        else if(IsPlayerInRangeOfPoint(playerid,2.0,450.5763,-82.2320,999.5547)) {
-			new listitems[] = "Предмет\tМин. ранг\tЦена\n{85200c}Годовой майонез\t{85200c}Дерево\t{00CC00}25$\n{666666}Каменный мармелад\t{666666}Камень\t{00CC00}50$\n{4c1130}Салат Люси\t{4c1130}Железо\t{00CC00}75$";
-            ShowPlayerDialog(playerid, 3100, DIALOG_STYLE_TABLIST_HEADERS, "Кафе 'У Люси'", listitems, "Купить", "Выход");
-        }
-        else if(IsPlayerInRangeOfPoint(playerid,2.0,380.7459,-189.1151,1000.6328)) {
-			new listitems[] = "Предмет\tМин. ранг\tЦена\n{a61c00}Суп Люси\t{a61c00}Бронза\t{00CC00}100$\n{999999}Картофель 'Михаил Михайлович'\t{999999}Серебро\t{00CC00}150$\n{bf9000}Торт Дедка\t{bf9000}Золото\t{00CC00}200$\n{b7b7b7}Гусь\t{b7b7b7}Платина\t{00CC00}300$";
-            ShowPlayerDialog(playerid, 3200, DIALOG_STYLE_TABLIST_HEADERS, "Pepe's Restaurant", listitems, "Купить", "Выход");
-        }
-        else if(IsPlayerInRangeOfPoint(playerid,1.5,-2166.7527,646.0400,1052.3750)) {
-			new listitems[2800] = "Предмет\tМин. ранг\tЦена\n{999999}Маскировочный плащ\t{666666}Камень\t{00CC00}100$\n{21aa18}Красный нос\t{4c1130}Железо\t{00CC00}150$\n{21aa18}Прыгающее мороженое\t{a61c00}Бронза\t{00CC00}200$\n{379be3}Защитное одеяние Шажка\t{999999}Серебро\t{00CC00}275$";
-			strcat(listitems, "\n{379be3}Фартук Люси\t{bf9000}Золото\t{00CC00}350$\n{cc0000}Бомба усталости\t{b7b7b7}Платина\t{00CC00}500$\n{8200d9}Гребешок с киви\t{76a5af}Алмаз\t{00CC00}725$\n{e38614}Временной пузырь\t{6d9eeb}Бриллиант\t{00CC00}1000$\n{a64d79}Модный сундук\t{bf9000}Золото\t{00CC00}2000$");
-            ShowPlayerDialog(playerid, 3300, DIALOG_STYLE_TABLIST_HEADERS, "Торговец ранговыми наградами", listitems, "Купить", "Выход");
-        }
-        else if(IsPlayerInRangeOfPoint(playerid,1.5,244.6122,-1788.8988,4.2897) ||
-				IsPlayerInRangeOfPoint(playerid,1.5,259.1209,-1822.9977,4.2996)) {
-			new listitems[512];
-			format(listitems, sizeof(listitems), "Ваш баланс: %d$\nСнять наличные\nПополнить счет", PlayerInfo[playerid][Bank]);
-			ShowPlayerDialog(playerid, 4000, DIALOG_STYLE_TABLIST_HEADERS, "Банкомат", listitems, "Далее", "Выход");
-        }
         else if(IsPlayerInRangeOfPoint(playerid,1.2,-2171.3132,645.5896,1052.3817)) {
 			ShowRatingTop(playerid);
         }
@@ -621,34 +460,7 @@ public OnPlayerKeyStateChange(playerid, newkeys, oldkeys)
 			    SendClientMessage(playerid, COLOR_GREY, "Ошибка регистрации: в данный момент уже идет бой.");
 			 	return 1;
 			}
-			new name[64];
-			GetPlayerName(playerid, name, sizeof(name));
-			if (strcmp(name, grid[currentPair][blue], true) == 0) {
-			    if (Registration[0] > -1) {
-			        SendClientMessage(playerid, COLOR_GREY, "Ошибка регистрации: участник уже заявлен.");
-			        return 1;
-			    }
-			    Registration[0] = playerid;
-			    SendClientMessage(playerid, COLOR_GREEN, "Регистрация прошла успешно. Вы заявлены на синюю сторону.");
-			}
-			else if (strcmp(name, grid[currentPair][red], true) == 0) {
-			    if (Registration[1] > -1) {
-			        SendClientMessage(playerid, COLOR_GREY, "Ошибка регистрации: участник уже заявлен.");
-			        return 1;
-			    }
-			    Registration[1] = playerid;
-			    SendClientMessage(playerid, COLOR_GREEN, "Регистрация прошла успешно. Вы заявлены на красную сторону.");
-			}
-			else {
-			    SendClientMessage(playerid, COLOR_GREY, "Ошибка регистрации: вы не заявлены в текущий матч.");
-			 	return 1;
-			}
-			if (Registration[0] > -1 && Registration[1] > -1) {
-			    new msg[255];
-			    format(msg, sizeof(msg), "Начинается %d матч %d тура!", currentPair+1, currentTour);
-			    SendClientMessageToAll(0xFFCC00FF, msg);
-			    StartMatch();
-			}
+			//TODO
         }
     }
 	return 1;
@@ -657,68 +469,6 @@ public OnPlayerKeyStateChange(playerid, newkeys, oldkeys)
 public OnPlayerUpdate(playerid)
 {
 	UpdateHPBar(playerid);
-	switch (PlayerInfo[playerid][Class]) {
-	    case 0:
-	    {
-			new weapon = GetPlayerWeapon(playerid);
-			if (weapon != 8) {
-				if(IsPlayerAttachedObjectSlotUsed(playerid, 2))
-			    	RemovePlayerAttachedObject(playerid, 2);
-			    if(!IsPlayerAttachedObjectSlotUsed(playerid, 0))
-			   		SetPlayerAttachedObject(playerid,0,339,1,0.314999,-0.140000,-0.183999,-2.000004,-70.100013,0.000000,1.000000,1.000000,1.000000);
-			    if(!IsPlayerAttachedObjectSlotUsed(playerid, 1))
-			        SetPlayerAttachedObject(playerid,1,18702,1,-0.091000,-0.043999,-0.932000,4.900000,23.299947,-79.600044,0.368001,1.518997,0.576999);
-			}
-			else {
-			    if(IsPlayerAttachedObjectSlotUsed(playerid, 0))
-			    	RemovePlayerAttachedObject(playerid, 0);
-			    if(IsPlayerAttachedObjectSlotUsed(playerid, 1))
-			    	RemovePlayerAttachedObject(playerid, 1);
-			    if(!IsPlayerAttachedObjectSlotUsed(playerid, 2))
-			    	SetPlayerAttachedObject(playerid,2,18702,6,0.419999,-0.295993,0.066000,-89.599960,-48.299983,1.299939,1.005999,1.638997,0.292999);
-			}
-		}
-        case 1:
-	    {
-			new weapon = GetPlayerWeapon(playerid);
-			if (weapon != 33) {
-				if(IsPlayerAttachedObjectSlotUsed(playerid, 2))
-			    	RemovePlayerAttachedObject(playerid, 2);
-			    if(!IsPlayerAttachedObjectSlotUsed(playerid, 0))
-			   		SetPlayerAttachedObject(playerid,0,357,1,0.020000,-0.183000,-0.082999,-2.199997,5.299992,8.400010,1.000000,1.000000,1.000000);
-			    if(!IsPlayerAttachedObjectSlotUsed(playerid, 1))
-			        SetPlayerAttachedObject(playerid,1,18701,1,-1.767000,-0.110999,-0.000000,0.000000,88.999977,0.000000,0.274999,0.328999,1.581998);
-			}
-			else {
-			    if(IsPlayerAttachedObjectSlotUsed(playerid, 0))
-			    	RemovePlayerAttachedObject(playerid, 0);
-			    if(IsPlayerAttachedObjectSlotUsed(playerid, 1))
-			    	RemovePlayerAttachedObject(playerid, 1);
-			    if(!IsPlayerAttachedObjectSlotUsed(playerid, 2))
-			    	SetPlayerAttachedObject(playerid,2,18701,6,-0.846999,-0.049999,-0.038001,-0.599998,81.800041,0.000000,1.000000,1.000000,1.000000);
-			}
-		}
-		case 4:
-	    {
-			new weapon = GetPlayerWeapon(playerid);
-			if (weapon != 4) {
-				if(IsPlayerAttachedObjectSlotUsed(playerid, 2))
-			    	RemovePlayerAttachedObject(playerid, 2);
-			    if(!IsPlayerAttachedObjectSlotUsed(playerid, 0))
-			   		SetPlayerAttachedObject(playerid,0,335,1,-0.230000,-0.166000,-0.098999,0.000000,0.000000,0.000000,1.000000,1.000000,1.000000);
-			    if(!IsPlayerAttachedObjectSlotUsed(playerid, 1))
-			        SetPlayerAttachedObject(playerid,1,18700,1,-0.736002,-0.147000,-0.040999,-15.300129,88.900077,101.699996,1.273999,1.680000,0.358000);
-			}
-			else {
-			    if(IsPlayerAttachedObjectSlotUsed(playerid, 0))
-			    	RemovePlayerAttachedObject(playerid, 0);
-			    if(IsPlayerAttachedObjectSlotUsed(playerid, 1))
-			    	RemovePlayerAttachedObject(playerid, 1);
-			    if(!IsPlayerAttachedObjectSlotUsed(playerid, 2))
-			    	SetPlayerAttachedObject(playerid,2,18700,6,0.000000,0.107999,-1.505000,0.000000,0.000000,0.000000,1.000000,1.000000,1.000000);
-			}
-		}
-	}
 	return 1;
 }
 
@@ -726,83 +476,27 @@ public OnDialogResponse(playerid, dialogid, response, listitem, inputtext[])
 {
 	//1000-1005 - вход в игру
 	//2000 - инвентарь
-	//3000 - circus 24/7
-	//3100 - кафе
-	//3200 - ресторан
-	//3300 - торговец ранговыми наградами
-	//4000-4003 - банкомат
 	//1 - пустой
-	//2,3 - выбор класса
+	//2,3 - ??
 	
 	switch (dialogid) {
 	    case 1: { return 1; }
 	    case 2:
 	    {
-	        if (response) {
-	            for (new i = 0; i < 6; i++)
-	                class_count[i] = 0;
-				new listitems[1024];
-				new path[64];
-				new File;
-				for (new i = 0; i < 10; i++) {
-				    format(path, sizeof(path), "Players/%s.ini", VovakClowns[i]);
-				    File = ini_openFile(path);
-				    new pclass;
-				    ini_getInteger(File, "Class", pclass);
-				    if (pclass > -1)
-				        class_count[pclass]++;
-				    ini_closeFile(File);
-				}
-				for (new i = 0; i < 10; i++) {
-				    format(path, sizeof(path), "Players/%s.ini", DimakClowns[i]);
-				    File = ini_openFile(path);
-				    new pclass;
-				    ini_getInteger(File, "Class", pclass);
-				    if (pclass > -1)
-				        class_count[pclass]++;
-				    ini_closeFile(File);
-				}
-				format(listitems, sizeof(listitems), "Класс\tПерсонажей\n{1155cc}Фехтовальщик\t{ffffff}%d\n{bc351f}Гренадер\t{ffffff}%d\n{134f5c}Боец\t{ffffff}%d\n{f97403}Чародей\t{ffffff}%d\n{5b419b}Ассасин\t{ffffff}%d\n{9900ff}Иллюзионист\t{ffffff}%d", class_count[0],
-				       class_count[1], class_count[2], class_count[3], class_count[4], class_count[5]);
-	            ShowPlayerDialog(playerid, 3, DIALOG_STYLE_TABLIST_HEADERS, "Выбор класса", listitems, "Выбрать", "Отмена");
-	        }
-	        else return 1;
+	        //TODO
+			return 1;
 	    }
 		case 3:
 		{
-		    if (response) {
-		        if (class_count[listitem] >= 5) {
-					ShowPlayerDialog(playerid, 1, DIALOG_STYLE_MSGBOX, "Ошибка", "{FF6347}Количество персонажей выбранного класса достигло максимума. Невозможно выбрать класс.\nОтключение от сервера.", "ОК", "");
-					Kick(playerid);
-					return 1;
-		        }
-		        PlayerInfo[playerid][Class] = listitem;
-		        UpdateCharacter(playerid);
-		        ShowSkillPanel(playerid);
-		        SendClientMessage(playerid, COLOR_LIGHTRED, "Класс выбран успешно!");
-		    }
-		    else return 1;
+		    //TODO
+			return 1;
 		}
 	    case 1000:
 	    {
 			if (response) {
 			    switch (listitem)
 			    {
-			        case 0:
-			        {
-			            new listitems[] = "{FF0000}Участники Вовака\n{0066FF}Участники Димака\n{33FF66}Участники Тани";
-			            ShowPlayerDialog(playerid, 1001, DIALOG_STYLE_LIST, "Вход в игру", listitems, "Выбрать", "Назад");
-			        }
-			        case 1:
-			        {
-			        }
-			        case 2:
-			        {
-			        }
-			        case 3:
-			        {
-			            ShowTourGrid(playerid);
-			        }
+			        
 			    }
 			}
 			else
@@ -814,26 +508,11 @@ public OnDialogResponse(playerid, dialogid, response, listitem, inputtext[])
                 new listitems[4000];
 			    switch (listitem)
 			    {
-			        case 0:
-			        {
-			            listitems = CreateVovakPlayersList();
-			            ShowPlayerDialog(playerid, 1002, DIALOG_STYLE_TABLIST_HEADERS, "Вход в игру", listitems, "Войти", "Назад");
-			        }
-			        case 1:
-			        {
-			            listitems = CreateDimakPlayersList();
-			            ShowPlayerDialog(playerid, 1003, DIALOG_STYLE_TABLIST_HEADERS, "Вход в игру", listitems, "Войти", "Назад");
-			        }
-			        case 2:
-			        {
-			        	listitems = CreateTanyaPlayersList();
-			            ShowPlayerDialog(playerid, 1004, DIALOG_STYLE_TABLIST_HEADERS, "Вход в игру", listitems, "Войти", "Назад");
-			        }
+			        
 			    }
 			}
 			else {
-			    new listitems[] = "{82eb9d}Выбрать участника для входа\n{ca0000}Войти за участника (красная сторона)\n{007dff}Войти за участника (синяя сторона)\n{e5ff11}Турнирная сетка";
-				ShowPlayerDialog(playerid, 1000, DIALOG_STYLE_LIST, "Вход в игру", listitems, "Выбрать", "Выход");
+			    
 			}
 	    }
 	    case 1002:
@@ -843,329 +522,37 @@ public OnDialogResponse(playerid, dialogid, response, listitem, inputtext[])
 				for (new i = 0; i < MAX_PLAYERS; i++) {
 				    if (!IsPlayerConnected(i)) continue;
 					GetPlayerName(i, name, sizeof(name));
-					if (strcmp(name, VovakClowns[listitem], true) == 0) {
+					if (strcmp(name, Participants[listitem], true) == 0) {
 					    SendClientMessage(playerid, COLOR_GREY, "В данный момент этот персонаж находится в игре. Переключение невозможно.");
 					    return 1;
 					}
 				}
 				if (PlayerConnect[playerid])
 				    OnPlayerDisconnect(playerid, 1);
-				SetPlayerName(playerid, VovakClowns[listitem]);
+				SetPlayerName(playerid, Participants[listitem]);
 				LoadAccount(playerid);
 	            OnPlayerLogin(playerid);
 	        }
 	        else {
-	            new listitems[] = "{FF0000}Участники Вовака\n{0066FF}Участники Димака\n{33FF66}Участники Тани";
-			 	ShowPlayerDialog(playerid, 1001, DIALOG_STYLE_LIST, "Вход в игру", listitems, "Выбрать", "Назад");
+	            
 	        }
 	    }
 	    case 1003:
 	    {
-            if (response) {
-                new name[64];
-				for (new i = 0; i < MAX_PLAYERS; i++) {
-				    if (!IsPlayerConnected(i)) continue;
-					GetPlayerName(i, name, sizeof(name));
-					if (strcmp(name, DimakClowns[listitem], true) == 0) {
-					    SendClientMessage(playerid, COLOR_GREY, "В данный момент этот персонаж находится в игре. Переключение невозможно.");
-					    return 1;
-					}
-				}
-				if (PlayerConnect[playerid])
-				    OnPlayerDisconnect(playerid, 1);
-				SetPlayerName(playerid, DimakClowns[listitem]);
-				LoadAccount(playerid);
-	            OnPlayerLogin(playerid);
-	        }
-	        else {
-	            new listitems[] = "{FF0000}Участники Вовака\n{0066FF}Участники Димака\n{33FF66}Участники Тани";
-			 	ShowPlayerDialog(playerid, 1001, DIALOG_STYLE_LIST, "Вход в игру", listitems, "Выбрать", "Назад");
-	        }
+            
 	    }
 	    case 1004:
 	    {
-            if (response) {
-                new name[64];
-				for (new i = 0; i < MAX_PLAYERS; i++) {
-				    if (!IsPlayerConnected(i)) continue;
-					GetPlayerName(i, name, sizeof(name));
-					if (strcmp(name, TanyaClowns[listitem], true) == 0) {
-					    SendClientMessage(playerid, COLOR_GREY, "В данный момент этот персонаж находится в игре. Переключение невозможно.");
-					    return 1;
-					}
-				}
-				if (PlayerConnect[playerid])
-				    OnPlayerDisconnect(playerid, 1);
-				SetPlayerName(playerid, TanyaClowns[listitem]);
-				LoadAccount(playerid);
-	            OnPlayerLogin(playerid);
-	        }
-	        else {
-	            new listitems[] = "{FF0000}Участники Вовака\n{0066FF}Участники Димака\n{33FF66}Участники Тани";
-			 	ShowPlayerDialog(playerid, 1001, DIALOG_STYLE_LIST, "Вход в игру", listitems, "Выбрать", "Назад");
-	        }
+            
 	    }
 	    case 1005:
 	    {
-	        new listitems[] = "{82eb9d}Выбрать участника для входа\n{ca0000}Войти за участника (красная сторона)\n{007dff}Войти за участника (синяя сторона)\n{e5ff11}Турнирная сетка";
-			ShowPlayerDialog(playerid, 1000, DIALOG_STYLE_LIST, "Вход в игру", listitems, "Выбрать", "Выход");
+	        
 	    }
 	    case 2000:
 	    {
 	        if (response)
 	        	DeleteSelectedItem(playerid);
-	    }
-	    case 3000:
-	    {
-	        if (response) {
-	            new buying_item;
-	            new price;
-	            new count = 1;
-	            switch (listitem) {
-	                case 0:
-	                {
-	                    price = 25;
-	                    buying_item = 336;
-	                }
-	                case 1:
-	                {
-	                    price = 75;
-	                    buying_item = 19893;
-	                }
-	                case 2:
-	                {
-	                    price = 200;
-	                    buying_item = 1581;
-	                }
-	                case 3:
-	                {
-	                    price = 800;
-	                    buying_item = 2684;
-	                }
-	            }
-	            if (PlayerInfo[playerid][Cash] >= price) {
-                    if (GetItemSlot(playerid, buying_item) == -1 && GetInvEmptySlots(playerid) == 0) {
-                        ShowPlayerDialog(playerid, 1, DIALOG_STYLE_MSGBOX, "Ошибка", "Невозможно приобрести предмет: инвентарь полон.", "Закрыть", "");
-                        return 1;
-                    }
-                    PlayerInfo[playerid][Cash] -= price;
-                    GivePlayerMoney(playerid, -price);
-                    AddItem(playerid, buying_item, count);
-                    SendClientMessage(playerid, 0xFFFFFFFF, "Предмет куплен.");
-                }
-                else SendClientMessage(playerid, COLOR_GREY, "Недостаточно средств.");
-	        }
-	        else return 1;
-	    }
-	    case 3100:
-	    {
-	        if (response) {
-	            new price;
-				new effect;
-				new time;
-	            switch (listitem) {
-	                case 0:
-	                {
-	                    price = 25;
-	                    if (GetRndResult(50)) effect = EFFECT_MAYO_POSITIVE;
-	                    else effect = EFFECT_MAYO_NEGATIVE;
-	                    time = 100;
-	                }
-	                case 1:
-	                {
-	                    if (PlayerInfo[playerid][Rate] < 501) {
-	                        SendClientMessage(playerid, COLOR_GREY, "У вас слишком низкий рейтинг для этого предмета.");
-	                        return 1;
-	                    }
-	                    price = 50;
-	                    if (GetRndResult(50)) effect = EFFECT_MARMELADE_POSITIVE;
-	                    else effect = EFFECT_MARMELADE_NEGATIVE;
-	                    time = 100;
-	                }
-	                case 2:
-	                {
-	                    if (PlayerInfo[playerid][Rate] < 1001) {
-	                        SendClientMessage(playerid, COLOR_GREY, "У вас слишком низкий рейтинг для этого предмета.");
-	                        return 1;
-	                    }
-	                    price = 75;
-	                    if (GetRndResult(50)) effect = EFFECT_SALAT_POSITIVE;
-	                    else effect = EFFECT_SALAT_NEGATIVE;
-	                    time = 120;
-	                }
-	            }
-	            if (PlayerInfo[playerid][Cash] >= price) {
-	                new slot = FindEffectSlotForEat(playerid);
-                    PlayerInfo[playerid][Cash] -= price;
-                    GivePlayerMoney(playerid, -price);
-                    SetPlayerEffect(playerid, effect, time, slot);
-                    SendClientMessage(playerid, 0xFFFFFFFF, "Предмет куплен.");
-                }
-                else SendClientMessage(playerid, COLOR_GREY, "Недостаточно средств.");
-	        }
-	        else return 1;
-	    }
-	    case 3200:
-	    {
-	        if (response) {
-	            new price;
-				new effect;
-				new time;
-	            switch (listitem) {
-	                case 0:
-	                {
-	                    if (PlayerInfo[playerid][Rate] < 1201) {
-	                        SendClientMessage(playerid, COLOR_GREY, "У вас слишком низкий рейтинг для этого предмета.");
-	                        return 1;
-	                    }
-	                    price = 100;
-	                    effect = EFFECT_SOUP;
-	                    time = 80;
-	                }
-	                case 1:
-	                {
-	                    if (PlayerInfo[playerid][Rate] < 1401) {
-	                        SendClientMessage(playerid, COLOR_GREY, "У вас слишком низкий рейтинг для этого предмета.");
-	                        return 1;
-	                    }
-	                    price = 150;
-	                    effect = EFFECT_POTATO;
-	                    time = 90;
-	                }
-	                case 2:
-	                {
-	                    if (PlayerInfo[playerid][Rate] < 1601) {
-	                        SendClientMessage(playerid, COLOR_GREY, "У вас слишком низкий рейтинг для этого предмета.");
-	                        return 1;
-	                    }
-	                    price = 200;
-	                    effect = EFFECT_CAKE;
-	                    time = 100;
-	                }
-	                case 3:
-	                {
-	                    if (PlayerInfo[playerid][Rate] < 2001) {
-	                        SendClientMessage(playerid, COLOR_GREY, "У вас слишком низкий рейтинг для этого предмета.");
-	                        return 1;
-	                    }
-	                    price = 300;
-	                    effect = EFFECT_GOOSE;
-	                    time = 130;
-	                }
-	            }
-	            if (PlayerInfo[playerid][Cash] >= price) {
-	                new slot = FindEffectSlotForEat(playerid);
-                    PlayerInfo[playerid][Cash] -= price;
-                    GivePlayerMoney(playerid, -price);
-                    SetPlayerEffect(playerid, effect, time, slot);
-                    SendClientMessage(playerid, 0xFFFFFFFF, "Предмет куплен.");
-                }
-                else SendClientMessage(playerid, COLOR_GREY, "Недостаточно средств.");
-	        }
-	        else return 1;
-	    }
-        case 3300:
-	    {
-	        if (response) {
-	            new buying_item;
-	            new price;
-	            new count = 1;
-	            switch (listitem) {
-	                case 0:
-	                {
-	                    if (PlayerInfo[playerid][Rate] < 501) {
-	                        SendClientMessage(playerid, COLOR_GREY, "У вас слишком низкий рейтинг для этого предмета.");
-	                        return 1;
-	                    }
-	                    price = 100;
-	                    buying_item = 1242;
-	                }
-	                case 1:
-	                {
-	                    if (PlayerInfo[playerid][Rate] < 1001) {
-	                        SendClientMessage(playerid, COLOR_GREY, "У вас слишком низкий рейтинг для этого предмета.");
-	                        return 1;
-	                    }
-	                    price = 150;
-	                    buying_item = 19577;
-	                }
-	                case 2:
-	                {
-	                    if (PlayerInfo[playerid][Rate] < 1201) {
-	                        SendClientMessage(playerid, COLOR_GREY, "У вас слишком низкий рейтинг для этого предмета.");
-	                        return 1;
-	                    }
-	                    price = 200;
-	                    buying_item = 2726;
-	                }
-	                case 3:
-	                {
-	                    if (PlayerInfo[playerid][Rate] < 1401) {
-	                        SendClientMessage(playerid, COLOR_GREY, "У вас слишком низкий рейтинг для этого предмета.");
-	                        return 1;
-	                    }
-	                    price = 275;
-	                    buying_item = 2689;
-	                }
-	                case 4:
-	                {
-	                    if (PlayerInfo[playerid][Rate] < 1601) {
-	                        SendClientMessage(playerid, COLOR_GREY, "У вас слишком низкий рейтинг для этого предмета.");
-	                        return 1;
-	                    }
-	                    price = 350;
-	                    buying_item = 2411;
-	                }
-	                case 5:
-	                {
-	                    if (PlayerInfo[playerid][Rate] < 2001) {
-	                        SendClientMessage(playerid, COLOR_GREY, "У вас слишком низкий рейтинг для этого предмета.");
-	                        return 1;
-	                    }
-	                    price = 500;
-	                    buying_item = 1252;
-	                }
-	                case 6:
-	                {
-	                    if (PlayerInfo[playerid][Rate] < 2301) {
-	                        SendClientMessage(playerid, COLOR_GREY, "У вас слишком низкий рейтинг для этого предмета.");
-	                        return 1;
-	                    }
-	                    price = 725;
-	                    buying_item = 19883;
-	                }
-	                case 7:
-	                {
-	                    if (PlayerInfo[playerid][Rate] < 2701) {
-	                        SendClientMessage(playerid, COLOR_GREY, "У вас слишком низкий рейтинг для этого предмета.");
-	                        return 1;
-	                    }
-	                    price = 1000;
-	                    buying_item = 1944;
-	                }
-	                case 8:
-	                {
-	                    if (PlayerInfo[playerid][Rate] < 1601) {
-	                        SendClientMessage(playerid, COLOR_GREY, "У вас слишком низкий рейтинг для этого предмета.");
-	                        return 1;
-	                    }
-	                    price = 2000;
-	                    buying_item = 2710;
-	                }
-	            }
-	            if (PlayerInfo[playerid][Cash] >= price) {
-                    if (GetItemSlot(playerid, buying_item) == -1 && GetInvEmptySlots(playerid) == 0) {
-                        ShowPlayerDialog(playerid, 1, DIALOG_STYLE_MSGBOX, "Ошибка", "Невозможно приобрести предмет: инвентарь полон.", "Закрыть", "");
-                        return 1;
-                    }
-                    PlayerInfo[playerid][Cash] -= price;
-                    GivePlayerMoney(playerid, -price);
-                    AddItem(playerid, buying_item, count);
-                    SendClientMessage(playerid, 0xFFFFFFFF, "Предмет куплен.");
-                }
-                else SendClientMessage(playerid, COLOR_GREY, "Недостаточно средств.");
-	        }
-	        else return 1;
 	    }
 	}
 	return 1;
@@ -1189,19 +576,9 @@ public OnPlayerClickPlayerTextDraw(playerid, PlayerText:playertextid)
 		ShowInfo(playerid);
 		return 1;
     }
-    else if (playertextid == PanelUndress[playerid])
-    {
-		if (PlayerInfo[playerid][Skin] == 252 || PlayerInfo[playerid][Skin] == 138) {
-		    ShowPlayerDialog(playerid, 1, DIALOG_STYLE_MSGBOX, "Ошибка", "Костюм не используется.", "ОК", "");
-		    return 1;
-		}
-		UndressSkin(playerid);
-		return 1;
-    }
     else if (playertextid == PanelSwitch[playerid])
     {
-		new listitems[] = "{82eb9d}Выбрать участника для входа\n{ca0000}Войти за участника (красная сторона)\n{007dff}Войти за участника (синяя сторона)\n{e5ff11}Турнирная сетка";
-		ShowPlayerDialog(playerid, 1000, DIALOG_STYLE_LIST, "Вход в игру", listitems, "Выбрать", "Выход");
+		//TODO
 		return 1;
     }
 	else if (playertextid == inv_ico[playerid])
@@ -1789,210 +1166,12 @@ stock GetPlayerSex(playerid) {
 	return sex;
 }
 
-//Снять костюм
-stock UndressSkin(playerid)
-{
-    if (GetInvEmptySlots(playerid) == 0) {
-	    ShowPlayerDialog(playerid, 1, DIALOG_STYLE_MSGBOX, "Ошибка", "Невозможно снять костюм: инвентарь полон.", "ОК", "");
-	    return;
-	}
-	AddItem(playerid, PlayerInfo[playerid][Skin], 1);
-	if (PlayerInfo[playerid][Sex] == 0)
-	    PlayerInfo[playerid][Skin] = 252;
-	else
-	    PlayerInfo[playerid][Skin] = 138;
-	SetPlayerSkin(playerid, PlayerInfo[playerid][Skin]);
-}
-
 //Использовать предмет
 stock UseItem(playerid, slot)
 {
 	new item = PlayerInfo[playerid][Inventory][slot];
 	switch (item) {
-	    case 83,91,84,214,120,141,264,152,147,150,127,169,204,298,114,195,97,140,161,198,287,191:
-	    {
-            PlayerInfo[playerid][InventoryCount][slot]--;
-	        if (PlayerInfo[playerid][InventoryCount][slot] <= 0) {
-	            PlayerInfo[playerid][InventoryCount][slot] = 0;
-	            PlayerInfo[playerid][Inventory][slot] = 0;
-	        }
-	        UpdateSlot(playerid, slot);
-			if (PlayerInfo[playerid][Skin] != 252 && PlayerInfo[playerid][Skin] != 138)
-			    UndressSkin(playerid);
-	        PlayerInfo[playerid][Skin] = item;
-	        SetPlayerSkin(playerid, PlayerInfo[playerid][Skin]);
-	    }
-	    case 296:
-	    {
-	        if (PlayerInfo[playerid][Sex] == 1) {
-	            ShowPlayerDialog(playerid, 1, DIALOG_STYLE_MSGBOX, "Ошибка", "Данный предмет могут носить только персонажи мужского пола.", "Закрыть", "");
-	        	return;
-	        }
-	        PlayerInfo[playerid][InventoryCount][slot]--;
-	        if (PlayerInfo[playerid][InventoryCount][slot] <= 0) {
-	            PlayerInfo[playerid][InventoryCount][slot] = 0;
-	            PlayerInfo[playerid][Inventory][slot] = 0;
-	        }
-	        UpdateSlot(playerid, slot);
-			if (PlayerInfo[playerid][Skin] != 252 && PlayerInfo[playerid][Skin] != 138)
-			    UndressSkin(playerid);
-	        PlayerInfo[playerid][Skin] = item;
-	        SetPlayerSkin(playerid, PlayerInfo[playerid][Skin]);
-	    }
-	    case 1581, 2684:
-	    {
-	        ShowPlayerDialog(playerid, 1, DIALOG_STYLE_MSGBOX, "Ошибка", "Данный предмет является пассивным. Использование невозможно.", "Закрыть", "");
-	        return;
-	    }
-	    //Максировочный плащ
-	    case 1242:
-	    {
-	        if (!IsBattleBegins) {
-	            ShowPlayerDialog(playerid, 1, DIALOG_STYLE_MSGBOX, "Ошибка", "Вы не находитесь в режиме боя. Использование невозможно.", "Закрыть", "");
-				return;
-	        }
-	        //activity
-	    }
-	    //Красный нос
-	    case 19577:
-	    {
-	        if (!IsBattleBegins) {
-	            ShowPlayerDialog(playerid, 1, DIALOG_STYLE_MSGBOX, "Ошибка", "Вы не находитесь в режиме боя. Использование невозможно.", "Закрыть", "");
-				return;
-	        }
-	        //activity
-	    }
-	    //Прыгающее мороженое
-	    case 2726:
-	    {
-	        if (!IsBattleBegins) {
-	            ShowPlayerDialog(playerid, 1, DIALOG_STYLE_MSGBOX, "Ошибка", "Вы не находитесь в режиме боя. Использование невозможно.", "Закрыть", "");
-				return;
-	        }
-	        //activity
-	    }
-        //Защитное одеяние Шажка
-	    case 2689:
-	    {
-	        if (!IsBattleBegins) {
-	            ShowPlayerDialog(playerid, 1, DIALOG_STYLE_MSGBOX, "Ошибка", "Вы не находитесь в режиме боя. Использование невозможно.", "Закрыть", "");
-				return;
-	        }
-			SetPlayerEffect(playerid, EFFECT_SHAZOK_GEAR, 10, FindEffectSlot(playerid));
-	    }
-	    //Фартук Люси
-	    case 2411:
-	    {
-	        if (!IsBattleBegins) {
-	            ShowPlayerDialog(playerid, 1, DIALOG_STYLE_MSGBOX, "Ошибка", "Вы не находитесь в режиме боя. Использование невозможно.", "Закрыть", "");
-				return;
-	        }
-			SetPlayerEffect(playerid, EFFECT_LUSI_APRON, 6, FindEffectSlot(playerid));
-	    }
-	    //Бомба усталости
-	    case 1252:
-	    {
-	        if (!IsBattleBegins) {
-	            ShowPlayerDialog(playerid, 1, DIALOG_STYLE_MSGBOX, "Ошибка", "Вы не находитесь в режиме боя. Использование невозможно.", "Закрыть", "");
-				return;
-	        }
-	        //activity
-	    }
-	    //Гребешок с киви
-	    case 19883:
-	    {
-	        if (!IsBattleBegins) {
-	            ShowPlayerDialog(playerid, 1, DIALOG_STYLE_MSGBOX, "Ошибка", "Вы не находитесь в режиме боя. Использование невозможно.", "Закрыть", "");
-				return;
-	        }
-	        //activity
-	    }
-	    //Временной пузырь
-	    case 1944:
-	    {
-	        if (!IsBattleBegins) {
-	            ShowPlayerDialog(playerid, 1, DIALOG_STYLE_MSGBOX, "Ошибка", "Вы не находитесь в режиме боя. Использование невозможно.", "Закрыть", "");
-				return;
-	        }
-	        //activity
-	    }
-	    case 2710:
-	    {
-	        if (GetInvEmptySlots(playerid) == 0) {
-	            ShowPlayerDialog(playerid, 1, DIALOG_STYLE_MSGBOX, "Ошибка", "Невозможно использовать предмет: инвентарь полон.", "Закрыть", "");
-                return;
-	        }
-	        new rnd = random(100);
-	        switch (rnd) {
-	            case 0..29:
-	            {
-	                AddItem(playerid, 296, 1);
-                    ShowPlayerDialog(playerid, 1, DIALOG_STYLE_MSGBOX, "{a64d79}Модный сундук", "{ffffff}Вы получили: [{a64d79}Костюм гея{ffffff}].", "Закрыть", "");
-	            }
-	            case 30..55:
-	            {
-					if (PlayerInfo[playerid][Sex] == 0)
-	                	AddItem(playerid, 287, 1);
-					else
-					    AddItem(playerid, 191, 1);
-                    ShowPlayerDialog(playerid, 1, DIALOG_STYLE_MSGBOX, "{a64d79}Модный сундук", "{ffffff}Вы получили: [{a64d79}Военная форма{ffffff}].", "Закрыть", "");
-	            }
-	            case 56..70:
-	            {
-					if (PlayerInfo[playerid][Sex] == 0)
-	                	AddItem(playerid, 161, 1);
-					else
-					    AddItem(playerid, 198, 1);
-                    ShowPlayerDialog(playerid, 1, DIALOG_STYLE_MSGBOX, "{a64d79}Модный сундук", "{ffffff}Вы получили: [{a64d79}Костюм фермера{ffffff}].", "Закрыть", "");
-	            }
-	            case 71..82:
-	            {
-					if (PlayerInfo[playerid][Sex] == 0)
-	                	AddItem(playerid, 97, 1);
-					else
-					    AddItem(playerid, 140, 1);
-                    ShowPlayerDialog(playerid, 1, DIALOG_STYLE_MSGBOX, "{a64d79}Модный сундук", "{ffffff}Вы получили: [{a64d79}Купальный костюм{ffffff}].", "Закрыть", "");
-	            }
-	            case 83..89:
-	            {
-					if (PlayerInfo[playerid][Sex] == 0)
-	                	AddItem(playerid, 114, 1);
-					else
-					    AddItem(playerid, 195, 1);
-                    ShowPlayerDialog(playerid, 1, DIALOG_STYLE_MSGBOX, "{a64d79}Модный сундук", "{ffffff}Вы получили: [{a64d79}Костюм 'Глава района'{ffffff}].", "Закрыть", "");
-	            }
-	            case 90..94:
-	            {
-					if (PlayerInfo[playerid][Sex] == 0)
-	                	AddItem(playerid, 204, 1);
-					else
-					    AddItem(playerid, 298, 1);
-                    ShowPlayerDialog(playerid, 1, DIALOG_STYLE_MSGBOX, "{a64d79}Модный сундук", "{ffffff}Вы получили: [{a64d79}Костюм мастера боевых искусств{ffffff}].", "Закрыть", "");
-	            }
-	            case 95..97:
-	            {
-					if (PlayerInfo[playerid][Sex] == 0)
-	                	AddItem(playerid, 127, 1);
-					else
-					    AddItem(playerid, 169, 1);
-                    ShowPlayerDialog(playerid, 1, DIALOG_STYLE_MSGBOX, "{a64d79}Модный сундук", "{ffffff}Вы получили: [{a64d79}Костюм правой руки Шажка{ffffff}].", "Закрыть", "");
-	            }
-	            default:
-	            {
-					if (PlayerInfo[playerid][Sex] == 0)
-	                	AddItem(playerid, 147, 1);
-					else
-					    AddItem(playerid, 150, 1);
-                    ShowPlayerDialog(playerid, 1, DIALOG_STYLE_MSGBOX, "{a64d79}Модный сундук", "{ffffff}Вы получили: [{a64d79}Костюм 'ВСДД'{ffffff}].", "Закрыть", "");
-	            }
-	        }
-	        PlayerInfo[playerid][InventoryCount][slot]--;
-	        if (PlayerInfo[playerid][InventoryCount][slot] <= 0) {
-	            PlayerInfo[playerid][InventoryCount][slot] = 0;
-	            PlayerInfo[playerid][Inventory][slot] = 0;
-	        }
-	        UpdateSlot(playerid, slot);
-	    }
+	    //TODO:
 	}
 }
 
@@ -2053,17 +1232,13 @@ stock GetItemSlot(playerid, item)
 stock AddItem(playerid, item, count)
 {
     new slot;
-	switch (item) {
-	    case 83,91,84,214,120,141,264,152,147,150,127,169,204,298,114,195,97,140,161,198,287,191,296:
-	    {
-	        slot = GetFirstEmptySlot(playerid);
-	    }
-	    default:
-	    {
-	        slot = GetItemSlot(playerid, item);
-			if (slot == -1)
-			    slot = GetFirstEmptySlot(playerid);
-	    }
+	if (IsEquip(item))
+		slot = GetFirstEmptySlot(playerid);
+	else
+	{
+		slot = GetItemSlot(playerid, item);
+		if (slot == -1)
+			slot = GetFirstEmptySlot(playerid);
 	}
     if (slot == -1) {
         SendClientMessage(playerid, COLOR_LIGHTRED, "Ошибка при добавлении предмета: инвентарь полон.");
@@ -2110,7 +1285,7 @@ stock UpdateHPBar(playerid)
 	GetPlayerHealth(playerid, hp);
 	new percents = floatround(hp);
 	new string[64];
-	format(string, sizeof(string), "%d%% %d/%d", percents, floatround(floatmul(hp, 100)), 10000);
+	format(string, sizeof(string), "%d%% %d/%d", percents, floatround(floatmul(hp, 100)), MaxHP[playerid]);
 	PlayerTextDrawSetString(playerid, HPBar[playerid], string);
 }
 
@@ -2143,36 +1318,7 @@ stock SetInvModel(playerid, slot)
 	    return;
 	}
     PlayerTextDrawSetPreviewModel(playerid, InvSlot[playerid][slot], PlayerInfo[playerid][Inventory][slot]);
-	switch (PlayerInfo[playerid][Inventory][slot]) {
-	    case 336, 1221, 1224, 19577:
-	    {
-			PlayerTextDrawSetPreviewRot(playerid, InvSlot[playerid][slot], 45.0, 30.0, 0.0, 1.0);
-	    }
-	    case 19893, 1581:
-	    {
-            PlayerTextDrawSetPreviewRot(playerid, InvSlot[playerid][slot], 0.0, 0.0, 180.0, 1.0);
-	    }
-	    case 19572, 19918:
-	    {
-            PlayerTextDrawSetPreviewRot(playerid, InvSlot[playerid][slot], 45.0, 0.0, 0.0, 1.0);
-	    }
-	    case 19054..19058:
-	    {
-            PlayerTextDrawSetPreviewRot(playerid, InvSlot[playerid][slot], 330.0, 0.0, 0.0, 1.0);
-	    }
-	    case 19883:
-	    {
-            PlayerTextDrawSetPreviewRot(playerid, InvSlot[playerid][slot], 90.0, 0.0, 0.0, 1.0);
-	    }
-        case 2710:
-	    {
-            PlayerTextDrawSetPreviewRot(playerid, InvSlot[playerid][slot], 0.0, 0.0, 90.0, 1.0);
-	    }
-	    default:
-	    {
-            PlayerTextDrawSetPreviewRot(playerid, InvSlot[playerid][slot], 0.0, 0.0, 0.0, 1.0);
-	    }
-	}	
+	UpdateSlotModelRot(playerid, slot);	
 }
 
 //Показать интерфейс
@@ -2229,15 +1375,15 @@ stock HideInventory(playerid)
 	SelectedSlot[playerid] = -1;
 }
 
-//Формирует список участников Вовака
-stock CreateVovakPlayersList() {
-	new players[4000] = "Имя\tКласс\tРейтинг";
+//Формирует список участников
+stock CreatePlayersList() {
+	new players[4000] = "Имя\tРейтинг";
 	new string[128];
 	new data[512];
 	new rate;
 	new classid;
 	for (new i = 0; i < 10; i++) {
-		format(string, sizeof(string), "Players/%s.ini", VovakClowns[i]);
+		format(string, sizeof(string), "Players/%s.ini", Participants[i]);
 		new File = ini_openFile(string);
 		if (File < 0) {
 		    SendClientMessageToAll(COLOR_LIGHTRED, "Ошибка инициализации базы данных.");
@@ -2245,33 +1391,8 @@ stock CreateVovakPlayersList() {
 		    break;
 		}
 		ini_getInteger(File, "Rate", rate);
-		ini_getInteger(File, "Class", classid);
 		ini_closeFile(File);
-		format(data, sizeof(data), "\n{%s}%s\t%s\t{%s}%d", GetColorByRate(rate), VovakClowns[i], GetClassNameByID(classid), GetColorByRate(rate), rate);
-		strcat(players, data);
-	}
-	return players;
-}
-
-//Формирует список участников Димака
-stock CreateDimakPlayersList() {
-	new players[4000] = "Имя\tКласс\tРейтинг";
-	new string[128];
-	new data[512];
-	new rate;
-	new classid;
-	for (new i = 0; i < 10; i++) {
-		format(string, sizeof(string), "Players/%s.ini", DimakClowns[i]);
-		new File = ini_openFile(string);
-		if (File < 0) {
-		    SendClientMessageToAll(COLOR_LIGHTRED, "Ошибка инициализации базы данных.");
-		    players = "";
-		    break;
-		}
-		ini_getInteger(File, "Rate", rate);
-		ini_getInteger(File, "Class", classid);
-		ini_closeFile(File);
-		format(data, sizeof(data), "\n{%s}%s\t%s\t{%s}%d", GetColorByRate(rate), DimakClowns[i], GetClassNameByID(classid), GetColorByRate(rate), rate);
+		format(data, sizeof(data), "\n{%s}%s\t{%s}%d", GetColorByRate(rate), Participants[i], GetColorByRate(rate), rate);
 		strcat(players, data);
 	}
 	return players;
@@ -2309,21 +1430,6 @@ stock GetHexColorByRate(rate) {
 	    default: color = HexRateColors[0][0];
 	}
 	return color;
-}
-
-//Возвращает имя класса по ID
-stock GetClassNameByID(id) {
-	new classname[32];
-	switch (id) {
-	    case 0: classname = "{1155cc}Фехтовальщик";
-	    case 1: classname = "{bc351f}Гренадер";
-	    case 2: classname = "{134f5c}Боец";
-	    case 3: classname = "{f97403}Чародей";
-	    case 4: classname = "{5b419b}Ассасин";
-	    case 5: classname = "{9900ff}Иллюзионист";
-	    default: classname = "{ffffff}Не выбран";
-	}
-	return classname;
 }
 
 //Возвращает интервал рейтинга по значению
@@ -2520,7 +1626,6 @@ stock CreateAccount(name[])
     ini_setInteger(File, "Class", -1);
     ini_setInteger(File, "Cash", 0);
     ini_setInteger(File, "Bank", 0);
-    ini_setInteger(File, "QItem", -1);
     ini_setInteger(File, "Admin", 0);
     ini_setInteger(File, "Skin", 0);
     ini_setInteger(File, "Wins", 0);
@@ -2551,20 +1656,11 @@ stock CreatePickups()
     home_quit = CreatePickup(1318,23,-2158.6240,642.8425,1052.3750);
     adm_enter = CreatePickup(19130,23,-2170.3340,635.3892,1052.3750);
     adm_quit = CreatePickup(19130,23,-2029.7946,-119.6238,1035.1719);
-    cafe_enter = CreatePickup(19133,23,184.5765,-1823.2200,5.1312);
-    cafe_quit = CreatePickup(19133,23,460.5555,-88.6005,999.5547);
-    rest_enter = CreatePickup(19133,23,265.0125,-1822.7384,4.2996);
-    rest_quit = CreatePickup(19133,23,377.0888,-193.3045,1000.6328);
-    shop_enter = CreatePickup(19133,23,255.8797,-1786.0399,4.2521);
-    shop_quit = CreatePickup(19133,23,-27.4040,-58.2740,1003.5469);
     start_tp1 = CreatePickup(19605,23,243.1539,-1831.6542,3.3772);
     start_tp2 = CreatePickup(19607,23,204.7617,-1831.6539,3.3772);
     
     Create3DTextLabel("Clown's House",0xf2622bFF,224.0201,-1837.3518,4.2787,70.0,0,1);
     Create3DTextLabel("Администрация",0x990000FF,-2170.3340,635.3892,1052.3750,70.0,0,1);
-    Create3DTextLabel("Кафе 'У Люси'",0x9fc91fFF,184.5765,-1823.2200,5.1312,70.0,0,1);
-    Create3DTextLabel("Pepe's Restaurant",0xead11fFF,265.0125,-1822.7384,4.2996,70.0,0,1);
-    Create3DTextLabel("Circus 24/7",0x1f95eaFF,255.8797,-1786.0399,4.2521,70.0,0,1);
     Create3DTextLabel("К боссам",0xeaeaeaFF,243.1539,-1831.6542,3.9772,70.0,0,1);
     Create3DTextLabel("На арену",0xeaeaeaFF,204.7617,-1831.6539,4.1772,70.0,0,1);
     Create3DTextLabel("Доска почета",0xFFCC00FF,-2171.3132,645.5896,1053.3817,5.0,0,1);
@@ -2573,11 +1669,6 @@ stock CreatePickups()
     Create3DTextLabel("Нажмите [F] для взаимодействия",0xFFCC00FF,380.7459,-189.1151,1000.6328,5.0,0,1);
     Create3DTextLabel("Нажмите [F] для взаимодействия",0xFFCC00FF,450.5763,-82.2320,999.5547,5.0,0,1);
     Create3DTextLabel("Нажмите [F] для взаимодействия",0xFFCC00FF,-2166.7527,646.0400,1052.3750,5.0,0,1);
-    
-	Actors[0] =	CreateActor(155,450.5763,-82.2320,999.5547,180.2773);
-	Actors[1] =	CreateActor(171,380.7459,-189.1151,1000.6328,180.5317);
-	Actors[2] =	CreateActor(226,-23.4700,-57.3214,1003.5469,354.9999);
-	Actors[3] =	CreateActor(61,-2166.7527,646.0400,1052.3750,179.9041);
 }
 
 //Отображение textdraw-ов
@@ -2585,43 +1676,6 @@ stock ShowTextDraws(playerid)
 {
 	TextDrawShowForPlayer(playerid,GamemodeName);
 	TextDrawShowForPlayer(playerid,WorldTime);
-}
-
-//Отображние ВСЕХ textdraws
-stock ShowAllTextDraws(playerid)
-{
-	PlayerTextDrawShow(playerid, TourPanelBox[playerid]);
-	PlayerTextDrawShow(playerid, TourPlayerName1[playerid]);
-	PlayerTextDrawShow(playerid, TourPlayerName2[playerid]);
-	PlayerTextDrawShow(playerid, TourScoreBar[playerid]);
-	PlayerTextDrawShow(playerid, HPBar[playerid]);
-	PlayerTextDrawShow(playerid, InvBox[playerid]);
-	for (new i = 0; i < MAX_SLOTS; i++) {
-		PlayerTextDrawShow(playerid, InvSlot[playerid][i]);
-		PlayerTextDrawShow(playerid, InvSlotCount[playerid][i]);
-	}
-	PlayerTextDrawShow(playerid, PanelInfo[playerid]);
-	PlayerTextDrawShow(playerid, PanelInventory[playerid]);
-	PlayerTextDrawShow(playerid, PanelUndress[playerid]);
-	PlayerTextDrawShow(playerid, PanelBox[playerid]);
-	PlayerTextDrawShow(playerid, PanelDelimeter1[playerid]);
-	PlayerTextDrawShow(playerid, PanelDelimeter2[playerid]);
-	PlayerTextDrawShow(playerid, btn_use[playerid]);
-	PlayerTextDrawShow(playerid, btn_del[playerid]);
-	PlayerTextDrawShow(playerid, btn_quick[playerid]);
-	PlayerTextDrawShow(playerid, btn_info[playerid]);
-	PlayerTextDrawShow(playerid, blue_flag[playerid]);
-	PlayerTextDrawShow(playerid, red_flag[playerid]);
-	PlayerTextDrawShow(playerid, inv_ico[playerid]);
-	for (new i = 0; i < MAX_EFFECTS; i++) {
-		PlayerTextDrawShow(playerid, EBox[playerid][i]);
-		PlayerTextDrawShow(playerid, EBox_Time[playerid][i]);
-	}
-	for (new i = 0; i < MAX_SKILLS; i++) {
-		PlayerTextDrawShow(playerid, SkillIco[playerid][i]);
-		PlayerTextDrawShow(playerid, SkillButton[playerid][i]);
-		PlayerTextDrawShow(playerid, SkillTime[playerid][i]);
-	}
 }
 
 //Удаление textdraw-ов
@@ -2656,21 +1710,12 @@ stock DeletePlayerTextDraws(playerid)
 	PlayerTextDrawDestroy(playerid, blue_flag[playerid]);
 	PlayerTextDrawDestroy(playerid, red_flag[playerid]);
 	PlayerTextDrawDestroy(playerid, inv_ico[playerid]);
-	for (new i = 0; i < MAX_EFFECTS; i++) {
-		PlayerTextDrawDestroy(playerid, EBox[playerid][i]);
-		PlayerTextDrawDestroy(playerid, EBox_Time[playerid][i]);
-	}
-	for (new i = 0; i < MAX_SKILLS; i++) {
-		PlayerTextDrawDestroy(playerid, SkillIco[playerid][i]);
-		PlayerTextDrawDestroy(playerid, SkillButton[playerid][i]);
-		PlayerTextDrawDestroy(playerid, SkillTime[playerid][i]);
-	}
 }
 
 //Инициализация textdraw-ов
 stock InitTextDraws()
 {
-    GamemodeName = TextDrawCreate(547.367431, 22.980691, "RCircus 1.0");
+    GamemodeName = TextDrawCreate(547.367431, 22.980691, "BCircus 1.0");
 	TextDrawLetterSize(GamemodeName, 0.415998, 1.886222);
 	TextDrawAlignment(GamemodeName, 1);
 	TextDrawColor(GamemodeName, -5963521);
@@ -2696,42 +1741,6 @@ stock InitTextDraws()
 //Инициализация textdraw-ов (игрок)
 stock InitPlayerTextDraws(playerid)
 {
-    TourPanelBox[playerid] = CreatePlayerTextDraw(playerid, 641.666687, 429.174072, "TourPanelBox");
-	PlayerTextDrawLetterSize(playerid, TourPanelBox[playerid], 0.000000, 1.895681);
-	PlayerTextDrawTextSize(playerid, TourPanelBox[playerid], -2.000000, 0.000000);
-	PlayerTextDrawAlignment(playerid, TourPanelBox[playerid], 1);
-	PlayerTextDrawColor(playerid, TourPanelBox[playerid], 0);
-	PlayerTextDrawUseBox(playerid, TourPanelBox[playerid], true);
-	PlayerTextDrawBoxColor(playerid, TourPanelBox[playerid], 102);
-	PlayerTextDrawSetShadow(playerid, TourPanelBox[playerid], 0);
-	PlayerTextDrawSetOutline(playerid, TourPanelBox[playerid], 0);
-	PlayerTextDrawBackgroundColor(playerid, TourPanelBox[playerid], -16776961);
-	PlayerTextDrawFont(playerid, TourPanelBox[playerid], 0);
-
-	TourPlayerName1[playerid] = CreatePlayerTextDraw(playerid, 4.666664, 429.043029, "Dmitriy_Staroverov [GR]");
-	PlayerTextDrawLetterSize(playerid, TourPlayerName1[playerid], 0.370999, 1.707851);
-	PlayerTextDrawAlignment(playerid, TourPlayerName1[playerid], 1);
-	PlayerTextDrawColor(playerid, TourPlayerName1[playerid], -1061109505);
-	PlayerTextDrawSetShadow(playerid, TourPlayerName1[playerid], 0);
-	PlayerTextDrawSetOutline(playerid, TourPlayerName1[playerid], 1);
-	PlayerTextDrawBackgroundColor(playerid, TourPlayerName1[playerid], 51);
-	PlayerTextDrawFont(playerid, TourPlayerName1[playerid], 1);
-	PlayerTextDrawSetProportional(playerid, TourPlayerName1[playerid], 1);
-	PlayerTextDrawSetPreviewModel(playerid, TourPlayerName1[playerid], 0);
-	PlayerTextDrawSetPreviewRot(playerid, TourPlayerName1[playerid], 0.000000, 0.000000, 0.000000, 0.000000);
-
-	TourPlayerName2[playerid] = CreatePlayerTextDraw(playerid, 637.066345, 428.798431, "Alexander_Shaikin [IL]");
-	PlayerTextDrawLetterSize(playerid, TourPlayerName2[playerid], 0.370999, 1.707851);
-	PlayerTextDrawAlignment(playerid, TourPlayerName2[playerid], 3);
-	PlayerTextDrawColor(playerid, TourPlayerName2[playerid], -5963521);
-	PlayerTextDrawSetShadow(playerid, TourPlayerName2[playerid], 0);
-	PlayerTextDrawSetOutline(playerid, TourPlayerName2[playerid], 1);
-	PlayerTextDrawBackgroundColor(playerid, TourPlayerName2[playerid], 51);
-	PlayerTextDrawFont(playerid, TourPlayerName2[playerid], 1);
-	PlayerTextDrawSetProportional(playerid, TourPlayerName2[playerid], 1);
-	PlayerTextDrawSetPreviewModel(playerid, TourPlayerName2[playerid], 0);
-	PlayerTextDrawSetPreviewRot(playerid, TourPlayerName2[playerid], 0.000000, 0.000000, 0.000000, 0.000000);
-
 	HPBar[playerid] = CreatePlayerTextDraw(playerid, 577.659973, 67.550003, "100% 10000/10000");
 	PlayerTextDrawLetterSize(playerid, HPBar[playerid], 0.134663, 0.666665);
 	PlayerTextDrawAlignment(playerid, HPBar[playerid], 2);
@@ -2743,18 +1752,6 @@ stock InitPlayerTextDraws(playerid)
 	PlayerTextDrawSetProportional(playerid, HPBar[playerid], 1);
 	PlayerTextDrawSetPreviewModel(playerid, HPBar[playerid], 0);
 	PlayerTextDrawSetPreviewRot(playerid, HPBar[playerid], 0.000000, 0.000000, 0.000000, 0.000000);
-
-	TourScoreBar[playerid] = CreatePlayerTextDraw(playerid, 294.033538, 428.296325, "1  -  0");
-	PlayerTextDrawLetterSize(playerid, TourScoreBar[playerid], 0.508665, 2.085334);
-	PlayerTextDrawAlignment(playerid, TourScoreBar[playerid], 1);
-	PlayerTextDrawColor(playerid, TourScoreBar[playerid], -5963521);
-	PlayerTextDrawSetShadow(playerid, TourScoreBar[playerid], 0);
-	PlayerTextDrawSetOutline(playerid, TourScoreBar[playerid], 1);
-	PlayerTextDrawBackgroundColor(playerid, TourScoreBar[playerid], 51);
-	PlayerTextDrawFont(playerid, TourScoreBar[playerid], 1);
-	PlayerTextDrawSetProportional(playerid, TourScoreBar[playerid], 1);
-	PlayerTextDrawSetPreviewModel(playerid, TourScoreBar[playerid], 19134);
-	PlayerTextDrawSetPreviewRot(playerid, TourScoreBar[playerid], 0.000000, 0.000000, 90.000000, 1.000000);
 
 	InvBox[playerid] = CreatePlayerTextDraw(playerid, 513.499938, 181.944458, "InvBox");
 	PlayerTextDrawLetterSize(playerid, InvBox[playerid], 0.000000, 14.641860);
@@ -2972,34 +1969,6 @@ stock InitPlayerTextDraws(playerid)
 	PlayerTextDrawSetSelectable(playerid, btn_quick[playerid], true);
 	PlayerTextDrawSetPreviewModel(playerid, btn_quick[playerid], 1273);
 	PlayerTextDrawSetPreviewRot(playerid, btn_quick[playerid], 0.000000, 0.000000, 180.000000, 1.000000);
-
-	blue_flag[playerid] = CreatePlayerTextDraw(playerid, 271.800048, 428.959960, "blue_flag");
-	PlayerTextDrawLetterSize(playerid, blue_flag[playerid], 0.000000, 0.000000);
-	PlayerTextDrawTextSize(playerid, blue_flag[playerid], 17.000000, 18.000000);
-	PlayerTextDrawAlignment(playerid, blue_flag[playerid], 1);
-	PlayerTextDrawColor(playerid, blue_flag[playerid], -1);
-	PlayerTextDrawUseBox(playerid, blue_flag[playerid], true);
-	PlayerTextDrawBoxColor(playerid, blue_flag[playerid], 0x00000000);
-	PlayerTextDrawBackgroundColor(playerid, blue_flag[playerid], 0x00000000);
-	PlayerTextDrawSetShadow(playerid, blue_flag[playerid], 0);
-	PlayerTextDrawSetOutline(playerid, blue_flag[playerid], 0);
-	PlayerTextDrawFont(playerid, blue_flag[playerid], 5);
-	PlayerTextDrawSetPreviewModel(playerid, blue_flag[playerid], 19307);
-	PlayerTextDrawSetPreviewRot(playerid, blue_flag[playerid], 0.000000, 0.000000, 0.000000, 1.000000);
-
-	red_flag[playerid] = CreatePlayerTextDraw(playerid, 318.299957, 429.124633, "red_flag");
-	PlayerTextDrawLetterSize(playerid, red_flag[playerid], 0.000000, 0.000000);
-	PlayerTextDrawTextSize(playerid, red_flag[playerid], 35.533332, 18.000000);
-	PlayerTextDrawAlignment(playerid, red_flag[playerid], 1);
-	PlayerTextDrawColor(playerid, red_flag[playerid], -1);
-	PlayerTextDrawUseBox(playerid, red_flag[playerid], true);
-	PlayerTextDrawBoxColor(playerid, red_flag[playerid], 0x00000000);
-	PlayerTextDrawBackgroundColor(playerid, red_flag[playerid], 0x00000000);
-	PlayerTextDrawSetShadow(playerid, red_flag[playerid], 0);
-	PlayerTextDrawSetOutline(playerid, red_flag[playerid], 0);
-	PlayerTextDrawFont(playerid, red_flag[playerid], 5);
-	PlayerTextDrawSetPreviewModel(playerid, red_flag[playerid], 19306);
-	PlayerTextDrawSetPreviewRot(playerid, red_flag[playerid], 0.000000, 0.000000, 200.000000, 1.000000);
 
 	inv_ico[playerid] = CreatePlayerTextDraw(playerid, 547.766601, 162.358520, "inv_ico");
 	PlayerTextDrawLetterSize(playerid, inv_ico[playerid], 0.000000, 1.666666);
