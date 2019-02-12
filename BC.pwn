@@ -262,7 +262,7 @@ public OnGameModeExit()
 
 public OnPlayerRequestClass(playerid, classid)
 {
-	SendClientMessage(playerid, COLOR_WHITE, "пїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅ Bourgeois Circus.");
+	SendClientMessage(playerid, COLOR_WHITE, "Добро пожаловать в Bourgeois Circus.");
 	new ok = LoadAccount(playerid);
 	if (PlayerInfo[playerid][Admin] > 0 && ok > 0)
 		OnPlayerLogin(playerid);
@@ -282,9 +282,8 @@ public OnPlayerConnect(playerid)
 }
 
 public OnPlayerLogin(playerid) {
-	//InitPlayerTextDraws(playerid);
+	InitPlayerTextDraws(playerid);
 	PlayerConnect[playerid] = true;
-	//ShowInterface(playerid);
 	IsInventoryOpen[playerid] = false;
 	SelectedSlot[playerid] = -1;
 	PlayerHPMultiplicator[playerid] = PlayerInfo[playerid][Rank] * 10;
@@ -300,7 +299,7 @@ public OnPlayerDisconnect(playerid, reason)
 {
 	KillTimer(PlayerUpdater[playerid]);
 	SaveAccount(playerid);
-	//DeletePlayerTextDraws(playerid);
+	DeletePlayerTextDraws(playerid);
 	IsInventoryOpen[playerid] = false;
 	SelectedSlot[playerid] = -1;
 
@@ -347,7 +346,7 @@ public OnPlayerText(playerid, text[])
 	new message[2048];
 	if(PlayerInfo[playerid][Admin] > 0)
 	{
-		format(message, sizeof(message), "[пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ]: %s", text);
+		format(message, sizeof(message), "[Администратор]: %s", text);
 		SendClientMessageToAll(COLOR_LIGHTRED, message);
 	}
 	else
@@ -443,43 +442,43 @@ public OnPlayerKeyStateChange(playerid, newkeys, oldkeys)
 	}
 	else if(newkeys & 131072)
 	{
-		new listitems[] = "РРЅС„РѕСЂРјР°С†РёСЏ РѕР± Р°РєРєР°СѓРЅС‚Рµ\nРРЅС„РѕСЂРјР°С†РёСЏ Рѕ РїРµСЂСЃРѕРЅР°Р¶Рµ\nРРЅС„РѕСЂРјР°С†РёСЏ Рѕ С‚СѓСЂРЅРёСЂРµ\nРЎРјРµРЅРёС‚СЊ РїРµСЂСЃРѕРЅР°Р¶Р°";
-		ShowPlayerDialog(playerid, 1000, DIALOG_STYLE_TABLIST, "Bourgeois Circus", listitems, "Р”Р°Р»РµРµ", "Р—Р°РєСЂС‹С‚СЊ");
+		new listitems[] = "Информация об аккаунте\nИнформация о персонаже\nИнформация о турнире\nСменить персонажа";
+		ShowPlayerDialog(playerid, 1000, DIALOG_STYLE_TABLIST, "Bourgeois Circus", listitems, "Далее", "Закрыть");
 	}
 }
 
 public OnDialogResponse(playerid, dialogid, response, listitem, inputtext[])
 {
-	//1 - РїСѓСЃС‚РѕР№
-	//1000 - РѕСЃРЅРѕРІРЅРѕРµ РјРµРЅСЋ
+	//1 - пустой
+	//1000 - основное меню
 	switch (dialogid) 
 	{
-		//РџСѓСЃС‚РѕР№
+		//Пустой
 	    case 1: { return 1; }
-		//РћСЃРЅРѕРІРЅРѕРµ РјРµРЅСЋ
+		//Основное меню
 		case 1000:
 		{
 			if(response)
 			{
 				switch(listitem)
 				{
-					//РРЅС„РѕСЂРјР°С†РёСЏ РѕР± Р°РєРєР°СѓРЅС‚Рµ
+					//Информация об аккаунте
 					case 0:
 					{
 						return 1;
 					}
-					//РРЅС„РѕСЂРјР°С†РёСЏ Рѕ РїРµСЂСЃРѕРЅР°Р¶Рµ
+					//Информация о персонаже
 					case 1:
 					{
 						ShowCharInfo(playerid);
 						return 1;
 					}
-					//РРЅС„РѕСЂРјР°С†РёСЏ Рѕ С‚СѓСЂРЅРёСЂРµ
+					//Информация о турнире
 					case 2:
 					{
 						return 1;
 					}
-					//РЎРјРµРЅРёС‚СЊ РїРµСЂСЃРѕРЅР°Р¶Р°
+					//Сменить персонажа
 					case 3:
 					{
 						return 1;
@@ -490,6 +489,7 @@ public OnDialogResponse(playerid, dialogid, response, listitem, inputtext[])
 				return 0;
 		}
 	}
+	return 1;
 }
 
 /* Public functions */
@@ -551,13 +551,13 @@ stock ShowCharInfo(playerid)
 
 	format(string, sizeof(string), "HP: %.0f/%.0f", GetPlayerHP(playerid), GetPlayerMaxHP(playerid));
 	PlayerTextDrawSetString(playerid, ChrInfMaxHP[playerid], string);
-	format(string, sizeof(string), "Damage: %d-%d", PlayerInfo[playerid][DamageMin], PlayerInfo[playerid][DamageMax]);
+	format(string, sizeof(string), "%s: %d-%d", TranslateText("Урон"), PlayerInfo[playerid][DamageMin], PlayerInfo[playerid][DamageMax]);
 	PlayerTextDrawSetString(playerid, ChrInfDamage[playerid], string);
-	format(string, sizeof(string), "Defense: %d", PlayerInfo[playerid][Defense]);
+	format(string, sizeof(string), "%s: %d", TranslateText("Защита"), PlayerInfo[playerid][Defense]);
 	PlayerTextDrawSetString(playerid, ChrInfDefense[playerid], string);
-	format(string, sizeof(string), "Accuracy: %d", PlayerInfo[playerid][Accuracy]);
+	format(string, sizeof(string), "%s: %d", TranslateText("Точность"), PlayerInfo[playerid][Accuracy]);
 	PlayerTextDrawSetString(playerid, ChrInfAccuracy[playerid], string);
-	format(string, sizeof(string), "Dodge: %d", PlayerInfo[playerid][Dodge]);
+	format(string, sizeof(string), "%s: %d", TranslateText("Уклонение"), PlayerInfo[playerid][Dodge]);
 	PlayerTextDrawSetString(playerid, ChrInfDodge[playerid], string);
 	format(string, sizeof(string), "%d", PlayerInfo[playerid][Rate]);
 	PlayerTextDrawSetString(playerid, ChrInfRate[playerid], string);
@@ -802,20 +802,83 @@ stock GetColorByRate(rate) {
 	return color;
 }
 
-stock GetRateInterval(rate) {
-	new interval[32];
-	switch (rate) {
-	    case 501..1000: interval = "пїЅпїЅпїЅпїЅпїЅпїЅ";
-	    case 1001..1200: interval = "пїЅпїЅпїЅпїЅпїЅпїЅ";
-	    case 1201..1400: interval = "пїЅпїЅпїЅпїЅпїЅпїЅ";
-	    case 1401..1600: interval = "пїЅпїЅпїЅпїЅпїЅпїЅпїЅ";
-	    case 1601..2000: interval = "пїЅпїЅпїЅпїЅпїЅпїЅ";
-	    case 2001..2300: interval = "пїЅпїЅпїЅпїЅпїЅпїЅпїЅ";
-	    case 2301..2700: interval = "пїЅпїЅпїЅпїЅпїЅ";
-	    case 2701..3000: interval = "пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ";
-	    default: interval = "пїЅпїЅпїЅпїЅпїЅпїЅ";
+stock TranslateText(string[])
+{
+	new result[128];
+	for (new i = 0; i < sizeof(result); i++)
+	{
+		switch (string[i])
+		{
+			case 'а': result[i] = 'a';
+			case 'А': result[i] = 'A';
+			case 'б': result[i] = '—';
+			case 'Б': result[i] = 'Ђ';
+			case 'в': result[i] = 'ў';
+			case 'В': result[i] = '‹';
+			case 'г': result[i] = '™';
+			case 'Г': result[i] = '‚';
+			case 'д': result[i] = 'љ';
+			case 'Д': result[i] = 'ѓ';
+			case 'е': result[i] = 'e';
+			case 'Е': result[i] = 'E';
+			case 'ё': result[i] = 'e';
+			case 'Ё': result[i] = 'E';
+			case 'ж': result[i] = '›';
+			case 'Ж': result[i] = '„';
+			case 'з': result[i] = 'џ';
+			case 'З': result[i] = '€';
+			case 'и': result[i] = 'њ';
+			case 'И': result[i] = '…';
+			case 'й': result[i] = 'ќ';
+			case 'Й': result[i] = '…';
+			case 'к': result[i] = 'k';
+			case 'К': result[i] = 'K';
+			case 'л': result[i] = 'ћ';
+			case 'Л': result[i] = '‡';
+			case 'м': result[i] = 'Ї';
+			case 'М': result[i] = 'M';
+			case 'н': result[i] = '®';
+			case 'Н': result[i] = ' ';
+			case 'о': result[i] = 'o';
+			case 'О': result[i] = 'O';
+			case 'п': result[i] = 'Ј';
+			case 'П': result[i] = 'Њ';
+			case 'р': result[i] = 'p';
+			case 'Р': result[i] = 'P';
+			case 'с': result[i] = 'c';
+			case 'С': result[i] = 'C';
+			case 'т': result[i] = '¦';
+			case 'Т': result[i] = 'Џ';
+			case 'у': result[i] = 'y';
+			case 'У': result[i] = 'Y';
+			case 'ф': result[i] = '~';
+			case 'Ф': result[i] = 'Ѓ';
+			case 'х': result[i] = 'x';
+			case 'Х': result[i] = 'X';
+			case 'ц': result[i] = '*';
+			case 'Ц': result[i] = '‰';
+			case 'ч': result[i] = '¤';
+			case 'Ч': result[i] = 'Ќ';
+			case 'ш': result[i] = 'Ґ';
+			case 'Ш': result[i] = 'Ћ';
+			case 'щ': result[i] = 'Ў';
+			case 'Щ': result[i] = 'Љ';
+			case 'ь': result[i] = '©';
+			case 'Ь': result[i] = '’';
+			case 'ъ': result[i] = 'ђ';
+			case 'Ъ': result[i] = '§';
+			case 'ы': result[i] = 'Ё';
+			case 'Ы': result[i] = '‘';
+			case 'э': result[i] = 'Є';
+			case 'Э': result[i] = '“';
+			case 'ю': result[i] = '«';
+			case 'Ю': result[i] = '”';
+			case 'я': result[i] = '¬';
+			case 'Я': result[i] = '•';
+			default: result[i] = string[i];
+		}
 	}
-	return interval;
+	return result;
 }
 
 stock UpdateRatingTop()
@@ -895,7 +958,7 @@ stock InitPlayerTextDraws(playerid)
 	PlayerTextDrawSetOutline(playerid, ChrInfoBox[playerid], 0);
 	PlayerTextDrawFont(playerid, ChrInfoBox[playerid], 0);
 
-	ChrInfoHeader[playerid] = CreatePlayerTextDraw(playerid, 551.999877, 107.436988, "Character");
+	ChrInfoHeader[playerid] = CreatePlayerTextDraw(playerid, 551.999877, 107.436988, TranslateText("Персонаж"));
 	PlayerTextDrawLetterSize(playerid, ChrInfoHeader[playerid], 0.235999, 0.932147);
 	PlayerTextDrawAlignment(playerid, ChrInfoHeader[playerid], 2);
 	PlayerTextDrawColor(playerid, ChrInfoHeader[playerid], -1);
@@ -915,6 +978,7 @@ stock InitPlayerTextDraws(playerid)
 	PlayerTextDrawSetShadow(playerid, ChrInfoDelim1[playerid], 0);
 	PlayerTextDrawSetOutline(playerid, ChrInfoDelim1[playerid], 0);
 	PlayerTextDrawFont(playerid, ChrInfoDelim1[playerid], 5);
+	PlayerTextDrawBackgroundColor(playerid, ChrInfoDelim1[playerid], 0x00000000);
 	PlayerTextDrawSetPreviewModel(playerid, ChrInfoDelim1[playerid], 18656);
 	PlayerTextDrawSetPreviewRot(playerid, ChrInfoDelim1[playerid], 0.000000, 0.000000, 0.000000, 1.000000);
 
@@ -928,7 +992,7 @@ stock InitPlayerTextDraws(playerid)
 	PlayerTextDrawFont(playerid, ChrInfMaxHP[playerid], 1);
 	PlayerTextDrawSetProportional(playerid, ChrInfMaxHP[playerid], 1);
 
-	ChrInfDamage[playerid] = CreatePlayerTextDraw(playerid, 501.366607, 126.605903, "Damage: 9999-9999");
+	ChrInfDamage[playerid] = CreatePlayerTextDraw(playerid, 501.366607, 126.605903, TranslateText("Урон: 9999-9999"));
 	PlayerTextDrawLetterSize(playerid, ChrInfDamage[playerid], 0.193332, 0.737185);
 	PlayerTextDrawAlignment(playerid, ChrInfDamage[playerid], 1);
 	PlayerTextDrawColor(playerid, ChrInfDamage[playerid], -1);
@@ -938,7 +1002,7 @@ stock InitPlayerTextDraws(playerid)
 	PlayerTextDrawFont(playerid, ChrInfDamage[playerid], 1);
 	PlayerTextDrawSetProportional(playerid, ChrInfDamage[playerid], 1);
 
-	ChrInfDefense[playerid] = CreatePlayerTextDraw(playerid, 501.533477, 133.164413, "Defense: 9999");
+	ChrInfDefense[playerid] = CreatePlayerTextDraw(playerid, 501.533477, 133.164413, TranslateText("Защита: 9999"));
 	PlayerTextDrawLetterSize(playerid, ChrInfDefense[playerid], 0.193332, 0.737185);
 	PlayerTextDrawAlignment(playerid, ChrInfDefense[playerid], 1);
 	PlayerTextDrawColor(playerid, ChrInfDefense[playerid], -1);
@@ -948,7 +1012,7 @@ stock InitPlayerTextDraws(playerid)
 	PlayerTextDrawFont(playerid, ChrInfDefense[playerid], 1);
 	PlayerTextDrawSetProportional(playerid, ChrInfDefense[playerid], 1);
 
-	ChrInfAccuracy[playerid] = CreatePlayerTextDraw(playerid, 501.566833, 139.515502, "Accuracy: 999");
+	ChrInfAccuracy[playerid] = CreatePlayerTextDraw(playerid, 501.566833, 139.515502, TranslateText("Точность: 999"));
 	PlayerTextDrawLetterSize(playerid, ChrInfAccuracy[playerid], 0.193332, 0.737185);
 	PlayerTextDrawAlignment(playerid, ChrInfAccuracy[playerid], 1);
 	PlayerTextDrawColor(playerid, ChrInfAccuracy[playerid], -1);
@@ -958,7 +1022,7 @@ stock InitPlayerTextDraws(playerid)
 	PlayerTextDrawFont(playerid, ChrInfAccuracy[playerid], 1);
 	PlayerTextDrawSetProportional(playerid, ChrInfAccuracy[playerid], 1);
 
-	ChrInfDodge[playerid] = CreatePlayerTextDraw(playerid, 501.533447, 145.534683, "Dodge: 999");
+	ChrInfDodge[playerid] = CreatePlayerTextDraw(playerid, 501.533447, 145.534683, TranslateText("Уклонение: 999"));
 	PlayerTextDrawLetterSize(playerid, ChrInfDodge[playerid], 0.193332, 0.737185);
 	PlayerTextDrawAlignment(playerid, ChrInfDodge[playerid], 1);
 	PlayerTextDrawColor(playerid, ChrInfDodge[playerid], -1);
@@ -978,6 +1042,7 @@ stock InitPlayerTextDraws(playerid)
 	PlayerTextDrawSetShadow(playerid, ChrInfDelim2[playerid], 0);
 	PlayerTextDrawSetOutline(playerid, ChrInfDelim2[playerid], 0);
 	PlayerTextDrawFont(playerid, ChrInfDelim2[playerid], 5);
+	PlayerTextDrawBackgroundColor(playerid, ChrInfDelim2[playerid], 0x00000000);
 	PlayerTextDrawSetPreviewModel(playerid, ChrInfDelim2[playerid], 18656);
 	PlayerTextDrawSetPreviewRot(playerid, ChrInfDelim2[playerid], 0.000000, 0.000000, 0.000000, 1.000000);
 
@@ -994,6 +1059,7 @@ stock InitPlayerTextDraws(playerid)
 	PlayerTextDrawFont(playerid, ChrInfArmorSlot[playerid], 5);
 	PlayerTextDrawSetPreviewModel(playerid, ChrInfArmorSlot[playerid], 1275);
 	PlayerTextDrawSetPreviewRot(playerid, ChrInfArmorSlot[playerid], 0.000000, 0.000000, 0.000000, 1.000000);
+	PlayerTextDrawSetSelectable(playerid, ChrInfArmorSlot[playerid], true);
 
 	ChrInfWeaponSlot[playerid] = CreatePlayerTextDraw(playerid, 575.000000, 121.000000, "weapon_slot");
 	PlayerTextDrawLetterSize(playerid, ChrInfWeaponSlot[playerid], 0.000000, 0.000000);
@@ -1008,6 +1074,7 @@ stock InitPlayerTextDraws(playerid)
 	PlayerTextDrawFont(playerid, ChrInfWeaponSlot[playerid], 5);
 	PlayerTextDrawSetPreviewModel(playerid, ChrInfWeaponSlot[playerid], 346);
 	PlayerTextDrawSetPreviewRot(playerid, ChrInfWeaponSlot[playerid], 0.000000, 0.000000, 0.000000, 1.000000);
+	PlayerTextDrawSetSelectable(playerid, ChrInfWeaponSlot[playerid], true);
 
 	ChrInfAccSlot1[playerid] = CreatePlayerTextDraw(playerid, 575.000000, 137.000000, "acs_slot1");
 	PlayerTextDrawLetterSize(playerid, ChrInfAccSlot1[playerid], 0.000000, 0.000000);
@@ -1022,6 +1089,7 @@ stock InitPlayerTextDraws(playerid)
 	PlayerTextDrawFont(playerid, ChrInfAccSlot1[playerid], 5);
 	PlayerTextDrawSetPreviewModel(playerid, ChrInfAccSlot1[playerid], 954);
 	PlayerTextDrawSetPreviewRot(playerid, ChrInfAccSlot1[playerid], 0.000000, 0.000000, 0.000000, 1.000000);
+	PlayerTextDrawSetSelectable(playerid, ChrInfAccSlot1[playerid], true);
 
 	ChrInfAccSlot2[playerid] = CreatePlayerTextDraw(playerid, 591.000000, 137.000000, "acs_slot2");
 	PlayerTextDrawLetterSize(playerid, ChrInfAccSlot2[playerid], 0.000000, 0.000000);
@@ -1036,19 +1104,23 @@ stock InitPlayerTextDraws(playerid)
 	PlayerTextDrawFont(playerid, ChrInfAccSlot2[playerid], 5);
 	PlayerTextDrawSetPreviewModel(playerid, ChrInfAccSlot2[playerid], 954);
 	PlayerTextDrawSetPreviewRot(playerid, ChrInfAccSlot2[playerid], 0.000000, 0.000000, 0.000000, 1.000000);
+	PlayerTextDrawSetSelectable(playerid, ChrInfAccSlot2[playerid], true);
 
 	ChrEqInfClose[playerid] = CreatePlayerTextDraw(playerid, 601.999938, 106.607421, "X");
 	PlayerTextDrawLetterSize(playerid, ChrEqInfClose[playerid], 0.315333, 1.010962);
+	PlayerTextDrawTextSize(playerid, ChrEqInfClose[playerid], 6.666668, 4.977776);
 	PlayerTextDrawAlignment(playerid, ChrEqInfClose[playerid], 2);
 	PlayerTextDrawColor(playerid, ChrEqInfClose[playerid], -2147483393);
+	PlayerTextDrawUseBox(playerid, ChrEqInfClose[playerid], true);
+	PlayerTextDrawBoxColor(playerid, ChrEqInfClose[playerid], 0);
+	PlayerTextDrawBackgroundColor(playerid, ChrEqInfClose[playerid], 0x00000000);
 	PlayerTextDrawSetShadow(playerid, ChrEqInfClose[playerid], 0);
 	PlayerTextDrawSetOutline(playerid, ChrEqInfClose[playerid], 1);
-	PlayerTextDrawBackgroundColor(playerid, ChrEqInfClose[playerid], 51);
 	PlayerTextDrawFont(playerid, ChrEqInfClose[playerid], 1);
 	PlayerTextDrawSetProportional(playerid, ChrEqInfClose[playerid], 1);
 	PlayerTextDrawSetSelectable(playerid, ChrEqInfClose[playerid], true);
 
-	ChrInfText1[playerid] = CreatePlayerTextDraw(playerid, 519.999877, 156.385177, "All rate");
+	ChrInfText1[playerid] = CreatePlayerTextDraw(playerid, 519.999877, 156.385177, TranslateText("Общий"));
 	PlayerTextDrawLetterSize(playerid, ChrInfText1[playerid], 0.186000, 0.716444);
 	PlayerTextDrawAlignment(playerid, ChrInfText1[playerid], 2);
 	PlayerTextDrawColor(playerid, ChrInfText1[playerid], -1);
@@ -1078,7 +1150,7 @@ stock InitPlayerTextDraws(playerid)
 	PlayerTextDrawFont(playerid, ChrInfRate[playerid], 1);
 	PlayerTextDrawSetProportional(playerid, ChrInfRate[playerid], 1);
 
-	ChrInfText2[playerid] = CreatePlayerTextDraw(playerid, 589.599487, 156.638442, "Personal");
+	ChrInfText2[playerid] = CreatePlayerTextDraw(playerid, 589.599487, 156.638442, TranslateText("Личный"));
 	PlayerTextDrawLetterSize(playerid, ChrInfText2[playerid], 0.186000, 0.716444);
 	PlayerTextDrawAlignment(playerid, ChrInfText2[playerid], 2);
 	PlayerTextDrawColor(playerid, ChrInfText2[playerid], -1);
@@ -1108,6 +1180,7 @@ stock InitPlayerTextDraws(playerid)
 	PlayerTextDrawSetShadow(playerid, ChrInfDelim3[playerid], 0);
 	PlayerTextDrawSetOutline(playerid, ChrInfDelim3[playerid], 0);
 	PlayerTextDrawFont(playerid, ChrInfDelim3[playerid], 5);
+	PlayerTextDrawBackgroundColor(playerid, ChrInfDelim3[playerid], 0x00000000);
 	PlayerTextDrawSetPreviewModel(playerid, ChrInfDelim3[playerid], 18656);
 	PlayerTextDrawSetPreviewRot(playerid, ChrInfDelim3[playerid], 0.000000, 0.000000, 0.000000, 1.000000);
 
@@ -1167,10 +1240,11 @@ stock InitPlayerTextDraws(playerid)
 	PlayerTextDrawSetOutline(playerid, ChrInfButUse[playerid], 0);
 	PlayerTextDrawFont(playerid, ChrInfButUse[playerid], 5);
 	PlayerTextDrawSetSelectable(playerid, ChrInfButUse[playerid], true);
+	PlayerTextDrawBackgroundColor(playerid, ChrInfButUse[playerid], 0x00000000);
 	PlayerTextDrawSetPreviewModel(playerid, ChrInfButUse[playerid], 19131);
 	PlayerTextDrawSetPreviewRot(playerid, ChrInfButUse[playerid], 0.000000, 90.000000, 90.000000, 1.000000);
 
-	ChrInfButInfo[playerid] = CreatePlayerTextDraw(playerid, 517.000000, 290.000000, "but_info");
+	ChrInfButInfo[playerid] = CreatePlayerTextDraw(playerid, 537.000000, 290.000000, "but_info");
 	PlayerTextDrawLetterSize(playerid, ChrInfButInfo[playerid], 0.000000, 0.133331);
 	PlayerTextDrawTextSize(playerid, ChrInfButInfo[playerid], 17.000000, 17.000000);
 	PlayerTextDrawAlignment(playerid, ChrInfButInfo[playerid], 1);
@@ -1181,10 +1255,11 @@ stock InitPlayerTextDraws(playerid)
 	PlayerTextDrawSetOutline(playerid, ChrInfButInfo[playerid], 0);
 	PlayerTextDrawFont(playerid, ChrInfButInfo[playerid], 5);
 	PlayerTextDrawSetSelectable(playerid, ChrInfButInfo[playerid], true);
+	PlayerTextDrawBackgroundColor(playerid, ChrInfButInfo[playerid], 0x00000000);
 	PlayerTextDrawSetPreviewModel(playerid, ChrInfButInfo[playerid], 1239);
 	PlayerTextDrawSetPreviewRot(playerid, ChrInfButInfo[playerid], 0.000000, 0.000000, 180.000000, 1.000000);
 
-	ChrInfButDel[playerid] = CreatePlayerTextDraw(playerid, 517.000000, 290.000000, "but_del");
+	ChrInfButDel[playerid] = CreatePlayerTextDraw(playerid, 557.000000, 290.000000, "but_del");
 	PlayerTextDrawLetterSize(playerid, ChrInfButDel[playerid], 0.000000, 0.133331);
 	PlayerTextDrawTextSize(playerid, ChrInfButDel[playerid], 17.000000, 17.000000);
 	PlayerTextDrawAlignment(playerid, ChrInfButDel[playerid], 1);
@@ -1195,10 +1270,11 @@ stock InitPlayerTextDraws(playerid)
 	PlayerTextDrawSetOutline(playerid, ChrInfButDel[playerid], 0);
 	PlayerTextDrawFont(playerid, ChrInfButDel[playerid], 5);
 	PlayerTextDrawSetSelectable(playerid, ChrInfButDel[playerid], true);
+	PlayerTextDrawBackgroundColor(playerid, ChrInfButDel[playerid], 0x00000000);
 	PlayerTextDrawSetPreviewModel(playerid, ChrInfButDel[playerid], 1409);
 	PlayerTextDrawSetPreviewRot(playerid, ChrInfButDel[playerid], 0.000000, 0.000000, 180.000000, 1.000000);
 
-	ChrInfButMod[playerid] = CreatePlayerTextDraw(playerid, 517.000000, 290.000000, "but_mod");
+	ChrInfButMod[playerid] = CreatePlayerTextDraw(playerid, 577.000000, 290.000000, "but_mod");
 	PlayerTextDrawLetterSize(playerid, ChrInfButMod[playerid], 0.000000, 0.133331);
 	PlayerTextDrawTextSize(playerid, ChrInfButMod[playerid], 17.000000, 17.000000);
 	PlayerTextDrawAlignment(playerid, ChrInfButMod[playerid], 1);
@@ -1209,6 +1285,7 @@ stock InitPlayerTextDraws(playerid)
 	PlayerTextDrawSetOutline(playerid, ChrInfButMod[playerid], 0);
 	PlayerTextDrawFont(playerid, ChrInfButMod[playerid], 5);
 	PlayerTextDrawSetSelectable(playerid, ChrInfButMod[playerid], true);
+	PlayerTextDrawBackgroundColor(playerid, ChrInfButMod[playerid], 0x00000000);
 	PlayerTextDrawSetPreviewModel(playerid, ChrInfButMod[playerid], 19132);
 	PlayerTextDrawSetPreviewRot(playerid, ChrInfButMod[playerid], 180.000000, 0.000000, 90.000000, 1.000000);
 
@@ -1247,12 +1324,15 @@ stock InitPlayerTextDraws(playerid)
 	PlayerTextDrawSetProportional(playerid, EqInfTxt1[playerid], 1);
 
 	EqInfClose[playerid] = CreatePlayerTextDraw(playerid, 377.533569, 111.128860, "x");
-	PlayerTextDrawLetterSize(playerid, EqInfClose[playerid], 0.383333, 1.363555);
+	PlayerTextDrawLetterSize(playerid, EqInfClose[playerid], 0.383332, 1.363554);
+	PlayerTextDrawTextSize(playerid, EqInfClose[playerid], 384.666687, 14.933336);
 	PlayerTextDrawAlignment(playerid, EqInfClose[playerid], 1);
 	PlayerTextDrawColor(playerid, EqInfClose[playerid], -2147483393);
+	PlayerTextDrawUseBox(playerid, EqInfClose[playerid], true);
+	PlayerTextDrawBoxColor(playerid, EqInfClose[playerid], 0);
+	PlayerTextDrawBackgroundColor(playerid, EqInfClose[playerid], 0x00000000);
 	PlayerTextDrawSetShadow(playerid, EqInfClose[playerid], 0);
 	PlayerTextDrawSetOutline(playerid, EqInfClose[playerid], 1);
-	PlayerTextDrawBackgroundColor(playerid, EqInfClose[playerid], 51);
 	PlayerTextDrawFont(playerid, EqInfClose[playerid], 1);
 	PlayerTextDrawSetProportional(playerid, EqInfClose[playerid], 1);
 	PlayerTextDrawSetSelectable(playerid, EqInfClose[playerid], true);
@@ -1435,35 +1515,35 @@ stock InitPlayerTextDraws(playerid)
 	PlayerTextDrawSetPreviewModel(playerid, EqInfDelim4[playerid], 18656);
 	PlayerTextDrawSetPreviewRot(playerid, EqInfDelim4[playerid], 0.000000, 0.000000, 0.000000, 1.000000);
 
-	EqInfDescriptionStr[playerid][0][0] = CreatePlayerTextDraw(playerid, 319.433380, 254.530380, "[Description string 1]");
-	PlayerTextDrawLetterSize(playerid, EqInfDescriptionStr[playerid][0][0], 0.234333, 1.006815);
-	PlayerTextDrawAlignment(playerid, EqInfDescriptionStr[playerid][0][0], 2);
-	PlayerTextDrawColor(playerid, EqInfDescriptionStr[playerid][0][0], -1);
-	PlayerTextDrawSetShadow(playerid, EqInfDescriptionStr[playerid][0][0], 0);
-	PlayerTextDrawSetOutline(playerid, EqInfDescriptionStr[playerid][0][0], 0);
-	PlayerTextDrawBackgroundColor(playerid, EqInfDescriptionStr[playerid][0][0], 51);
-	PlayerTextDrawFont(playerid, EqInfDescriptionStr[playerid][0][0], 1);
-	PlayerTextDrawSetProportional(playerid, EqInfDescriptionStr[playerid][0][0], 1);
+	EqInfDescriptionStr[playerid][0] = CreatePlayerTextDraw(playerid, 319.433380, 254.530380, "[Description string 1]");
+	PlayerTextDrawLetterSize(playerid, EqInfDescriptionStr[playerid][0], 0.234333, 1.006815);
+	PlayerTextDrawAlignment(playerid, EqInfDescriptionStr[playerid][0], 2);
+	PlayerTextDrawColor(playerid, EqInfDescriptionStr[playerid][0], -1);
+	PlayerTextDrawSetShadow(playerid, EqInfDescriptionStr[playerid][0], 0);
+	PlayerTextDrawSetOutline(playerid, EqInfDescriptionStr[playerid][0], 0);
+	PlayerTextDrawBackgroundColor(playerid, EqInfDescriptionStr[playerid][0], 51);
+	PlayerTextDrawFont(playerid, EqInfDescriptionStr[playerid][0], 1);
+	PlayerTextDrawSetProportional(playerid, EqInfDescriptionStr[playerid][0], 1);
 
-	EqInfDescriptionStr[playerid][0][1] = CreatePlayerTextDraw(playerid, 319.400115, 264.200103, "[Description string 2]");
-	PlayerTextDrawLetterSize(playerid, EqInfDescriptionStr[playerid][0][1], 0.234333, 1.006815);
-	PlayerTextDrawAlignment(playerid, EqInfDescriptionStr[playerid][0][1], 2);
-	PlayerTextDrawColor(playerid, EqInfDescriptionStr[playerid][0][1], -1);
-	PlayerTextDrawSetShadow(playerid, EqInfDescriptionStr[playerid][0][1], 0);
-	PlayerTextDrawSetOutline(playerid, EqInfDescriptionStr[playerid][0][1], 0);
-	PlayerTextDrawBackgroundColor(playerid, EqInfDescriptionStr[playerid][0][1], 51);
-	PlayerTextDrawFont(playerid, EqInfDescriptionStr[playerid][0][1], 1);
-	PlayerTextDrawSetProportional(playerid, EqInfDescriptionStr[playerid][0][1], 1);
+	EqInfDescriptionStr[playerid][1] = CreatePlayerTextDraw(playerid, 319.400115, 264.200103, "[Description string 2]");
+	PlayerTextDrawLetterSize(playerid, EqInfDescriptionStr[playerid][1], 0.234333, 1.006815);
+	PlayerTextDrawAlignment(playerid, EqInfDescriptionStr[playerid][1], 2);
+	PlayerTextDrawColor(playerid, EqInfDescriptionStr[playerid][1], -1);
+	PlayerTextDrawSetShadow(playerid, EqInfDescriptionStr[playerid][1], 0);
+	PlayerTextDrawSetOutline(playerid, EqInfDescriptionStr[playerid][1], 0);
+	PlayerTextDrawBackgroundColor(playerid, EqInfDescriptionStr[playerid][1], 51);
+	PlayerTextDrawFont(playerid, EqInfDescriptionStr[playerid][1], 1);
+	PlayerTextDrawSetProportional(playerid, EqInfDescriptionStr[playerid][1], 1);
 
-	EqInfDescriptionStr[playerid][0][2] = CreatePlayerTextDraw(playerid, 319.633575, 274.035766, "[Description string 3]");
-	PlayerTextDrawLetterSize(playerid, EqInfDescriptionStr[playerid][0][2], 0.234333, 1.006815);
-	PlayerTextDrawAlignment(playerid, EqInfDescriptionStr[playerid][0][2], 2);
-	PlayerTextDrawColor(playerid, EqInfDescriptionStr[playerid][0][2], -1);
-	PlayerTextDrawSetShadow(playerid, EqInfDescriptionStr[playerid][0][2], 0);
-	PlayerTextDrawSetOutline(playerid, EqInfDescriptionStr[playerid][0][2], 0);
-	PlayerTextDrawBackgroundColor(playerid, EqInfDescriptionStr[playerid][0][2], 51);
-	PlayerTextDrawFont(playerid, EqInfDescriptionStr[playerid][0][2], 1);
-	PlayerTextDrawSetProportional(playerid, EqInfDescriptionStr[playerid][0][2], 1);
+	EqInfDescriptionStr[playerid][2] = CreatePlayerTextDraw(playerid, 319.633575, 274.035766, "[Description string 3]");
+	PlayerTextDrawLetterSize(playerid, EqInfDescriptionStr[playerid][2], 0.234333, 1.006815);
+	PlayerTextDrawAlignment(playerid, EqInfDescriptionStr[playerid][2], 2);
+	PlayerTextDrawColor(playerid, EqInfDescriptionStr[playerid][2], -1);
+	PlayerTextDrawSetShadow(playerid, EqInfDescriptionStr[playerid][2], 0);
+	PlayerTextDrawSetOutline(playerid, EqInfDescriptionStr[playerid][2], 0);
+	PlayerTextDrawBackgroundColor(playerid, EqInfDescriptionStr[playerid][2], 51);
+	PlayerTextDrawFont(playerid, EqInfDescriptionStr[playerid][2], 1);
+	PlayerTextDrawSetProportional(playerid, EqInfDescriptionStr[playerid][2], 1);
 
 	EqInfDelim5[playerid] = CreatePlayerTextDraw(playerid, 248.532775, 286.045776, "inf_delim5");
 	PlayerTextDrawLetterSize(playerid, EqInfDelim5[playerid], 0.005665, 1.837852);
@@ -1633,17 +1713,18 @@ stock InitPlayerTextDraws(playerid)
 	PlayerTextDrawSetProportional(playerid, InfPrice[playerid], 1);
 
 	InfClose[playerid] = CreatePlayerTextDraw(playerid, 382.366668, 148.586669, "x");
-	PlayerTextDrawLetterSize(playerid, InfClose[playerid], 0.354333, 1.272296);
+	PlayerTextDrawLetterSize(playerid, InfClose[playerid], 0.354333, 1.272295);
+	PlayerTextDrawTextSize(playerid, InfClose[playerid], 12.333333, 4.977777);
 	PlayerTextDrawAlignment(playerid, InfClose[playerid], 2);
 	PlayerTextDrawColor(playerid, InfClose[playerid], -2147483393);
+	PlayerTextDrawUseBox(playerid, InfClose[playerid], true);
+	PlayerTextDrawBoxColor(playerid, InfClose[playerid], 0);
 	PlayerTextDrawSetShadow(playerid, InfClose[playerid], 0);
 	PlayerTextDrawSetOutline(playerid, InfClose[playerid], 1);
-	PlayerTextDrawBackgroundColor(playerid, InfClose[playerid], 51);
 	PlayerTextDrawFont(playerid, InfClose[playerid], 1);
 	PlayerTextDrawSetProportional(playerid, InfClose[playerid], 1);
 	PlayerTextDrawSetSelectable(playerid, InfClose[playerid], true);
-	PlayerTextDrawSetPreviewModel(playerid, InfClose[playerid], 18656);
-	PlayerTextDrawSetPreviewRot(playerid, InfClose[playerid], 0.000000, 0.000000, 0.000000, 1.000000);
+	PlayerTextDrawBackgroundColor(playerid, InfClose[playerid], 0x0000000);
 
 	UpgBox[playerid] = CreatePlayerTextDraw(playerid, 383.666778, 153.737030, "upg_box");
 	PlayerTextDrawLetterSize(playerid, UpgBox[playerid], 0.000000, 10.753333);
@@ -1789,16 +1870,19 @@ stock InitPlayerTextDraws(playerid)
 	PlayerTextDrawFont(playerid, UpgTxt5[playerid], 1);
 	PlayerTextDrawSetProportional(playerid, UpgTxt5[playerid], 1);
 
-	UpgClose[playerid] = CreatePlayerTextDraw(playerid, 373.333251, 151.614868, "x");
-	PlayerTextDrawLetterSize(playerid, UpgClose[playerid], 0.347000, 1.243259);
-	PlayerTextDrawAlignment(playerid, UpgClose[playerid], 1);
+	UpgClose[playerid] = CreatePlayerTextDraw(playerid, 377.066680, 151.780822, "x");
+	PlayerTextDrawLetterSize(playerid, UpgClose[playerid], 0.347000, 1.243258);
+	PlayerTextDrawTextSize(playerid, UpgClose[playerid], 8.000000, 4.562961);
+	PlayerTextDrawAlignment(playerid, UpgClose[playerid], 2);
 	PlayerTextDrawColor(playerid, UpgClose[playerid], -2147483393);
+	PlayerTextDrawUseBox(playerid, UpgClose[playerid], true);
+	PlayerTextDrawBoxColor(playerid, UpgClose[playerid], 0);
 	PlayerTextDrawSetShadow(playerid, UpgClose[playerid], 0);
 	PlayerTextDrawSetOutline(playerid, UpgClose[playerid], 1);
-	PlayerTextDrawBackgroundColor(playerid, UpgClose[playerid], 51);
 	PlayerTextDrawFont(playerid, UpgClose[playerid], 1);
 	PlayerTextDrawSetProportional(playerid, UpgClose[playerid], 1);
 	PlayerTextDrawSetSelectable(playerid, UpgClose[playerid], true);
+	PlayerTextDrawBackgroundColor(playerid, UpgClose[playerid], 0x00000000);
 }
 
 stock ShowTextDraws(playerid)
@@ -1819,7 +1903,97 @@ stock DeleteTextDraws()
 
 stock DeletePlayerTextDraws(playerid)
 {
+	PlayerTextDrawDestroy(playerid, ChrInfoDelim1[playerid]);
+	PlayerTextDrawDestroy(playerid, ChrInfDelim2[playerid]);
+	PlayerTextDrawDestroy(playerid, ChrInfDelim3[playerid]);
+	PlayerTextDrawDestroy(playerid, ChrInfDelim4[playerid]);
+	PlayerTextDrawDestroy(playerid, ChrInfButMod[playerid]);
+	PlayerTextDrawDestroy(playerid, ChrInfButDel[playerid]);
+	PlayerTextDrawDestroy(playerid, ChrInfButInfo[playerid]);
+	PlayerTextDrawDestroy(playerid, ChrInfButUse[playerid]);
+	PlayerTextDrawDestroy(playerid, ChrInfPersonalRate[playerid]);
+	PlayerTextDrawDestroy(playerid, ChrInfText1[playerid]);
+	PlayerTextDrawDestroy(playerid, ChrInfText2[playerid]);
+	PlayerTextDrawDestroy(playerid, ChrInfRate[playerid]);
+	PlayerTextDrawDestroy(playerid, ChrInfAllRate[playerid]);
+	PlayerTextDrawDestroy(playerid, ChrEqInfClose[playerid]);
+	PlayerTextDrawDestroy(playerid, ChrInfAccSlot2[playerid]);
+	PlayerTextDrawDestroy(playerid, ChrInfAccSlot1[playerid]);
+	PlayerTextDrawDestroy(playerid, ChrInfWeaponSlot[playerid]);
+	PlayerTextDrawDestroy(playerid, ChrInfArmorSlot[playerid]);
+	PlayerTextDrawDestroy(playerid, ChrInfDodge[playerid]);
+	PlayerTextDrawDestroy(playerid, ChrInfAccuracy[playerid]);
+	PlayerTextDrawDestroy(playerid, ChrInfDefense[playerid]);
+	PlayerTextDrawDestroy(playerid, ChrInfDamage[playerid]);
+	PlayerTextDrawDestroy(playerid, ChrInfMaxHP[playerid]);
+	PlayerTextDrawDestroy(playerid, ChrInfoHeader[playerid]);
+	PlayerTextDrawDestroy(playerid, ChrInfoBox[playerid]);
+	PlayerTextDrawDestroy(playerid, HPBar[playerid]);
+	for(new i = 0; i < MAX_SLOTS; i++)
+	{
+		PlayerTextDrawDestroy(playerid, ChrInfInvSlot[playerid][i]);
+		PlayerTextDrawDestroy(playerid, ChrInfInvSlotCount[playerid][i]);
+	}
 
+	PlayerTextDrawDestroy(playerid, EqInfBox[playerid]);
+	PlayerTextDrawDestroy(playerid, EqInfTxt1[playerid]);
+	PlayerTextDrawDestroy(playerid, EqInfTxt2[playerid]);
+	PlayerTextDrawDestroy(playerid, EqInfClose[playerid]);
+	PlayerTextDrawDestroy(playerid, EqInfDelim1[playerid]);
+	PlayerTextDrawDestroy(playerid, EqInfItemName[playerid]);
+	PlayerTextDrawDestroy(playerid, EqInfItemIcon[playerid]);
+	PlayerTextDrawDestroy(playerid, EqInfMainStat[playerid]);
+	PlayerTextDrawDestroy(playerid, EqInfDelim2[playerid]);
+	PlayerTextDrawDestroy(playerid, EqInfDelim3[playerid]);
+	PlayerTextDrawDestroy(playerid, EqInfDelim4[playerid]);
+	PlayerTextDrawDestroy(playerid, EqInfDelim5[playerid]);
+	PlayerTextDrawDestroy(playerid, EqInfPrice[playerid]);
+	for(new i = 0; i < 2; i++)
+	{
+		PlayerTextDrawDestroy(playerid, EqInfBonusStat[playerid][i]);
+	}
+	for(new i = 0; i < 3; i++)
+	{
+		PlayerTextDrawDestroy(playerid, EqInfDescriptionStr[playerid][i]);
+	}
+	for(new i = 0; i < 4; i++)
+	{
+		PlayerTextDrawDestroy(playerid, EqInfModStat[playerid][i]);
+	}
+	for(new i = 0; i < MAX_MOD; i++)
+	{
+		PlayerTextDrawDestroy(playerid, EqInfMod[playerid][i]);
+	}
+
+	PlayerTextDrawDestroy(playerid, InfClose[playerid]);
+	PlayerTextDrawDestroy(playerid, InfPrice[playerid]);
+	PlayerTextDrawDestroy(playerid, InfDelim1[playerid]);
+	PlayerTextDrawDestroy(playerid, InfDelim2[playerid]);
+	PlayerTextDrawDestroy(playerid, InfDelim3[playerid]);
+	PlayerTextDrawDestroy(playerid, InfItemEffect[playerid]);
+	PlayerTextDrawDestroy(playerid, InfItemType[playerid]);
+	PlayerTextDrawDestroy(playerid, InfItemName[playerid]);
+	PlayerTextDrawDestroy(playerid, InfItemIcon[playerid]);
+	PlayerTextDrawDestroy(playerid, InfTxt1[playerid]);
+	PlayerTextDrawDestroy(playerid, InfBox[playerid]);
+	for(new i = 0; i < 3; i++)
+	{
+		PlayerTextDrawDestroy(playerid, InfDescriptionStr[playerid][i]);
+	}
+
+	PlayerTextDrawDestroy(playerid, UpgClose[playerid]);
+	PlayerTextDrawDestroy(playerid, UpgTxt1[playerid]);
+	PlayerTextDrawDestroy(playerid, UpgTxt2[playerid]);
+	PlayerTextDrawDestroy(playerid, UpgTxt3[playerid]);
+	PlayerTextDrawDestroy(playerid, UpgTxt4[playerid]);
+	PlayerTextDrawDestroy(playerid, UpgTxt5[playerid]);
+	PlayerTextDrawDestroy(playerid, UpgBtn[playerid]);
+	PlayerTextDrawDestroy(playerid, UpgPotionSlot[playerid]);
+	PlayerTextDrawDestroy(playerid, UpgStoneSlot[playerid]);
+	PlayerTextDrawDestroy(playerid, UpgItemSlot[playerid]);
+	PlayerTextDrawDestroy(playerid, UpgModInfo[playerid]);
+	PlayerTextDrawDestroy(playerid, UpgDelim1[playerid]);
+	PlayerTextDrawDestroy(playerid, UpgBox[playerid]);
 }
 
 stock CreatePickups()
@@ -1829,13 +2003,13 @@ stock CreatePickups()
     start_tp1 = CreatePickup(19605,23,243.1539,-1831.6542,3.3772);
     start_tp2 = CreatePickup(19607,23,204.7617,-1831.6539,3.3772);
     
-    Create3DTextLabel("пїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅ",0xf2622bFF,224.0201,-1837.3518,4.2787,70.0,0,1);
-    Create3DTextLabel("пїЅ пїЅпїЅпїЅпїЅпїЅпїЅ",0xeaeaeaFF,243.1539,-1831.6542,3.9772,70.0,0,1);
-    Create3DTextLabel("пїЅпїЅ пїЅпїЅпїЅпїЅпїЅ",0xeaeaeaFF,204.7617,-1831.6539,4.1772,70.0,0,1);
-    Create3DTextLabel("пїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ",0xFFCC00FF,-2171.3132,645.5896,1053.3817,5.0,0,1);
-    Create3DTextLabel("пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ",0xFFCC00FF,-2166.7527,646.0400,1052.3750,5.0,0,1);
-	Create3DTextLabel("пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ",0xFFCC00FF,189.2644,-1825.4902,4.1411,5.0,0,1);
-	Create3DTextLabel("пїЅпїЅпїЅпїЅпїЅпїЅпїЅ",0xFFCC00FF,262.6658,-1825.2792,3.9126,5.0,0,1);
+    Create3DTextLabel("Дом клоунов",0xf2622bFF,224.0201,-1837.3518,4.2787,70.0,0,1);
+    Create3DTextLabel("К боссам",0xeaeaeaFF,243.1539,-1831.6542,3.9772,70.0,0,1);
+    Create3DTextLabel("На арену",0xeaeaeaFF,204.7617,-1831.6539,4.1772,70.0,0,1);
+    Create3DTextLabel("Доска почета",0xFFCC00FF,-2171.3132,645.5896,1053.3817,5.0,0,1);
+    Create3DTextLabel("Торговец расходниками",0xFFCC00FF,-2166.7527,646.0400,1052.3750,5.0,0,1);
+	Create3DTextLabel("Оружейник",0xFFCC00FF,189.2644,-1825.4902,4.1411,5.0,0,1);
+	Create3DTextLabel("Портной",0xFFCC00FF,262.6658,-1825.2792,3.9126,5.0,0,1);
 
 	Actors[0] =	CreateActor(61,-2166.7527,646.0400,1052.3750,179.9041);
 	Actors[1] =	CreateActor(6,189.2644,-1825.4902,4.1411,185.0134);
