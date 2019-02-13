@@ -41,12 +41,14 @@
 #define DEFAULT_POS_Z 1057.5938
 
 //Limits
+#define MAX_PARTICIPANTS 20
 #define MAX_SLOTS 25
 #define MAX_SLOTS_X 5
 #define MAX_SLOTS_Y 5
 #define MAX_RANK 9
 #define MAX_MOD 7
 #define MAX_PROPERTIES 2
+#define BASE_SIZE 205
 
 /* Forwards */
 forward Time();
@@ -70,17 +72,31 @@ new start_tp1 = -1;
 new start_tp2 = -1;
 
 //Player
-enum iInfo {
+enum iInfo 
+{
 	ID,
+	Mod[MAX_MOD],
+	Count,
+};
+enum BaseItem 
+{
+	ID,
+	Name[64],
+	Description1[30],
+	Description2[30],
+	Description3[30],
 	Type,
 	Grade,
-	Mod[MAX_MOD],
+	Price,
 	Property[MAX_PROPERTIES],
 	PropertyValue[MAX_PROPERTIES],
-	Count,
-	Price
-};
-enum pInfo {
+	Model,
+	ModelRotX,
+	ModelRotY,
+	ModelRotZ
+}
+enum pInfo 
+{
 	Rate,
 	Rank,
 	Cash,
@@ -101,9 +117,7 @@ enum pInfo {
 	Accuracy,
 	GlobalTopPosition,
 	LocalTopPosition,
-	CriticalChance,
-	ParticipantsCount,
-	Participants[MAX_PLAYERS]
+	CriticalChance
 };
 new PlayerInventory[MAX_PLAYERS][MAX_SLOTS][iInfo];
 new PlayerInfo[MAX_PLAYERS][pInfo];
@@ -113,6 +127,12 @@ new PlayerConnect[MAX_PLAYERS];
 new bool:IsInventoryOpen[MAX_PLAYERS] = false;
 new bool:IsDeath[MAX_PLAYERS] = false;
 new SelectedSlot[MAX_PLAYERS] = -1;
+
+new ParticipantsCount[MAX_PLAYERS];
+new Participants[MAX_PLAYERS][MAX_PARTICIPANTS];
+
+//Bases
+new ItemsBase[BASE_SIZE][BaseItem];
 
 //Arrays
 new RateColors[MAX_RANK][16] = {
@@ -161,7 +181,7 @@ new PlayerText:ChrInfArmorSlot[MAX_PLAYERS];
 new PlayerText:ChrInfWeaponSlot[MAX_PLAYERS];
 new PlayerText:ChrInfAccSlot1[MAX_PLAYERS];
 new PlayerText:ChrInfAccSlot2[MAX_PLAYERS];
-new PlayerText:ChrEqInfClose[MAX_PLAYERS];
+new PlayerText:ChrInfClose[MAX_PLAYERS];
 new PlayerText:ChrInfText1[MAX_PLAYERS];
 new PlayerText:ChrInfAllRate[MAX_PLAYERS];
 new PlayerText:ChrInfRate[MAX_PLAYERS];
@@ -246,6 +266,7 @@ public OnGameModeInit()
 	CreateMap();
 	CreatePickups();
 	InitTextDraws();
+	InitDatabase();
 	WorldTime_Timer = SetTimer("Time", 1000, true);
 	UpdateRatingTop();
 	return 1;
@@ -263,13 +284,17 @@ public OnGameModeExit()
 public OnPlayerRequestClass(playerid, classid)
 {
 	SendClientMessage(playerid, COLOR_WHITE, "Добро пожаловать в Bourgeois Circus.");
-	new ok = LoadAccount(playerid);
+	//new login[64];
+	//GetPlayerName(playerid, login, sizeof(login));
+	//new ok = LoadAccount(login);
+	//if(PlayerInfo[playerid][Admin] > 0 && ok > 0)
+
+	new ok = LoadPlayer(playerid);
 	if (PlayerInfo[playerid][Admin] > 0 && ok > 0)
 		OnPlayerLogin(playerid);
 	else
 	{
-		CreateAccount(playerid, "Admin");
-		//TODO
+		
 	}
 	return 1;
 }
@@ -283,6 +308,7 @@ public OnPlayerConnect(playerid)
 
 public OnPlayerLogin(playerid) {
 	InitPlayerTextDraws(playerid);
+	PlayerTextDrawShow(playerid, HPBar[playerid]);
 	PlayerConnect[playerid] = true;
 	IsInventoryOpen[playerid] = false;
 	SelectedSlot[playerid] = -1;
@@ -298,7 +324,7 @@ public OnPlayerLogin(playerid) {
 public OnPlayerDisconnect(playerid, reason)
 {
 	KillTimer(PlayerUpdater[playerid]);
-	SaveAccount(playerid);
+	SavePlayer(playerid);
 	DeletePlayerTextDraws(playerid);
 	IsInventoryOpen[playerid] = false;
 	SelectedSlot[playerid] = -1;
@@ -492,6 +518,24 @@ public OnDialogResponse(playerid, dialogid, response, listitem, inputtext[])
 	return 1;
 }
 
+public OnPlayerUpdate(playerid)
+{
+	UpdateHPBar(playerid);
+}
+
+public OnPlayerClickPlayer(playerid, clickedplayerid, source)
+{
+	return 1;
+}
+
+public OnPlayerClickPlayerTextDraw(playerid, PlayerText:playertextid)
+{
+	if(playertextid == ChrInfClose[playerid])
+	{
+		HideCharInfo(playerid);
+	}
+}
+
 /* Public functions */
 public Time()
 {
@@ -533,6 +577,7 @@ public SetPlayerHP(playerid, Float:hp)
 	new Float:value = floatdiv(hp, PlayerHPMultiplicator[playerid]);
 	
 	SetPlayerHealth(playerid, value);
+	UpdateHPBar(playerid);
 }
 
 public Float:GetPlayerHP(playerid)
@@ -545,6 +590,18 @@ public Float:GetPlayerHP(playerid)
 }
 
 /* Stock functions */
+stock UpdateHPBar(playerid)
+{
+	new Float:hp;
+	new Float:max_hp;
+	hp = GetPlayerHP(playerid);
+	max_hp = GetPlayerMaxHP(playerid);
+	new percents = floatround(floatmul(floatdiv(hp, max_hp), 100));
+	new string[64];
+	format(string, sizeof(string), "%d%% %d/%d", percents, floatround(hp), floatround(max_hp));
+	PlayerTextDrawSetString(playerid, HPBar[playerid], string);
+}
+
 stock ShowCharInfo(playerid)
 {
 	new string[255];
@@ -583,7 +640,7 @@ stock ShowCharInfo(playerid)
 	PlayerTextDrawShow(playerid, ChrInfWeaponSlot[playerid]);
 	PlayerTextDrawShow(playerid, ChrInfAccSlot1[playerid]);
 	PlayerTextDrawShow(playerid, ChrInfAccSlot2[playerid]);
-	PlayerTextDrawShow(playerid, ChrEqInfClose[playerid]);
+	PlayerTextDrawShow(playerid, ChrInfClose[playerid]);
 	PlayerTextDrawShow(playerid, ChrInfText1[playerid]);
 	PlayerTextDrawShow(playerid, ChrInfText2[playerid]);
 	PlayerTextDrawShow(playerid, ChrInfAllRate[playerid]);
@@ -602,7 +659,42 @@ stock ShowCharInfo(playerid)
 	}
 }
 
-stock SaveAccount(playerid)
+stock HideCharInfo(playerid)
+{
+	PlayerTextDrawHide(playerid, ChrInfoBox[playerid]);
+	PlayerTextDrawHide(playerid, ChrInfoHeader[playerid]);
+	PlayerTextDrawHide(playerid, ChrInfoDelim1[playerid]);
+	PlayerTextDrawHide(playerid, ChrInfDelim2[playerid]);
+	PlayerTextDrawHide(playerid, ChrInfDelim3[playerid]);
+	PlayerTextDrawHide(playerid, ChrInfMaxHP[playerid]);
+	PlayerTextDrawHide(playerid, ChrInfDamage[playerid]);
+	PlayerTextDrawHide(playerid, ChrInfDefense[playerid]);
+	PlayerTextDrawHide(playerid, ChrInfAccuracy[playerid]);
+	PlayerTextDrawHide(playerid, ChrInfDodge[playerid]);
+	PlayerTextDrawHide(playerid, ChrInfArmorSlot[playerid]);
+	PlayerTextDrawHide(playerid, ChrInfWeaponSlot[playerid]);
+	PlayerTextDrawHide(playerid, ChrInfAccSlot1[playerid]);
+	PlayerTextDrawHide(playerid, ChrInfAccSlot2[playerid]);
+	PlayerTextDrawHide(playerid, ChrInfClose[playerid]);
+	PlayerTextDrawHide(playerid, ChrInfText1[playerid]);
+	PlayerTextDrawHide(playerid, ChrInfText2[playerid]);
+	PlayerTextDrawHide(playerid, ChrInfAllRate[playerid]);
+	PlayerTextDrawHide(playerid, ChrInfRate[playerid]);
+	PlayerTextDrawHide(playerid, ChrInfPersonalRate[playerid]);
+	PlayerTextDrawHide(playerid, ChrInfButUse[playerid]);
+	PlayerTextDrawHide(playerid, ChrInfButInfo[playerid]);
+	PlayerTextDrawHide(playerid, ChrInfButDel[playerid]);
+	PlayerTextDrawHide(playerid, ChrInfButMod[playerid]);
+	PlayerTextDrawHide(playerid, ChrInfDelim4[playerid]);
+
+	for (new i = 0; i < MAX_SLOTS; i++)
+	{
+		PlayerTextDrawHide(playerid, ChrInfInvSlot[playerid][i]);
+		PlayerTextDrawHide(playerid, ChrInfInvSlotCount[playerid][i]);
+	}
+}
+
+stock SavePlayer(playerid)
 {
 	new name[64];
 	new string[255];
@@ -634,37 +726,23 @@ stock SaveAccount(playerid)
 	ini_setInteger(File, "Crit", PlayerInfo[playerid][CriticalChance]);
     ini_setInteger(File, "GlobalTopPosition", PlayerInfo[playerid][GlobalTopPosition]);
 	ini_setInteger(File, "LocalTopPosition", PlayerInfo[playerid][LocalTopPosition]);
-	ini_setInteger(File, "ParticipantsCount", PlayerInfo[playerid][ParticipantsCount]);
     for (new j = 0; j < MAX_SLOTS; j++) 
 	{
         format(string, sizeof(string), "InventorySlot%dID", j);
         ini_setInteger(File, string, PlayerInventory[playerid][j][ID]);
-        format(string, sizeof(string), "InventorySlot%dType", j);
-        ini_setInteger(File, string, PlayerInventory[playerid][j][Type]);
-		format(string, sizeof(string), "InventorySlot%dGrade", j);
-        ini_setInteger(File, string, PlayerInventory[playerid][j][Grade]);
 		for (new x = 0; x < MAX_MOD; x++)
 		{
 			format(string, sizeof(string), "InventorySlot%dMod%d", j, x);
         	ini_setInteger(File, string, PlayerInventory[playerid][j][Mod][x]);
 		}
-		for (new x = 0; x < MAX_PROPERTIES; x++)
-		{
-			format(string, sizeof(string), "InventorySlot%dProp%d", j, x);
-        	ini_setInteger(File, string, PlayerInventory[playerid][j][Property][x]);
-			format(string, sizeof(string), "InventorySlot%dPropVal%d", j, x);
-        	ini_setInteger(File, string, PlayerInventory[playerid][j][PropertyValue][x]);
-		}
 		format(string, sizeof(string), "InventorySlot%dCount", j);
         ini_setInteger(File, string, PlayerInventory[playerid][j][Count]);
-		format(string, sizeof(string), "InventorySlot%dPrice", j);
-        ini_setInteger(File, string, PlayerInventory[playerid][j][Price]);
     }
     ini_closeFile(File);
     return 1;
 }
 
-stock LoadAccount(playerid)
+stock LoadPlayer(playerid)
 {
 	new name[64];
 	new string[255];
@@ -693,37 +771,23 @@ stock LoadAccount(playerid)
 	ini_getInteger(File, "Crit", PlayerInfo[playerid][CriticalChance]);
     ini_getInteger(File, "GlobalTopPosition", PlayerInfo[playerid][GlobalTopPosition]);
 	ini_getInteger(File, "LocalTopPosition", PlayerInfo[playerid][LocalTopPosition]);
-	ini_getInteger(File, "ParticipantsCount", PlayerInfo[playerid][ParticipantsCount]);
     for (new j = 0; j < MAX_SLOTS; j++) 
 	{
         format(string, sizeof(string), "InventorySlot%dID", j);
         ini_getInteger(File, string, PlayerInventory[playerid][j][ID]);
-        format(string, sizeof(string), "InventorySlot%dType", j);
-        ini_getInteger(File, string, PlayerInventory[playerid][j][Type]);
-		format(string, sizeof(string), "InventorySlot%dGrade", j);
-        ini_getInteger(File, string, PlayerInventory[playerid][j][Grade]);
 		for (new x = 0; x < MAX_MOD; x++)
 		{
 			format(string, sizeof(string), "InventorySlot%dMod%d", j, x);
         	ini_getInteger(File, string, PlayerInventory[playerid][j][Mod][x]);
 		}
-		for (new x = 0; x < MAX_PROPERTIES; x++)
-		{
-			format(string, sizeof(string), "InventorySlot%dProp%d", j, x);
-        	ini_getInteger(File, string, PlayerInventory[playerid][j][Property][x]);
-			format(string, sizeof(string), "InventorySlot%dPropVal%d", j, x);
-        	ini_getInteger(File, string, PlayerInventory[playerid][j][PropertyValue][x]);
-		}
 		format(string, sizeof(string), "InventorySlot%dCount", j);
         ini_getInteger(File, string, PlayerInventory[playerid][j][Count]);
-		format(string, sizeof(string), "InventorySlot%dPrice", j);
-        ini_getInteger(File, string, PlayerInventory[playerid][j][Price]);
     }
     ini_closeFile(File);
     return 1;
 }
 
-stock CreateAccount(playerid, name[])
+stock CreatePlayer(playerid, name[])
 {
 	new string[255];
 	new path[128];
@@ -784,6 +848,13 @@ stock CreateAccount(playerid, name[])
 	ini_closeFile(File2);
 	SendClientMessage(playerid, COLOR_GREEN, "Account created succesfully.");
 	return 1;
+}
+
+stock IsPlayerBesideNPC(playerid)
+{
+	return IsPlayerInRangeOfPoint(playerid, 2.0, -2166.7527,646.0400,1052.3750) ||
+		   IsPlayerInRangeOfPoint(playerid, 2.0, 189.2644,-1825.4902,4.1411) ||
+		   IsPlayerInRangeOfPoint(playerid, 2.0, 262.6658,-1825.2792,3.9126);
 }
 
 stock GetColorByRate(rate) {
@@ -884,6 +955,50 @@ stock TranslateText(string[])
 stock UpdateRatingTop()
 {
 
+}
+
+stock InitDatabase()
+{
+	new string[255];
+	new File = ini_openFile("Database/Itemsdata.ini");
+	new count = 0;
+	ini_getInteger(File, "Count", count);
+	for(new i = 0; i < count; i++)
+	{
+		format(string, sizeof(string), "Item%d_ID", i);
+		ini_getInteger(File, string, ItemsBase[0][ID]);
+		format(string, sizeof(string), "Item%d_Name", i);
+		ini_getString(File, string, ItemsBase[0][Name]);
+		format(string, sizeof(string), "Item%d_Type", i);
+		ini_getInteger(File, string, ItemsBase[0][Type]);
+		format(string, sizeof(string), "Item%d_Grade", i);
+		ini_getInteger(File, string, ItemsBase[0][Grade]);
+		format(string, sizeof(string), "Item%d_Description1%d", i);
+		ini_getString(File, string, ItemsBase[0][Description1]);
+		format(string, sizeof(string), "Item%d_Description2%d", i);
+		ini_getString(File, string, ItemsBase[0][Description2]);
+		format(string, sizeof(string), "Item%d_Description3%d", i);
+		ini_getString(File, string, ItemsBase[0][Description3]);
+		for(new j = 0; j < MAX_PROPERTIES; j++)
+		{
+			format(string, sizeof(string), "Item%d_Property%d", i, j);
+			ini_getInteger(File, string, ItemsBase[0][Property][j]);
+			format(string, sizeof(string), "Item%d_PropertyVal%d", i, j);
+			ini_getInteger(File, string, ItemsBase[0][PropertyValue][j]);
+		}
+		format(string, sizeof(string), "Item%d_Price", i);
+		ini_getInteger(File, string, ItemsBase[0][Price]);
+		format(string, sizeof(string), "Item%d_Model", i);
+		ini_getInteger(File, string, ItemsBase[0][Model]);
+		format(string, sizeof(string), "Item%d_ModelRotX", i);
+		ini_getInteger(File, string, ItemsBase[0][ModelRotX]);
+		format(string, sizeof(string), "Item%d_ModelRotY", i);
+		ini_getInteger(File, string, ItemsBase[0][ModelRotY]);
+		format(string, sizeof(string), "Item%d_ModelRotZ", i);
+		ini_getInteger(File, string, ItemsBase[0][ModelRotZ]);
+	}
+	ini_closeFile(File);
+	print("Database loaded succesfully.");
 }
 
 stock InitTextDraws()
@@ -1106,19 +1221,19 @@ stock InitPlayerTextDraws(playerid)
 	PlayerTextDrawSetPreviewRot(playerid, ChrInfAccSlot2[playerid], 0.000000, 0.000000, 0.000000, 1.000000);
 	PlayerTextDrawSetSelectable(playerid, ChrInfAccSlot2[playerid], true);
 
-	ChrEqInfClose[playerid] = CreatePlayerTextDraw(playerid, 601.999938, 106.607421, "X");
-	PlayerTextDrawLetterSize(playerid, ChrEqInfClose[playerid], 0.315333, 1.010962);
-	PlayerTextDrawTextSize(playerid, ChrEqInfClose[playerid], 6.666668, 4.977776);
-	PlayerTextDrawAlignment(playerid, ChrEqInfClose[playerid], 2);
-	PlayerTextDrawColor(playerid, ChrEqInfClose[playerid], -2147483393);
-	PlayerTextDrawUseBox(playerid, ChrEqInfClose[playerid], true);
-	PlayerTextDrawBoxColor(playerid, ChrEqInfClose[playerid], 0);
-	PlayerTextDrawBackgroundColor(playerid, ChrEqInfClose[playerid], 0x00000000);
-	PlayerTextDrawSetShadow(playerid, ChrEqInfClose[playerid], 0);
-	PlayerTextDrawSetOutline(playerid, ChrEqInfClose[playerid], 1);
-	PlayerTextDrawFont(playerid, ChrEqInfClose[playerid], 1);
-	PlayerTextDrawSetProportional(playerid, ChrEqInfClose[playerid], 1);
-	PlayerTextDrawSetSelectable(playerid, ChrEqInfClose[playerid], true);
+	ChrInfClose[playerid] = CreatePlayerTextDraw(playerid, 601.999938, 106.607421, "X");
+	PlayerTextDrawLetterSize(playerid, ChrInfClose[playerid], 0.315333, 1.010962);
+	PlayerTextDrawTextSize(playerid, ChrInfClose[playerid], 6.666668, 4.977776);
+	PlayerTextDrawAlignment(playerid, ChrInfClose[playerid], 2);
+	PlayerTextDrawColor(playerid, ChrInfClose[playerid], -2147483393);
+	PlayerTextDrawUseBox(playerid, ChrInfClose[playerid], true);
+	PlayerTextDrawBoxColor(playerid, ChrInfClose[playerid], 0);
+	PlayerTextDrawBackgroundColor(playerid, ChrInfClose[playerid], 0x00000000);
+	PlayerTextDrawSetShadow(playerid, ChrInfClose[playerid], 0);
+	PlayerTextDrawSetOutline(playerid, ChrInfClose[playerid], 1);
+	PlayerTextDrawFont(playerid, ChrInfClose[playerid], 1);
+	PlayerTextDrawSetProportional(playerid, ChrInfClose[playerid], 1);
+	PlayerTextDrawSetSelectable(playerid, ChrInfClose[playerid], true);
 
 	ChrInfText1[playerid] = CreatePlayerTextDraw(playerid, 519.999877, 156.385177, TranslateText("Общий"));
 	PlayerTextDrawLetterSize(playerid, ChrInfText1[playerid], 0.186000, 0.716444);
@@ -1916,7 +2031,7 @@ stock DeletePlayerTextDraws(playerid)
 	PlayerTextDrawDestroy(playerid, ChrInfText2[playerid]);
 	PlayerTextDrawDestroy(playerid, ChrInfRate[playerid]);
 	PlayerTextDrawDestroy(playerid, ChrInfAllRate[playerid]);
-	PlayerTextDrawDestroy(playerid, ChrEqInfClose[playerid]);
+	PlayerTextDrawDestroy(playerid, ChrInfClose[playerid]);
 	PlayerTextDrawDestroy(playerid, ChrInfAccSlot2[playerid]);
 	PlayerTextDrawDestroy(playerid, ChrInfAccSlot1[playerid]);
 	PlayerTextDrawDestroy(playerid, ChrInfWeaponSlot[playerid]);
@@ -2006,10 +2121,10 @@ stock CreatePickups()
     Create3DTextLabel("Дом клоунов",0xf2622bFF,224.0201,-1837.3518,4.2787,70.0,0,1);
     Create3DTextLabel("К боссам",0xeaeaeaFF,243.1539,-1831.6542,3.9772,70.0,0,1);
     Create3DTextLabel("На арену",0xeaeaeaFF,204.7617,-1831.6539,4.1772,70.0,0,1);
-    Create3DTextLabel("Доска почета",0xFFCC00FF,-2171.3132,645.5896,1053.3817,5.0,0,1);
-    Create3DTextLabel("Торговец расходниками",0xFFCC00FF,-2166.7527,646.0400,1052.3750,5.0,0,1);
-	Create3DTextLabel("Оружейник",0xFFCC00FF,189.2644,-1825.4902,4.1411,5.0,0,1);
-	Create3DTextLabel("Портной",0xFFCC00FF,262.6658,-1825.2792,3.9126,5.0,0,1);
+    Create3DTextLabel("Доска почета",0xFFCC00FF,-2171.3132,645.5896,1053.3817,10.0,0,1);
+    Create3DTextLabel("Торговец расходниками",0xFFCC00FF,-2166.7527,646.0400,1052.3750,55.0,0,1);
+	Create3DTextLabel("Оружейник",0xFFCC00FF,189.2644,-1825.4902,4.1411,55.0,0,1);
+	Create3DTextLabel("Портной",0xFFCC00FF,262.6658,-1825.2792,3.9126,55.0,0,1);
 
 	Actors[0] =	CreateActor(61,-2166.7527,646.0400,1052.3750,179.9041);
 	Actors[1] =	CreateActor(6,189.2644,-1825.4902,4.1411,185.0134);
