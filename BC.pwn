@@ -50,6 +50,42 @@
 #define MAX_PROPERTIES 2
 #define BASE_SIZE 205
 
+//Player params
+#define PARAM_DAMAGE 1
+#define PARAM_DEFENSE 2
+#define PARAM_DODGE 3
+#define PARAM_ACCURACY 4
+#define PARAM_CRITICAL_CHANCE 5
+
+//Item types
+#define ITEMTYPE_WEAPON 1
+#define ITEMTYPE_ARMOR 2
+#define ITEMTYPE_ACCESSORY 3
+#define ITEMTYPE_PASSIVE 4
+#define ITEMTYPE_MATERIAL 5
+#define ITEMTYPE_BOX 6
+
+//Item grades
+#define GRADE_N 1
+#define GRADE_B 2
+#define GRADE_C 3
+
+//Props
+#define PROPERTY_NONE 0
+#define PROPERTY_DAMAGE 1
+#define PROPERTY_DEFENSE 2
+#define PROPERTY_DODGE 3
+#define PROPERTY_ACCURACY 4
+#define PROPERTY_HP 5
+#define PROPERTY_CRIT 6
+#define PROPERTY_LOOT 7
+
+//Modifiers variations
+#define MOD_DAMAGE 1
+#define MOD_DEFENCE 2
+#define MOD_DODGE 3
+#define MOD_ACCURACY 4
+
 /* Forwards */
 forward Time();
 forward OnPlayerLogin(playerid);
@@ -58,6 +94,7 @@ forward Float:GetDistanceBetweenPlayers(p1, p2);
 forward Float:GetPlayerMaxHP(playerid);
 forward Float:GetPlayerHP(playerid);
 forward SetPlayerHP(playerid, Float:hp);
+forward GivePlayerRate(playerid, rate);
 
 /* Variables */
 
@@ -85,6 +122,7 @@ enum BaseItem
 	Description1[30],
 	Description2[30],
 	Description3[30],
+	MinRank,
 	Type,
 	Grade,
 	Price,
@@ -99,6 +137,7 @@ enum pInfo
 {
 	Rate,
 	Rank,
+	MaxRank,
 	Cash,
 	Sex,
 	Float:PosX,
@@ -127,6 +166,11 @@ new PlayerConnect[MAX_PLAYERS];
 new bool:IsInventoryOpen[MAX_PLAYERS] = false;
 new bool:IsDeath[MAX_PLAYERS] = false;
 new SelectedSlot[MAX_PLAYERS] = -1;
+
+new WeaponSlot[MAX_PLAYERS][iInfo];
+new ArmorSlot[MAX_PLAYERS][iInfo];
+new AccSlot1[MAX_PLAYERS][iInfo];
+new AccSlot2[MAX_PLAYERS][iInfo];
 
 new ParticipantsCount[MAX_PLAYERS];
 new Participants[MAX_PLAYERS][MAX_PARTICIPANTS];
@@ -284,18 +328,15 @@ public OnGameModeExit()
 public OnPlayerRequestClass(playerid, classid)
 {
 	SendClientMessage(playerid, COLOR_WHITE, "Добро пожаловать в Bourgeois Circus.");
-	//new login[64];
-	//GetPlayerName(playerid, login, sizeof(login));
-	//new ok = LoadAccount(login);
-	//if(PlayerInfo[playerid][Admin] > 0 && ok > 0)
-
-	new ok = LoadPlayer(playerid);
-	if (PlayerInfo[playerid][Admin] > 0 && ok > 0)
+	new login[64];
+	GetPlayerName(playerid, login, sizeof(login));
+	new ok = LoadAccount(login);
+	if(PlayerInfo[playerid][Admin] > 0 && ok > 0)
 		OnPlayerLogin(playerid);
+	else if(ok > 0)
+		ShowPlayerDialog(playerid, 101, DIALOG_STYLE_PASSWORD, "Авторизация", "Введите пароль:", "Вход", "Закрыть");
 	else
-	{
-		
-	}
+		ShowPlayerDialog(playerid, 100, DIALOG_STYLE_PASSWORD, "Регистрация", "Указанный логин не зарегистрирован.\n\nПридумайте пароль:", "Далее", "Закрыть");
 	return 1;
 }
 
@@ -476,11 +517,77 @@ public OnPlayerKeyStateChange(playerid, newkeys, oldkeys)
 public OnDialogResponse(playerid, dialogid, response, listitem, inputtext[])
 {
 	//1 - пустой
+	//100-102 - регистрация/авторизация
 	//1000 - основное меню
 	switch (dialogid) 
 	{
 		//Пустой
 	    case 1: { return 1; }
+		//Регистрация
+		case 100:
+		{
+			if(response)
+			{
+				new login[64];
+				GetPlayerName(playerid, login, sizeof(login));
+
+				new filepath[128];
+				format(filepath, sizeof(filepath), "Accounts/%s.ini", login);
+				if(ini_existFile(filepath))
+				{
+					SendClientMessage(playerid, COLOR_LIGHTRED, "Ошибка создания аккаунта. Обратитесь к администратору.");
+					Kick(playerid);
+					return 0;
+				}
+
+				new File = ini_createFile(filepath);
+				ini_setString(File, "Password", MD5_Hash(inputtext));
+				ini_setInteger(File, "ParticipantsCount", 0);
+				ini_closeFile(File);
+
+				AccountLogin[playerid] = login;
+				SendClientMessage(playerid, COLOR_GREEN, "Регистрация прошла успешно. Сообщите логин администратору для привязки участников.");
+				Kick(playerid);
+				return 1;
+			}
+			else
+			{
+				Kick(playerid);
+				return 0;
+			}
+		}
+		case 101:
+		{
+			new login[64];
+			GetPlayerName(playerid, login, sizeof(login));
+
+			new filepath[128];
+			format(filepath, sizeof(filepath), "Accounts/%s.ini", login);
+			if(!ini_existFile(filepath))
+			{
+				SendClientMessage(playerid, COLOR_LIGHTRED, "Ошибка авторизации. Обратитесь к администратору.");
+				Kick(playerid);
+				return 0;
+			}
+
+			new File = ini_openFile(filepath);
+			new hash[255];
+			ini_getString(File, "Password", hash);
+			if(!strcmp(MD5_Hash(inputtext), hash, true))
+			{
+				SendClientMessage(playerid, 102, DIALOG_STYLE_MSGBOX, "Ошибка", "Неверный пароль", "Закрыть", "");
+				return 0;
+			}
+
+			ConnectParticipants(playerid);
+			OnPlayerLogin(playerid);
+			return 1;
+		}
+		case 102:
+		{
+			ShowPlayerDialog(playerid, 101, DIALOG_STYLE_PASSWORD, "Авторизация", "Введите пароль:", "Вход", "Закрыть");
+			return 1;
+		}
 		//Основное меню
 		case 1000:
 		{
@@ -589,6 +696,12 @@ public Float:GetPlayerHP(playerid)
 	return hp;
 }
 
+public GivePlayerRate(playerid, rate)
+{
+	PlayerInfo[playerid][Rate] += rate;
+	UpdatePlayerRank(playerid);
+}
+
 /* Stock functions */
 stock UpdateHPBar(playerid)
 {
@@ -600,6 +713,32 @@ stock UpdateHPBar(playerid)
 	new string[64];
 	format(string, sizeof(string), "%d%% %d/%d", percents, floatround(hp), floatround(max_hp));
 	PlayerTextDrawSetString(playerid, HPBar[playerid], string);
+}
+
+stock UpdatePlayerRank(playerid)
+{
+	new string[255];
+	new new_rank = GetRankByRate(PlayerInfo[playerid][Rate]);
+
+	if(new_rank > PlayerInfo[playerid][Rank])
+	{
+		format(string, sizeof(string), "Ранг повышен - %s.", GetRateInterval(PlayerInfo[playerid][Rate]));
+		SendClientMessage(playerid, COLOR_GREEN, string);
+	}
+	else if(new_rank < PlayerInfo[playerid][Rank])
+	{
+		format(string, sizeof(string), "Ранг понижен - %s.", GetRateInterval(PlayerInfo[playerid][Rate]));
+		SendClientMessage(playerid, COLOR_RED, string);
+	}
+
+	PlayerInfo[playerid][Rank] = new_rank;
+	if(new_rank > PlayerInfo[playerid][MaxRank])
+		PlayerInfo[playerid][MaxRank] = new_rank;
+}
+
+stock ConnectParticipants(playerid)
+{
+	//TODO:
 }
 
 stock ShowCharInfo(playerid)
@@ -619,6 +758,12 @@ stock ShowCharInfo(playerid)
 	format(string, sizeof(string), "%d", PlayerInfo[playerid][Rate]);
 	PlayerTextDrawSetString(playerid, ChrInfRate[playerid], string);
 	PlayerTextDrawColor(playerid, ChrInfRate[playerid], HexRateColors[PlayerInfo[playerid][Rank]-1][0]);
+	format(string, sizeof(string), "%d", PlayerInfo[playerid][GlobalTopPosition]);
+	PlayerTextDrawSetString(playerid, ChrInfAllRate[playerid], string);
+	PlayerTextDrawColor(playerid, ChrInfAllRate[playerid], GetPlaceColor(PlayerInfo[playerid][GlobalTopPosition]));
+	format(string, sizeof(string), "%d", PlayerInfo[playerid][LocalTopPosition]);
+	PlayerTextDrawSetString(playerid, ChrInfPersonalRate[playerid], string);
+	PlayerTextDrawColor(playerid, ChrInfPersonalRate[playerid], GetPlaceColor(PlayerInfo[playerid][LocalTopPosition]));
 
 	for (new i = 0; i < MAX_SLOTS; i++) 
 	{
@@ -694,6 +839,59 @@ stock HideCharInfo(playerid)
 	}
 }
 
+stock GetPlaceColor(place)
+{
+    new color[16];
+	switch(place) 
+	{
+	    case 1: color = "FFCC00";
+	    case 2: color = "FF6600";
+	    case 3: color = "FF3300";
+	    case 4,5: color = "CC0099";
+	    case 6..8: color = "CC33FF";
+	    case 9..12: color = "6666FF";
+		case 13..16: color = "66CC33";
+	    default: color = "CCCCCC";
+	}
+	return color;
+}
+
+stock GetRateInterval(rate) 
+{
+	new interval[32];
+	switch(rate) 
+	{
+	    case 501..1000: interval = "Камень";
+	    case 1001..1200: interval = "Железо";
+	    case 1201..1400: interval = "Бронза";
+	    case 1401..1600: interval = "Серебро";
+	    case 1601..2000: interval = "Золото";
+	    case 2001..2300: interval = "Платина";
+	    case 2301..2700: interval = "Алмаз";
+	    case 2701..3000: interval = "Бриллиант";
+	    default: interval = "Дерево";
+	}
+	return interval;
+}
+
+stock GetRankByRate(rate)
+{
+	new rank;
+	switch(rate)
+	{
+		case 501..1000: rank = 2;
+	    case 1001..1200: rank = 3;
+	    case 1201..1400: rank = 4;
+	    case 1401..1600: rank = 5;
+	    case 1601..2000: rank = 6;
+	    case 2001..2300: rank = 7;
+	    case 2301..2700: rank = 8;
+	    case 2701..3000: rank = 9;
+	    default: rank = 1;
+	}
+	return rank;
+}
+
 stock SavePlayer(playerid)
 {
 	new name[64];
@@ -707,6 +905,7 @@ stock SavePlayer(playerid)
 	new File = ini_openFile(path);
 	ini_setInteger(File, "Rate", PlayerInfo[playerid][Rate]);
 	ini_setInteger(File, "Rank", PlayerInfo[playerid][Rank]);
+	ini_setInteger(File, "MaxRank", PlayerInfo[playerid][MaxRank]);
     ini_setInteger(File, "Cash", PlayerInfo[playerid][Cash]);
     ini_setInteger(File, "Sex", PlayerInfo[playerid][Sex]);
 	ini_setFloat(File, "PosX", PlayerInfo[playerid][PosX]);
@@ -726,6 +925,28 @@ stock SavePlayer(playerid)
 	ini_setInteger(File, "Crit", PlayerInfo[playerid][CriticalChance]);
     ini_setInteger(File, "GlobalTopPosition", PlayerInfo[playerid][GlobalTopPosition]);
 	ini_setInteger(File, "LocalTopPosition", PlayerInfo[playerid][LocalTopPosition]);
+
+	ini_setInteger(File, "WeaponSlotID", WeaponSlot[playerid][ID]);
+	ini_setInteger(File, "WeaponSlotCount", WeaponSlot[playerid][Count]);
+	ini_setInteger(File, "ArmorSlotID", ArmorSlot[playerid][ID]);
+	ini_setInteger(File, "ArmorSlotCount", ArmorSlot[playerid][Count]);
+	ini_setInteger(File, "AccSlot1ID", AccSlot1[playerid][ID]);
+	ini_setInteger(File, "AccSlot1Count", AccSlot1[playerid][Count]);
+	ini_setInteger(File, "AccSlot2ID", AccSlot1[playerid][ID]);
+	ini_setInteger(File, "AccSlot2Count", AccSlot1[playerid][Count]);
+	for (new x = 0; x < MAX_MOD; x++)
+	{
+		format(string, sizeof(string), "WeaponSlotMod%d", x);
+		ini_setInteger(File, string, WeaponSlot[playerid][Mod][x]);
+		format(string, sizeof(string), "ArmorSlotMod%d", x);
+		ini_setInteger(File, string, ArmorSlot[playerid][Mod][x]);
+		format(string, sizeof(string), "AccSlot1Mod%d", x);
+		ini_setInteger(File, string, AccSlot1[playerid][Mod][x]);
+		format(string, sizeof(string), "AccSlot2Mod%d", x);
+		ini_setInteger(File, string, AccSlot2[playerid][Mod][x]);
+		
+	}
+
     for (new j = 0; j < MAX_SLOTS; j++) 
 	{
         format(string, sizeof(string), "InventorySlot%dID", j);
@@ -752,6 +973,7 @@ stock LoadPlayer(playerid)
 	new File = ini_openFile(path);
 	ini_getInteger(File, "Rate", PlayerInfo[playerid][Rate]);
 	ini_getInteger(File, "Rank", PlayerInfo[playerid][Rank]);
+	ini_getInteger(File, "MaxRank", PlayerInfo[playerid][MaxRank]);
     ini_getInteger(File, "Cash", PlayerInfo[playerid][Cash]);
     ini_getInteger(File, "Sex", PlayerInfo[playerid][Sex]);
 	ini_getFloat(File, "PosX", PlayerInfo[playerid][PosX]);
@@ -771,6 +993,28 @@ stock LoadPlayer(playerid)
 	ini_getInteger(File, "Crit", PlayerInfo[playerid][CriticalChance]);
     ini_getInteger(File, "GlobalTopPosition", PlayerInfo[playerid][GlobalTopPosition]);
 	ini_getInteger(File, "LocalTopPosition", PlayerInfo[playerid][LocalTopPosition]);
+
+	ini_getInteger(File, "WeaponSlotID", WeaponSlot[playerid][ID]);
+	ini_getInteger(File, "WeaponSlotCount", WeaponSlot[playerid][Count]);
+	ini_getInteger(File, "ArmorSlotID", ArmorSlot[playerid][ID]);
+	ini_getInteger(File, "ArmorSlotCount", ArmorSlot[playerid][Count]);
+	ini_getInteger(File, "AccSlot1ID", AccSlot1[playerid][ID]);
+	ini_getInteger(File, "AccSlot1Count", AccSlot1[playerid][Count]);
+	ini_getInteger(File, "AccSlot2ID", AccSlot1[playerid][ID]);
+	ini_getInteger(File, "AccSlot2Count", AccSlot1[playerid][Count]);
+	for (new x = 0; x < MAX_MOD; x++)
+	{
+		format(string, sizeof(string), "WeaponSlotMod%d", x);
+		ini_getInteger(File, string, WeaponSlot[playerid][Mod][x]);
+		format(string, sizeof(string), "ArmorSlotMod%d", x);
+		ini_getInteger(File, string, ArmorSlot[playerid][Mod][x]);
+		format(string, sizeof(string), "AccSlot1Mod%d", x);
+		ini_getInteger(File, string, AccSlot1[playerid][Mod][x]);
+		format(string, sizeof(string), "AccSlot2Mod%d", x);
+		ini_getInteger(File, string, AccSlot2[playerid][Mod][x]);
+		
+	}
+
     for (new j = 0; j < MAX_SLOTS; j++) 
 	{
         format(string, sizeof(string), "InventorySlot%dID", j);
@@ -795,6 +1039,7 @@ stock CreatePlayer(playerid, name[])
 	new File = ini_createFile(path);
 	ini_setInteger(File, "Rate", 0);
 	ini_setInteger(File, "Rank", 1);
+	ini_setInteger(File, "MaxRank", 1);
     ini_setInteger(File, "Cash", 0);
     ini_setInteger(File, "Sex", 0);
 	ini_setFloat(File, "PosX", DEFAULT_POS_X);
@@ -814,39 +1059,43 @@ stock CreatePlayer(playerid, name[])
 	ini_setInteger(File, "Crit", DEFAULT_CRIT);
     ini_setInteger(File, "GlobalTopPosition", 0);
 	ini_setInteger(File, "LocalTopPosition", 0);
-	ini_setInteger(File, "ParticipantsCount", 0);
+
+	ini_setInteger(File, "WeaponSlotID", -1);
+	ini_setInteger(File, "WeaponSlotCount", 0);
+	ini_setInteger(File, "ArmorSlotID", -1);
+	ini_setInteger(File, "ArmorSlotCount", 0);
+	ini_setInteger(File, "AccSlot1ID", -1);
+	ini_setInteger(File, "AccSlot1Count", 0);
+	ini_setInteger(File, "AccSlot2ID", -1);
+	ini_setInteger(File, "AccSlot2Count", 0);
+	for (new x = 0; x < MAX_MOD; x++)
+	{
+		format(string, sizeof(string), "WeaponSlotMod%d", x);
+		ini_setInteger(File, string, 0);
+		format(string, sizeof(string), "ArmorSlotMod%d", x);
+		ini_setInteger(File, string, 0);
+		format(string, sizeof(string), "AccSlot1Mod%d", x);
+		ini_setInteger(File, string, 0);
+		format(string, sizeof(string), "AccSlot2Mod%d", x);
+		ini_setInteger(File, string, 0);
+		
+	}
+
     for (new j = 0; j < MAX_SLOTS; j++) 
 	{
         format(string, sizeof(string), "InventorySlot%dID", j);
         ini_setInteger(File, string, -1);
-        format(string, sizeof(string), "InventorySlot%dType", j);
-        ini_setInteger(File, string, 0);
-		format(string, sizeof(string), "InventorySlot%dGrade", j);
-        ini_setInteger(File, string, 0);
 		for (new x = 0; x < MAX_MOD; x++)
 		{
 			format(string, sizeof(string), "InventorySlot%dMod%d", j, x);
         	ini_setInteger(File, string, 0);
 		}
-		for (new x = 0; x < MAX_PROPERTIES; x++)
-		{
-			format(string, sizeof(string), "InventorySlot%dProp%d", j, x);
-        	ini_setInteger(File, string, 0);
-			format(string, sizeof(string), "InventorySlot%dPropVal%d", j, x);
-        	ini_setInteger(File, string, 0);
-		}
 		format(string, sizeof(string), "InventorySlot%dCount", j);
-        ini_setInteger(File, string, 0);
-		format(string, sizeof(string), "InventorySlot%dPrice", j);
         ini_setInteger(File, string, 0);
     }
     ini_closeFile(File);
 
-	format(path, sizeof(path), "Players/%s_participants.ini", name);
-	new File2 = ini_createFile(path);
-	ini_setString(File2, "Owner", name);
-	ini_closeFile(File2);
-	SendClientMessage(playerid, COLOR_GREEN, "Account created succesfully.");
+	SendClientMessage(playerid, COLOR_GREEN, "Player created succesfully.");
 	return 1;
 }
 
@@ -966,36 +1215,38 @@ stock InitDatabase()
 	for(new i = 0; i < count; i++)
 	{
 		format(string, sizeof(string), "Item%d_ID", i);
-		ini_getInteger(File, string, ItemsBase[0][ID]);
+		ini_getInteger(File, string, ItemsBase[i][ID]);
 		format(string, sizeof(string), "Item%d_Name", i);
-		ini_getString(File, string, ItemsBase[0][Name]);
+		ini_getString(File, string, ItemsBase[i][Name]);
 		format(string, sizeof(string), "Item%d_Type", i);
-		ini_getInteger(File, string, ItemsBase[0][Type]);
+		ini_getInteger(File, string, ItemsBase[i][Type]);
 		format(string, sizeof(string), "Item%d_Grade", i);
-		ini_getInteger(File, string, ItemsBase[0][Grade]);
+		ini_getInteger(File, string, ItemsBase[i][Grade]);
+		format(string, sizeof(string), "Item%d_MinRank", i);
+		ini_getInteger(File, string, ItemsBase[i][MinRank]);
 		format(string, sizeof(string), "Item%d_Description1%d", i);
-		ini_getString(File, string, ItemsBase[0][Description1]);
+		ini_getString(File, string, ItemsBase[i][Description1]);
 		format(string, sizeof(string), "Item%d_Description2%d", i);
-		ini_getString(File, string, ItemsBase[0][Description2]);
+		ini_getString(File, string, ItemsBase[i][Description2]);
 		format(string, sizeof(string), "Item%d_Description3%d", i);
-		ini_getString(File, string, ItemsBase[0][Description3]);
+		ini_getString(File, string, ItemsBase[i][Description3]);
 		for(new j = 0; j < MAX_PROPERTIES; j++)
 		{
 			format(string, sizeof(string), "Item%d_Property%d", i, j);
-			ini_getInteger(File, string, ItemsBase[0][Property][j]);
+			ini_getInteger(File, string, ItemsBase[i][Property][j]);
 			format(string, sizeof(string), "Item%d_PropertyVal%d", i, j);
-			ini_getInteger(File, string, ItemsBase[0][PropertyValue][j]);
+			ini_getInteger(File, string, ItemsBase[i][PropertyValue][j]);
 		}
 		format(string, sizeof(string), "Item%d_Price", i);
-		ini_getInteger(File, string, ItemsBase[0][Price]);
+		ini_getInteger(File, string, ItemsBase[i][Price]);
 		format(string, sizeof(string), "Item%d_Model", i);
-		ini_getInteger(File, string, ItemsBase[0][Model]);
+		ini_getInteger(File, string, ItemsBase[i][Model]);
 		format(string, sizeof(string), "Item%d_ModelRotX", i);
-		ini_getInteger(File, string, ItemsBase[0][ModelRotX]);
+		ini_getInteger(File, string, ItemsBase[i][ModelRotX]);
 		format(string, sizeof(string), "Item%d_ModelRotY", i);
-		ini_getInteger(File, string, ItemsBase[0][ModelRotY]);
+		ini_getInteger(File, string, ItemsBase[i][ModelRotY]);
 		format(string, sizeof(string), "Item%d_ModelRotZ", i);
-		ini_getInteger(File, string, ItemsBase[0][ModelRotZ]);
+		ini_getInteger(File, string, ItemsBase[i][ModelRotZ]);
 	}
 	ini_closeFile(File);
 	print("Database loaded succesfully.");
