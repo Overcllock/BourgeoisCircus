@@ -165,6 +165,7 @@ new PlayerUpdater[MAX_PLAYERS];
 new PlayerConnect[MAX_PLAYERS];
 new bool:IsInventoryOpen[MAX_PLAYERS] = false;
 new bool:IsDeath[MAX_PLAYERS] = false;
+new bool:IsParticipant[MAX_PLAYERS] = false;
 new SelectedSlot[MAX_PLAYERS] = -1;
 
 new WeaponSlot[MAX_PLAYERS][iInfo];
@@ -172,8 +173,9 @@ new ArmorSlot[MAX_PLAYERS][iInfo];
 new AccSlot1[MAX_PLAYERS][iInfo];
 new AccSlot2[MAX_PLAYERS][iInfo];
 
+new AccountLogin[MAX_PLAYERS][128];
 new ParticipantsCount[MAX_PLAYERS];
-new Participants[MAX_PLAYERS][MAX_PARTICIPANTS];
+new Participants[MAX_PLAYERS][MAX_PARTICIPANTS][128];
 
 //Bases
 new ItemsBase[BASE_SIZE][BaseItem];
@@ -330,9 +332,12 @@ public OnPlayerRequestClass(playerid, classid)
 	SendClientMessage(playerid, COLOR_WHITE, "Добро пожаловать в Bourgeois Circus.");
 	new login[64];
 	GetPlayerName(playerid, login, sizeof(login));
-	new ok = LoadAccount(login);
+	new ok = LoadAccount(playerid, login);
 	if(PlayerInfo[playerid][Admin] > 0 && ok > 0)
+	{
+		LoadPlayer(playerid);
 		OnPlayerLogin(playerid);
+	}
 	else if(ok > 0)
 		ShowPlayerDialog(playerid, 101, DIALOG_STYLE_PASSWORD, "Авторизация", "Введите пароль:", "Вход", "Закрыть");
 	else
@@ -365,10 +370,14 @@ public OnPlayerLogin(playerid) {
 public OnPlayerDisconnect(playerid, reason)
 {
 	KillTimer(PlayerUpdater[playerid]);
-	SavePlayer(playerid);
+	if(!IsPlayerNPC(playerid))
+		SaveAccount(playerid);
+	if(IsPlayerParticipant(playerid))
+		SavePlayer(playerid);
 	DeletePlayerTextDraws(playerid);
 	IsInventoryOpen[playerid] = false;
 	SelectedSlot[playerid] = -1;
+	IsParticipant[playerid] = false;
 
 	for (new i = 0; i < 10; i++)
 	    if (IsPlayerAttachedObjectSlotUsed(playerid, i))
@@ -533,60 +542,90 @@ public OnDialogResponse(playerid, dialogid, response, listitem, inputtext[])
 
 				new filepath[128];
 				format(filepath, sizeof(filepath), "Accounts/%s.ini", login);
-				if(ini_existFile(filepath))
+				if(fexist(filepath))
 				{
 					SendClientMessage(playerid, COLOR_LIGHTRED, "Ошибка создания аккаунта. Обратитесь к администратору.");
-					Kick(playerid);
+					SendClientMessage(playerid, COLOR_WHITE, "Введите /q чтобы выйти.");
 					return 0;
 				}
 
 				new File = ini_createFile(filepath);
 				ini_setString(File, "Password", MD5_Hash(inputtext));
 				ini_setInteger(File, "ParticipantsCount", 0);
+				ini_setInteger(File, "Admin", 0);
 				ini_closeFile(File);
 
 				AccountLogin[playerid] = login;
 				SendClientMessage(playerid, COLOR_GREEN, "Регистрация прошла успешно. Сообщите логин администратору для привязки участников.");
-				Kick(playerid);
+				SendClientMessage(playerid, COLOR_WHITE, "Введите /q чтобы выйти.");
 				return 1;
 			}
 			else
 			{
-				Kick(playerid);
+				SendClientMessage(playerid, COLOR_WHITE, "Введите /q чтобы выйти.");
 				return 0;
 			}
 		}
-		case 101:
+
+		case 102:
 		{
-			new login[64];
+			ShowPlayerDialog(playerid, 101, DIALOG_STYLE_PASSWORD, "Авторизация", "Введите пароль:", "Вход", "Закрыть");
+			return 1;
+		}
+		
+		case 101:
+		{
+            new login[64];
 			GetPlayerName(playerid, login, sizeof(login));
 
 			new filepath[128];
 			format(filepath, sizeof(filepath), "Accounts/%s.ini", login);
-			if(!ini_existFile(filepath))
+			if(!fexist(filepath))
 			{
 				SendClientMessage(playerid, COLOR_LIGHTRED, "Ошибка авторизации. Обратитесь к администратору.");
-				Kick(playerid);
+				SendClientMessage(playerid, COLOR_WHITE, "Введите /q чтобы выйти.");
 				return 0;
 			}
 
 			new File = ini_openFile(filepath);
 			new hash[255];
 			ini_getString(File, "Password", hash);
-			if(!strcmp(MD5_Hash(inputtext), hash, true))
+			if(strcmp(MD5_Hash(inputtext), hash, true))
 			{
-				SendClientMessage(playerid, 102, DIALOG_STYLE_MSGBOX, "Ошибка", "Неверный пароль", "Закрыть", "");
+				ShowPlayerDialog(playerid, 102, DIALOG_STYLE_MSGBOX, "Ошибка", "Неверный пароль", "Закрыть", "");
 				return 0;
 			}
 
+			AccountLogin[playerid] = login;
 			ConnectParticipants(playerid);
-			OnPlayerLogin(playerid);
+
+			if(ParticipantsCount[playerid] < 1)
+			{
+				SendClientMessage(playerid, COLOR_GREY, "К вашей учетной записи не привязаны участники. Обратитесь к администратору.");
+				SendClientMessage(playerid, COLOR_WHITE, "Введите /q чтобы выйти.");
+				return 0;
+			}
+
+			SwitchPlayer(playerid);
 			return 1;
 		}
-		case 102:
+
+		case 103:
 		{
-			ShowPlayerDialog(playerid, 101, DIALOG_STYLE_PASSWORD, "Авторизация", "Введите пароль:", "Вход", "Закрыть");
-			return 1;
+			if(response)
+			{
+				if (PlayerConnect[playerid])
+				    OnPlayerDisconnect(playerid, 1);
+				SetPlayerName(playerid, Participants[playerid][listitem]);
+				IsParticipant[playerid] = true;
+				LoadPlayer(playerid);
+				OnPlayerLogin(playerid);
+			}
+			else
+			{
+				SendClientMessage(playerid, COLOR_WHITE, "Введите /q чтобы выйти.");
+				return 0;
+			}
 		}
 		//Основное меню
 		case 1000:
@@ -614,6 +653,7 @@ public OnDialogResponse(playerid, dialogid, response, listitem, inputtext[])
 					//Сменить персонажа
 					case 3:
 					{
+						SwitchPlayer(playerid);
 						return 1;
 					}
 				}
@@ -703,6 +743,26 @@ public GivePlayerRate(playerid, rate)
 }
 
 /* Stock functions */
+stock SwitchPlayer(playerid)
+{
+	new listitems[1024] = "Имя\tРейтинг";
+	new filepath[128];
+	new File = -1;
+	new string[255];
+
+	for(new i = 0; i < ParticipantsCount[playerid]; i++)
+	{
+		new rate;
+		format(filepath, sizeof(filepath), "Players/%s.ini", Participants[playerid][i]);
+		File = ini_openFile(filepath);
+		ini_getInteger(File, "Rate", rate);
+		ini_closeFile(File);
+		format(string, sizeof(string), "\n{%s}%s\t%d", GetColorByRate(rate), Participants[playerid][i], rate);
+		strcat(listitems, string);
+	}
+	ShowPlayerDialog(playerid, 103, DIALOG_STYLE_TABLIST_HEADERS, "Выбор участника", listitems, "Войти", "Закрыть");
+}
+
 stock UpdateHPBar(playerid)
 {
 	new Float:hp;
@@ -736,9 +796,24 @@ stock UpdatePlayerRank(playerid)
 		PlayerInfo[playerid][MaxRank] = new_rank;
 }
 
+stock IsPlayerParticipant(playerid)
+{
+	return IsParticipant[playerid];
+}
+
 stock ConnectParticipants(playerid)
 {
-	//TODO:
+	new filepath[128];
+	new string[255];
+	format(filepath, sizeof(filepath), "Accounts/%s.ini", AccountLogin[playerid]);
+	new File = ini_openFile(filepath);
+	ini_getInteger(File, "ParticipantsCount", ParticipantsCount[playerid]);
+	for(new i = 0; i < ParticipantsCount[playerid]; i++)
+	{
+		format(string, sizeof(string), "Participant%d", i);
+		ini_getString(File, string, Participants[playerid][i]);
+	}
+	ini_closeFile(File);
 }
 
 stock ShowCharInfo(playerid)
@@ -760,10 +835,10 @@ stock ShowCharInfo(playerid)
 	PlayerTextDrawColor(playerid, ChrInfRate[playerid], HexRateColors[PlayerInfo[playerid][Rank]-1][0]);
 	format(string, sizeof(string), "%d", PlayerInfo[playerid][GlobalTopPosition]);
 	PlayerTextDrawSetString(playerid, ChrInfAllRate[playerid], string);
-	PlayerTextDrawColor(playerid, ChrInfAllRate[playerid], GetPlaceColor(PlayerInfo[playerid][GlobalTopPosition]));
+	//PlayerTextDrawColor(playerid, ChrInfAllRate[playerid], GetPlaceColor(PlayerInfo[playerid][GlobalTopPosition]));
 	format(string, sizeof(string), "%d", PlayerInfo[playerid][LocalTopPosition]);
 	PlayerTextDrawSetString(playerid, ChrInfPersonalRate[playerid], string);
-	PlayerTextDrawColor(playerid, ChrInfPersonalRate[playerid], GetPlaceColor(PlayerInfo[playerid][LocalTopPosition]));
+	//PlayerTextDrawColor(playerid, ChrInfPersonalRate[playerid], GetPlaceColor(PlayerInfo[playerid][LocalTopPosition]));
 
 	for (new i = 0; i < MAX_SLOTS; i++) 
 	{
@@ -892,6 +967,31 @@ stock GetRankByRate(rate)
 	return rank;
 }
 
+stock SaveAccount(playerid)
+{
+	new filepath[128];
+	format(filepath, sizeof(filepath), "Accounts/%s.ini", AccountLogin[playerid]);
+	if(!fexist(filepath))
+		return;
+
+	new File = ini_openFile(filepath);
+	ini_setInteger(File, "Admin", PlayerInfo[playerid][Admin]);
+	ini_closeFile(File);
+}
+
+stock LoadAccount(playerid, login[])
+{
+	new filepath[128];
+	format(filepath, sizeof(filepath), "Accounts/%s.ini", login);
+	if(!fexist(filepath))
+		return false;
+
+	new File = ini_openFile(filepath);
+	ini_getInteger(File, "Admin", PlayerInfo[playerid][Admin]);
+	ini_closeFile(File);
+	return true;
+}
+
 stock SavePlayer(playerid)
 {
 	new name[64];
@@ -901,7 +1001,10 @@ stock SavePlayer(playerid)
 	PlayerInfo[playerid][Interior] = GetPlayerInterior(playerid);
 	GetPlayerName(playerid, name, sizeof(name));
 	new path[128];
-	format(path, sizeof(path), "Players/%s.ini", name);
+	if(PlayerInfo[playerid][Admin] > 0)
+		format(path, sizeof(path), "Accounts/%s.ini", name);
+	else
+		format(path, sizeof(path), "Players/%s.ini", name);
 	new File = ini_openFile(path);
 	ini_setInteger(File, "Rate", PlayerInfo[playerid][Rate]);
 	ini_setInteger(File, "Rank", PlayerInfo[playerid][Rank]);
@@ -969,7 +1072,10 @@ stock LoadPlayer(playerid)
 	new string[255];
 	GetPlayerName(playerid, name, sizeof(name));
     new path[128];
-	format(path, sizeof(path), "Players/%s.ini", name);
+	if(PlayerInfo[playerid][Admin] > 0)
+		format(path, sizeof(path), "Accounts/%s.ini", name);
+	else
+		format(path, sizeof(path), "Players/%s.ini", name);
 	new File = ini_openFile(path);
 	ini_getInteger(File, "Rate", PlayerInfo[playerid][Rate]);
 	ini_getInteger(File, "Rank", PlayerInfo[playerid][Rank]);
