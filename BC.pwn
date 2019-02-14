@@ -3,6 +3,7 @@
 #include <a_samp>
 #include <a_mail>
 #include <a_engine>
+#include <a_mysql>
 #include <dini>
 #include <mxINI>
 #include <md5>
@@ -514,11 +515,18 @@ public OnPlayerKeyStateChange(playerid, newkeys, oldkeys)
 	if(newkeys & 1024) SelectTextDraw(playerid,0xCCCCFF65);
 	else if(newkeys & 16)
 	{
-
+		if(IsPlayerInRangeOfPoint(playerid, 2.0, 221.0985,-1838.1259,3.6268))
+		{
+			new text[1024] = "{CCCCFF}\n\n";
+			strcat(text, "                        Привет! Я - Буржуа, владелец цирка.      \n");
+			strcat(text, "Я буду сообщать о важнейших событиях, которые тут происходят.\n");
+			strcat(text, "  Заходи ко мне почаще, чтобы не пропустить самое интересное! \n\n");
+			ShowPlayerDialog(playerid, 1, DIALOG_STYLE_MSGBOX, "Буржуа", text, "Закрыть", "");
+		}
 	}
 	else if(newkeys & 131072)
 	{
-		new listitems[] = "Информация об аккаунте\nИнформация о персонаже\nИнформация о турнире\nСменить персонажа";
+		new listitems[] = "Информация о персонаже\nИнформация о турнире\nСменить персонажа";
 		ShowPlayerDialog(playerid, 1000, DIALOG_STYLE_TABLIST, "Bourgeois Circus", listitems, "Далее", "Закрыть");
 	}
 }
@@ -527,6 +535,7 @@ public OnDialogResponse(playerid, dialogid, response, listitem, inputtext[])
 {
 	//1 - пустой
 	//100-102 - регистрация/авторизация
+	//103 - выбор перса
 	//1000 - основное меню
 	switch (dialogid) 
 	{
@@ -627,6 +636,7 @@ public OnDialogResponse(playerid, dialogid, response, listitem, inputtext[])
 				return 0;
 			}
 		}
+
 		//Основное меню
 		case 1000:
 		{
@@ -634,24 +644,19 @@ public OnDialogResponse(playerid, dialogid, response, listitem, inputtext[])
 			{
 				switch(listitem)
 				{
-					//Информация об аккаунте
-					case 0:
-					{
-						return 1;
-					}
 					//Информация о персонаже
-					case 1:
+					case 0:
 					{
 						ShowCharInfo(playerid);
 						return 1;
 					}
 					//Информация о турнире
-					case 2:
+					case 1:
 					{
 						return 1;
 					}
 					//Сменить персонажа
-					case 3:
+					case 2:
 					{
 						SwitchPlayer(playerid);
 						return 1;
@@ -680,6 +685,7 @@ public OnPlayerClickPlayerTextDraw(playerid, PlayerText:playertextid)
 	if(playertextid == ChrInfClose[playerid])
 	{
 		HideCharInfo(playerid);
+		CancelSelectTextDraw(playerid);
 	}
 }
 
@@ -877,6 +883,8 @@ stock ShowCharInfo(playerid)
 		PlayerTextDrawShow(playerid, ChrInfInvSlot[playerid][i]);
 		PlayerTextDrawShow(playerid, ChrInfInvSlotCount[playerid][i]);
 	}
+
+	SelectTextDraw(playerid,0xCCCCFF65);
 }
 
 stock HideCharInfo(playerid)
@@ -1312,13 +1320,55 @@ stock UpdateRatingTop()
 
 }
 
+stock ClearDatabase()
+{
+	new string[255];
+	new File = ini_openFile("Database/Itemsdata.ini");
+	for(new i = 100; i < BASE_SIZE; i++)
+	{
+		format(string, sizeof(string), "Item%d_ID", i);
+		ini_setInteger(File, string, -1);
+		format(string, sizeof(string), "Item%d_Name", i);
+		ini_setString(File, string, "");
+		format(string, sizeof(string), "Item%d_Type", i);
+		ini_setInteger(File, string, 0);
+		format(string, sizeof(string), "Item%d_Grade", i);
+		ini_setInteger(File, string, 0);
+		format(string, sizeof(string), "Item%d_MinRank", i);
+		ini_setInteger(File, string, 1);
+		format(string, sizeof(string), "Item%d_Description1%d", i);
+		ini_setString(File, string, "");
+		format(string, sizeof(string), "Item%d_Description2%d", i);
+		ini_setString(File, string, "");
+		format(string, sizeof(string), "Item%d_Description3%d", i);
+		ini_setString(File, string, "");
+		for(new j = 0; j < MAX_PROPERTIES; j++)
+		{
+			format(string, sizeof(string), "Item%d_Property%d", i, j);
+			ini_setInteger(File, string, 0);
+			format(string, sizeof(string), "Item%d_PropertyVal%d", i, j);
+			ini_setInteger(File, string, 0);
+		}
+		format(string, sizeof(string), "Item%d_Price", i);
+		ini_setInteger(File, string, 0);
+		format(string, sizeof(string), "Item%d_Model", i);
+		ini_setInteger(File, string, -1);
+		format(string, sizeof(string), "Item%d_ModelRotX", i);
+		ini_setInteger(File, string, 0);
+		format(string, sizeof(string), "Item%d_ModelRotY", i);
+		ini_setInteger(File, string, 0);
+		format(string, sizeof(string), "Item%d_ModelRotZ", i);
+		ini_setInteger(File, string, 0);
+	}
+	ini_closeFile(File);
+	print("Database is clean.");
+}
+
 stock InitDatabase()
 {
 	new string[255];
 	new File = ini_openFile("Database/Itemsdata.ini");
-	new count = 0;
-	ini_getInteger(File, "Count", count);
-	for(new i = 0; i < count; i++)
+	for(new i = 0; i < BASE_SIZE; i++)
 	{
 		format(string, sizeof(string), "Item%d_ID", i);
 		ini_getInteger(File, string, ItemsBase[i][ID]);
@@ -2482,10 +2532,12 @@ stock CreatePickups()
     Create3DTextLabel("Торговец расходниками",0xFFCC00FF,-2166.7527,646.0400,1052.3750,55.0,0,1);
 	Create3DTextLabel("Оружейник",0xFFCC00FF,189.2644,-1825.4902,4.1411,55.0,0,1);
 	Create3DTextLabel("Портной",0xFFCC00FF,262.6658,-1825.2792,3.9126,55.0,0,1);
+	Create3DTextLabel("Буржуа",0x9933CCFF,221.0985,-1838.1259,3.6268,55.0,0,1);
 
 	Actors[0] =	CreateActor(61,-2166.7527,646.0400,1052.3750,179.9041);
 	Actors[1] =	CreateActor(6,189.2644,-1825.4902,4.1411,185.0134);
 	Actors[2] =	CreateActor(60,262.6658,-1825.2792,3.9126,181.2770);
+	Actors[3] =	CreateActor(5,221.0985,-1838.1259,3.6268,177.8066);
 }
 
 stock CreateMap()
