@@ -391,7 +391,6 @@ public OnGameModeInit()
 	CreatePickups();
 	InitTextDraws();
 	WorldTime_Timer = SetTimer("Time", 1000, true);
-	//InitDatabase();
 
 	sql_handle = mysql_connect(SQL_HOST, SQL_USER, SQL_PASS, SQL_DB);
 	if(!sql_handle)
@@ -585,23 +584,24 @@ public OnDialogResponse(playerid, dialogid, response, listitem, inputtext[])
 		{
 			if(response)
 			{
-				new login[64];
-				GetPlayerName(playerid, login, sizeof(login));
-
-				new filepath[128];
-				format(filepath, sizeof(filepath), "Accounts/%s.ini", login);
-				if(fexist(filepath))
+				if(strlen(inputtext) < 4)
 				{
-					SendClientMessage(playerid, COLOR_LIGHTRED, "Ошибка создания аккаунта. Обратитесь к администратору.");
-					SendClientMessage(playerid, COLOR_WHITE, "Введите /q чтобы выйти.");
+					SendClientMessage(playerid, COLOR_GREY, "Длина пароля должна быть не менее 4 символов.");
+					ShowPlayerDialog(playerid, 100, DIALOG_STYLE_PASSWORD, "Регистрация", "Указанный логин не зарегистрирован.\n\nПридумайте пароль:", "Далее", "Закрыть");
 					return 0;
 				}
 
-				new File = ini_createFile(filepath);
-				ini_setString(File, "Password", MD5_Hash(inputtext));
-				ini_setInteger(File, "ParticipantsCount", 0);
-				ini_setInteger(File, "Admin", 0);
-				ini_closeFile(File);
+				new login[64];
+				GetPlayerName(playerid, login, sizeof(login));
+				new pass[255];
+				pass = MD5_Hash(inputtext);
+
+				new query[255];
+				format(query, sizeof(query), "INSERT INTO `accounts`(`pass`, `admin`, `part_count`, `login`) VALUES ('%s','%d','%d','%s')", 
+					pass, 0, 0, login
+				);
+				new Cache:q_result = mysql_query(sql_handle, query);
+				cache_delete(q_result);
 
 				AccountLogin[playerid] = login;
 				SendClientMessage(playerid, COLOR_GREEN, "Регистрация прошла успешно. Сообщите логин администратору для привязки участников.");
@@ -623,23 +623,24 @@ public OnDialogResponse(playerid, dialogid, response, listitem, inputtext[])
 		
 		case 101:
 		{
-            new login[64];
-			GetPlayerName(playerid, login, sizeof(login));
-
-			new filepath[128];
-			format(filepath, sizeof(filepath), "Accounts/%s.ini", login);
-			if(!fexist(filepath))
+			if(strlen(inputtext) == 0)
 			{
-				SendClientMessage(playerid, COLOR_LIGHTRED, "Ошибка авторизации. Обратитесь к администратору.");
-				SendClientMessage(playerid, COLOR_WHITE, "Введите /q чтобы выйти.");
+				ShowPlayerDialog(playerid, 101, DIALOG_STYLE_PASSWORD, "Авторизация", "Введите пароль:", "Вход", "Закрыть");
 				return 0;
 			}
 
-			new File = ini_openFile(filepath);
-			new hash[255];
-			ini_getString(File, "Password", hash);
-			if(strcmp(MD5_Hash(inputtext), hash, true))
+            new login[64];
+			GetPlayerName(playerid, login, sizeof(login));
+
+			new query[255];
+			format(query, sizeof(query), "SELECT * FROM `accounts` WHERE `login` = '%s' AND `pass` = '%s' LIMIT 1", login, MD5_Hash(inputtext));
+			new Cache:q_result = mysql_query(sql_handle, query);
+
+			new row_count = 0;
+			cache_get_row_count(row_count);
+			if(row_count <= 0)
 			{
+				cache_delete(q_result);
 				ShowPlayerDialog(playerid, 102, DIALOG_STYLE_MSGBOX, "Ошибка", "Неверный пароль", "Закрыть", "");
 				return 0;
 			}
@@ -671,7 +672,6 @@ public OnDialogResponse(playerid, dialogid, response, listitem, inputtext[])
 			}
 			else
 			{
-				SendClientMessage(playerid, COLOR_WHITE, "Введите /q чтобы выйти.");
 				return 0;
 			}
 		}
@@ -791,17 +791,26 @@ public GivePlayerRate(playerid, rate)
 stock SwitchPlayer(playerid)
 {
 	new listitems[1024] = "Имя\tРейтинг";
-	new filepath[128];
-	new File = -1;
 	new string[255];
+	new query[255];
 
 	for(new i = 0; i < ParticipantsCount[playerid]; i++)
 	{
+		format(query, sizeof(query), "SELECT * FROM `players` WHERE `Name` = '%s' LIMIT 1", Participants[playerid][i]);
+		new Cache:q_result = mysql_query(sql_handle, query);
+
+		new row_count = 0;
+		cache_get_row_count(row_count);
+		if(row_count <= 0)
+		{
+			SendClientMessage(playerid, COLOR_LIGHTRED, "Ошибка инициализации участников. Обратитесь к администратору.");
+			return;
+		}
+
 		new rate;
-		format(filepath, sizeof(filepath), "Players/%s.ini", Participants[playerid][i]);
-		File = ini_openFile(filepath);
-		ini_getInteger(File, "Rate", rate);
-		ini_closeFile(File);
+		cache_get_value_name_int(0, "Rate", rate);
+		cache_delete(q_result);
+
 		format(string, sizeof(string), "\n{%s}%s\t%d", GetColorByRate(rate), Participants[playerid][i], rate);
 		strcat(listitems, string);
 	}
@@ -848,17 +857,18 @@ stock IsPlayerParticipant(playerid)
 
 stock ConnectParticipants(playerid)
 {
-	new filepath[128];
-	new string[255];
-	format(filepath, sizeof(filepath), "Accounts/%s.ini", AccountLogin[playerid]);
-	new File = ini_openFile(filepath);
-	ini_getInteger(File, "ParticipantsCount", ParticipantsCount[playerid]);
+	new query[255];
+	format(query, sizeof(query), "SELECT * FROM `players` WHERE `Owner` = '%s' LIMIT 20", AccountLogin[playerid]);
+	new Cache:q_result = mysql_query(sql_handle, query);
+
+	cache_get_row_count(ParticipantsCount[playerid]);
+	if(ParticipantsCount[playerid] <= 0)
+		return;
+
 	for(new i = 0; i < ParticipantsCount[playerid]; i++)
-	{
-		format(string, sizeof(string), "Participant%d", i);
-		ini_getString(File, string, Participants[playerid][i]);
-	}
-	ini_closeFile(File);
+		cache_get_value_name(i, "Name", Participants[playerid][i]);
+
+	cache_delete(q_result);
 }
 
 stock ShowCharInfo(playerid)
@@ -1048,9 +1058,9 @@ stock LoadAccount(playerid, login[])
 	format(query, sizeof(query), "SELECT * FROM `accounts` WHERE `login` = '%s' LIMIT 1", login);
 	new Cache:q_result = mysql_query(sql_handle, query);
 
-	new result_count = 0;
-	cache_get_result_count(result_count);
-	if(result_count <= 0)
+	new row_count = 0;
+	cache_get_row_count(row_count);
+	if(row_count <= 0)
 	{
 		cache_delete(q_result);
 		return false;
@@ -1107,9 +1117,9 @@ stock LoadPlayer(playerid)
 	format(query, sizeof(query), "SELECT * FROM `players` WHERE `Name` = '%s' LIMIT 1", name);
 	new Cache:q_result = mysql_query(sql_handle, query);
 
-	new result_count = 0;
-	cache_get_result_count(result_count);
-	if(result_count <= 0)
+	new row_count = 0;
+	cache_get_row_count(row_count);
+	if(row_count <= 0)
 	{
 		SendClientMessage(playerid, COLOR_LIGHTRED, "Ошибка при загрузке участника. Обратитесь к администратору.");
 		cache_delete(q_result);
@@ -1162,7 +1172,7 @@ stock CreatePlayer(playerid, name[], owner[])
 	new tmp[1024];
 
 	format(tmp, sizeof(tmp), "'%s','%s','%d','%d','%d','%d','%d','%f','%f','%f','%f','%d','%d','%d','%d','%d','%d','%d','%d','%d','%d','%d','%d','%d','%s','%d','%s','%d','%d')",
-		name, owner, 0, 0, 1, 1, 0, DEFAULT_POS_X, DEFAULT_POS_Y, DEFAULT_POS_Z, 0, 0, 78, 0, 0, 13, 15, 5, 0, 5, 5, 20, 10, 0, "0 0 0 0 0 0 0", 81, "0 0 0 0 0 0 0", -1, -1
+		name, owner, 0, 0, 1, 1, 0, DEFAULT_POS_X, DEFAULT_POS_Y, DEFAULT_POS_Z, 180, 1, 78, 0, 0, 13, 15, 5, 0, 5, 5, 20, 10, 0, "0 0 0 0 0 0 0", 81, "0 0 0 0 0 0 0", -1, -1
 	);
 	strcat(query, tmp);
 
@@ -1277,98 +1287,6 @@ stock TranslateText(string[])
 stock UpdateRatingTop()
 {
 
-}
-
-stock ClearDatabase()
-{
-	new string[255];
-	new File = ini_openFile("Database/Itemsdata.ini");
-	for(new i = 100; i < BASE_SIZE; i++)
-	{
-		format(string, sizeof(string), "Item%d_ID", i);
-		ini_setInteger(File, string, -1);
-		format(string, sizeof(string), "Item%d_Name", i);
-		ini_setString(File, string, "");
-		format(string, sizeof(string), "Item%d_Type", i);
-		ini_setInteger(File, string, 0);
-		format(string, sizeof(string), "Item%d_Grade", i);
-		ini_setInteger(File, string, 0);
-		format(string, sizeof(string), "Item%d_MinRank", i);
-		ini_setInteger(File, string, 1);
-		format(string, sizeof(string), "Item%d_Description1%d", i);
-		ini_setString(File, string, "");
-		format(string, sizeof(string), "Item%d_Description2%d", i);
-		ini_setString(File, string, "");
-		format(string, sizeof(string), "Item%d_Description3%d", i);
-		ini_setString(File, string, "");
-		for(new j = 0; j < MAX_PROPERTIES; j++)
-		{
-			format(string, sizeof(string), "Item%d_Property%d", i, j);
-			ini_setInteger(File, string, 0);
-			format(string, sizeof(string), "Item%d_PropertyVal%d", i, j);
-			ini_setInteger(File, string, 0);
-		}
-		format(string, sizeof(string), "Item%d_Price", i);
-		ini_setInteger(File, string, 0);
-		format(string, sizeof(string), "Item%d_Model", i);
-		ini_setInteger(File, string, -1);
-		format(string, sizeof(string), "Item%d_ModelRotX", i);
-		ini_setInteger(File, string, 0);
-		format(string, sizeof(string), "Item%d_ModelRotY", i);
-		ini_setInteger(File, string, 0);
-		format(string, sizeof(string), "Item%d_ModelRotZ", i);
-		ini_setInteger(File, string, 0);
-	}
-	ini_closeFile(File);
-	print("Database is clean.");
-}
-
-stock InitDatabase()
-{
-	new string[255];
-	new filepath[128];
-	new cur_size = 0;
-	new file_num = 1;
-	format(filepath, sizeof(filepath), "Database/Itemsdata_%d.ini", file_num);
-	new File = ini_openFile(filepath);
-	for(new i = 0; i < cur_size + MAX_BASE_SIZE; i++)
-	{
-		format(string, sizeof(string), "Item%d_ID", i);
-		ini_getInteger(File, string, ItemsBase[i][ID]);
-		format(string, sizeof(string), "Item%d_Name", i);
-		ini_getString(File, string, ItemsBase[i][Name]);
-		format(string, sizeof(string), "Item%d_Type", i);
-		ini_getInteger(File, string, ItemsBase[i][Type]);
-		format(string, sizeof(string), "Item%d_Grade", i);
-		ini_getInteger(File, string, ItemsBase[i][Grade]);
-		format(string, sizeof(string), "Item%d_MinRank", i);
-		ini_getInteger(File, string, ItemsBase[i][MinRank]);
-		format(string, sizeof(string), "Item%d_Description1%d", i);
-		ini_getString(File, string, ItemsBase[i][Description1]);
-		format(string, sizeof(string), "Item%d_Description2%d", i);
-		ini_getString(File, string, ItemsBase[i][Description2]);
-		format(string, sizeof(string), "Item%d_Description3%d", i);
-		ini_getString(File, string, ItemsBase[i][Description3]);
-		for(new j = 0; j < MAX_PROPERTIES; j++)
-		{
-			format(string, sizeof(string), "Item%d_Property%d", i, j);
-			ini_getInteger(File, string, ItemsBase[i][Property][j]);
-			format(string, sizeof(string), "Item%d_PropertyVal%d", i, j);
-			ini_getInteger(File, string, ItemsBase[i][PropertyValue][j]);
-		}
-		format(string, sizeof(string), "Item%d_Price", i);
-		ini_getInteger(File, string, ItemsBase[i][Price]);
-		format(string, sizeof(string), "Item%d_Model", i);
-		ini_getInteger(File, string, ItemsBase[i][Model]);
-		format(string, sizeof(string), "Item%d_ModelRotX", i);
-		ini_getInteger(File, string, ItemsBase[i][ModelRotX]);
-		format(string, sizeof(string), "Item%d_ModelRotY", i);
-		ini_getInteger(File, string, ItemsBase[i][ModelRotY]);
-		format(string, sizeof(string), "Item%d_ModelRotZ", i);
-		ini_getInteger(File, string, ItemsBase[i][ModelRotZ]);
-	}
-	ini_closeFile(File);
-	print("Database loaded succesfully.");
 }
 
 stock InitTextDraws()
