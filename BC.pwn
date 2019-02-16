@@ -14,10 +14,23 @@
 #include <FCNPC>
 #include <float>
 #include <crp>
+#include <sscanf2>
+#include <Pawn.CMD>
 
 #pragma dynamic 31294
 
 #define VERSION 1.00
+
+//Mysql settings
+#define SQL_HOST "127.0.0.1"
+#define SQL_USER "tsar"
+#define SQL_DB "bcircus"
+#define SQL_PASS "2151"
+
+//Data types
+#define TYPE_INT 0x01
+#define TYPE_FLOAT 0x02
+#define TYPE_STRING 0x03
 
 //Colors
 #define COLOR_WHITE 0xFFFFFFFF
@@ -49,6 +62,7 @@
 #define MAX_RANK 9
 #define MAX_MOD 7
 #define MAX_PROPERTIES 2
+#define MAX_BASE_SIZE 100
 #define BASE_SIZE 205
 
 //Player params
@@ -102,6 +116,7 @@ forward GivePlayerRate(playerid, rate);
 //Global
 new WorldTime_Timer = -1;
 new Actors[MAX_ACTORS];
+new MySQL:sql_handle;
 
 //Pickups
 new home_enter = -1;
@@ -157,7 +172,13 @@ enum pInfo
 	Accuracy,
 	GlobalTopPosition,
 	LocalTopPosition,
-	CriticalChance
+	Crit,
+	WeaponSlotID,
+	ArmorSlotID,
+	AccSlot1ID,
+	AccSlot2ID,
+	WeaponMod[MAX_MOD],
+	ArmorMod[MAX_MOD]
 };
 new PlayerInventory[MAX_PLAYERS][MAX_SLOTS][iInfo];
 new PlayerInfo[MAX_PLAYERS][pInfo];
@@ -168,11 +189,6 @@ new bool:IsInventoryOpen[MAX_PLAYERS] = false;
 new bool:IsDeath[MAX_PLAYERS] = false;
 new bool:IsParticipant[MAX_PLAYERS] = false;
 new SelectedSlot[MAX_PLAYERS] = -1;
-
-new WeaponSlot[MAX_PLAYERS][iInfo];
-new ArmorSlot[MAX_PLAYERS][iInfo];
-new AccSlot1[MAX_PLAYERS][iInfo];
-new AccSlot2[MAX_PLAYERS][iInfo];
 
 new AccountLogin[MAX_PLAYERS][128];
 new ParticipantsCount[MAX_PLAYERS];
@@ -295,6 +311,67 @@ main()
 	print(str);
 }
 
+/* Commands */
+cmd:createplayer(playerid, params[])
+{
+	if(PlayerInfo[playerid][Admin] == 0)
+		return 0;
+	new name[128], owner[128];
+	if(sscanf(params, "s[128]s[128]", name, owner))
+		return SendClientMessage(playerid, COLOR_GREY, "USAGE: /createplayer [name][owner]");
+
+	CreatePlayer(playerid, name, owner);
+	return 1;
+}
+
+cmd:spawn(playerid, params[])
+{
+	if(PlayerInfo[playerid][Admin] == 0)
+		return 0;
+
+	SetPlayerPos(playerid, 224.0761,-1839.8217,3.6037);
+	SetPlayerInterior(playerid, 0);
+	return 1;
+}
+
+cmd:kill(playerid, params[])
+{
+	if(PlayerInfo[playerid][Admin] == 0)
+		return 0;
+
+	SetPlayerHealth(playerid, 0);
+	return 1;
+}
+
+cmd:arena1(playerid, params[])
+{
+	if(PlayerInfo[playerid][Admin] == 0)
+		return 0;
+		
+	SetPlayerPos(playerid, -2443.683,-1633.3514,767.6721);
+	SetPlayerInterior(playerid, 0);
+	return 1;
+}
+
+cmd:arena2(playerid, params[])
+{
+	if(PlayerInfo[playerid][Admin] == 0)
+		return 0;
+		
+	SetPlayerPos(playerid, -2256.331,-1625.8031,767.6721);
+	SetPlayerInterior(playerid, 0);
+	return 1;
+}
+
+cmd:arena3(playerid, params[])
+{
+	if(PlayerInfo[playerid][Admin] == 0)
+		return 0;
+		
+	SetPlayerPos(playerid, -2353.16186,-1630.952,723.561);
+	SetPlayerInterior(playerid, 0);
+	return 1;
+}
 
 /* Callbacks */
 public OnGameModeInit()
@@ -313,8 +390,19 @@ public OnGameModeInit()
 	CreateMap();
 	CreatePickups();
 	InitTextDraws();
-	InitDatabase();
 	WorldTime_Timer = SetTimer("Time", 1000, true);
+	//InitDatabase();
+
+	sql_handle = mysql_connect(SQL_HOST, SQL_USER, SQL_PASS, SQL_DB);
+	if(!sql_handle)
+	{
+		print("Database connection failed.");
+		return 0;
+	}
+
+	print("Database connection success.");
+	
+	mysql_set_charset("cp1251");
 	UpdateRatingTop();
 	return 1;
 }
@@ -373,7 +461,7 @@ public OnPlayerDisconnect(playerid, reason)
 	KillTimer(PlayerUpdater[playerid]);
 	if(!IsPlayerNPC(playerid))
 		SaveAccount(playerid);
-	if(IsPlayerParticipant(playerid))
+	if(IsPlayerParticipant(playerid) || PlayerInfo[playerid][Admin] > 0)
 		SavePlayer(playerid);
 	DeletePlayerTextDraws(playerid);
 	IsInventoryOpen[playerid] = false;
@@ -430,55 +518,6 @@ public OnPlayerText(playerid, text[])
 	{
 		format(message, sizeof(message), "[%s]: %s", name, text);
 		SendClientMessageToAll(HexRateColors[PlayerInfo[playerid][Rank]-1][0], message);
-	}
-	return 0;
-}
-
-public OnPlayerCommandText(playerid, cmdtext[])
-{
-	if (strcmp("/spawn", cmdtext, true, 10) == 0)
-	{
-		if(PlayerInfo[playerid][Admin] == 0)
-			return 0;
-
-	    SetPlayerPos(playerid, 224.0761,-1839.8217,3.6037);
-	    SetPlayerInterior(playerid, 0);
-		return 1;
-	}
-	if (strcmp("/kill", cmdtext, true, 10) == 0)
-	{
-		if(PlayerInfo[playerid][Admin] == 0)
-			return 0;
-
-	    SetPlayerHealth(playerid, 0);
-		return 1;
-	}
-	if (strcmp("/arena1", cmdtext, true, 10) == 0)
-	{
-		if(PlayerInfo[playerid][Admin] == 0)
-			return 0;
-			
-	    SetPlayerPos(playerid, -2443.683,-1633.3514,767.6721);
-	    SetPlayerInterior(playerid, 0);
-		return 1;
-	}
-	if (strcmp("/arena2", cmdtext, true, 10) == 0)
-	{
-		if(PlayerInfo[playerid][Admin] == 0)
-			return 0;
-			
-	    SetPlayerPos(playerid, -2256.331,-1625.8031,767.6721);
-	    SetPlayerInterior(playerid, 0);
-		return 1;
-	}
-	if (strcmp("/arena3", cmdtext, true, 10) == 0)
-	{
-		if(PlayerInfo[playerid][Admin] == 0)
-			return 0;
-			
-	    SetPlayerPos(playerid, -2353.16186,-1630.952,723.561);
-	    SetPlayerInterior(playerid, 0);
-		return 1;
 	}
 	return 0;
 }
@@ -939,6 +978,26 @@ stock GetPlaceColor(place)
 	return color;
 }
 
+stock ArrayToString(array[], size, type = TYPE_INT)
+{
+	new string[1024] = "";
+	new buf[255];
+
+	for(new i = 0; i < size; i++)
+	{
+		switch(type)
+		{
+			case TYPE_STRING: { format(buf, sizeof(buf), "%s ", array[i]); }
+			case TYPE_FLOAT: { format(buf, sizeof(buf), "%f ", array[i]); }
+			default: { format(buf, sizeof(buf), "%i ", array[i]); }
+		}
+		strcat(string, buf);
+	}
+
+	strdel(string, strlen(string)-1, strlen(string));
+	return string;
+}
+
 stock GetRateInterval(rate) 
 {
 	new interval[32];
@@ -977,240 +1036,140 @@ stock GetRankByRate(rate)
 
 stock SaveAccount(playerid)
 {
-	new filepath[128];
-	format(filepath, sizeof(filepath), "Accounts/%s.ini", AccountLogin[playerid]);
-	if(!fexist(filepath))
-		return;
-
-	new File = ini_openFile(filepath);
-	ini_setInteger(File, "Admin", PlayerInfo[playerid][Admin]);
-	ini_closeFile(File);
+	new query[255];
+	format(query, sizeof(query), "UPDATE `accounts` SET `admin` = '%d' WHERE `login` = '%s' LIMIT 1", PlayerInfo[playerid][Admin], AccountLogin[playerid]);
+	new Cache:q_result = mysql_query(sql_handle, query);
+	cache_delete(q_result);
 }
 
 stock LoadAccount(playerid, login[])
 {
-	new filepath[128];
-	format(filepath, sizeof(filepath), "Accounts/%s.ini", login);
-	if(!fexist(filepath))
-		return false;
+	new query[255];
+	format(query, sizeof(query), "SELECT * FROM `accounts` WHERE `login` = '%s' LIMIT 1", login);
+	new Cache:q_result = mysql_query(sql_handle, query);
 
-	new File = ini_openFile(filepath);
-	ini_getInteger(File, "Admin", PlayerInfo[playerid][Admin]);
-	ini_closeFile(File);
+	new result_count = 0;
+	cache_get_result_count(result_count);
+	if(result_count <= 0)
+	{
+		cache_delete(q_result);
+		return false;
+	}
+
+	cache_get_value_name_int(0, "admin", PlayerInfo[playerid][Admin]);
+	
+    cache_delete(q_result);
 	return true;
 }
 
 stock SavePlayer(playerid)
 {
 	new name[64];
-	new string[255];
 	GetPlayerPos(playerid, PlayerInfo[playerid][PosX], PlayerInfo[playerid][PosY], PlayerInfo[playerid][PosZ]);
 	GetPlayerFacingAngle(playerid, PlayerInfo[playerid][FacingAngle]);
 	PlayerInfo[playerid][Interior] = GetPlayerInterior(playerid);
 	GetPlayerName(playerid, name, sizeof(name));
-	new path[128];
-	if(PlayerInfo[playerid][Admin] > 0)
-		format(path, sizeof(path), "Accounts/%s.ini", name);
-	else
-		format(path, sizeof(path), "Players/%s.ini", name);
-	new File = ini_openFile(path);
-	ini_setInteger(File, "Rate", PlayerInfo[playerid][Rate]);
-	ini_setInteger(File, "Rank", PlayerInfo[playerid][Rank]);
-	ini_setInteger(File, "MaxRank", PlayerInfo[playerid][MaxRank]);
-    ini_setInteger(File, "Cash", PlayerInfo[playerid][Cash]);
-    ini_setInteger(File, "Sex", PlayerInfo[playerid][Sex]);
-	ini_setFloat(File, "PosX", PlayerInfo[playerid][PosX]);
-    ini_setFloat(File, "PosY", PlayerInfo[playerid][PosY]);
-    ini_setFloat(File, "PosZ", PlayerInfo[playerid][PosZ]);
-    ini_setFloat(File, "Angle", PlayerInfo[playerid][FacingAngle]);
-    ini_setInteger(File, "Interior", PlayerInfo[playerid][Interior]);
-	ini_setInteger(File, "Skin", PlayerInfo[playerid][Skin]);
-	ini_setInteger(File, "Admin", PlayerInfo[playerid][Admin]);
-    ini_setInteger(File, "Kills", PlayerInfo[playerid][Kills]);
-    ini_setInteger(File, "Deaths", PlayerInfo[playerid][Deaths]);
-    ini_setInteger(File, "DamageMin", PlayerInfo[playerid][DamageMin]);
-	ini_setInteger(File, "DamageMax", PlayerInfo[playerid][DamageMax]);
-    ini_setInteger(File, "Defense", PlayerInfo[playerid][Defense]);
-    ini_setInteger(File, "Dodge", PlayerInfo[playerid][Dodge]);
-    ini_setInteger(File, "Accuracy", PlayerInfo[playerid][Accuracy]);
-	ini_setInteger(File, "Crit", PlayerInfo[playerid][CriticalChance]);
-    ini_setInteger(File, "GlobalTopPosition", PlayerInfo[playerid][GlobalTopPosition]);
-	ini_setInteger(File, "LocalTopPosition", PlayerInfo[playerid][LocalTopPosition]);
 
-	ini_setInteger(File, "WeaponSlotID", WeaponSlot[playerid][ID]);
-	ini_setInteger(File, "WeaponSlotCount", WeaponSlot[playerid][Count]);
-	ini_setInteger(File, "ArmorSlotID", ArmorSlot[playerid][ID]);
-	ini_setInteger(File, "ArmorSlotCount", ArmorSlot[playerid][Count]);
-	ini_setInteger(File, "AccSlot1ID", AccSlot1[playerid][ID]);
-	ini_setInteger(File, "AccSlot1Count", AccSlot1[playerid][Count]);
-	ini_setInteger(File, "AccSlot2ID", AccSlot1[playerid][ID]);
-	ini_setInteger(File, "AccSlot2Count", AccSlot1[playerid][Count]);
-	for (new x = 0; x < MAX_MOD; x++)
-	{
-		format(string, sizeof(string), "WeaponSlotMod%d", x);
-		ini_setInteger(File, string, WeaponSlot[playerid][Mod][x]);
-		format(string, sizeof(string), "ArmorSlotMod%d", x);
-		ini_setInteger(File, string, ArmorSlot[playerid][Mod][x]);
-		format(string, sizeof(string), "AccSlot1Mod%d", x);
-		ini_setInteger(File, string, AccSlot1[playerid][Mod][x]);
-		format(string, sizeof(string), "AccSlot2Mod%d", x);
-		ini_setInteger(File, string, AccSlot2[playerid][Mod][x]);
-		
-	}
+	new query[2048] = "UPDATE `players` SET ";
+	new tmp[255];
 
-    for (new j = 0; j < MAX_SLOTS; j++) 
-	{
-        format(string, sizeof(string), "InventorySlot%dID", j);
-        ini_setInteger(File, string, PlayerInventory[playerid][j][ID]);
-		for (new x = 0; x < MAX_MOD; x++)
-		{
-			format(string, sizeof(string), "InventorySlot%dMod%d", j, x);
-        	ini_setInteger(File, string, PlayerInventory[playerid][j][Mod][x]);
-		}
-		format(string, sizeof(string), "InventorySlot%dCount", j);
-        ini_setInteger(File, string, PlayerInventory[playerid][j][Count]);
-    }
-    ini_closeFile(File);
-    return 1;
+	format(tmp, sizeof(tmp), "`Sex` = '%d', `Rate` = '%d', `Rank` = '%d', ", PlayerInfo[playerid][Sex], PlayerInfo[playerid][Rate], PlayerInfo[playerid][Rank]);
+	strcat(query, tmp);
+	format(tmp, sizeof(tmp), "`MaxRank` = '%d', `Cash` = '%d', `PosX` = '%f', ", PlayerInfo[playerid][MaxRank], PlayerInfo[playerid][Cash], PlayerInfo[playerid][PosX]);
+	strcat(query, tmp);
+	format(tmp, sizeof(tmp), "`PosY` = '%f', `PosZ` = '%f', `Angle` = '%f', ", PlayerInfo[playerid][PosY], PlayerInfo[playerid][PosZ], PlayerInfo[playerid][FacingAngle]);
+	strcat(query, tmp);
+	format(tmp, sizeof(tmp), "`Interior` = '%d', `Skin` = '%d', `Kills` = '%d', ", PlayerInfo[playerid][Interior], PlayerInfo[playerid][Skin], PlayerInfo[playerid][Kills]);
+	strcat(query, tmp);
+	format(tmp, sizeof(tmp), "`Deaths` = '%d', `DamageMin` = '%d', `DamageMax` = '%d', ", PlayerInfo[playerid][Deaths], PlayerInfo[playerid][DamageMin], PlayerInfo[playerid][DamageMax]);
+	strcat(query, tmp);
+	format(tmp, sizeof(tmp), "`Defense` = '%d', `Dodge` = '%d', `Accuracy` = '%d', ", PlayerInfo[playerid][Defense], PlayerInfo[playerid][Dodge], PlayerInfo[playerid][Accuracy]);
+	strcat(query, tmp);
+	format(tmp, sizeof(tmp), "`Crit` = '%d', `GlobalTopPos` = '%d', `LocalTopPos` = '%d', ", PlayerInfo[playerid][Crit], PlayerInfo[playerid][GlobalTopPosition], PlayerInfo[playerid][LocalTopPosition]);
+	strcat(query, tmp);
+	format(tmp, sizeof(tmp), "`WeaponSlotID` = '%d', `ArmorSlotID` = '%d', `AccSlot1ID` = '%d', `AccSlot2ID` = '%d', ", PlayerInfo[playerid][WeaponSlotID], PlayerInfo[playerid][ArmorSlotID], PlayerInfo[playerid][AccSlot1ID], PlayerInfo[playerid][AccSlot2ID]);
+	strcat(query, tmp);
+	format(tmp, sizeof(tmp), "`WeaponMod` = '%s', `ArmorMod` = '%s' ", ArrayToString(PlayerInfo[playerid][WeaponMod], MAX_MOD), ArrayToString(PlayerInfo[playerid][ArmorMod], MAX_MOD));
+	strcat(query, tmp);
+	format(tmp, sizeof(tmp), "WHERE `Name` = '%s' LIMIT 1", name);
+	strcat(query, tmp);
+
+	new Cache:q_result = mysql_query(sql_handle, query);
+	cache_delete(q_result);
 }
 
 stock LoadPlayer(playerid)
 {
 	new name[64];
-	new string[255];
 	GetPlayerName(playerid, name, sizeof(name));
-    new path[128];
-	if(PlayerInfo[playerid][Admin] > 0)
-		format(path, sizeof(path), "Accounts/%s.ini", name);
-	else
-		format(path, sizeof(path), "Players/%s.ini", name);
-	new File = ini_openFile(path);
-	ini_getInteger(File, "Rate", PlayerInfo[playerid][Rate]);
-	ini_getInteger(File, "Rank", PlayerInfo[playerid][Rank]);
-	ini_getInteger(File, "MaxRank", PlayerInfo[playerid][MaxRank]);
-    ini_getInteger(File, "Cash", PlayerInfo[playerid][Cash]);
-    ini_getInteger(File, "Sex", PlayerInfo[playerid][Sex]);
-	ini_getFloat(File, "PosX", PlayerInfo[playerid][PosX]);
-    ini_getFloat(File, "PosY", PlayerInfo[playerid][PosY]);
-    ini_getFloat(File, "PosZ", PlayerInfo[playerid][PosZ]);
-    ini_getFloat(File, "Angle", PlayerInfo[playerid][FacingAngle]);
-    ini_getInteger(File, "Interior", PlayerInfo[playerid][Interior]);
-	ini_getInteger(File, "Skin", PlayerInfo[playerid][Skin]);
-	ini_getInteger(File, "Admin", PlayerInfo[playerid][Admin]);
-    ini_getInteger(File, "Kills", PlayerInfo[playerid][Kills]);
-    ini_getInteger(File, "Deaths", PlayerInfo[playerid][Deaths]);
-    ini_getInteger(File, "DamageMin", PlayerInfo[playerid][DamageMin]);
-	ini_getInteger(File, "DamageMax", PlayerInfo[playerid][DamageMax]);
-    ini_getInteger(File, "Defense", PlayerInfo[playerid][Defense]);
-    ini_getInteger(File, "Dodge", PlayerInfo[playerid][Dodge]);
-    ini_getInteger(File, "Accuracy", PlayerInfo[playerid][Accuracy]);
-	ini_getInteger(File, "Crit", PlayerInfo[playerid][CriticalChance]);
-    ini_getInteger(File, "GlobalTopPosition", PlayerInfo[playerid][GlobalTopPosition]);
-	ini_getInteger(File, "LocalTopPosition", PlayerInfo[playerid][LocalTopPosition]);
 
-	ini_getInteger(File, "WeaponSlotID", WeaponSlot[playerid][ID]);
-	ini_getInteger(File, "WeaponSlotCount", WeaponSlot[playerid][Count]);
-	ini_getInteger(File, "ArmorSlotID", ArmorSlot[playerid][ID]);
-	ini_getInteger(File, "ArmorSlotCount", ArmorSlot[playerid][Count]);
-	ini_getInteger(File, "AccSlot1ID", AccSlot1[playerid][ID]);
-	ini_getInteger(File, "AccSlot1Count", AccSlot1[playerid][Count]);
-	ini_getInteger(File, "AccSlot2ID", AccSlot1[playerid][ID]);
-	ini_getInteger(File, "AccSlot2Count", AccSlot1[playerid][Count]);
-	for (new x = 0; x < MAX_MOD; x++)
+	new query[255];
+	format(query, sizeof(query), "SELECT * FROM `players` WHERE `Name` = '%s' LIMIT 1", name);
+	new Cache:q_result = mysql_query(sql_handle, query);
+
+	new result_count = 0;
+	cache_get_result_count(result_count);
+	if(result_count <= 0)
 	{
-		format(string, sizeof(string), "WeaponSlotMod%d", x);
-		ini_getInteger(File, string, WeaponSlot[playerid][Mod][x]);
-		format(string, sizeof(string), "ArmorSlotMod%d", x);
-		ini_getInteger(File, string, ArmorSlot[playerid][Mod][x]);
-		format(string, sizeof(string), "AccSlot1Mod%d", x);
-		ini_getInteger(File, string, AccSlot1[playerid][Mod][x]);
-		format(string, sizeof(string), "AccSlot2Mod%d", x);
-		ini_getInteger(File, string, AccSlot2[playerid][Mod][x]);
-		
+		SendClientMessage(playerid, COLOR_LIGHTRED, "Ошибка при загрузке участника. Обратитесь к администратору.");
+		cache_delete(q_result);
+		return false;
 	}
 
-    for (new j = 0; j < MAX_SLOTS; j++) 
-	{
-        format(string, sizeof(string), "InventorySlot%dID", j);
-        ini_getInteger(File, string, PlayerInventory[playerid][j][ID]);
-		for (new x = 0; x < MAX_MOD; x++)
-		{
-			format(string, sizeof(string), "InventorySlot%dMod%d", j, x);
-        	ini_getInteger(File, string, PlayerInventory[playerid][j][Mod][x]);
-		}
-		format(string, sizeof(string), "InventorySlot%dCount", j);
-        ini_getInteger(File, string, PlayerInventory[playerid][j][Count]);
-    }
-    ini_closeFile(File);
-    return 1;
+	cache_get_value_name_int(0, "Sex", PlayerInfo[playerid][Sex]);
+	cache_get_value_name_int(0, "Rate", PlayerInfo[playerid][Rate]);
+	cache_get_value_name_int(0, "Rank", PlayerInfo[playerid][Rank]);
+	cache_get_value_name_int(0, "MaxRank", PlayerInfo[playerid][MaxRank]);
+	cache_get_value_name_int(0, "Cash", PlayerInfo[playerid][Cash]);
+	cache_get_value_name_float(0, "PosX", PlayerInfo[playerid][PosX]);
+	cache_get_value_name_float(0, "PosY", PlayerInfo[playerid][PosY]);
+	cache_get_value_name_float(0, "PosZ", PlayerInfo[playerid][PosZ]);
+	cache_get_value_name_float(0, "Angle", PlayerInfo[playerid][FacingAngle]);
+	cache_get_value_name_int(0, "Interior", PlayerInfo[playerid][Interior]);
+	cache_get_value_name_int(0, "Skin", PlayerInfo[playerid][Skin]);
+	cache_get_value_name_int(0, "Kills", PlayerInfo[playerid][Kills]);
+	cache_get_value_name_int(0, "Deaths", PlayerInfo[playerid][Deaths]);
+	cache_get_value_name_int(0, "DamageMin", PlayerInfo[playerid][DamageMin]);
+	cache_get_value_name_int(0, "DamageMax", PlayerInfo[playerid][DamageMax]);
+	cache_get_value_name_int(0, "Defense", PlayerInfo[playerid][Defense]);
+	cache_get_value_name_int(0, "Dodge", PlayerInfo[playerid][Dodge]);
+	cache_get_value_name_int(0, "Accuracy", PlayerInfo[playerid][Accuracy]);
+	cache_get_value_name_int(0, "Crit", PlayerInfo[playerid][Crit]);
+	cache_get_value_name_int(0, "GlobalTopPos", PlayerInfo[playerid][GlobalTopPosition]);
+	cache_get_value_name_int(0, "LocalTopPos", PlayerInfo[playerid][LocalTopPosition]);
+	cache_get_value_name_int(0, "WeaponSlotID", PlayerInfo[playerid][WeaponSlotID]);
+	cache_get_value_name_int(0, "ArmorSlotID", PlayerInfo[playerid][ArmorSlotID]);
+	cache_get_value_name_int(0, "AccSlot1ID", PlayerInfo[playerid][AccSlot1ID]);
+	cache_get_value_name_int(0, "AccSlot2ID", PlayerInfo[playerid][AccSlot2ID]);
+
+	new string[255];
+	cache_get_value_name(0, "WeaponMod", string);
+	sscanf(string, "a<i>[7]", PlayerInfo[playerid][WeaponMod]);
+	cache_get_value_name(0, "ArmorMod", string);
+	sscanf(string, "a<i>[7]", PlayerInfo[playerid][ArmorMod]);
+
+	cache_delete(q_result);
+ 	return 1;
 }
 
-stock CreatePlayer(playerid, name[])
+stock CreatePlayer(playerid, name[], owner[])
 {
-	new string[255];
-	new path[128];
-	format(path, sizeof(path), "Players/%s.ini", name);
-	new File = ini_createFile(path);
-	ini_setInteger(File, "Rate", 0);
-	ini_setInteger(File, "Rank", 1);
-	ini_setInteger(File, "MaxRank", 1);
-    ini_setInteger(File, "Cash", 0);
-    ini_setInteger(File, "Sex", 0);
-	ini_setFloat(File, "PosX", DEFAULT_POS_X);
-    ini_setFloat(File, "PosY", DEFAULT_POS_Y);
-    ini_setFloat(File, "PosZ", DEFAULT_POS_Z);
-    ini_setFloat(File, "Angle", 0);
-    ini_setInteger(File, "Interior", 0);
-	ini_setInteger(File, "Skin", DEFAULT_SKIN_MALE);
-	ini_setInteger(File, "Admin", 0);
-    ini_setInteger(File, "Kills", 0);
-    ini_setInteger(File, "Deaths", 0);
-    ini_setInteger(File, "DamageMin", DEFAULT_DAMAGE_MIN);
-	ini_setInteger(File, "DamageMax", DEFAULT_DAMAGE_MAX);
-    ini_setInteger(File, "Defense", DEFAULT_DEFENSE);
-    ini_setInteger(File, "Dodge", DEFAULT_DODGE);
-    ini_setInteger(File, "Accuracy", DEFAULT_ACCURACY);
-	ini_setInteger(File, "Crit", DEFAULT_CRIT);
-    ini_setInteger(File, "GlobalTopPosition", 0);
-	ini_setInteger(File, "LocalTopPosition", 0);
+	new query[2048] = "INSERT INTO `players`( \
+		`Name`, `Owner`, `Sex`, `Rate`, `MaxRank`, `Rank`, `Cash`, `PosX`, `PosY`, `PosZ`, \
+		`Angle`, `Interior`, `Skin`, `Kills`, `Deaths`, `DamageMin`, `DamageMax`, `Defense`, \
+		`Dodge`, `Accuracy`, `Crit`, `GlobalTopPos`, `LocalTopPos`, `WeaponSlotID`, `WeaponMod`, \
+		`ArmorSlotID`, `ArmorMod`, `AccSlot1ID`, `AccSlot2ID`) VALUES (";
+	new tmp[1024];
 
-	ini_setInteger(File, "WeaponSlotID", -1);
-	ini_setInteger(File, "WeaponSlotCount", 0);
-	ini_setInteger(File, "ArmorSlotID", -1);
-	ini_setInteger(File, "ArmorSlotCount", 0);
-	ini_setInteger(File, "AccSlot1ID", -1);
-	ini_setInteger(File, "AccSlot1Count", 0);
-	ini_setInteger(File, "AccSlot2ID", -1);
-	ini_setInteger(File, "AccSlot2Count", 0);
-	for (new x = 0; x < MAX_MOD; x++)
-	{
-		format(string, sizeof(string), "WeaponSlotMod%d", x);
-		ini_setInteger(File, string, 0);
-		format(string, sizeof(string), "ArmorSlotMod%d", x);
-		ini_setInteger(File, string, 0);
-		format(string, sizeof(string), "AccSlot1Mod%d", x);
-		ini_setInteger(File, string, 0);
-		format(string, sizeof(string), "AccSlot2Mod%d", x);
-		ini_setInteger(File, string, 0);
-		
-	}
+	format(tmp, sizeof(tmp), "'%s','%s','%d','%d','%d','%d','%d','%f','%f','%f','%f','%d','%d','%d','%d','%d','%d','%d','%d','%d','%d','%d','%d','%d','%s','%d','%s','%d','%d')",
+		name, owner, 0, 0, 1, 1, 0, DEFAULT_POS_X, DEFAULT_POS_Y, DEFAULT_POS_Z, 0, 0, 78, 0, 0, 13, 15, 5, 0, 5, 5, 20, 10, 0, "0 0 0 0 0 0 0", 81, "0 0 0 0 0 0 0", -1, -1
+	);
+	strcat(query, tmp);
 
-    for (new j = 0; j < MAX_SLOTS; j++) 
-	{
-        format(string, sizeof(string), "InventorySlot%dID", j);
-        ini_setInteger(File, string, -1);
-		for (new x = 0; x < MAX_MOD; x++)
-		{
-			format(string, sizeof(string), "InventorySlot%dMod%d", j, x);
-        	ini_setInteger(File, string, 0);
-		}
-		format(string, sizeof(string), "InventorySlot%dCount", j);
-        ini_setInteger(File, string, 0);
-    }
-    ini_closeFile(File);
+	new Cache:q_result = mysql_query(sql_handle, query);
+	cache_delete(q_result);
 
 	SendClientMessage(playerid, COLOR_GREEN, "Player created succesfully.");
-	return 1;
 }
 
 stock IsPlayerBesideNPC(playerid)
@@ -1367,8 +1326,12 @@ stock ClearDatabase()
 stock InitDatabase()
 {
 	new string[255];
-	new File = ini_openFile("Database/Itemsdata.ini");
-	for(new i = 0; i < BASE_SIZE; i++)
+	new filepath[128];
+	new cur_size = 0;
+	new file_num = 1;
+	format(filepath, sizeof(filepath), "Database/Itemsdata_%d.ini", file_num);
+	new File = ini_openFile(filepath);
+	for(new i = 0; i < cur_size + MAX_BASE_SIZE; i++)
 	{
 		format(string, sizeof(string), "Item%d_ID", i);
 		ini_getInteger(File, string, ItemsBase[i][ID]);
