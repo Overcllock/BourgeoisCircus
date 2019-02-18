@@ -149,6 +149,12 @@ enum BaseItem
 	ModelRotY,
 	ModelRotZ
 }
+enum TopItem
+{
+	Pos,
+	Name[255],
+	Rate
+}
 enum pInfo 
 {
 	Rate,
@@ -195,6 +201,12 @@ new ParticipantsCount[MAX_PLAYERS];
 new Participants[MAX_PLAYERS][MAX_PARTICIPANTS][128];
 
 //Arrays
+new EmptyInvItem[iInfo];
+EmptyInvItem[ID] = -1;
+
+new GlobalRatingTop[MAX_PARTICIPANTS][TopItem];
+new LocalRatingTop[MAX_PLAYERS][MAX_PARTICIPANTS / 2][TopItem];
+
 new RateColors[MAX_RANK][16] = {
 	{"85200c"},
 	{"666666"},
@@ -424,7 +436,7 @@ public OnGameModeInit()
 	print("Database connection success.");
 	
 	mysql_set_charset("cp1251");
-	UpdateRatingTop();
+	UpdateGlobalRatingTop();
 	return 1;
 }
 
@@ -462,7 +474,8 @@ public OnPlayerConnect(playerid)
 	return 1;
 }
 
-public OnPlayerLogin(playerid) {
+public OnPlayerLogin(playerid) 
+{
 	InitPlayerTextDraws(playerid);
 	PlayerTextDrawShow(playerid, HPBar[playerid]);
 	PlayerConnect[playerid] = true;
@@ -475,6 +488,7 @@ public OnPlayerLogin(playerid) {
 	SpawnPlayer(playerid);
 	ResetPlayerMoney(playerid);
 	GivePlayerMoney(playerid, PlayerInfo[playerid][Cash]);
+	UpdateLocalRatingTop(playerid);
 }
 
 public OnPlayerDisconnect(playerid, reason)
@@ -583,11 +597,16 @@ public OnPlayerKeyStateChange(playerid, newkeys, oldkeys)
 			strcat(text, "  Заходи ко мне почаще, чтобы не пропустить самое интересное! \n\n");
 			ShowPlayerDialog(playerid, 1, DIALOG_STYLE_MSGBOX, "Буржуа", text, "Закрыть", "");
 		}
-		if(IsPlayerInRangeOfPoint(playerid, 2.0, 226.7674,-1837.6835,3.6120))
+		else if(IsPlayerInRangeOfPoint(playerid, 2.0, 226.7674,-1837.6835,3.6120))
 		{
-			new listitems[] = "Информация о турнире\nПодать сигнал готовности";
+			new listitems[] = "Информация о турнире\nТурнирная таблица\nУчастники следующего тура\nПодать сигнал готовности";
 			ShowPlayerDialog(playerid, 200, DIALOG_STYLE_TABLIST, "Заведующий турнирами", listitems, "Далее", "Закрыть");
 		}
+		else if(IsPlayerInRangeOfPoint(playerid,1.2,-2171.3132,645.5896,1052.3817)) 
+		{
+			new listitems[] = "Общий рейтинг участников\nРейтинг моих участников";
+			ShowPlayerDialog(playerid, 300, DIALOG_STYLE_TABLIST, "Доска почета", listitems, "Далее", "Закрыть");
+        }
 	}
 	else if(newkeys & 131072)
 	{
@@ -717,6 +736,32 @@ public OnDialogResponse(playerid, dialogid, response, listitem, inputtext[])
 					{
 
 					}
+					case 2:
+					{
+
+					}
+					case 3:
+					{
+
+					}
+				}
+			}
+		}
+
+		case 300:
+		{
+			if(response)
+			{
+				switch(listitem)
+				{
+					case 0:
+					{
+						ShowGlobalRatingTop(playerid);
+					}
+					case 1:
+					{
+						ShowLocalRatingTop(playerid);
+					}
 				}
 			}
 		}
@@ -764,6 +809,28 @@ public OnPlayerClickPlayerTextDraw(playerid, PlayerText:playertextid)
 		HideCharInfo(playerid);
 		CancelSelectTextDraw(playerid);
 	}
+
+	for (new i = 0; i < MAX_SLOTS; i++) {
+        if (playertextid == ChrInfInvSlot[playerid][i]) {
+            if (SelectedSlot[playerid] != -1) 
+			{
+                if (PlayerInventory[playerid][SelectedSlot[playerid]][ID] != -1 && PlayerInventory[playerid][i][ID] == -1) 
+				{
+					PlayerInventory[playerid][i] = PlayerInventory[playerid][SelectedSlot[playerid]];
+					PlayerInventory[playerid][SelectedSlot[playerid]] = EmptyInvItem;
+                    new oldslot = SelectedSlot[playerid];
+                    SelectedSlot[playerid] = -1;
+                    UpdateSlot(playerid, oldslot);
+                    UpdateSlot(playerid, i);
+                    break;
+                }
+                SetSlotSelection(playerid, SelectedSlot[playerid], false);
+            }
+            SelectedSlot[playerid] = i;
+            SetSlotSelection(playerid, i, true);
+            break;
+        }
+    }
 }
 
 /* Public functions */
@@ -823,6 +890,7 @@ public GivePlayerRate(playerid, rate)
 {
 	PlayerInfo[playerid][Rate] += rate;
 	UpdatePlayerRank(playerid);
+	UpdateLocalRatingTop(playerid);
 }
 
 /* Stock functions */
@@ -886,6 +954,57 @@ stock UpdatePlayerRank(playerid)
 	PlayerInfo[playerid][Rank] = new_rank;
 	if(new_rank > PlayerInfo[playerid][MaxRank])
 		PlayerInfo[playerid][MaxRank] = new_rank;
+}
+
+stock IsInvSlotEmpty(playerid, slotid)
+{
+	return PlayerInventory[playerid][slotid][ID] == -1;
+}
+
+stock UpdateSlot(playerid, slotid)
+{
+	if (!IsInventoryOpen[playerid]) return;
+
+    PlayerTextDrawHide(playerid, ChrInfInvSlot[playerid][slotid]);
+    PlayerTextDrawHide(playerid, ChrInfInvSlotCount[playerid][slotid]);
+
+	PlayerTextDrawBackgroundColor(playerid, ChrInfInvSlot[playerid][slotid], -1061109505);
+	if(IsInvSlotEmpty(playerid, slotid))
+	{
+		PlayerTextDrawSetPreviewRot(playerid, ChrInfInvSlot[playerid][slotid], 0.0, 0.0, 0.0, -1.0);
+		PlayerTextDrawShow(playerid, ChrInfInvSlot[playerid][slotid]);
+		return;
+	}
+
+	new item[BaseItem];
+	item = GetItem(PlayerInventory[playerid][slotid][ID]);
+
+	PlayerTextDrawBackgroundColor(playerid, ChrInfInvSlot[playerid][slotid], HexGradeColors[item[Grade]-1][0]);
+	PlayerTextDrawSetPreviewModel(playerid, ChrInfInvSlot[playerid][slotid], item[Model]);
+	PlayerTextDrawSetPreviewRot(playerid, ChrInfInvSlot[playerid][slotid], item[ModelRotX], item[ModelRotY], item[ModelRotZ], 1.0);
+	PlayerTextDrawShow(playerid, ChrInfInvSlot[playerid][slotid]);
+
+	if(!IsEquip(PlayerInventory[playerid][slotid][ID]))
+	{
+		format(string, sizeof(string), "%d", PlayerInventory[playerid][slotid][Count]);
+		PlayerTextDrawSetString(playerid, ChrInfInvSlotCount[playerid][slotid], string);
+		PlayerTextDrawShow(playerid, ChrInfInvSlotCount[playerid][slotid]);
+	}
+}
+
+stock SetSlotSelection(playerid, slotid, bool:selection)
+{
+	if(IsInvSlotEmpty(playerid, slotid))
+		PlayerTextDrawBackgroundColor(playerid, ChrInfInvSlot[playerid][slotid], selection ? 0x999999AA : -1061109505);
+	else
+	{
+		new item[BaseItem];
+		item = GetItem(PlayerInventory[playerid][slotid][ID]);
+		PlayerTextDrawBackgroundColor(playerid, ChrInfInvSlot[playerid][slotid], selection ? HexGradeColors[item[Grade]-1][0] - 0x00000033 : HexGradeColors[item[Grade]-1][0]);
+	}
+
+	PlayerTextDrawHide(playerid, ChrInfInvSlot[playerid][slotid]);
+	PlayerTextDrawShow(playerid, ChrInfInvSlot[playerid][slotid]);
 }
 
 stock GetItem(id)
@@ -1030,7 +1149,8 @@ stock ShowCharInfo(playerid)
 			PlayerTextDrawShow(playerid, ChrInfInvSlotCount[playerid][i]);
 		}
 	}
-
+	
+	IsInventoryOpen[playerid] = true;
 	SelectTextDraw(playerid,0xCCCCFF65);
 }
 
@@ -1067,6 +1187,8 @@ stock HideCharInfo(playerid)
 		PlayerTextDrawHide(playerid, ChrInfInvSlot[playerid][i]);
 		PlayerTextDrawHide(playerid, ChrInfInvSlotCount[playerid][i]);
 	}
+
+	IsInventoryOpen[playerid] = false;
 }
 
 stock GetPlaceColor(place)
@@ -1473,9 +1595,142 @@ stock TranslateText(string[])
 	return result;
 }
 
-stock UpdateRatingTop()
+stock UpdateGlobalRatingTop()
 {
+	new query[255];
+	format(query, sizeof(query), "SELECT * FROM `players` WHERE `Owner` <> 'Admin' ORDER BY `Rate` DESC LIMIT %d", MAX_PARTICIPANTS);
+	new Cache:q_result = mysql_query(sql_handle, query);
 
+	new row_count = 0;
+	cache_get_row_count(row_count);
+	if(row_count <= 0)
+	{
+		print(playerid, COLOR_LIGHTRED, "Global rating update error.");
+		cache_delete(q_result);
+		return;
+	}
+
+	for(new i = 0; i < row_count; i++)
+	{
+		new name[255];
+		new rate;
+
+		cache_get_value_name(i, "Name", name);
+		cache_get_value_name_int(i, "Rate", rate);
+
+		format(query, sizeof(query), "UPDATE `players` SET `GlobalTopPos` = '%d' WHERE `Name` = '%s' LIMIT 1", i+1, name);
+		cache_delete(mysql_query(sql_handle, query));
+
+		GlobalRatingTop[Name][i] = name;
+		GlobalRatingTop[Rate][i] = rate;
+
+		new playerid = GetPlayerID(name);
+		if(playerid != -1)
+			PlayerInfo[playerid][GlobalTopPosition] = i+1;
+	}
+
+	cache_delete(q_result);
+}
+
+stock UpdateLocalRatingTop(playerid)
+{
+	new name[255];
+	new query[255];
+	new string[255];
+	
+	GetPlayerName(playerid, name, sizeof(name));
+	format(query, sizeof(query), "SELECT * FROM `players` WHERE `Name` = '%s' LIMIT 1", name);
+	new Cache:q_result = mysql_query(sql_handle, query);
+
+	new row_count = 0;
+	cache_get_row_count(row_count);
+	if(row_count <= 0)
+	{
+		format(string, sizeof(string), "Local rating update error. Player: %s", name);
+		print(playerid, COLOR_LIGHTRED, string);
+		cache_delete(q_result);
+		return;
+	}
+
+	new owner[255];
+	cache_get_value_name(0, "Owner", owner);
+	cache_delete(q_result);
+
+	format(query, sizeof(query), "SELECT * FROM `players` WHERE `Owner` = '%s' ORDER BY `Rate` DESC LIMIT %d", owner, MAX_PARTICIPANTS / 2);
+	q_result = mysql_query(sql_handle, query);
+
+	row_count = 0;
+	cache_get_row_count(row_count);
+	if(row_count <= 0)
+	{
+		format(string, sizeof(string), "Local rating update error. Player: %s", name);
+		print(playerid, COLOR_LIGHTRED, string);
+		cache_delete(q_result);
+		return;
+	}
+
+	for(new i = 0; i < row_count; i++)
+	{
+		new rate;
+
+		cache_get_value_name(i, "Name", name);
+		cache_get_value_name_int(i, "Rate", rate);
+
+		format(query, sizeof(query), "UPDATE `players` SET `LocalTopPos` = '%d' WHERE `Name` = '%s' LIMIT 1", i+1, name);
+		cache_delete(mysql_query(sql_handle, query));
+
+		LocalRatingTop[playerid][Name][i] = name;
+		LocalRatingTop[playerid][Rate][i] = rate;
+
+		new pid = GetPlayerID(name);
+		if(pid != -1)
+			PlayerInfo[pid][LocalTopPosition] = i+1;
+	}
+
+	cache_delete(q_result);
+}
+
+stock ShowGlobalRatingTop(playerid)
+{
+	new top[4000] = "№ п\\п\tИмя\tРейтинг";
+	new string[455];
+	for (new i = 0; i < MAX_PARTICIPANTS; i++) 
+	{
+		format(string, sizeof(string), "\n{%s}%d\t{%s}%s\t%d", 
+			GetPlaceColor(i+1), i+1, GetColorByRate(GlobalRatingTop[i][Rate]), GlobalRatingTop[i][Name], GlobalRatingTop[i][Rate]
+		);
+		strcat(top, string);
+	}
+	ShowPlayerDialog(playerid, 1, DIALOG_STYLE_TABLIST_HEADERS, "Общий рейтинг участников", top, "Закрыть", "");
+}
+
+stock ShowLocalRatingTop(playerid);
+{
+	new top[4000] = "№ п\\п\tИмя\tРейтинг";
+	new string[455];
+	for (new i = 0; i < MAX_PARTICIPANTS / 2; i++) 
+	{
+		format(string, sizeof(string), "\n{%s}%d\t{%s}%s\t%d", 
+			GetPlaceColor(i+1), i+1, GetColorByRate(LocalRatingTop[playerid][i][Rate]), LocalRatingTop[playerid][i][Name], LocalRatingTop[playerid][i][Rate]
+		);
+		strcat(top, string);
+	}
+	ShowPlayerDialog(playerid, 1, DIALOG_STYLE_TABLIST_HEADERS, "Рейтинг моих участников", top, "Закрыть", "");
+}
+
+stock GetPlayerID(name[])
+{
+	new p_name[255];
+
+	for(new i = 0; i < MAX_PLAYERS; i++)
+	{
+		if(!IsPlayerConnected(i)) continue;
+		GetPlayerName(i, p_name, sizeof(p_name));
+		if(strcmp(name, p_name, true) == 0)
+			return i;
+	}
+
+	return -1;
 }
 
 stock InitTextDraws()
