@@ -18,6 +18,7 @@
 #include <Pawn.CMD>
 
 #pragma dynamic 31294
+#define NULL (0)
 
 #define VERSION 1.00
 
@@ -129,18 +130,18 @@ enum TopItem
 	Pos,
 	Name[255],
 	Rate
-}
+};
 enum tInfo
 {
 	Number,
 	Phase,
 	Tour,
-	Participants[MAX_PARTICIPANTS]
-}
+	ParticipantsIDs[MAX_PARTICIPANTS]
+};
 new Tournament[tInfo];
 new TourParticipantsCount = 0;
 new PrevTourParticipantsCount = 0;
-new TournamentTab[TopItem];
+new TournamentTab[MAX_PARTICIPANTS][TopItem];
 
 //Pickups
 new home_enter = -1;
@@ -170,10 +171,11 @@ enum BaseItem
 	ModelRotX,
 	ModelRotY,
 	ModelRotZ
-}
+};
 enum pInfo 
 {
-	ID
+	ID,
+	Name[255],
 	Rate,
 	Rank,
 	MaxRank,
@@ -218,8 +220,11 @@ new ParticipantsCount[MAX_PLAYERS];
 new Participants[MAX_PLAYERS][MAX_PARTICIPANTS][128];
 
 //Arrays
-new EmptyInvItem[iInfo];
-EmptyInvItem[ID] = -1;
+new EmptyInvItem[iInfo] = {
+	-1,
+	{0,0,0,0,0,0,0},
+	0
+};
 
 new GlobalRatingTop[MAX_PARTICIPANTS][TopItem];
 new LocalRatingTop[MAX_PLAYERS][MAX_PARTICIPANTS / 2][TopItem];
@@ -513,8 +518,6 @@ public OnPlayerLogin(playerid)
 public OnPlayerDisconnect(playerid, reason)
 {
 	KillTimer(PlayerUpdater[playerid]);
-	if(!IsPlayerNPC(playerid))
-		SaveAccount(playerid);
 	if(IsPlayerParticipant(playerid) || PlayerInfo[playerid][Admin] > 0)
 		SavePlayer(playerid);
 	DeletePlayerTextDraws(playerid);
@@ -750,8 +753,11 @@ public OnDialogResponse(playerid, dialogid, response, listitem, inputtext[])
 					case 0:
 					{
 						new listitems[1024];
+						new ptext[64];
+						if(Tournament[Phase] == PHASE_PEACE) ptext = "мира";
+						else ptext = "войны";
 						format(listitems, sizeof(listitems), "Сейчас идет турнир #%d.\n\nТекущая фаза: фаза %s\nТур: %d", 
-							Tournament[Number], Tournament[Phase] == PHASE_PEACE ? "мира" : "войны", Tournament[Tour]
+							Tournament[Number], ptext, Tournament[Tour]
 						);
 						ShowPlayerDialog(playerid, 201, DIALOG_STYLE_MSGBOX, "Информация о турнире", listitems, "Назад", "Закрыть");
 					}
@@ -1040,6 +1046,7 @@ stock UpdateSlot(playerid, slotid)
 	PlayerTextDrawSetPreviewRot(playerid, ChrInfInvSlot[playerid][slotid], item[ModelRotX], item[ModelRotY], item[ModelRotZ], 1.0);
 	PlayerTextDrawShow(playerid, ChrInfInvSlot[playerid][slotid]);
 
+	new string[16];
 	if(!IsEquip(PlayerInventory[playerid][slotid][ID]))
 	{
 		format(string, sizeof(string), "%d", PlayerInventory[playerid][slotid][Count]);
@@ -1354,17 +1361,21 @@ stock LoadTournamentInfo()
 	cache_get_value_name_int(0, "Number", Tournament[Number]);
 	cache_get_value_name_int(0, "Phase", Tournament[Phase]);
 	cache_get_value_name_int(0, "Tour", Tournament[Tour]);
+
+	for(new i = 0; i < MAX_PARTICIPANTS; i++)
+		Tournament[ParticipantsIDs][i] = -1;
+
 	new string[255];
 	cache_get_value_name(0, "Participants", string);
-	sscanf(string, "a<i>[20]", Tournament[Participants]);
+	sscanf(string, "a<i>[20]", Tournament[ParticipantsIDs]);
 
 	cache_delete(q_result);
 
 	for(new i = 0; i < MAX_PARTICIPANTS; i++)
 	{
-		if(Tournament[Participants][i] == -1)
+		if(Tournament[ParticipantsIDs][i] == -1)
 		{
-			TourParticipantsCount = i+1;
+			TourParticipantsCount = i;
 			break;
 		}
 	}
@@ -1376,16 +1387,8 @@ stock SaveTournamentInfo()
 {
 	new query[255];
 	format(query, sizeof(query), "UPDATE `tournament` SET `Number` = '%d', `Phase` = '%d', `Tour` = '%d', `Participants` = '%s' LIMIT 1", 
-		Tournament[Number], Tournament[Phase], Tournament[Tour], ArrayToString(Tournament[Participants], MAX_PARTICIPANTS)
+		Tournament[Number], Tournament[Phase], Tournament[Tour], ArrayToString(Tournament[ParticipantsIDs], MAX_PARTICIPANTS)
 	);
-	new Cache:q_result = mysql_query(sql_handle, query);
-	cache_delete(q_result);
-}
-
-stock SaveAccount(playerid)
-{
-	new query[255];
-	format(query, sizeof(query), "UPDATE `accounts` SET `admin` = '%d' WHERE `login` = '%s' LIMIT 1", PlayerInfo[playerid][Admin], AccountLogin[playerid]);
 	new Cache:q_result = mysql_query(sql_handle, query);
 	cache_delete(q_result);
 }
@@ -1517,8 +1520,9 @@ stock LoadInventory(playerid)
 
 stock LoadPlayer(playerid)
 {
-	new name[64];
+	new name[255];
 	GetPlayerName(playerid, name, sizeof(name));
+	PlayerInfo[playerid][Name] = name;
 
 	new query[255];
 	format(query, sizeof(query), "SELECT * FROM `players` WHERE `Name` = '%s' LIMIT 1", name);
@@ -1721,24 +1725,30 @@ stock UpdateGlobalRatingTop()
 	cache_get_row_count(row_count);
 	if(row_count <= 0)
 	{
-		print(playerid, COLOR_LIGHTRED, "Global rating update error.");
+		print("Global rating update error.");
 		cache_delete(q_result);
 		return;
 	}
+
+	q_result = cache_save();
+	cache_unset_active();
 
 	for(new i = 0; i < row_count; i++)
 	{
 		new name[255];
 		new rate;
 
+		cache_set_active(q_result);
 		cache_get_value_name(i, "Name", name);
 		cache_get_value_name_int(i, "Rate", rate);
+		cache_unset_active();
 
 		format(query, sizeof(query), "UPDATE `players` SET `GlobalTopPos` = '%d' WHERE `Name` = '%s' LIMIT 1", i+1, name);
-		cache_delete(mysql_query(sql_handle, query));
+		new Cache:temp_result = mysql_query(sql_handle, query);
+		cache_delete(temp_result);
 
-		GlobalRatingTop[Name][i] = name;
-		GlobalRatingTop[Rate][i] = rate;
+		GlobalRatingTop[i][Name] = name;
+		GlobalRatingTop[i][Rate] = rate;
 
 		new playerid = GetPlayerID(name);
 		if(playerid != -1)
@@ -1763,7 +1773,7 @@ stock UpdateLocalRatingTop(playerid)
 	if(row_count <= 0)
 	{
 		format(string, sizeof(string), "Local rating update error. Player: %s", name);
-		print(playerid, COLOR_LIGHTRED, string);
+		print(string);
 		cache_delete(q_result);
 		return;
 	}
@@ -1780,23 +1790,29 @@ stock UpdateLocalRatingTop(playerid)
 	if(row_count <= 0)
 	{
 		format(string, sizeof(string), "Local rating update error. Player: %s", name);
-		print(playerid, COLOR_LIGHTRED, string);
+		print(string);
 		cache_delete(q_result);
 		return;
 	}
+
+	q_result = cache_save();
+	cache_unset_active();
 
 	for(new i = 0; i < row_count; i++)
 	{
 		new rate;
 
+		cache_set_active(q_result);
 		cache_get_value_name(i, "Name", name);
 		cache_get_value_name_int(i, "Rate", rate);
+		cache_unset_active();
 
 		format(query, sizeof(query), "UPDATE `players` SET `LocalTopPos` = '%d' WHERE `Name` = '%s' LIMIT 1", i+1, name);
-		cache_delete(mysql_query(sql_handle, query));
+		new Cache:temp_result = mysql_query(sql_handle, query);
+		cache_delete(temp_result);
 
-		LocalRatingTop[playerid][Name][i] = name;
-		LocalRatingTop[playerid][Rate][i] = rate;
+		LocalRatingTop[playerid][i][Name] = name;
+		LocalRatingTop[playerid][i][Rate] = rate;
 
 		new pid = GetPlayerID(name);
 		if(pid != -1)
@@ -1820,7 +1836,7 @@ stock ShowGlobalRatingTop(playerid)
 	ShowPlayerDialog(playerid, 1, DIALOG_STYLE_TABLIST_HEADERS, "Общий рейтинг участников", top, "Закрыть", "");
 }
 
-stock ShowLocalRatingTop(playerid);
+stock ShowLocalRatingTop(playerid)
 {
 	new top[4000] = "№ п\\п\tИмя\tРейтинг";
 	new string[455];
@@ -1837,22 +1853,23 @@ stock ShowLocalRatingTop(playerid);
 stock ShowTourParticipants(playerid)
 {
 	new top[4000] = "№ п\\п\tИмя\tРейтинг";
-	new string[455];
+	new string[255];
 	for (new i = 0; i < TourParticipantsCount; i++) 
 	{
-		new player = GetPlayer(Tournament[Participants][i]);
+		new player[pInfo];
+		player = GetPlayer(Tournament[ParticipantsIDs][i]);
 		format(string, sizeof(string), "\n{ffffff}%d\t{%s}%s\t%d", 
 			i+1, GetColorByRate(player[Rate]), player[Name], player[Rate]
 		);
 		strcat(top, string);
 	}
-	ShowPlayerDialog(playerid, 1, DIALOG_STYLE_TABLIST_HEADERS, "Участники текущего тура", top, "Закрыть", "");
+	ShowPlayerDialog(playerid, 201, DIALOG_STYLE_TABLIST_HEADERS, "Участники текущего тура", top, "Назад", "Закрыть");
 }
 
 stock ShowTournamentTab(playerid)
 {
 	new top[4000] = "№ п\\п\tИмя\tОчки";
-	new string[455];
+	new string[255];
 	for (new i = 0; i < PrevTourParticipantsCount; i++) 
 	{
 		format(string, sizeof(string), "\n{%s}%d\t{%s}%s\t%d", 
@@ -1866,6 +1883,24 @@ stock ShowTournamentTab(playerid)
 stock GetPlayer(id)
 {
 	new player[pInfo];
+	new query[255];
+
+	format(query, sizeof(query), "SELECT * FROM `players` WHERE `ID` = '%d' LIMIT 1", id);
+	new Cache:q_result = mysql_query(sql_handle, query);
+	new row_count;
+	cache_get_row_count(row_count);
+	if(row_count <= 0)
+	{
+		print("GetPlayer() error.");
+		return player;
+	}
+
+	cache_get_value_name_int(0, "Rate", player[Rate]);
+	new name[255];
+	cache_get_value_name(0, "Name", name);
+	player[Name] = name;
+
+	cache_delete(q_result);
 	return player;
 }
 
