@@ -124,6 +124,12 @@ forward GivePlayerRate(playerid, rate);
 new WorldTime_Timer = -1;
 new Actors[MAX_ACTORS];
 new MySQL:sql_handle;
+enum TopItem
+{
+	Pos,
+	Name[255],
+	Rate
+}
 enum tInfo
 {
 	Number,
@@ -132,6 +138,9 @@ enum tInfo
 	Participants[MAX_PARTICIPANTS]
 }
 new Tournament[tInfo];
+new TourParticipantsCount = 0;
+new PrevTourParticipantsCount = 0;
+new TournamentTab[TopItem];
 
 //Pickups
 new home_enter = -1;
@@ -161,12 +170,6 @@ enum BaseItem
 	ModelRotX,
 	ModelRotY,
 	ModelRotZ
-}
-enum TopItem
-{
-	Pos,
-	Name[255],
-	Rate
 }
 enum pInfo 
 {
@@ -746,15 +749,29 @@ public OnDialogResponse(playerid, dialogid, response, listitem, inputtext[])
 				{
 					case 0:
 					{
-
+						new listitems[1024];
+						format(listitems, sizeof(listitems), "Сейчас идет турнир #%d.\n\nТекущая фаза: фаза %s\nТур: %d", 
+							Tournament[Number], Tournament[Phase] == PHASE_PEACE ? "мира" : "войны", Tournament[Tour]
+						);
+						ShowPlayerDialog(playerid, 201, DIALOG_STYLE_MSGBOX, "Информация о турнире", listitems, "Назад", "Закрыть");
 					}
 					case 1:
 					{
-
+						if(Tournament[Phase] == PHASE_PEACE)
+						{
+							ShowPlayerDialog(playerid, 201, DIALOG_STYLE_MSGBOX, "Турнирная таблица", "Сейчас проходит фаза мира.", "Назад", "Закрыть");
+							return 0;
+						}
+						if(Tournament[Tour] <= 1)
+						{
+							ShowPlayerDialog(playerid, 201, DIALOG_STYLE_MSGBOX, "Турнирная таблица", "Таблица будет доступна после 1 тура.", "Назад", "Закрыть");
+							return 0;
+						}
+						ShowTournamentTab(playerid);
 					}
 					case 2:
 					{
-
+						ShowTourParticipants(playerid);
 					}
 					case 3:
 					{
@@ -762,6 +779,25 @@ public OnDialogResponse(playerid, dialogid, response, listitem, inputtext[])
 					}
 				}
 			}
+			else
+			{
+				return 0;
+			}
+			return 1;
+		}
+
+		case 201:
+		{
+			if(response)
+			{
+				new listitems[] = "Информация о турнире\nТурнирная таблица\nУчастники текущего тура\nПодать сигнал готовности";
+				ShowPlayerDialog(playerid, 200, DIALOG_STYLE_TABLIST, "Заведующий турнирами", listitems, "Далее", "Закрыть");
+			}
+			else
+			{
+				return 0;
+			}
+			return 1;
 		}
 
 		case 300:
@@ -780,6 +816,11 @@ public OnDialogResponse(playerid, dialogid, response, listitem, inputtext[])
 					}
 				}
 			}
+			else
+			{
+				return 0;
+			}
+			return 1;
 		}
 
 		//Основное меню
@@ -792,17 +833,16 @@ public OnDialogResponse(playerid, dialogid, response, listitem, inputtext[])
 					case 0:
 					{
 						ShowCharInfo(playerid);
-						return 1;
 					}
 					case 1:
 					{
 						SwitchPlayer(playerid);
-						return 1;
 					}
 				}
 			}
 			else
 				return 0;
+			return 1;
 		}
 	}
 	return 1;
@@ -1319,6 +1359,16 @@ stock LoadTournamentInfo()
 	sscanf(string, "a<i>[20]", Tournament[Participants]);
 
 	cache_delete(q_result);
+
+	for(new i = 0; i < MAX_PARTICIPANTS; i++)
+	{
+		if(Tournament[Participants][i] == -1)
+		{
+			TourParticipantsCount = i+1;
+			break;
+		}
+	}
+
 	print("Tournament info loaded.");
 }
 
@@ -1782,6 +1832,41 @@ stock ShowLocalRatingTop(playerid);
 		strcat(top, string);
 	}
 	ShowPlayerDialog(playerid, 1, DIALOG_STYLE_TABLIST_HEADERS, "Рейтинг моих участников", top, "Закрыть", "");
+}
+
+stock ShowTourParticipants(playerid)
+{
+	new top[4000] = "№ п\\п\tИмя\tРейтинг";
+	new string[455];
+	for (new i = 0; i < TourParticipantsCount; i++) 
+	{
+		new player = GetPlayer(Tournament[Participants][i]);
+		format(string, sizeof(string), "\n{ffffff}%d\t{%s}%s\t%d", 
+			i+1, GetColorByRate(player[Rate]), player[Name], player[Rate]
+		);
+		strcat(top, string);
+	}
+	ShowPlayerDialog(playerid, 1, DIALOG_STYLE_TABLIST_HEADERS, "Участники текущего тура", top, "Закрыть", "");
+}
+
+stock ShowTournamentTab(playerid)
+{
+	new top[4000] = "№ п\\п\tИмя\tОчки";
+	new string[455];
+	for (new i = 0; i < PrevTourParticipantsCount; i++) 
+	{
+		format(string, sizeof(string), "\n{%s}%d\t{%s}%s\t%d", 
+			GetPlaceColor(i+1), i+1, GetColorByRate(TournamentTab[i][Rate]), TournamentTab[i][Name], TournamentTab[i][Rate]
+		);
+		strcat(top, string);
+	}
+	ShowPlayerDialog(playerid, 1, DIALOG_STYLE_TABLIST_HEADERS, "Турнирная таблица", top, "Закрыть", "");
+}
+
+stock GetPlayer(id)
+{
+	new player[pInfo];
+	return player;
 }
 
 stock GetPlayerID(name[])
