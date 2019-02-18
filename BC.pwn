@@ -64,6 +64,8 @@
 #define MAX_PROPERTIES 2
 #define MAX_BASE_SIZE 100
 #define BASE_SIZE 205
+#define MAX_DESCRIPTION_SIZE 30
+#define MAX_GRADES 3
 
 //Player params
 #define PARAM_DAMAGE 1
@@ -134,16 +136,14 @@ enum iInfo
 enum BaseItem 
 {
 	ID,
-	Name[64],
-	Description1[30],
-	Description2[30],
-	Description3[30],
+	Name[255],
+	Description[255],
 	MinRank,
 	Type,
 	Grade,
 	Price,
 	Property[MAX_PROPERTIES],
-	PropertyValue[MAX_PROPERTIES],
+	PropertyVal[MAX_PROPERTIES],
 	Model,
 	ModelRotX,
 	ModelRotY,
@@ -194,9 +194,6 @@ new AccountLogin[MAX_PLAYERS][128];
 new ParticipantsCount[MAX_PLAYERS];
 new Participants[MAX_PLAYERS][MAX_PARTICIPANTS][128];
 
-//Bases
-new ItemsBase[BASE_SIZE][BaseItem];
-
 //Arrays
 new RateColors[MAX_RANK][16] = {
 	{"85200c"},
@@ -219,6 +216,11 @@ new HexRateColors[MAX_RANK][1] = {
 	{0xb7b7b7ff},
 	{0x76a5afff},
 	{0x6d9eebff}
+};
+new HexGradeColors[MAX_GRADES][1] = {
+	{0xCCCCCCFF},
+	{0xFFCC00FF},
+	{0xCC6600FF}
 };
 
 ///Textdraws
@@ -321,6 +323,26 @@ cmd:createplayer(playerid, params[])
 		return SendClientMessage(playerid, COLOR_GREY, "USAGE: /createplayer [name][owner]");
 
 	CreatePlayer(playerid, name, owner);
+	return 1;
+}
+
+cmd:createinv(playerid, params[])
+{
+	if(PlayerInfo[playerid][Admin] == 0)
+		return 0;
+
+	new name[64];
+	new id;
+
+	if(sscanf(params, "i", id))
+		return SendClientMessage(playerid, COLOR_GREY, "USAGE: /createinv [playerid]");
+
+	if(!IsPlayerConnected(id))
+		return SendClientMessage(playerid, COLOR_GREY, "Player in not connected.");
+
+	GetPlayerName(id, name, sizeof(name));
+	CreateInventory(name);
+	SendClientMessage(playerid, COLOR_GREEN, "Inventory created");
 	return 1;
 }
 
@@ -561,10 +583,15 @@ public OnPlayerKeyStateChange(playerid, newkeys, oldkeys)
 			strcat(text, "  Заходи ко мне почаще, чтобы не пропустить самое интересное! \n\n");
 			ShowPlayerDialog(playerid, 1, DIALOG_STYLE_MSGBOX, "Буржуа", text, "Закрыть", "");
 		}
+		if(IsPlayerInRangeOfPoint(playerid, 2.0, 226.7674,-1837.6835,3.6120))
+		{
+			new listitems[] = "Информация о турнире\nПодать сигнал готовности";
+			ShowPlayerDialog(playerid, 200, DIALOG_STYLE_TABLIST, "Заведующий турнирами", listitems, "Далее", "Закрыть");
+		}
 	}
 	else if(newkeys & 131072)
 	{
-		new listitems[] = "Информация о персонаже\nИнформация о турнире\nСменить персонажа";
+		new listitems[] = "Информация о персонаже\nСменить персонажа";
 		ShowPlayerDialog(playerid, 1000, DIALOG_STYLE_TABLIST, "Bourgeois Circus", listitems, "Далее", "Закрыть");
 	}
 }
@@ -676,6 +703,24 @@ public OnDialogResponse(playerid, dialogid, response, listitem, inputtext[])
 			}
 		}
 
+		case 200:
+		{
+			if(response)
+			{
+				switch(listitem)
+				{
+					case 0:
+					{
+
+					}
+					case 1:
+					{
+
+					}
+				}
+			}
+		}
+
 		//Основное меню
 		case 1000:
 		{
@@ -683,19 +728,12 @@ public OnDialogResponse(playerid, dialogid, response, listitem, inputtext[])
 			{
 				switch(listitem)
 				{
-					//Информация о персонаже
 					case 0:
 					{
 						ShowCharInfo(playerid);
 						return 1;
 					}
-					//Информация о турнире
 					case 1:
-					{
-						return 1;
-					}
-					//Сменить персонажа
-					case 2:
 					{
 						SwitchPlayer(playerid);
 						return 1;
@@ -850,6 +888,52 @@ stock UpdatePlayerRank(playerid)
 		PlayerInfo[playerid][MaxRank] = new_rank;
 }
 
+stock GetItem(id)
+{
+	new string[255];
+	new query[255];
+	new item[BaseItem];
+	format(query, sizeof(query), "SELECT * FROM `items` WHERE `ID` = '%d' LIMIT 1", id);
+	new Cache:q_result = mysql_query(sql_handle, query);
+
+	new count;
+	cache_get_row_count(count);
+	if(count <= 0)
+	{
+		format(string, sizeof(string), "Cannot get item [ID = %d].", id);
+		print(string);
+		return item;
+	}
+
+	item[ID] = id;
+	cache_get_value_name(0, "Name", string);
+	sscanf(string, "s[255]", item[Name]);
+	cache_get_value_name_int(0, "Type", item[Type]);
+	cache_get_value_name_int(0, "Grade", item[Grade]);
+	cache_get_value_name_int(0, "MinRank", item[MinRank]);
+	cache_get_value_name(0, "Description", string);
+	sscanf(string, "s[255]", item[Description]);
+	cache_get_value_name(0, "Property", string);
+	sscanf(string, "a<i>[2]", item[Property]);
+	cache_get_value_name(0, "PropertyVal", string);
+	sscanf(string, "a<i>[2]", item[PropertyVal]);
+	cache_get_value_name_int(0, "Price", item[Price]);
+	cache_get_value_name_int(0, "Model", item[Model]);
+	cache_get_value_name_int(0, "ModelRotX", item[ModelRotX]);
+	cache_get_value_name_int(0, "ModelRotY", item[ModelRotY]);
+	cache_get_value_name_int(0, "ModelRotZ", item[ModelRotZ]);
+
+	cache_delete(q_result);
+	return item;
+}
+
+stock IsEquip(item_id)
+{
+	new item[BaseItem];
+	item = GetItem(item_id);
+	return item[Type] == ITEMTYPE_WEAPON || item[Type] == ITEMTYPE_ARMOR || item[Type] == ITEMTYPE_ACCESSORY;
+}
+
 stock IsPlayerParticipant(playerid)
 {
 	return IsParticipant[playerid];
@@ -890,16 +974,10 @@ stock ShowCharInfo(playerid)
 	PlayerTextDrawColor(playerid, ChrInfRate[playerid], HexRateColors[PlayerInfo[playerid][Rank]-1][0]);
 	format(string, sizeof(string), "%d", PlayerInfo[playerid][GlobalTopPosition]);
 	PlayerTextDrawSetString(playerid, ChrInfAllRate[playerid], string);
-	//PlayerTextDrawColor(playerid, ChrInfAllRate[playerid], GetPlaceColor(PlayerInfo[playerid][GlobalTopPosition]));
+	PlayerTextDrawColor(playerid, ChrInfAllRate[playerid], GetHexPlaceColor(PlayerInfo[playerid][GlobalTopPosition]));
 	format(string, sizeof(string), "%d", PlayerInfo[playerid][LocalTopPosition]);
 	PlayerTextDrawSetString(playerid, ChrInfPersonalRate[playerid], string);
-	//PlayerTextDrawColor(playerid, ChrInfPersonalRate[playerid], GetPlaceColor(PlayerInfo[playerid][LocalTopPosition]));
-
-	for (new i = 0; i < MAX_SLOTS; i++) 
-	{
-		PlayerTextDrawSetPreviewRot(playerid, ChrInfInvSlot[playerid][i], 0.0, 0.0, 0.0, -1.0);
-		PlayerTextDrawBackgroundColor(playerid, ChrInfInvSlot[playerid][i], -1061109505);
-	}
+	PlayerTextDrawColor(playerid, ChrInfPersonalRate[playerid], GetHexPlaceColor(PlayerInfo[playerid][LocalTopPosition]));
 
 	PlayerTextDrawShow(playerid, ChrInfoBox[playerid]);
 	PlayerTextDrawShow(playerid, ChrInfoHeader[playerid]);
@@ -927,10 +1005,30 @@ stock ShowCharInfo(playerid)
 	PlayerTextDrawShow(playerid, ChrInfButMod[playerid]);
 	PlayerTextDrawShow(playerid, ChrInfDelim4[playerid]);
 
-	for (new i = 0; i < MAX_SLOTS; i++)
+	for (new i = 0; i < MAX_SLOTS; i++) 
 	{
+		PlayerTextDrawBackgroundColor(playerid, ChrInfInvSlot[playerid][i], -1061109505);
+		if(PlayerInventory[playerid][i][ID] == -1)
+		{
+			PlayerTextDrawSetPreviewRot(playerid, ChrInfInvSlot[playerid][i], 0.0, 0.0, 0.0, -1.0);
+			PlayerTextDrawShow(playerid, ChrInfInvSlot[playerid][i]);
+			continue;
+		}
+
+		new item[BaseItem];
+		item = GetItem(PlayerInventory[playerid][i][ID]);
+
+		PlayerTextDrawBackgroundColor(playerid, ChrInfInvSlot[playerid][i], HexGradeColors[item[Grade]-1][0]);
+		PlayerTextDrawSetPreviewModel(playerid, ChrInfInvSlot[playerid][i], item[Model]);
+		PlayerTextDrawSetPreviewRot(playerid, ChrInfInvSlot[playerid][i], item[ModelRotX], item[ModelRotY], item[ModelRotZ], 1.0);
 		PlayerTextDrawShow(playerid, ChrInfInvSlot[playerid][i]);
-		PlayerTextDrawShow(playerid, ChrInfInvSlotCount[playerid][i]);
+
+		if(!IsEquip(PlayerInventory[playerid][i][ID]))
+		{
+			format(string, sizeof(string), "%d", PlayerInventory[playerid][i][Count]);
+			PlayerTextDrawSetString(playerid, ChrInfInvSlotCount[playerid][i], string);
+			PlayerTextDrawShow(playerid, ChrInfInvSlotCount[playerid][i]);
+		}
 	}
 
 	SelectTextDraw(playerid,0xCCCCFF65);
@@ -984,6 +1082,23 @@ stock GetPlaceColor(place)
 	    case 9..12: color = "6666FF";
 		case 13..16: color = "66CC33";
 	    default: color = "CCCCCC";
+	}
+	return color;
+}
+
+stock GetHexPlaceColor(place)
+{
+	new color;
+	switch(place) 
+	{
+	    case 1: color = 0xFFCC00FF;
+	    case 2: color = 0xFF6600FF;
+	    case 3: color = 0xFF3300FF;
+	    case 4,5: color = 0xCC0099FF;
+	    case 6..8: color = 0xCC33FFFF;
+	    case 9..12: color = 0x6666FFFF;
+		case 13..16: color = 0x66CC33FF;
+	    default: color = 0xCCCCCCFF;
 	}
 	return color;
 }
@@ -1106,6 +1221,75 @@ stock SavePlayer(playerid)
 
 	new Cache:q_result = mysql_query(sql_handle, query);
 	cache_delete(q_result);
+
+	SaveInventory(playerid);
+}
+
+stock CreateInventory(name[])
+{
+	new query[512];
+
+	for(new i = 0; i < MAX_SLOTS; i++)
+	{
+		format(query, sizeof(query), "INSERT INTO `inventories`(`PlayerName`, `SlotID`, `ItemID`, `SlotMod`, `Count`) VALUES ('%s','%d','%d','%s','%d')",
+			name, i, -1, "0 0 0 0 0 0 0", 0
+		);
+
+		new Cache:q_result = mysql_query(sql_handle, query);
+		cache_delete(q_result);
+	}
+}
+
+stock SaveInventory(playerid)
+{
+	new name[128];
+	new query[512];
+	GetPlayerName(playerid, name, sizeof(name));
+
+	for(new i = 0; i < MAX_SLOTS; i++)
+	{
+		format(query, sizeof(query), "UPDATE `inventories` SET `ItemID` = '%d', `SlotMod` = '%s', `Count` = '%d' WHERE `PlayerName` = '%s' AND `SlotID` = '%d' LIMIT 1", 
+			PlayerInventory[playerid][i][ID], ArrayToString(PlayerInventory[playerid][i][Mod], MAX_MOD), PlayerInventory[playerid][i][Count], name, i
+		);
+		new Cache:q_result = mysql_query(sql_handle, query);
+		cache_delete(q_result);
+	}
+}
+
+stock LoadInventory(playerid)
+{
+	new name[128];
+	new query[512];
+	GetPlayerName(playerid, name, sizeof(name));
+
+	format(query, sizeof(query), "SELECT * FROM `inventories` WHERE `PlayerName` = '%s'", name);
+	new Cache:q_result = mysql_query(sql_handle, query);
+
+	new row_count = 0;
+	cache_get_row_count(row_count);
+	if(row_count < MAX_SLOTS)
+	{
+		SendClientMessage(playerid, COLOR_LIGHTRED, "Ошибка при загрузке инвентаря. Обратитесь к администратору.");
+		cache_delete(q_result);
+		return;
+	}
+
+	new slot_id;
+	for(new i = 0; i < row_count; i++)
+	{
+		cache_get_value_name_int(i, "SlotID", slot_id);
+		if(slot_id < 0)
+			continue;
+
+		cache_get_value_name_int(i, "ItemID", PlayerInventory[playerid][slot_id][ID]);
+		cache_get_value_name_int(i, "Count", PlayerInventory[playerid][slot_id][Count]);
+
+		new string[255];
+		cache_get_value_name(i, "SlotMod", string);
+		sscanf(string, "a<i>[7]", PlayerInventory[playerid][slot_id][Mod]);
+	}
+
+	cache_delete(q_result);
 }
 
 stock LoadPlayer(playerid)
@@ -1159,6 +1343,9 @@ stock LoadPlayer(playerid)
 	sscanf(string, "a<i>[7]", PlayerInfo[playerid][ArmorMod]);
 
 	cache_delete(q_result);
+
+	LoadInventory(playerid);
+	UpdatePlayerRank(playerid);
  	return 1;
 }
 
@@ -1178,6 +1365,8 @@ stock CreatePlayer(playerid, name[], owner[])
 
 	new Cache:q_result = mysql_query(sql_handle, query);
 	cache_delete(q_result);
+
+	CreateInventory(name);
 
 	SendClientMessage(playerid, COLOR_GREEN, "Player created succesfully.");
 }
@@ -1376,7 +1565,7 @@ stock InitPlayerTextDraws(playerid)
 	PlayerTextDrawTextSize(playerid, ChrInfoDelim1[playerid], 108.999992, 2.074074);
 	PlayerTextDrawAlignment(playerid, ChrInfoDelim1[playerid], 1);
 	PlayerTextDrawColor(playerid, ChrInfoDelim1[playerid], 16711935);
-	PlayerTextDrawUseBox(playerid, ChrInfoDelim1[playerid], true);
+	PlayerTextDrawUseBox(playerid, ChrInfoDelim1[playerid], false);
 	PlayerTextDrawBoxColor(playerid, ChrInfoDelim1[playerid], 0);
 	PlayerTextDrawSetShadow(playerid, ChrInfoDelim1[playerid], 0);
 	PlayerTextDrawSetOutline(playerid, ChrInfoDelim1[playerid], 0);
@@ -1440,7 +1629,7 @@ stock InitPlayerTextDraws(playerid)
 	PlayerTextDrawTextSize(playerid, ChrInfDelim2[playerid], 108.999992, 2.074074);
 	PlayerTextDrawAlignment(playerid, ChrInfDelim2[playerid], 1);
 	PlayerTextDrawColor(playerid, ChrInfDelim2[playerid], 16711935);
-	PlayerTextDrawUseBox(playerid, ChrInfDelim2[playerid], true);
+	PlayerTextDrawUseBox(playerid, ChrInfDelim2[playerid], false);
 	PlayerTextDrawBoxColor(playerid, ChrInfDelim2[playerid], 0);
 	PlayerTextDrawSetShadow(playerid, ChrInfDelim2[playerid], 0);
 	PlayerTextDrawSetOutline(playerid, ChrInfDelim2[playerid], 0);
@@ -1455,7 +1644,7 @@ stock InitPlayerTextDraws(playerid)
 	PlayerTextDrawAlignment(playerid, ChrInfArmorSlot[playerid], 1);
 	PlayerTextDrawColor(playerid, ChrInfArmorSlot[playerid], -1);
 	PlayerTextDrawUseBox(playerid, ChrInfArmorSlot[playerid], true);
-	PlayerTextDrawBoxColor(playerid, ChrInfArmorSlot[playerid], 255);
+	PlayerTextDrawBoxColor(playerid, ChrInfArmorSlot[playerid], 0);
 	PlayerTextDrawSetShadow(playerid, ChrInfArmorSlot[playerid], 0);
 	PlayerTextDrawSetOutline(playerid, ChrInfArmorSlot[playerid], 0);
 	PlayerTextDrawBackgroundColor(playerid, ChrInfArmorSlot[playerid], -1);
@@ -1470,7 +1659,7 @@ stock InitPlayerTextDraws(playerid)
 	PlayerTextDrawAlignment(playerid, ChrInfWeaponSlot[playerid], 1);
 	PlayerTextDrawColor(playerid, ChrInfWeaponSlot[playerid], -1);
 	PlayerTextDrawUseBox(playerid, ChrInfWeaponSlot[playerid], true);
-	PlayerTextDrawBoxColor(playerid, ChrInfWeaponSlot[playerid], 255);
+	PlayerTextDrawBoxColor(playerid, ChrInfWeaponSlot[playerid], 0);
 	PlayerTextDrawSetShadow(playerid, ChrInfWeaponSlot[playerid], 0);
 	PlayerTextDrawSetOutline(playerid, ChrInfWeaponSlot[playerid], 0);
 	PlayerTextDrawBackgroundColor(playerid, ChrInfWeaponSlot[playerid], -1);
@@ -1485,7 +1674,7 @@ stock InitPlayerTextDraws(playerid)
 	PlayerTextDrawAlignment(playerid, ChrInfAccSlot1[playerid], 1);
 	PlayerTextDrawColor(playerid, ChrInfAccSlot1[playerid], -1);
 	PlayerTextDrawUseBox(playerid, ChrInfAccSlot1[playerid], true);
-	PlayerTextDrawBoxColor(playerid, ChrInfAccSlot1[playerid], 255);
+	PlayerTextDrawBoxColor(playerid, ChrInfAccSlot1[playerid], 0);
 	PlayerTextDrawSetShadow(playerid, ChrInfAccSlot1[playerid], 0);
 	PlayerTextDrawSetOutline(playerid, ChrInfAccSlot1[playerid], 0);
 	PlayerTextDrawBackgroundColor(playerid, ChrInfAccSlot1[playerid], -1);
@@ -1500,7 +1689,7 @@ stock InitPlayerTextDraws(playerid)
 	PlayerTextDrawAlignment(playerid, ChrInfAccSlot2[playerid], 1);
 	PlayerTextDrawColor(playerid, ChrInfAccSlot2[playerid], -1);
 	PlayerTextDrawUseBox(playerid, ChrInfAccSlot2[playerid], true);
-	PlayerTextDrawBoxColor(playerid, ChrInfAccSlot2[playerid], 255);
+	PlayerTextDrawBoxColor(playerid, ChrInfAccSlot2[playerid], 0);
 	PlayerTextDrawSetShadow(playerid, ChrInfAccSlot2[playerid], 0);
 	PlayerTextDrawSetOutline(playerid, ChrInfAccSlot2[playerid], 0);
 	PlayerTextDrawBackgroundColor(playerid, ChrInfAccSlot2[playerid], -1);
@@ -1578,7 +1767,7 @@ stock InitPlayerTextDraws(playerid)
 	PlayerTextDrawTextSize(playerid, ChrInfDelim3[playerid], 108.999992, 2.074074);
 	PlayerTextDrawAlignment(playerid, ChrInfDelim3[playerid], 1);
 	PlayerTextDrawColor(playerid, ChrInfDelim3[playerid], 16711935);
-	PlayerTextDrawUseBox(playerid, ChrInfDelim3[playerid], true);
+	PlayerTextDrawUseBox(playerid, ChrInfDelim3[playerid], false);
 	PlayerTextDrawBoxColor(playerid, ChrInfDelim3[playerid], 0);
 	PlayerTextDrawSetShadow(playerid, ChrInfDelim3[playerid], 0);
 	PlayerTextDrawSetOutline(playerid, ChrInfDelim3[playerid], 0);
@@ -2414,11 +2603,13 @@ stock CreatePickups()
 	Create3DTextLabel("Оружейник",0xFFCC00FF,189.2644,-1825.4902,4.1411,55.0,0,1);
 	Create3DTextLabel("Портной",0xFFCC00FF,262.6658,-1825.2792,3.9126,55.0,0,1);
 	Create3DTextLabel("Буржуа",0x9933CCFF,221.0985,-1838.1259,3.6268,55.0,0,1);
+	Create3DTextLabel("Заведующий турнирами",0x3366FFFF,226.7674,-1837.6835,3.6120,55.0,0,1);
 
-	Actors[0] =	CreateActor(61,-2166.7527,646.0400,1052.3750,179.9041);
+	Actors[0] =	CreateActor(26,-2166.7527,646.0400,1052.3750,179.9041);
 	Actors[1] =	CreateActor(6,189.2644,-1825.4902,4.1411,185.0134);
 	Actors[2] =	CreateActor(60,262.6658,-1825.2792,3.9126,181.2770);
 	Actors[3] =	CreateActor(5,221.0985,-1838.1259,3.6268,177.8066);
+	Actors[4] =	CreateActor(61,226.7674,-1837.6835,3.6120,188.3151);
 }
 
 stock CreateMap()
