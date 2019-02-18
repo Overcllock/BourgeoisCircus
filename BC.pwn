@@ -44,6 +44,9 @@
 
 //Defaults
 #define DEFAULT_SKIN_MALE 78
+#define DEFAULT_SKIN_FEMALE 131
+#define DEFAULT_WEAPON_ID 0
+#define DEFAULT_ARMOR_ID 81
 #define DEFAULT_DAMAGE_MIN 13
 #define DEFAULT_DAMAGE_MAX 15
 #define DEFAULT_DEFENSE 5
@@ -62,10 +65,12 @@
 #define MAX_RANK 9
 #define MAX_MOD 7
 #define MAX_PROPERTIES 2
-#define MAX_BASE_SIZE 100
-#define BASE_SIZE 205
 #define MAX_DESCRIPTION_SIZE 30
 #define MAX_GRADES 3
+
+//Phases
+#define PHASE_PEACE 0
+#define PHASE_WAR 1
 
 //Player params
 #define PARAM_DAMAGE 1
@@ -119,6 +124,14 @@ forward GivePlayerRate(playerid, rate);
 new WorldTime_Timer = -1;
 new Actors[MAX_ACTORS];
 new MySQL:sql_handle;
+enum tInfo
+{
+	Number,
+	Phase,
+	Tour,
+	Participants[MAX_PARTICIPANTS]
+}
+new Tournament[tInfo];
 
 //Pickups
 new home_enter = -1;
@@ -157,6 +170,7 @@ enum TopItem
 }
 enum pInfo 
 {
+	ID
 	Rate,
 	Rank,
 	MaxRank,
@@ -436,12 +450,14 @@ public OnGameModeInit()
 	print("Database connection success.");
 	
 	mysql_set_charset("cp1251");
+	LoadTournamentInfo();
 	UpdateGlobalRatingTop();
 	return 1;
 }
 
 public OnGameModeExit()
 {
+	SaveTournamentInfo();
 	DeleteTextDraws();
 	KillTimer(WorldTime_Timer);
 	for (new i = 0; i < MAX_ACTORS; i++)
@@ -1281,6 +1297,41 @@ stock GetRankByRate(rate)
 	return rank;
 }
 
+stock LoadTournamentInfo()
+{
+	new query[255] = "SELECT * FROM `tournament` LIMIT 1";
+	new Cache:q_result = mysql_query(sql_handle, query);
+
+	new row_count = 0;
+	cache_get_row_count(row_count);
+	if(row_count <= 0)
+	{
+		cache_delete(q_result);
+		print("Tournament info loading error.");
+		return;
+	}
+
+	cache_get_value_name_int(0, "Number", Tournament[Number]);
+	cache_get_value_name_int(0, "Phase", Tournament[Phase]);
+	cache_get_value_name_int(0, "Tour", Tournament[Tour]);
+	new string[255];
+	cache_get_value_name(0, "Participants", string);
+	sscanf(string, "a<i>[20]", Tournament[Participants]);
+
+	cache_delete(q_result);
+	print("Tournament info loaded.");
+}
+
+stock SaveTournamentInfo()
+{
+	new query[255];
+	format(query, sizeof(query), "UPDATE `tournament` SET `Number` = '%d', `Phase` = '%d', `Tour` = '%d', `Participants` = '%s' LIMIT 1", 
+		Tournament[Number], Tournament[Phase], Tournament[Tour], ArrayToString(Tournament[Participants], MAX_PARTICIPANTS)
+	);
+	new Cache:q_result = mysql_query(sql_handle, query);
+	cache_delete(q_result);
+}
+
 stock SaveAccount(playerid)
 {
 	new query[255];
@@ -1432,6 +1483,7 @@ stock LoadPlayer(playerid)
 		return false;
 	}
 
+	cache_get_value_name_int(0, "ID", PlayerInfo[playerid][ID]);
 	cache_get_value_name_int(0, "Sex", PlayerInfo[playerid][Sex]);
 	cache_get_value_name_int(0, "Rate", PlayerInfo[playerid][Rate]);
 	cache_get_value_name_int(0, "Rank", PlayerInfo[playerid][Rank]);
@@ -1474,21 +1526,35 @@ stock LoadPlayer(playerid)
 stock CreatePlayer(playerid, name[], owner[])
 {
 	new query[2048] = "INSERT INTO `players`( \
-		`Name`, `Owner`, `Sex`, `Rate`, `MaxRank`, `Rank`, `Cash`, `PosX`, `PosY`, `PosZ`, \
+		`ID`, `Name`, `Owner`, `Sex`, `Rate`, `MaxRank`, `Rank`, `Cash`, `PosX`, `PosY`, `PosZ`, \
 		`Angle`, `Interior`, `Skin`, `Kills`, `Deaths`, `DamageMin`, `DamageMax`, `Defense`, \
 		`Dodge`, `Accuracy`, `Crit`, `GlobalTopPos`, `LocalTopPos`, `WeaponSlotID`, `WeaponMod`, \
 		`ArmorSlotID`, `ArmorMod`, `AccSlot1ID`, `AccSlot2ID`) VALUES (";
 	new tmp[1024];
 
-	format(tmp, sizeof(tmp), "'%s','%s','%d','%d','%d','%d','%d','%f','%f','%f','%f','%d','%d','%d','%d','%d','%d','%d','%d','%d','%d','%d','%d','%d','%s','%d','%s','%d','%d')",
-		name, owner, 0, 0, 1, 1, 0, DEFAULT_POS_X, DEFAULT_POS_Y, DEFAULT_POS_Z, 180, 1, 78, 0, 0, 13, 15, 5, 0, 5, 5, 20, 10, 0, "0 0 0 0 0 0 0", 81, "0 0 0 0 0 0 0", -1, -1
+	new sub_query[255] = "SELECT MAX(`ID`) AS `ID` FROM `players";
+	new Cache:sq_result = mysql_query(sql_handle, sub_query);
+	new id = -1;
+	cache_get_value_name_int(0, "ID", id);
+	cache_delete(sq_result);
+
+	if(id == -1)
+	{
+		SendClientMessage(playerid, COLOR_LIGHTRED, "Ошибка присвоения ID: неудалось получить макс.ID или база игроков пуста.");
+		return;
+	}
+
+	id++;
+
+	format(tmp, sizeof(tmp), "'%d','%s','%s','%d','%d','%d','%d','%d','%f','%f','%f','%f','%d','%d','%d','%d','%d','%d','%d','%d','%d','%d','%d','%d','%d','%s','%d','%s','%d','%d')",
+		id, name, owner, 0, 0, 1, 1, 0, DEFAULT_POS_X, DEFAULT_POS_Y, DEFAULT_POS_Z, 180, 1, 78, 0, 0, 13, 15, 5, 0, 5, 5, 20, 10, 0, "0 0 0 0 0 0 0", 81, "0 0 0 0 0 0 0", -1, -1
 	);
 	strcat(query, tmp);
 
 	new Cache:q_result = mysql_query(sql_handle, query);
 	cache_delete(q_result);
 
-	CreateInventory(name);
+	//CreateInventory(name);
 
 	SendClientMessage(playerid, COLOR_GREEN, "Player created succesfully.");
 }
