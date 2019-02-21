@@ -1070,6 +1070,127 @@ stock SetSlotSelection(playerid, slotid, bool:selection)
 	PlayerTextDrawShow(playerid, ChrInfInvSlot[playerid][slotid]);
 }
 
+stock UpdateInventory(playerid)
+{
+	if(IsInventoryOpen(playerid))
+	{
+		for (new i = 0; i < MAX_SLOTS; i++) 
+		{
+			PlayerTextDrawHide(playerid, ChrInfInvSlot[playerid][i]);
+			PlayerTextDrawHide(playerid, ChrInfInvSlotCount[playerid][i]);
+		}
+	}
+
+	for (new i = 0; i < MAX_SLOTS; i++) 
+	{
+		PlayerTextDrawBackgroundColor(playerid, ChrInfInvSlot[playerid][i], -1061109505);
+		if(PlayerInventory[playerid][i][ID] == -1)
+		{
+			PlayerTextDrawSetPreviewRot(playerid, ChrInfInvSlot[playerid][i], 0.0, 0.0, 0.0, -1.0);
+			PlayerTextDrawShow(playerid, ChrInfInvSlot[playerid][i]);
+			continue;
+		}
+
+		new item[BaseItem];
+		item = GetItem(PlayerInventory[playerid][i][ID]);
+
+		PlayerTextDrawBackgroundColor(playerid, ChrInfInvSlot[playerid][i], HexGradeColors[item[Grade]-1][0]);
+		PlayerTextDrawSetPreviewModel(playerid, ChrInfInvSlot[playerid][i], item[Model]);
+		PlayerTextDrawSetPreviewRot(playerid, ChrInfInvSlot[playerid][i], item[ModelRotX], item[ModelRotY], item[ModelRotZ], 1.0);
+		PlayerTextDrawShow(playerid, ChrInfInvSlot[playerid][i]);
+
+		if(!IsEquip(PlayerInventory[playerid][i][ID]))
+		{
+			format(string, sizeof(string), "%d", PlayerInventory[playerid][i][Count]);
+			PlayerTextDrawSetString(playerid, ChrInfInvSlotCount[playerid][i], string);
+			PlayerTextDrawShow(playerid, ChrInfInvSlotCount[playerid][i]);
+		}
+	}
+}
+
+stock GetInvEmptySlotID(playerid)
+{
+	for(new i = 0; i < MAX_SLOTS; i++)
+		if(PlayerInventory[playerid][i][ID] == -1)
+			return i;
+	
+	return -1;
+}
+
+stock IsInventoryFull(playerid)
+{
+	return GetInvEmptySlotID(playerid) == -1;
+}
+
+stock SaveInventorySlot(playerid, slot)
+{
+	new name[255];
+	GetPlayerName(playerid, name, sizeof(name));
+
+	new query[255];
+	format(query, sizeof(query), "UPDATE `inventories` SET `ItemID` = '%d', `Count` = '%d', `SlotMod` = '%s' WHERE `PlayerName` = '%s' AND `SlotID` = '%d' LIMIT 1", 
+		PlayerInventory[playerid][slot][ID], PlayerInventory[playerid][slot][Count], ArrayToString(PlayerInventory[playerid][slot][Mod], MAX_MOD), name, slot
+	);
+	new Cache:q_result = mysql_query(sql_handle, query);
+	cache_delete(q_result);
+}
+
+stock AddItem(playerid, id, count = 1)
+{
+	if(IsInventoryFull(playerid))
+		return false;
+
+	new slot = GetInvEmptySlotID(playerid);
+	PlayerInventory[playerid][slot][ID] = id;
+	PlayerInventory[playerid][slot][Count] = count;
+
+	SaveInventorySlot(playerid, slot);
+
+	if(IsInventoryOpen(playerid))
+		UpdateInventory(playerid);
+
+	return true;
+}
+
+stock DeleteItem(playerid, slotid, count = 1)
+{
+	PlayerInventory[playerid][slotid][Count] -= count;
+	if(PlayerInventory[playerid][slotid][Count] <= 0)
+	{
+		for(new i = 0; i < MAX_MOD; i++)
+			PlayerInventory[playerid][slotid][Mod][i] = 0;
+		PlayerInventory[playerid][slotid][ID] = -1;
+	}
+
+	SaveInventorySlot(playerid, slotid);
+	SendClientMessage(playerid, COLOR_GREY, "Предмет удален.");
+}
+
+stock ItemExist(playerid, id, count = 1)
+{
+	new item[BaseItem];
+	item = GetItem(id);
+
+	new name[255];
+	GetPlayerName(playerid, name, sizeof(name));
+
+	new query[255];
+	format(query, sizeof(query), "SELECT * FROM `inventories` WHERE `PlayerName` = '%s' AND `ItemID` = '%d' LIMIT 1", name, id);
+	new Cache:q_result = mysql_query(sql_handle, query);
+
+	new count;
+	cache_get_row_count(count);
+	if(count <= 0)
+		return false;
+	
+	if(IsEquip(id))
+		return true;
+	
+	new _count;
+	cache_get_value_name_int(0, "Count", _count);
+	return _count >= count;
+}
+
 stock GetItem(id)
 {
 	new string[255];
@@ -1187,31 +1308,7 @@ stock ShowCharInfo(playerid)
 	PlayerTextDrawShow(playerid, ChrInfButMod[playerid]);
 	PlayerTextDrawShow(playerid, ChrInfDelim4[playerid]);
 
-	for (new i = 0; i < MAX_SLOTS; i++) 
-	{
-		PlayerTextDrawBackgroundColor(playerid, ChrInfInvSlot[playerid][i], -1061109505);
-		if(PlayerInventory[playerid][i][ID] == -1)
-		{
-			PlayerTextDrawSetPreviewRot(playerid, ChrInfInvSlot[playerid][i], 0.0, 0.0, 0.0, -1.0);
-			PlayerTextDrawShow(playerid, ChrInfInvSlot[playerid][i]);
-			continue;
-		}
-
-		new item[BaseItem];
-		item = GetItem(PlayerInventory[playerid][i][ID]);
-
-		PlayerTextDrawBackgroundColor(playerid, ChrInfInvSlot[playerid][i], HexGradeColors[item[Grade]-1][0]);
-		PlayerTextDrawSetPreviewModel(playerid, ChrInfInvSlot[playerid][i], item[Model]);
-		PlayerTextDrawSetPreviewRot(playerid, ChrInfInvSlot[playerid][i], item[ModelRotX], item[ModelRotY], item[ModelRotZ], 1.0);
-		PlayerTextDrawShow(playerid, ChrInfInvSlot[playerid][i]);
-
-		if(!IsEquip(PlayerInventory[playerid][i][ID]))
-		{
-			format(string, sizeof(string), "%d", PlayerInventory[playerid][i][Count]);
-			PlayerTextDrawSetString(playerid, ChrInfInvSlotCount[playerid][i], string);
-			PlayerTextDrawShow(playerid, ChrInfInvSlotCount[playerid][i]);
-		}
-	}
+	UpdateInventory(playerid);
 	
 	IsInventoryOpen[playerid] = true;
 	SelectTextDraw(playerid,0xCCCCFF65);
