@@ -147,6 +147,15 @@ new TourParticipantsCount = 0;
 new PrevTourParticipantsCount = 0;
 new TournamentTab[MAX_PARTICIPANTS][TopItem];
 
+enum TWindow
+{
+	bool:CharInfo,
+	bool:ItemInfo,
+	bool:EquipInfo,
+	bool:Mod
+};
+new Windows[MAX_PLAYERS][TWindow];
+
 //Pickups
 new home_enter = -1;
 new home_quit = -1;
@@ -534,6 +543,7 @@ public OnPlayerLogin(playerid)
 	UpdatePlayerStats(playerid);
 	UpdateLocalRatingTop(playerid);
 	UpdatePlayerSkin(playerid);
+	HideAllWindows(playerid);
 }
 
 public OnPlayerDisconnect(playerid, reason)
@@ -643,6 +653,25 @@ public OnPlayerKeyStateChange(playerid, newkeys, oldkeys)
 			new listitems[] = "Общий рейтинг участников\nРейтинг моих участников";
 			ShowPlayerDialog(playerid, 300, DIALOG_STYLE_TABLIST, "Доска почета", listitems, "Далее", "Закрыть");
         }
+		//оружейник
+		else if(IsPlayerInRangeOfPoint(playerid,1.8,189.2644,-1825.4902,4.1411))
+		{
+			new listitems[] = "Купить оружие\nКомбинирование";
+			ShowPlayerDialog(playerid, 500, DIALOG_STYLE_TABLIST, "Оружейник", listitems, "Далее", "Закрыть");
+		}
+		//портной
+		else if(IsPlayerInRangeOfPoint(playerid,1.8,262.6658,-1825.2792,3.9126))
+		{
+			new listitems[] = "Купить одежду\nКомбинирование";
+			ShowPlayerDialog(playerid, 600, DIALOG_STYLE_TABLIST, "Портной", listitems, "Далее", "Закрыть");
+		}
+		//расходники
+		else if(IsPlayerInRangeOfPoint(playerid,1.8,-2166.7527,646.0400,1052.3750))
+		{
+			new listitems[2048];
+			listitems = GetMaterialsSellerItemsList();
+			ShowPlayerDialog(playerid, 700, DIALOG_STYLE_TABLIST_HEADERS, "Торговец расходниками", listitems, "Купить", "Закрыть");
+		}
 	}
 	else if(newkeys & 131072)
 	{
@@ -966,6 +995,277 @@ public OnDialogResponse(playerid, dialogid, response, listitem, inputtext[])
 			return 1;
 		}
 
+		//оружейник
+		case 500:
+		{
+			if(response)
+			{
+				switch(listitem)
+				{
+					case 0:
+					{
+						new listitems[2048];
+						listitems = GetWeaponSellerItemsList();
+						ShowPlayerDialog(playerid, 501, DIALOG_STYLE_TABLIST_HEADERS, "Оружейник", listitems, "Купить", "Закрыть");
+					}
+					case 1:
+					{
+
+					}
+				}
+			}
+			return 1;
+		}
+		case 501:
+		{
+			if(response)
+			{
+				new itemid = -1;
+
+				new query[255];
+				format(query, sizeof(query), "SELECT * FROM `weapon_seller` WHERE `ID` = '%d' LIMIT 1", listitem);
+				new Cache:q_result = mysql_query(sql_handle, query);
+
+				new row_count = 0;
+				cache_get_row_count(row_count);
+				if(row_count <= 0)
+				{
+					cache_delete(q_result);
+					ShowPlayerDialog(playerid, 1, DIALOG_STYLE_MSGBOX, "Ошибка", "Не удалось купить предмет.", "Закрыть", "");
+					return 0;
+				}
+
+				cache_get_value_name_int(0, "ItemID", itemid);
+				cache_delete(q_result);
+
+				if(itemid == -1)
+				{
+					ShowPlayerDialog(playerid, 1, DIALOG_STYLE_MSGBOX, "Ошибка", "Не удалось купить предмет.", "Закрыть", "");
+					return 0;
+				}
+				SetPVarInt(playerid, "BuyedItemID", itemid);
+
+				new item[BaseItem];
+				item = GetItem(itemid);
+
+				if(PlayerInfo[playerid][Cash] < item[Price])
+				{
+					ShowPlayerDialog(playerid, 1, DIALOG_STYLE_MSGBOX, "Ошибка", "Недостаточно денег.", "Закрыть", "");
+					return 0;
+				}
+
+				new text[255];
+				format(text, sizeof(text), "{ffffff}[{%s}%s{ffffff}] - купить?", GetGradeColor(item[Grade]), item[Name]);
+				ShowPlayerDialog(playerid, 502, DIALOG_STYLE_MSGBOX, "Подтверждение", text, "ОК", "Отмена");
+			}	
+			return 1;
+		}
+		case 502:
+		{
+			if(response)
+			{
+				if(IsInventoryFull(playerid))
+				{
+					ShowPlayerDialog(playerid, 1, DIALOG_STYLE_MSGBOX, "Ошибка", "Инвентарь полон.", "Закрыть", "");
+					return 0;
+				}
+				new itemid = GetPVarInt(playerid, "BuyedItemID");
+				new item[BaseItem];
+				item = GetItem(itemid);
+				PlayerInfo[playerid][Cash] -= item[Price];
+				GivePlayerMoney(playerid, -item[Price]);
+				AddEquip(playerid, itemid, MOD_CLEAR);
+				ShowPlayerDialog(playerid, 1, DIALOG_STYLE_MSGBOX, "Покупка", "{66CC00}Предмет куплен.", "Закрыть", "");
+			}
+			return 1;
+		}
+		//портной
+		case 600:
+		{
+			if(response)
+			{
+				switch(listitem)
+				{
+					case 0:
+					{
+						new listitems[2048];
+						listitems = GetArmorSellerItemsList();
+						ShowPlayerDialog(playerid, 601, DIALOG_STYLE_TABLIST_HEADERS, "Портной", listitems, "Купить", "Закрыть");
+					}
+					case 1:
+					{
+
+					}
+				}
+			}
+			return 1;
+		}
+		case 601:
+		{
+			if(response)
+			{
+				new itemid = -1;
+
+				new query[255];
+				format(query, sizeof(query), "SELECT * FROM `armor_seller` WHERE `ID` = '%d' LIMIT 1", listitem);
+				new Cache:q_result = mysql_query(sql_handle, query);
+
+				new row_count = 0;
+				cache_get_row_count(row_count);
+				if(row_count <= 0)
+				{
+					cache_delete(q_result);
+					ShowPlayerDialog(playerid, 1, DIALOG_STYLE_MSGBOX, "Ошибка", "Не удалось купить предмет.", "Закрыть", "");
+					return 0;
+				}
+
+				cache_get_value_name_int(0, "ItemID", itemid);
+				cache_delete(q_result);
+
+				if(itemid == -1)
+				{
+					ShowPlayerDialog(playerid, 1, DIALOG_STYLE_MSGBOX, "Ошибка", "Не удалось купить предмет.", "Закрыть", "");
+					return 0;
+				}
+				SetPVarInt(playerid, "BuyedItemID", itemid);
+
+				new item[BaseItem];
+				item = GetItem(itemid);
+
+				if(PlayerInfo[playerid][Cash] < item[Price])
+				{
+					ShowPlayerDialog(playerid, 1, DIALOG_STYLE_MSGBOX, "Ошибка", "Недостаточно денег.", "Закрыть", "");
+					return 0;
+				}
+
+				new text[255];
+				format(text, sizeof(text), "{ffffff}[{%s}%s{ffffff}] - купить?", GetGradeColor(item[Grade]), item[Name]);
+				ShowPlayerDialog(playerid, 602, DIALOG_STYLE_MSGBOX, "Подтверждение", text, "ОК", "Отмена");
+			}	
+			return 1;
+		}
+		case 602:
+		{
+			if(response)
+			{
+				if(IsInventoryFull(playerid))
+				{
+					ShowPlayerDialog(playerid, 1, DIALOG_STYLE_MSGBOX, "Ошибка", "Инвентарь полон.", "Закрыть", "");
+					return 0;
+				}
+				new itemid = GetPVarInt(playerid, "BuyedItemID");
+				new item[BaseItem];
+				item = GetItem(itemid);
+				PlayerInfo[playerid][Cash] -= item[Price];
+				GivePlayerMoney(playerid, -item[Price]);
+				AddEquip(playerid, itemid, MOD_CLEAR);
+				ShowPlayerDialog(playerid, 1, DIALOG_STYLE_MSGBOX, "Покупка", "{66CC00}Предмет куплен.", "Закрыть", "");
+			}
+			return 1;
+		}
+		//расходники
+		case 700:
+		{
+			if(response)
+			{
+				new itemid = -1;
+
+				new query[255];
+				format(query, sizeof(query), "SELECT * FROM `materials_seller` WHERE `ID` = '%d' LIMIT 1", listitem);
+				new Cache:q_result = mysql_query(sql_handle, query);
+
+				new row_count = 0;
+				cache_get_row_count(row_count);
+				if(row_count <= 0)
+				{
+					cache_delete(q_result);
+					ShowPlayerDialog(playerid, 1, DIALOG_STYLE_MSGBOX, "Ошибка", "Не удалось купить предмет.", "Закрыть", "");
+					return 0;
+				}
+
+				cache_get_value_name_int(0, "ItemID", itemid);
+				cache_delete(q_result);
+
+				if(itemid == -1)
+				{
+					ShowPlayerDialog(playerid, 1, DIALOG_STYLE_MSGBOX, "Ошибка", "Не удалось купить предмет.", "Закрыть", "");
+					return 0;
+				}
+
+				new item[BaseItem];
+				item = GetItem(itemid);
+				
+				if(item[Type] == ITEMTYPE_PASSIVE && HasItem(playerid, itemid))
+				{
+					ShowPlayerDialog(playerid, 1, DIALOG_STYLE_MSGBOX, "Ошибка", "У вас уже есть этот предмет.", "Закрыть", "");
+					return 0;
+				}
+
+				SetPVarInt(playerid, "BuyedItemID", itemid);
+
+				new available_count = item[Type] == ITEMTYPE_PASSIVE ? 1 : PlayerInfo[playerid][Cash] / item[Price];
+				new text[255];
+				format(text, sizeof(text), "Укажите количество.\nВы можете купить: %d", available_count);
+				ShowPlayerDialog(playerid, 701, DIALOG_STYLE_INPUT, "Покупка", text, "Купить", "Отмена");
+			}	
+			return 1;
+		}
+		case 701:
+		{
+			if(response)
+			{
+				new itemid = GetPVarInt(playerid, "BuyedItemID");
+				if(itemid == -1)
+				{
+					ShowPlayerDialog(playerid, 1, DIALOG_STYLE_MSGBOX, "Ошибка", "Не удалось купить предмет.", "Закрыть", "");
+					return 0;
+				}
+
+				new item[BaseItem];
+				item = GetItem(itemid);
+
+				new count = strval(inputtext);
+				if(item[Type] == ITEMTYPE_PASSIVE && count > 1)
+				{
+					ShowPlayerDialog(playerid, 1, DIALOG_STYLE_MSGBOX, "Ошибка", "Можно иметь только один предмет.", "Закрыть", "");
+					return 0;
+				}
+
+				if(PlayerInfo[playerid][Cash] < item[Price] * count)
+				{
+					ShowPlayerDialog(playerid, 1, DIALOG_STYLE_MSGBOX, "Ошибка", "Недостаточно денег.", "Закрыть", "");
+					return 0;
+				}
+
+				SetPVarInt(playerid, "BuyedItemCount", count);
+
+				new text[255];
+				format(text, sizeof(text), "{ffffff}[{%s}%s{ffffff}] x%d - купить?", GetGradeColor(item[Grade]), item[Name], count);
+				ShowPlayerDialog(playerid, 702, DIALOG_STYLE_MSGBOX, "Подтверждение", text, "ОК", "Отмена");
+			}	
+			return 1;
+		}
+		case 702:
+		{
+			if(response)
+			{
+				if(IsInventoryFull(playerid))
+				{
+					ShowPlayerDialog(playerid, 1, DIALOG_STYLE_MSGBOX, "Ошибка", "Инвентарь полон.", "Закрыть", "");
+					return 0;
+				}
+				new itemid = GetPVarInt(playerid, "BuyedItemID");
+				new count = GetPVarInt(playerid, "BuyedItemCount");
+				new item[BaseItem];
+				item = GetItem(itemid);
+				PlayerInfo[playerid][Cash] -= item[Price] * count;
+				GivePlayerMoney(playerid, -(item[Price] * count));
+				AddItem(playerid, itemid, count);
+				ShowPlayerDialog(playerid, 1, DIALOG_STYLE_MSGBOX, "Покупка", "{66CC00}Предмет куплен.", "Закрыть", "");
+			}
+			return 1;
+		}
+
 		//Основное меню
 		case 1000:
 		{
@@ -1272,10 +1572,139 @@ stock SwitchPlayer(playerid)
 	ShowPlayerDialog(playerid, 103, DIALOG_STYLE_TABLIST_HEADERS, "Выбор участника", listitems, "Войти", "Закрыть");
 }
 
+stock HideAllWindows(playerid)
+{
+	HideCharInfo(playerid);
+	HideEquipInfo(playerid);
+	HideItemInfo(playerid);
+	HideModWindow(playerid);
+}
+
+stock HideOpenedInfoWindows(playerid)
+{
+	if(Windows[playerid][ItemInfo]) HideItemInfo(playerid);
+	if(Windows[playerid][EquipInfo]) HideEquipInfo(playerid);
+}
+
 stock SetPlayerSkills(playerid)
 {
 	for(new i = 0; i < 10; i++)
 		SetPlayerSkillLevel(playerid, i, 1000);
+}
+
+stock GetMaterialsSellerItemsList()
+{
+	new listitems[2048] = "Предмет\tЦена";
+	new query[255] = "SELECT * FROM `materials_seller`";
+	new Cache:q_result = mysql_query(sql_handle, query);
+
+	new row_count = 0;
+	cache_get_row_count(row_count);
+	
+	if(row_count <= 0)
+	{
+		cache_delete(q_result);
+		return listitems;
+	}
+
+	q_result = cache_save();
+	cache_unset_active();
+
+	new iteminfo[255];
+	for(new i = 0; i < row_count; i++)
+	{
+		new itemid = -1;
+		cache_set_active(q_result);
+		cache_get_value_name_int(i, "ItemID", itemid);
+		cache_unset_active();
+
+		if(itemid == -1) continue;
+		new item[BaseItem];
+		item = GetItem(itemid);
+		format(iteminfo, sizeof(iteminfo), "\n{%s}%s\t{66CC00}%d$", GetGradeColor(item[Grade]), item[Name], item[Price]);
+		strcat(listitems, iteminfo);
+	}
+
+	cache_delete(q_result);
+	return listitems;
+}
+
+stock GetWeaponSellerItemsList()
+{
+	new listitems[2048] = "Предмет\tМин.ранг\tЦена";
+	new query[255] = "SELECT * FROM `weapon_seller`";
+	new Cache:q_result = mysql_query(sql_handle, query);
+
+	new row_count = 0;
+	cache_get_row_count(row_count);
+	
+	if(row_count <= 0)
+	{
+		cache_delete(q_result);
+		return listitems;
+	}
+
+	q_result = cache_save();
+	cache_unset_active();
+
+	new iteminfo[255];
+	for(new i = 0; i < row_count; i++)
+	{
+		new itemid = -1;
+		cache_set_active(q_result);
+		cache_get_value_name_int(i, "ItemID", itemid);
+		cache_unset_active();
+
+		if(itemid == -1) continue;
+		new item[BaseItem];
+		item = GetItem(itemid);
+		format(iteminfo, sizeof(iteminfo), "\n{%s}%s\t{%s}%s\t{66CC00}%d$", 
+			GetGradeColor(item[Grade]), item[Name], RateColors[item[MinRank]-1], GetRankInterval(item[MinRank]), item[Price]
+		);
+		strcat(listitems, iteminfo);
+	}
+
+	cache_delete(q_result);
+	return listitems;
+}
+
+stock GetArmorSellerItemsList()
+{
+	new listitems[2048] = "Предмет\tМин.ранг\tЦена";
+	new query[255] = "SELECT * FROM `armor_seller`";
+	new Cache:q_result = mysql_query(sql_handle, query);
+
+	new row_count = 0;
+	cache_get_row_count(row_count);
+	
+	if(row_count <= 0)
+	{
+		cache_delete(q_result);
+		return listitems;
+	}
+
+	q_result = cache_save();
+	cache_unset_active();
+
+	new iteminfo[255];
+	for(new i = 0; i < row_count; i++)
+	{
+		new itemid = -1;
+		cache_set_active(q_result);
+		cache_get_value_name_int(i, "ItemID", itemid);
+		cache_unset_active();
+
+		if(itemid == -1) continue;
+		new item[BaseItem];
+		item = GetItem(itemid);
+		format(iteminfo, sizeof(iteminfo), "\n{%s}%s\t{%s}%s\t{66CC00}%d$", 
+			GetGradeColor(item[Grade]), item[Name], RateColors[item[MinRank]-1], GetRankInterval(item[MinRank]), item[Price]
+		);
+		strcat(listitems, iteminfo);
+	}
+
+	cache_delete(q_result);
+	return listitems;
 }
 
 stock UpdateHPBar(playerid)
@@ -1288,6 +1717,11 @@ stock UpdateHPBar(playerid)
 	new string[64];
 	format(string, sizeof(string), "%d%% %d/%d", percents, floatround(hp), floatround(max_hp));
 	PlayerTextDrawSetStringRus(playerid, HPBar[playerid], string);
+	if(IsInventoryOpen[playerid])
+	{
+		format(string, sizeof(string), "HP: %.0f/%.0f", GetPlayerHP(playerid), GetPlayerMaxHP(playerid));
+		PlayerTextDrawSetStringRus(playerid, ChrInfMaxHP[playerid], string);
+	}
 }
 
 stock UpdatePlayerRank(playerid)
@@ -1948,6 +2382,8 @@ stock ShowItemInfo(playerid, itemid)
 	new string[255];
 	item = GetItem(itemid);
 
+	HideOpenedInfoWindows(playerid);
+
 	PlayerTextDrawSetPreviewModel(playerid, InfItemIcon[playerid], item[Model]);
 	PlayerTextDrawSetPreviewRot(playerid, InfItemIcon[playerid], item[ModelRotX], item[ModelRotY], item[ModelRotZ]);
 	PlayerTextDrawBackgroundColor(playerid, InfItemIcon[playerid], HexGradeColors[item[Grade]-1][0]);
@@ -1982,6 +2418,8 @@ stock ShowItemInfo(playerid, itemid)
 		PlayerTextDrawSetStringRus(playerid, InfDescriptionStr[playerid][i], string);
 		PlayerTextDrawShow(playerid, InfDescriptionStr[playerid][i]);
 	}
+
+	Windows[playerid][ItemInfo] = true;
 }
 
 stock HideItemInfo(playerid)
@@ -1999,6 +2437,8 @@ stock HideItemInfo(playerid)
 	PlayerTextDrawHide(playerid, InfClose[playerid]);
 	for(new i = 0; i < 3; i++)
 		PlayerTextDrawHide(playerid, InfDescriptionStr[playerid][i]);
+
+	Windows[playerid][ItemInfo] = false;
 }
 
 stock HideEquipInfo(playerid)
@@ -2024,6 +2464,8 @@ stock HideEquipInfo(playerid)
 		PlayerTextDrawHide(playerid, EqInfMod[playerid][i]);
 	for(new i = 0; i < 3; i++)
 		PlayerTextDrawHide(playerid, EqInfDescriptionStr[playerid][i]);
+
+	Windows[playerid][EquipInfo] = false;
 }
 
 stock ShowEquipInfo(playerid, itemid, mod[])
@@ -2031,6 +2473,8 @@ stock ShowEquipInfo(playerid, itemid, mod[])
 	new item[BaseItem];
 	new string[255];
 	item = GetItem(itemid);
+
+	HideOpenedInfoWindows(playerid);
 
 	PlayerTextDrawSetPreviewModel(playerid, EqInfItemIcon[playerid], item[Model]);
 	PlayerTextDrawSetPreviewRot(playerid, EqInfItemIcon[playerid], item[ModelRotX], item[ModelRotY], item[ModelRotZ]);
@@ -2112,6 +2556,8 @@ stock ShowEquipInfo(playerid, itemid, mod[])
 		PlayerTextDrawSetStringRus(playerid, EqInfDescriptionStr[playerid][i], string);
 		PlayerTextDrawShow(playerid, EqInfDescriptionStr[playerid][i]);
 	}
+
+	Windows[playerid][EquipInfo] = true;
 }	
 
 stock UpdatePlayerStatsVisual(playerid)
@@ -2176,6 +2622,7 @@ stock ShowCharInfo(playerid)
 	UpdateInventory(playerid);
 	
 	IsInventoryOpen[playerid] = true;
+	Windows[playerid][CharInfo] = true;
 	SelectTextDraw(playerid,0xCCCCFF65);
 }
 
@@ -2214,6 +2661,17 @@ stock HideCharInfo(playerid)
 	}
 
 	IsInventoryOpen[playerid] = false;
+	Windows[playerid][CharInfo] = false;
+}
+
+stock ShowModWindow(playerid, moditem = -1)
+{
+	Windows[playerid][Mod] = true;
+}
+
+stock HideModWindow(playerid)
+{
+	Windows[playerid][Mod] = false;
 }
 
 stock GetWeaponBaseDamage(weaponid)
