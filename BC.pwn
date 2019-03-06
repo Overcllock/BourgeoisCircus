@@ -16,6 +16,8 @@
 #include <crp>
 #include <sscanf2>
 #include <Pawn.CMD>
+#include <YSF>
+#include <vnpc>
 
 #pragma dynamic 31294
 
@@ -116,7 +118,10 @@ forward Float:GetDistanceBetweenPlayers(p1, p2);
 forward Float:GetPlayerMaxHP(playerid);
 forward Float:GetPlayerHP(playerid);
 forward SetPlayerHP(playerid, Float:hp);
+forward GivePlayerHP(playerid, Float:hp);
+forward SetPlayerMaxHP(playerid, Float:hp);
 forward GivePlayerRate(playerid, rate);
+forward UpdatePlayerMaxHP(playerid);
 
 /* Variables */
 
@@ -207,6 +212,7 @@ new PlayerInfo[MAX_PLAYERS][pInfo];
 new PlayerHPMultiplicator[MAX_PLAYERS];
 new PlayerUpdater[MAX_PLAYERS];
 new PlayerConnect[MAX_PLAYERS];
+new Float:MaxHP[MAX_PLAYERS];
 new bool:IsInventoryOpen[MAX_PLAYERS] = false;
 new bool:IsDeath[MAX_PLAYERS] = false;
 new bool:IsParticipant[MAX_PLAYERS] = false;
@@ -346,15 +352,29 @@ main()
 }
 
 /* Commands */
+cmd:testnpc(playerid, params[])
+{
+	if(PlayerInfo[playerid][Admin] == 0)
+		return 0;
+	
+	new npcid = FCNPC_Create("Tester");
+	ShowNPCInTabList(npcid); 
+	new Float:x, Float:y, Float:z;
+	GetPlayerPos(playerid, x, y, z);
+	FCNPC_Spawn(npcid, DEFAULT_SKIN_MALE, x + 2, y + 2, z);
+	return 1;
+}
+
 cmd:createplayer(playerid, params[])
 {
 	if(PlayerInfo[playerid][Admin] == 0)
 		return 0;
 	new name[128], owner[128];
-	if(sscanf(params, "s[128]s[128]", name, owner))
-		return SendClientMessage(playerid, COLOR_GREY, "USAGE: /createplayer [name][owner]");
+	new sex;
+	if(sscanf(params, "s[128]s[128]i", name, owner, sex))
+		return SendClientMessage(playerid, COLOR_GREY, "USAGE: /createplayer [name][owner][sex]");
 
-	CreatePlayer(playerid, name, owner);
+	CreatePlayer(playerid, name, owner, sex);
 	return 1;
 }
 
@@ -506,11 +526,14 @@ public OnPlayerLogin(playerid)
 	PlayerHPMultiplicator[playerid] = PlayerInfo[playerid][Rank] * 10;
 	if(PlayerHPMultiplicator[playerid] <= 10)
 		PlayerHPMultiplicator[playerid] = 10;
-	
+	UpdatePlayerMaxHP(playerid);
+	SetPlayerSkills(playerid);
 	SpawnPlayer(playerid);
 	ResetPlayerMoney(playerid);
 	GivePlayerMoney(playerid, PlayerInfo[playerid][Cash]);
+	UpdatePlayerStats(playerid);
 	UpdateLocalRatingTop(playerid);
+	UpdatePlayerSkin(playerid);
 }
 
 public OnPlayerDisconnect(playerid, reason)
@@ -550,6 +573,7 @@ public OnPlayerSpawn(playerid)
 	SetCameraBehindPlayer(playerid);
 	SetPlayerSkin(playerid, PlayerInfo[playerid][Skin]);
 	SetPlayerColor(playerid, HexRateColors[PlayerInfo[playerid][Rank]-1][0]);
+	UpdatePlayerWeapon(playerid);
 	return 1;
 }
 
@@ -625,6 +649,7 @@ public OnPlayerKeyStateChange(playerid, newkeys, oldkeys)
 		new listitems[] = "Информация о персонаже\nСменить персонажа";
 		ShowPlayerDialog(playerid, 1000, DIALOG_STYLE_TABLIST, "Bourgeois Circus", listitems, "Далее", "Закрыть");
 	}
+	return 1;
 }
 
 public OnDialogResponse(playerid, dialogid, response, listitem, inputtext[])
@@ -969,103 +994,12 @@ public OnDialogResponse(playerid, dialogid, response, listitem, inputtext[])
 public OnPlayerUpdate(playerid)
 {
 	UpdateHPBar(playerid);
+	return 1;
 }
 
 public OnPlayerClickPlayer(playerid, clickedplayerid, source)
 {
 	return 1;
-}
-
-stock UndressEquip(playerid, type)
-{
-	switch(type)
-	{
-		case ITEMTYPE_WEAPON:
-		{
-			if(PlayerInfo[playerid][WeaponSlotID] == -1) return;
-			AddEquip(playerid, PlayerInfo[playerid][WeaponSlotID], PlayerInfo[playerid][WeaponMod]);
-			PlayerInfo[playerid][WeaponSlotID] = -1;
-			PlayerInfo[playerid][WeaponMod] = MOD_CLEAR;
-		}
-		case ITEMTYPE_ARMOR:
-		{
-			if(PlayerInfo[playerid][ArmorSlotID] == -1) return;
-			AddEquip(playerid, PlayerInfo[playerid][ArmorSlotID], PlayerInfo[playerid][ArmorMod]);
-			PlayerInfo[playerid][ArmorSlotID] = -1;
-			PlayerInfo[playerid][ArmorMod] = MOD_CLEAR;
-		}
-		case ITEMTYPE_ACCESSORY:
-		{
-			if(PlayerInfo[playerid][AccSlot1ID] != -1)
-			{
-				AddEquip(playerid, PlayerInfo[playerid][AccSlot1ID], MOD_CLEAR);
-				PlayerInfo[playerid][AccSlot1ID] = -1;
-			}
-			else if(PlayerInfo[playerid][AccSlot2ID] != -1)
-			{
-				AddEquip(playerid, PlayerInfo[playerid][AccSlot2ID], MOD_CLEAR);
-				PlayerInfo[playerid][AccSlot2ID] = -1;
-			}
-			else return;
-		}
-		default: return;
-	}
-
-	if(IsInventoryOpen[playerid])
-		UpdateEquipSlots(playerid);
-}
-
-stock EquipItem(playerid, type, slot)
-{
-	new itemid = PlayerInventory[playerid][slot][ID];
-	if(itemid == -1 || !IsEquip(itemid)) return;
-
-	new mod[MAX_MOD];
-	for(new i = 0; i < MAX_MOD; i++)
-		mod[i] = PlayerInventory[playerid][slot][Mod][i];
-
-	DeleteItem(playerid, slot);
-
-	switch(type)
-	{
-		case ITEMTYPE_WEAPON:
-		{
-			if(PlayerInfo[playerid][WeaponSlotID] != -1)
-			{
-				if(IsInventoryFull(playerid)) return;
-				UndressEquip(playerid, type);
-			}
-			PlayerInfo[playerid][WeaponSlotID] = itemid;
-			PlayerInfo[playerid][WeaponMod] = mod;
-		}
-		case ITEMTYPE_ARMOR:
-		{
-			if(PlayerInfo[playerid][ArmorSlotID] != -1)
-			{
-				if(IsInventoryFull(playerid)) return;
-				UndressEquip(playerid, type);
-			}
-			PlayerInfo[playerid][ArmorSlotID] = itemid;
-			PlayerInfo[playerid][ArmorMod] = mod;
-		}
-		case ITEMTYPE_ACCESSORY:
-		{
-			if(PlayerInfo[playerid][AccSlot1ID] == -1)
-				PlayerInfo[playerid][AccSlot1ID] = itemid;
-			else if(PlayerInfo[playerid][AccSlot2ID] == -1)
-				PlayerInfo[playerid][AccSlot2ID] = itemid;
-			else
-			{
-				if(IsInventoryFull(playerid)) return;
-				UndressEquip(playerid, type);
-				PlayerInfo[playerid][AccSlot1ID] = itemid;
-			}
-		}
-		default: return;
-	}
-
-	if(IsInventoryOpen[playerid])
-		UpdateEquipSlots(playerid);
 }
 
 public OnPlayerClickPlayerTextDraw(playerid, PlayerText:playertextid)
@@ -1077,7 +1011,7 @@ public OnPlayerClickPlayerTextDraw(playerid, PlayerText:playertextid)
 	}
 	else if(playertextid == ChrInfWeaponSlot[playerid])
 	{
-		if(PlayerInfo[playerid][WeaponSlotID] == -1) return 0;
+		if(PlayerInfo[playerid][WeaponSlotID] == 0) return 0;
 		if(IsInventoryFull(playerid))
 		{
 			ShowPlayerDialog(playerid, 1, DIALOG_STYLE_MSGBOX, "Ошибка", "Инвентарь полон.", "Закрыть", "");
@@ -1088,7 +1022,7 @@ public OnPlayerClickPlayerTextDraw(playerid, PlayerText:playertextid)
 	}
 	else if(playertextid == ChrInfArmorSlot[playerid])
 	{
-		if(PlayerInfo[playerid][ArmorSlotID] == -1) return 0;
+		if(PlayerInfo[playerid][ArmorSlotID] == 81) return 0;
 		if(IsInventoryFull(playerid))
 		{
 			ShowPlayerDialog(playerid, 1, DIALOG_STYLE_MSGBOX, "Ошибка", "Инвентарь полон.", "Закрыть", "");
@@ -1234,13 +1168,27 @@ public Time()
 	TextDrawSetString(WorldTime, string);
 }
 
-public Float:GetPlayerMaxHP(playerid)
+public UpdatePlayerMaxHP(playerid)
 {
 	new Float:max_hp = 1000.0;
 	max_hp = floatmul(max_hp, PlayerInfo[playerid][Rank]);
 	if(max_hp < 1000)
 	    max_hp = 1000.0;
-	return max_hp;
+	MaxHP[playerid] = max_hp;
+}
+
+public SetPlayerMaxHP(playerid, Float:hp)
+{
+	new Float:diff;
+	diff = floatsub(hp, MaxHP[playerid]);
+	MaxHP[playerid] = hp;
+	GivePlayerHP(playerid, diff);
+	UpdateHPBar(playerid);
+}
+
+public Float:GetPlayerMaxHP(playerid)
+{
+	return MaxHP[playerid];
 }
 
 public Float:GetDistanceBetweenPlayers(p1,p2)
@@ -1260,6 +1208,19 @@ public SetPlayerHP(playerid, Float:hp)
 	if(hp > max_hp)
 		hp = max_hp;
 	new Float:value = floatdiv(hp, PlayerHPMultiplicator[playerid]);
+	
+	SetPlayerHealth(playerid, value);
+	UpdateHPBar(playerid);
+}
+
+public GivePlayerHP(playerid, Float:hp)
+{
+	new Float:max_hp = GetPlayerMaxHP(playerid);
+	new Float:cur_hp = GetPlayerHP(playerid);
+	new Float:new_hp = floatadd(cur_hp, hp);
+	if(new_hp > max_hp)
+		new_hp = max_hp;
+	new Float:value = floatdiv(new_hp, PlayerHPMultiplicator[playerid]);
 	
 	SetPlayerHealth(playerid, value);
 	UpdateHPBar(playerid);
@@ -1311,6 +1272,12 @@ stock SwitchPlayer(playerid)
 	ShowPlayerDialog(playerid, 103, DIALOG_STYLE_TABLIST_HEADERS, "Выбор участника", listitems, "Войти", "Закрыть");
 }
 
+stock SetPlayerSkills(playerid)
+{
+	for(new i = 0; i < 10; i++)
+		SetPlayerSkillLevel(playerid, i, 1000);
+}
+
 stock UpdateHPBar(playerid)
 {
 	new Float:hp;
@@ -1344,6 +1311,243 @@ stock UpdatePlayerRank(playerid)
 		PlayerInfo[playerid][MaxRank] = new_rank;
 }
 
+stock UpdatePlayerSkin(playerid)
+{
+	switch(PlayerInfo[playerid][ArmorSlotID])
+	{
+		case 81: PlayerInfo[playerid][Skin] = PlayerInfo[playerid][Sex] == 0 ? 78 : 131;
+		case 82..89: PlayerInfo[playerid][Skin] = PlayerInfo[playerid][Sex] == 0 ? 22 : 13;
+		case 90..97: PlayerInfo[playerid][Skin] = PlayerInfo[playerid][Sex] == 0 ? 6 : 41;
+		case 98..105: PlayerInfo[playerid][Skin] = PlayerInfo[playerid][Sex] == 0 ? 167 : 205;
+		case 106..113: PlayerInfo[playerid][Skin] = PlayerInfo[playerid][Sex] == 0 ? 70 : 219;
+		case 114..121: PlayerInfo[playerid][Skin] = PlayerInfo[playerid][Sex] == 0 ? 310 : 309;
+		case 122..129: PlayerInfo[playerid][Skin] = PlayerInfo[playerid][Sex] == 0 ? 147 : 141;
+		case 130..137: PlayerInfo[playerid][Skin] = PlayerInfo[playerid][Sex] == 0 ? 127 : 150;
+		case 138..145: PlayerInfo[playerid][Skin] = PlayerInfo[playerid][Sex] == 0 ? 126 : 93;
+		case 146..153: PlayerInfo[playerid][Skin] = PlayerInfo[playerid][Sex] == 0 ? 294 : 214;
+		default: PlayerInfo[playerid][Skin] = PlayerInfo[playerid][Sex] == 0 ? DEFAULT_SKIN_MALE : DEFAULT_SKIN_FEMALE;
+	}
+	SetPlayerSkin(playerid, PlayerInfo[playerid][Skin]);
+}
+
+stock UpdatePlayerWeapon(playerid)
+{
+	new weaponid;
+	switch(PlayerInfo[playerid][WeaponSlotID])
+	{
+		case 9..16: weaponid = 24;
+		case 17..24: weaponid = 28;
+		case 25..32: weaponid = 32;
+		case 33..40: weaponid = 29;
+		case 41..48: weaponid = 30;
+		case 49..56: weaponid = 31;
+		case 57..64: weaponid = 25;
+		case 65..72: weaponid = 27;
+		case 73..80: weaponid = 26;
+		default: weaponid = 22;
+	}
+	ResetPlayerWeapons(playerid);
+	GivePlayerWeapon(playerid, weaponid, 999999);
+}
+
+stock UpdatePlayerStats(playerid)
+{
+	new weapon_damage[2];
+	new default_damage[2];
+	default_damage = GetWeaponBaseDamage(PlayerInfo[playerid][WeaponSlotID]);
+	weapon_damage = GetWeaponModifiedDamage(default_damage, GetModifierLevel(PlayerInfo[playerid][WeaponMod], MOD_DAMAGE));
+	PlayerInfo[playerid][DamageMin] = weapon_damage[0];
+	PlayerInfo[playerid][DamageMax] = weapon_damage[1];
+	
+	new armor_defense;
+	new default_defense;
+	default_defense = GetArmorBaseDefense(PlayerInfo[playerid][ArmorSlotID]);
+	armor_defense = GetArmorModifiedDefense(default_defense, GetModifierLevel(PlayerInfo[playerid][ArmorMod], MOD_DEFENSE));
+	PlayerInfo[playerid][Defense] = armor_defense;
+
+	PlayerInfo[playerid][Accuracy] = DEFAULT_ACCURACY + GetPlayerPropValue(playerid, PROPERTY_ACCURACY);
+	PlayerInfo[playerid][Dodge] = DEFAULT_DODGE + GetPlayerPropValue(playerid, PROPERTY_DODGE);
+	PlayerInfo[playerid][Crit] = DEFAULT_CRIT + GetPlayerPropValue(playerid, PROPERTY_CRIT);
+
+	new damage_multiplier = 100;
+	new defense_multiplier = 100;
+
+	damage_multiplier += GetPlayerPropValue(playerid, PROPERTY_DAMAGE);
+	defense_multiplier += GetPlayerPropValue(playerid, PROPERTY_DEFENSE);
+
+	PlayerInfo[playerid][DamageMin] = (PlayerInfo[playerid][DamageMin] * damage_multiplier) / 100;
+	PlayerInfo[playerid][DamageMax] = (PlayerInfo[playerid][DamageMax] * damage_multiplier) / 100;
+	PlayerInfo[playerid][Defense] = (PlayerInfo[playerid][Defense] * defense_multiplier) / 100;
+
+	UpdatePlayerMaxHP(playerid);
+	new hp_multiplier = 100 + GetPlayerPropValue(playerid, PROPERTY_HP);
+	new Float:new_max_hp = floatmul(MaxHP[playerid], floatdiv(hp_multiplier, 100));
+	SetPlayerMaxHP(playerid, new_max_hp);
+
+	if(IsInventoryOpen[playerid])
+		UpdatePlayerStatsVisual(playerid);
+}
+
+stock GetPlayerPropValue(playerid, prop)
+{
+	new value = 0;
+
+	new mod_value = 0;
+	switch(prop)
+	{
+		case PROPERTY_ACCURACY:
+			mod_value += GetModifierStatByLevel(PlayerInfo[playerid][WeaponMod], GetModifierLevel(PlayerInfo[playerid][WeaponMod], MOD_ACCURACY));
+		case PROPERTY_DODGE:
+			mod_value += GetModifierStatByLevel(PlayerInfo[playerid][ArmorMod], GetModifierLevel(PlayerInfo[playerid][ArmorMod], MOD_DODGE));
+	}
+	value += mod_value;
+
+	new weapon[BaseItem];
+	weapon = GetItem(PlayerInfo[playerid][WeaponSlotID]);
+	for(new i = 0; i < MAX_PROPERTIES; i++)
+	{
+		if(weapon[Property][i] == prop)
+			value += weapon[PropertyVal][i];
+	}
+
+	new armor[BaseItem];
+	armor = GetItem(PlayerInfo[playerid][ArmorSlotID]);
+	for(new i = 0; i < MAX_PROPERTIES; i++)
+	{
+		if(armor[Property][i] == prop)
+			value += armor[PropertyVal][i];
+	}
+
+	if(PlayerInfo[playerid][AccSlot1ID] != -1)
+	{
+		new acc1[BaseItem];
+		acc1 = GetItem(PlayerInfo[playerid][AccSlot1ID]);
+		for(new i = 0; i < MAX_PROPERTIES; i++)
+		{
+			if(acc1[Property][i] == prop)
+				value += acc1[PropertyVal][i];
+		}
+	}
+	
+	if(PlayerInfo[playerid][AccSlot2ID] != -1)
+	{
+		new acc2[BaseItem];
+		acc2 = GetItem(PlayerInfo[playerid][AccSlot2ID]);
+		for(new i = 0; i < MAX_PROPERTIES; i++)
+		{
+			if(acc2[Property][i] == prop)
+				value += acc2[PropertyVal][i];
+		}
+	}
+
+	if(prop == PROPERTY_DAMAGE && HasItem(playerid, 183, 1))
+		value += 5;
+	if(prop == PROPERTY_DEFENSE && HasItem(playerid, 184, 1))
+		value += 5;
+	
+	return value;
+}
+
+stock UndressEquip(playerid, type)
+{
+	switch(type)
+	{
+		case ITEMTYPE_WEAPON:
+		{
+			if(PlayerInfo[playerid][WeaponSlotID] == 0) return;
+			AddEquip(playerid, PlayerInfo[playerid][WeaponSlotID], PlayerInfo[playerid][WeaponMod]);
+			PlayerInfo[playerid][WeaponSlotID] = 0;
+			PlayerInfo[playerid][WeaponMod] = MOD_CLEAR;
+			UpdatePlayerWeapon(playerid);
+		}
+		case ITEMTYPE_ARMOR:
+		{
+			if(PlayerInfo[playerid][ArmorSlotID] == 81) return;
+			AddEquip(playerid, PlayerInfo[playerid][ArmorSlotID], PlayerInfo[playerid][ArmorMod]);
+			PlayerInfo[playerid][ArmorSlotID] = 81;
+			PlayerInfo[playerid][ArmorMod] = MOD_CLEAR;
+			UpdatePlayerSkin(playerid);
+		}
+		case ITEMTYPE_ACCESSORY:
+		{
+			if(PlayerInfo[playerid][AccSlot1ID] != -1)
+			{
+				AddEquip(playerid, PlayerInfo[playerid][AccSlot1ID], MOD_CLEAR);
+				PlayerInfo[playerid][AccSlot1ID] = -1;
+			}
+			else if(PlayerInfo[playerid][AccSlot2ID] != -1)
+			{
+				AddEquip(playerid, PlayerInfo[playerid][AccSlot2ID], MOD_CLEAR);
+				PlayerInfo[playerid][AccSlot2ID] = -1;
+			}
+			else return;
+		}
+		default: return;
+	}
+
+	UpdatePlayerStats(playerid);
+
+	if(IsInventoryOpen[playerid])
+		UpdateEquipSlots(playerid);
+}
+
+stock EquipItem(playerid, type, slot)
+{
+	new itemid = PlayerInventory[playerid][slot][ID];
+	if(itemid == -1 || !IsEquip(itemid)) return;
+
+	new mod[MAX_MOD];
+	for(new i = 0; i < MAX_MOD; i++)
+		mod[i] = PlayerInventory[playerid][slot][Mod][i];
+
+	DeleteItem(playerid, slot);
+
+	switch(type)
+	{
+		case ITEMTYPE_WEAPON:
+		{
+			if(PlayerInfo[playerid][WeaponSlotID] != 0)
+			{
+				if(IsInventoryFull(playerid)) return;
+				UndressEquip(playerid, type);
+			}
+			PlayerInfo[playerid][WeaponSlotID] = itemid;
+			PlayerInfo[playerid][WeaponMod] = mod;
+			UpdatePlayerWeapon(playerid);
+		}
+		case ITEMTYPE_ARMOR:
+		{
+			if(PlayerInfo[playerid][ArmorSlotID] != 81)
+			{
+				if(IsInventoryFull(playerid)) return;
+				UndressEquip(playerid, type);
+			}
+			PlayerInfo[playerid][ArmorSlotID] = itemid;
+			PlayerInfo[playerid][ArmorMod] = mod;
+			UpdatePlayerSkin(playerid);
+		}
+		case ITEMTYPE_ACCESSORY:
+		{
+			if(PlayerInfo[playerid][AccSlot1ID] == -1)
+				PlayerInfo[playerid][AccSlot1ID] = itemid;
+			else if(PlayerInfo[playerid][AccSlot2ID] == -1)
+				PlayerInfo[playerid][AccSlot2ID] = itemid;
+			else
+			{
+				if(IsInventoryFull(playerid)) return;
+				UndressEquip(playerid, type);
+				PlayerInfo[playerid][AccSlot1ID] = itemid;
+			}
+		}
+		default: return;
+	}
+
+	UpdatePlayerStats(playerid);
+
+	if(IsInventoryOpen[playerid])
+		UpdateEquipSlots(playerid);
+}
+
 stock IsInvSlotEmpty(playerid, slotid)
 {
 	return PlayerInventory[playerid][slotid][ID] == -1;
@@ -1361,7 +1565,7 @@ stock UpdateEquipSlots(playerid)
 	PlayerTextDrawBackgroundColor(playerid, ChrInfAccSlot1[playerid], -1061109505);
 	PlayerTextDrawBackgroundColor(playerid, ChrInfAccSlot2[playerid], -1061109505);
 
-	if(PlayerInfo[playerid][WeaponSlotID] == -1)
+	if(PlayerInfo[playerid][WeaponSlotID] == 0)
 	{
 		PlayerTextDrawSetPreviewModel(playerid, ChrInfWeaponSlot[playerid], 346);
 		PlayerTextDrawSetPreviewRot(playerid, ChrInfWeaponSlot[playerid], 0.000000, 0.000000, 0.000000, 1.000000);
@@ -1375,7 +1579,7 @@ stock UpdateEquipSlots(playerid)
 		PlayerTextDrawBackgroundColor(playerid, ChrInfWeaponSlot[playerid], HexGradeColors[weapon[Grade]-1][0]);
 	}
 
-	if(PlayerInfo[playerid][ArmorSlotID] == -1)
+	if(PlayerInfo[playerid][ArmorSlotID] == 81)
 	{
 		PlayerTextDrawSetPreviewModel(playerid, ChrInfArmorSlot[playerid], 1275);
 		PlayerTextDrawSetPreviewRot(playerid, ChrInfArmorSlot[playerid], 0.000000, 0.000000, 0.000000, 1.000000);
@@ -1618,7 +1822,22 @@ stock SellItem(playerid, slotid, count = 1)
 	return true;
 }
 
-stock ItemExist(playerid, id, count = 1)
+stock HasItem(playerid, id, count = 1)
+{
+	if(id == -1) return false;
+
+	if(IsPlayerConnected(playerid))
+	{
+		for(new i = 0; i < MAX_SLOTS; i++)
+			if(PlayerInventory[playerid][i][ID] == id && PlayerInventory[playerid][i][Count] >= count)
+				return true;
+		return false;
+	}
+
+	return HasItemOffline(playerid, id, count);
+}
+
+stock HasItemOffline(playerid, id, count = 1)
 {
 	if(id == -1) return false;
 
@@ -1632,9 +1851,9 @@ stock ItemExist(playerid, id, count = 1)
 	format(query, sizeof(query), "SELECT * FROM `inventories` WHERE `PlayerName` = '%s' AND `ItemID` = '%d' LIMIT 1", name, id);
 	new Cache:q_result = mysql_query(sql_handle, query);
 
-	new count;
-	cache_get_row_count(count);
-	if(count <= 0)
+	new r_count;
+	cache_get_row_count(r_count);
+	if(r_count <= 0)
 		return false;
 	
 	if(IsEquip(id))
@@ -1642,6 +1861,7 @@ stock ItemExist(playerid, id, count = 1)
 	
 	new _count;
 	cache_get_value_name_int(0, "Count", _count);
+	cache_delete(q_result);
 	return _count >= count;
 }
 
@@ -1866,6 +2086,17 @@ stock ShowEquipInfo(playerid, itemid, mod[])
 			damage = GetWeaponModifiedDamage(damage, GetModifierLevel(mod, MOD_DAMAGE));
 		format(string, sizeof(string), "Урон: %d-%d", damage[0], damage[1]);
 	}
+	else if(item[Type] == ITEMTYPE_ARMOR)
+	{
+		new bool:mod_exists = false;
+		mod_exists = ModifierExists(mod, MOD_DEFENSE);
+		PlayerTextDrawColor(playerid, EqInfMainStat[playerid], mod_exists ? 16711935 : -1);
+		new defense;
+		defense = GetArmorBaseDefense(itemid);
+		if(mod_exists)
+			defense = GetArmorModifiedDefense(defense, GetModifierLevel(mod, MOD_DEFENSE));
+		format(string, sizeof(string), "Защита: %d", defense);
+	}
 	PlayerTextDrawSetStringRus(playerid, EqInfMainStat[playerid], string);
 	PlayerTextDrawShow(playerid, EqInfMainStat[playerid]);
 
@@ -1883,7 +2114,7 @@ stock ShowEquipInfo(playerid, itemid, mod[])
 	}
 }	
 
-stock ShowCharInfo(playerid)
+stock UpdatePlayerStatsVisual(playerid)
 {
 	new string[255];
 
@@ -1897,6 +2128,12 @@ stock ShowCharInfo(playerid)
 	PlayerTextDrawSetStringRus(playerid, ChrInfAccuracy[playerid], string);
 	format(string, sizeof(string), "%s: %d", "Уклонение", PlayerInfo[playerid][Dodge]);
 	PlayerTextDrawSetStringRus(playerid, ChrInfDodge[playerid], string);
+}
+
+stock ShowCharInfo(playerid)
+{
+	new string[255];
+
 	format(string, sizeof(string), "%d", PlayerInfo[playerid][Rate]);
 	PlayerTextDrawSetStringRus(playerid, ChrInfRate[playerid], string);
 	PlayerTextDrawColor(playerid, ChrInfRate[playerid], HexRateColors[PlayerInfo[playerid][Rank]-1][0]);
@@ -1906,6 +2143,8 @@ stock ShowCharInfo(playerid)
 	format(string, sizeof(string), "%d", PlayerInfo[playerid][LocalTopPosition]);
 	PlayerTextDrawSetStringRus(playerid, ChrInfPersonalRate[playerid], string);
 	PlayerTextDrawColor(playerid, ChrInfPersonalRate[playerid], GetHexPlaceColor(PlayerInfo[playerid][LocalTopPosition]));
+
+	UpdatePlayerStatsVisual(playerid);
 
 	PlayerTextDrawShow(playerid, ChrInfoBox[playerid]);
 	PlayerTextDrawShow(playerid, ChrInfoHeader[playerid]);
@@ -1982,7 +2221,6 @@ stock GetWeaponBaseDamage(weaponid)
 	new damage[2];
 	switch(weaponid)
 	{
-		case 0: { damage[0] = 13; damage[1] = 15; }
 		case 1: { damage[0] = 17; damage[1] = 20; }
 		case 2..8: { damage[0] = 23; damage[1] = 27; }
 		case 9: { damage[0] = 29; damage[1] = 40; }
@@ -2003,7 +2241,7 @@ stock GetWeaponBaseDamage(weaponid)
 		case 66..72: { damage[0] = 197; damage[1] = 421; }
 		case 73: { damage[0] = 219; damage[1] = 434; }
 		case 74..80: { damage[0] = 296; damage[1] = 586; }
-		default: { damage[0] = 0; damage[1] = 0; }
+		default: { damage[0] = 13; damage[1] = 15; }
 	}
 	return damage;
 }
@@ -2019,7 +2257,37 @@ stock GetWeaponModifiedDamage(base_damage[], level)
 
 stock GetArmorBaseDefense(armorid)
 {
-	new defense = 0;
+	new defense;
+	switch(armorid)
+	{
+		case 82: defense = 9;
+		case 83..89: defense = 12;
+		case 90: defense = 16;
+		case 91..97: defense = 22;
+		case 98: defense = 31;
+		case 99..105: defense = 42;
+		case 106: defense = 56;
+		case 107..113: defense = 76;
+		case 114: defense = 99;
+		case 115..121: defense = 134;
+		case 122: defense = 168;
+		case 123..129: defense = 227;
+		case 130: defense = 302;
+		case 131..137: defense = 408;
+		case 138: defense = 517;
+		case 139..145: defense = 698;
+		case 146: defense = 841;
+		case 147..153: defense = 1135;
+		default: defense = 5;
+	}
+	return defense;
+}
+
+stock GetArmorModifiedDefense(base_defense, level)
+{
+	new defense;
+	new multiplicator = GetModifierStatByLevel(MOD_DEFENSE, level);
+	defense = base_defense + (base_defense * multiplicator) / 100;
 	return defense;
 }
 
@@ -2536,7 +2804,7 @@ stock LoadPlayer(playerid)
  	return 1;
 }
 
-stock CreatePlayer(playerid, name[], owner[])
+stock CreatePlayer(playerid, name[], owner[], sex)
 {
 	new query[2048] = "INSERT INTO `players`( \
 		`ID`, `Name`, `Owner`, `Sex`, `Rate`, `MaxRank`, `Rank`, `Cash`, `PosX`, `PosY`, `PosZ`, \
@@ -2560,7 +2828,7 @@ stock CreatePlayer(playerid, name[], owner[])
 	id++;
 
 	format(tmp, sizeof(tmp), "'%d','%s','%s','%d','%d','%d','%d','%d','%f','%f','%f','%f','%d','%d','%d','%d','%d','%d','%d','%d','%d','%d','%d','%d','%d','%s','%d','%s','%d','%d')",
-		id, name, owner, 0, 0, 1, 1, 0, DEFAULT_POS_X, DEFAULT_POS_Y, DEFAULT_POS_Z, 180, 1, 78, 0, 0, 13, 15, 5, 0, 5, 5, 20, 10, 0, "0 0 0 0 0 0 0", 81, "0 0 0 0 0 0 0", -1, -1
+		id, name, owner, sex, 0, 1, 1, 0, DEFAULT_POS_X, DEFAULT_POS_Y, DEFAULT_POS_Z, 180, 1, 78, 0, 0, 13, 15, 5, 0, 5, 5, 20, 10, 0, "0 0 0 0 0 0 0", 81, "0 0 0 0 0 0 0", -1, -1
 	);
 	strcat(query, tmp);
 
