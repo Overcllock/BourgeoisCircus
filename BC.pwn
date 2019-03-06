@@ -61,6 +61,7 @@
 
 //Limits
 #define MAX_PARTICIPANTS 20
+#define MAX_OWNERS 2
 #define MAX_SLOTS 25
 #define MAX_SLOTS_X 5
 #define MAX_SLOTS_Y 5
@@ -69,6 +70,7 @@
 #define MAX_PROPERTIES 2
 #define MAX_DESCRIPTION_SIZE 45
 #define MAX_GRADES 3
+#define MAX_BOSSES 5
 
 //Phases
 #define PHASE_PEACE 0
@@ -110,9 +112,14 @@
 #define MOD_DODGE 3
 #define MOD_ACCURACY 4
 
+//Teams
+#define BOSS_TEAM 1
+
 /* Forwards */
 forward Time();
 forward OnPlayerLogin(playerid);
+forward OnTourEnd();
+forward OnTournamentEnd();
 forward UpdatePlayer(playerid);
 forward Float:GetDistanceBetweenPlayers(p1, p2);
 forward Float:GetPlayerMaxHP(playerid);
@@ -122,11 +129,19 @@ forward GivePlayerHP(playerid, Float:hp);
 forward SetPlayerMaxHP(playerid, Float:hp);
 forward GivePlayerRate(playerid, rate);
 forward UpdatePlayerMaxHP(playerid);
+forward CancelBossAttack();
+forward FinishBossAttack();
+forward BossBehaviour();
+forward TeleportBossAttackersToHome();
+forward TeleportToHome(playerid);
 
 /* Variables */
 
 //Global
 new WorldTime_Timer = -1;
+new PrepareBossAttackTimer = -1;
+new BossAttackTimer = -1;
+new BossBehaviourTimer = -1;
 new Actors[MAX_ACTORS];
 new MySQL:sql_handle;
 enum TopItem
@@ -146,6 +161,25 @@ new Tournament[tInfo];
 new TourParticipantsCount = 0;
 new PrevTourParticipantsCount = 0;
 new TournamentTab[MAX_PARTICIPANTS][TopItem];
+
+enum BossInfo
+{
+	ID,
+	Grade,
+	Name[255],
+	RespawnTime,
+	DamageMin,
+	DamageMax, 
+	Defense,
+	Accuracy,
+	Dodge,
+	HP
+};
+new AttackedBoss = -1;
+new bool:IsBossAttacker[MAX_PLAYERS] = false;
+new BossAttackersCount = 0;
+new BossNPC = -1;
+new bool:IsBoss[MAX_PLAYERS] = false;
 
 enum TWindow
 {
@@ -238,6 +272,27 @@ new EmptyInvItem[iInfo] = {
 	0
 };
 new MOD_CLEAR[MAX_MOD] = {0,0,0,0,0,0,0};
+new BossesNames[MAX_BOSSES][128] = {
+	{"BOSS_Edemsky"},
+	{"BOSS_FactoryWorker"},
+	{"BOSS_Maximus"},
+	{"BOSS_ShazokVsemog"},
+	{"BOSS_Bourgeois"}
+};
+new BossesSkins[MAX_BOSSES][1] = {
+	{78},
+	{8},
+	{119},
+	{149},
+	{5}
+};
+new BossesWeapons[MAX_BOSSES][1] = {
+	{22},
+	{32},
+	{30},
+	{25},
+	{26}
+};
 
 new GlobalRatingTop[MAX_PARTICIPANTS][TopItem];
 new LocalRatingTop[MAX_PLAYERS][MAX_PARTICIPANTS / 2][TopItem];
@@ -532,9 +587,6 @@ public OnPlayerLogin(playerid)
 	PlayerConnect[playerid] = true;
 	IsInventoryOpen[playerid] = false;
 	SelectedSlot[playerid] = -1;
-	PlayerHPMultiplicator[playerid] = PlayerInfo[playerid][Rank] * 10;
-	if(PlayerHPMultiplicator[playerid] <= 10)
-		PlayerHPMultiplicator[playerid] = 10;
 	UpdatePlayerMaxHP(playerid);
 	SetPlayerSkills(playerid);
 	SpawnPlayer(playerid);
@@ -544,6 +596,25 @@ public OnPlayerLogin(playerid)
 	UpdateLocalRatingTop(playerid);
 	UpdatePlayerSkin(playerid);
 	HideAllWindows(playerid);
+}
+
+public OnTourEnd()
+{
+
+}
+
+public OnTournamentEnd()
+{
+
+}
+
+public OnPlayerGiveDamage(playerid, damagedid, Float:amount, weaponid, bodypart)
+{
+	//tmp
+	//TODO:
+	//new Float:hp;
+	//GetPlayerHealth(damagedid, hp);
+	//SetPlayerHealth(damagedid, floatadd(hp, amount));
 }
 
 public OnPlayerDisconnect(playerid, reason)
@@ -589,6 +660,12 @@ public OnPlayerSpawn(playerid)
 
 public OnPlayerDeath(playerid, killerid, reason)
 {
+	if(IsBoss[playerid])
+	{
+		RollBossLoot();
+		KillTimer(BossAttackTimer);
+		FinishBossAttack();
+	}
     IsDeath[playerid] = true;
 	return 1;
 }
@@ -671,6 +748,18 @@ public OnPlayerKeyStateChange(playerid, newkeys, oldkeys)
 			new listitems[2048];
 			listitems = GetMaterialsSellerItemsList();
 			ShowPlayerDialog(playerid, 700, DIALOG_STYLE_TABLIST_HEADERS, "Торговец расходниками", listitems, "Купить", "Закрыть");
+		}
+		//боссы
+		else if(IsPlayerInRangeOfPoint(playerid,1.8,243.1539,-1831.6542,3.9772))
+		{
+			if(Tournament[Phase] == PHASE_WAR)
+			{
+				ShowPlayerDialog(playerid, 1, DIALOG_STYLE_MSGBOX, "Боссы", "Сражения с боссами недоступны во время фазы войны.", "Закрыть", "");
+				return 1;
+			}
+			new listitems[1024];
+			listitems = GetBossesList();
+			ShowPlayerDialog(playerid, 800, DIALOG_STYLE_TABLIST_HEADERS, "Боссы", listitems, "Атака", "Закрыть");
 		}
 	}
 	else if(newkeys & 131072)
@@ -1265,6 +1354,51 @@ public OnDialogResponse(playerid, dialogid, response, listitem, inputtext[])
 			}
 			return 1;
 		}
+		//боссы
+		case 800:
+		{
+			if(response)
+			{
+				if(AttackedBoss != -1)
+				{
+					ShowPlayerDialog(playerid, 1, DIALOG_STYLE_MSGBOX, "Боссы", "На одного из боссов уже идет атака.", "Закрыть", "");
+					return 0;
+				}
+
+				new bossid = listitem;
+				new boss[BossInfo];
+				boss = GetBoss(bossid);
+
+				if(boss[RespawnTime] > 0)
+				{
+					ShowPlayerDialog(playerid, 1, DIALOG_STYLE_MSGBOX, "Боссы", "Этот босс еще не появился.", "Закрыть", "");
+					return 0;
+				}
+
+				if(IsBossAttacker[playerid])
+					return 0;
+				BossAttackersCount++;
+				IsBossAttacker[playerid] = true;
+				AttackedBoss = bossid;
+
+				new msg[255];
+				if(BossAttackersCount >= MAX_OWNERS)
+				{
+					format(msg, sizeof(msg), "Появляется %s!", boss[Name]);
+					SendClientMessageToAll(0x990099FF, msg);
+					KillTimer(PrepareBossAttackTimer);
+					StartBossAttack();
+					return 1;
+				}
+
+				PrepareBossAttackTimer = SetTimer("CancelBossAttack", 120000, false);
+				new name[255];
+				GetPlayerName(playerid, name, sizeof(name));
+				format(msg, sizeof(msg), "%s начал атаку на %s!", name, boss[Name]);
+				SendClientMessageToAll(0x990099FF, msg);
+			}
+			return 1;
+		}
 
 		//Основное меню
 		case 1000:
@@ -1308,6 +1442,10 @@ public OnPlayerClickPlayerTextDraw(playerid, PlayerText:playertextid)
 	{
 		HideCharInfo(playerid);
 		CancelSelectTextDraw(playerid);
+	}
+	else if(playertextid == UpgClose[playerid])
+	{
+		HideModWindow(playerid);
 	}
 	else if(playertextid == ChrInfWeaponSlot[playerid])
 	{
@@ -1395,7 +1533,7 @@ public OnPlayerClickPlayerTextDraw(playerid, PlayerText:playertextid)
 			return 0;
 
 		new itemid = PlayerInventory[playerid][SelectedSlot[playerid]][ID];
-		if(IsEquip(itemid))
+		if(IsModifiableEquip(itemid))
 			ShowEquipInfo(playerid, itemid, PlayerInventory[playerid][SelectedSlot[playerid]][Mod]);
 		else
 			ShowItemInfo(playerid, itemid);
@@ -1421,6 +1559,19 @@ public OnPlayerClickPlayerTextDraw(playerid, PlayerText:playertextid)
 			ShowPlayerDialog(playerid, 400, DIALOG_STYLE_MSGBOX, "Инвентарь", desc, "Далее", "Закрыть");
 		}
 		return 1;
+	}
+	else if(playertextid == ChrInfButMod[playerid])
+	{
+		if(SelectedSlot[playerid] != -1)
+		{
+			new itemid = PlayerInventory[playerid][SelectedSlot[playerid]][ID];
+			if(IsModifiableEquip(itemid))
+			{
+				ShowModWindow(playerid, itemid);
+				return 1;
+			}
+		}
+		ShowModWindow(playerid);
 	}
 	else if(playertextid == InfClose[playerid])
 	{
@@ -1468,6 +1619,52 @@ public Time()
 	TextDrawSetString(WorldTime, string);
 }
 
+public TeleportToHome(playerid)
+{
+	SetPlayerPos(playerid, 224.0761,-1839.8217,3.6037);
+	SetPlayerInterior(playerid, 0);
+}
+
+public CancelBossAttack()
+{
+	KillTimer(PrepareBossAttackTimer);
+	AttackedBoss = -1;
+	for(new i = 0; i < MAX_PLAYERS; i++)
+		IsBossAttacker[i] = false;
+	BossAttackersCount = 0;
+	SendClientMessageToAll(0x990099FF, "Атака на босса отменена.");
+}
+
+public FinishBossAttack()
+{
+	KillTimer(PrepareBossAttackTimer);
+	KillTimer(BossAttackTimer);
+	KillTimer(BossBehaviourTimer);
+
+	if(FCNPC_IsDead(BossNPC))
+	{
+		SendClientMessageToAll(COLOR_GREEN, "Победа! Через 15 секунд все участники будут телепортированы.");
+		SetTimer("TeleportBossAttackersToHome", 15000, false);
+	}
+	else
+	{
+		SendClientMessageToAll(COLOR_RED, "Поражение. Все участники телепортированы.");
+		TeleportBossAttackersToHome();
+	}
+}
+
+public TeleportBossAttackersToHome()
+{
+	for(new i = 0; i < MAX_PLAYERS; i++)
+		if(IsBossAttacker[i]) TeleportToHome(i);
+	DestroyBoss();
+}
+
+public BossBehaviour()
+{
+
+}
+
 public UpdatePlayerMaxHP(playerid)
 {
 	new Float:max_hp = 1000.0;
@@ -1475,6 +1672,7 @@ public UpdatePlayerMaxHP(playerid)
 	if(max_hp < 1000)
 	    max_hp = 1000.0;
 	MaxHP[playerid] = max_hp;
+	PlayerHPMultiplicator[playerid] = floatround(floatdiv(max_hp, 100));
 }
 
 public SetPlayerMaxHP(playerid, Float:hp)
@@ -1482,6 +1680,7 @@ public SetPlayerMaxHP(playerid, Float:hp)
 	new Float:diff;
 	diff = floatsub(hp, MaxHP[playerid]);
 	MaxHP[playerid] = hp;
+	PlayerHPMultiplicator[playerid] = floatround(floatdiv(hp, 100));
 	GivePlayerHP(playerid, diff);
 	UpdateHPBar(playerid);
 }
@@ -1590,6 +1789,79 @@ stock SetPlayerSkills(playerid)
 {
 	for(new i = 0; i < 10; i++)
 		SetPlayerSkillLevel(playerid, i, 1000);
+}
+
+stock DestroyBoss()
+{
+	FCNPC_Destroy(BossNPC);
+	BossNPC = -1;
+	SetBossCooldown(AttackedBoss);
+
+	AttackedBoss = -1;
+	for(new i = 0; i < MAX_PLAYERS; i++)
+		IsBossAttacker[i] = false;
+	BossAttackersCount = 0;
+}
+
+stock GetBossesList()
+{
+	new listitems[1024] = "Босс\tСостояние";
+	new query[255] = "SELECT * FROM `bosses` ORDER BY `ID`";
+	new Cache:q_result = mysql_query(sql_handle, query);
+
+	new row_count = 0;
+	cache_get_row_count(row_count);
+	
+	if(row_count <= 0)
+	{
+		cache_delete(q_result);
+		return listitems;
+	}
+
+	q_result = cache_save();
+	cache_unset_active();
+
+	new bossinfo[255];
+	for(new i = 0; i < row_count; i++)
+	{
+		new bossid = -1;
+		new resp_time = -1;
+		cache_set_active(q_result);
+		cache_get_value_name_int(i, "ID", bossid);
+		cache_get_value_name_int(i, "RespawnTime", resp_time);
+		cache_unset_active();
+
+		if(bossid == -1 || resp_time == -1) continue;
+		new boss[BossInfo];
+		boss = GetBoss(bossid);
+		if(bossid == AttackedBoss)
+			format(bossinfo, sizeof(bossinfo), "\n{%s}%s\t{FFCC00}Идет сбор", GetGradeColor(boss[Grade]), boss[Name]);
+		else if(resp_time == 0)
+			format(bossinfo, sizeof(bossinfo), "\n{%s}%s\t{66CC00}Можно атаковать", GetGradeColor(boss[Grade]), boss[Name]);
+		else
+			format(bossinfo, sizeof(bossinfo), "\n{%s}%s\t{CC3333}Ждать турниров: %d", GetGradeColor(boss[Grade]), boss[Name], resp_time);
+		strcat(listitems, bossinfo);
+	}
+
+	cache_delete(q_result);
+	return listitems;
+}
+
+stock SetBossCooldown(bossid)
+{
+	new resp_time;
+	switch(bossid)
+	{
+		case 2: resp_time = 2;
+		case 3: resp_time = 3;
+		case 4: resp_time = 4;
+		default: resp_time = 1;
+	}
+
+	new query[255];
+	format(query, sizeof(query), "UPDATE `bosses` SET `RespawnTime` = '%d' WHERE `ID` = '%d' LIMIT 1", resp_time, bossid);
+	new Cache:q_result = mysql_query(sql_handle, query);
+	cache_delete(q_result);
 }
 
 stock GetMaterialsSellerItemsList()
@@ -1707,6 +1979,11 @@ stock GetArmorSellerItemsList()
 	return listitems;
 }
 
+stock RollBossLoot()
+{
+
+}
+
 stock UpdateHPBar(playerid)
 {
 	new Float:hp;
@@ -1747,6 +2024,12 @@ stock UpdatePlayerRank(playerid)
 
 stock UpdatePlayerSkin(playerid)
 {
+	if(IsBoss[playerid])
+	{
+		SetPlayerSkin(playerid, PlayerInfo[playerid][Skin]);
+		return;
+	}
+
 	switch(PlayerInfo[playerid][ArmorSlotID])
 	{
 		case 81: PlayerInfo[playerid][Skin] = PlayerInfo[playerid][Sex] == 0 ? 78 : 131;
@@ -1766,6 +2049,13 @@ stock UpdatePlayerSkin(playerid)
 
 stock UpdatePlayerWeapon(playerid)
 {
+	if(IsBoss[playerid])
+	{
+		ResetPlayerWeapons(playerid);
+		GivePlayerWeapon(playerid, PlayerInfo[playerid][WeaponSlotID], 999999);
+		return;
+	}
+
 	new weaponid;
 	switch(PlayerInfo[playerid][WeaponSlotID])
 	{
@@ -2299,6 +2589,39 @@ stock HasItemOffline(playerid, id, count = 1)
 	return _count >= count;
 }
 
+stock GetBoss(id)
+{
+	new string[255];
+	new query[255];
+	new boss[BossInfo];
+	format(query, sizeof(query), "SELECT * FROM `bosses` WHERE `ID` = '%d' LIMIT 1", id);
+	new Cache:q_result = mysql_query(sql_handle, query);
+
+	new count;
+	cache_get_row_count(count);
+	if(count <= 0)
+	{
+		format(string, sizeof(string), "Cannot get boss [ID = %d].", id);
+		print(string);
+		return boss;
+	}
+
+	boss[ID] = id;
+	cache_get_value_name(0, "Name", string);
+	sscanf(string, "s[255]", boss[Name]);
+	cache_get_value_name_int(0, "Grade", boss[Grade]);
+	cache_get_value_name_int(0, "RespawnTime", boss[RespawnTime]);
+	cache_get_value_name_int(0, "DamageMin", boss[DamageMin]);
+	cache_get_value_name_int(0, "DamageMax", boss[DamageMax]);
+	cache_get_value_name_int(0, "Defense", boss[Defense]);
+	cache_get_value_name_int(0, "Accuracy", boss[Accuracy]);
+	cache_get_value_name_int(0, "Dodge", boss[Dodge]);
+	cache_get_value_name_int(0, "HP", boss[HP]);
+
+	cache_delete(q_result);
+	return boss;
+}
+
 stock GetItem(id)
 {
 	new string[255];
@@ -2338,6 +2661,16 @@ stock GetItem(id)
 	return item;
 }
 
+stock IsModifiableEquip(item_id)
+{
+	if(item_id == -1)
+		return false;
+	
+	new item[BaseItem];
+	item = GetItem(item_id);
+	return item[Type] == ITEMTYPE_WEAPON || item[Type] == ITEMTYPE_ARMOR;
+}
+
 stock IsEquip(item_id)
 {
 	if(item_id == -1)
@@ -2358,6 +2691,62 @@ stock bool:ModifierExists(mod[], modifier)
 	for(new i = 0; i < MAX_MOD; i++)
 		if(mod[i] == modifier) return true;
 	return false;
+}
+
+stock InitBoss(bossid)
+{
+	new boss[BossInfo];
+	boss = GetBoss(AttackedBoss);
+
+	IsBoss[bossid] = true;
+	PlayerInfo[bossid][DamageMin] = boss[DamageMin];
+	PlayerInfo[bossid][DamageMax] = boss[DamageMax];
+	PlayerInfo[bossid][Defense] = boss[Defense];
+	PlayerInfo[bossid][Dodge] = boss[Dodge];
+	PlayerInfo[bossid][Accuracy] = boss[Accuracy];
+	PlayerInfo[bossid][Crit] = DEFAULT_CRIT;
+	PlayerInfo[bossid][Sex] = 0;
+	PlayerInfo[bossid][Skin] = BossesSkins[AttackedBoss][0];
+	PlayerInfo[bossid][WeaponSlotID] = BossesWeapons[AttackedBoss][0];
+
+	SetPlayerMaxHP(bossid, boss[HP]);
+	SetPlayerSkills(bossid);
+	UpdatePlayerSkin(bossid);
+	UpdatePlayerWeapon(bossid);
+
+	FCNPC_Spawn(bossid, PlayerInfo[bossid][Skin], -2352.9387,-1628.2875,723.5609);
+	FCNPC_SetAngle(bossid, 90);
+	FCNPC_SetHealth(bossid, 100);
+	FCNPC_UseReloading(bossid, false);
+	FCNPC_UseInfiniteAmmo(bossid);
+}
+
+stock StartBossAttack()
+{
+	if(AttackedBoss == -1)
+		return;
+	
+	BossNPC = FCNPC_Create(BossesNames[AttackedBoss]);
+	SetPlayerColor(BossNPC, 0x990099FF);
+	ShowNPCInTabList(BossNPC); 
+	FCNPC_SetInvulnerable(BossNPC, false);
+	InitBoss(BossNPC);
+	for(new i = 0; i < MAX_PLAYERS; i++)
+	{
+		if(IsBossAttacker[i])
+		{
+			TeleportToRandomArenaPos(i);
+			SendClientMessage(i, COLOR_GREEN, "У вас есть 2 минуты, чтобы уничтожить босса.");
+		}
+	}
+	BossAttackTimer = SetTimer("FinishBossAttack", 120000, false);
+	BossBehaviourTimer = SetTimer("BossBehaviour", 200, true);
+}
+
+stock TeleportToRandomArenaPos(playerid)
+{
+	SetPlayerInterior(playerid, 0);
+	SetPlayerPos(playerid, -2315 - random(70), -1595 - random(75), 723.2609);
 }
 
 stock ConnectParticipants(playerid)
@@ -2667,11 +3056,39 @@ stock HideCharInfo(playerid)
 stock ShowModWindow(playerid, moditem = -1)
 {
 	Windows[playerid][Mod] = true;
+
+	PlayerTextDrawShow(playerid, UpgBox[playerid]);
+	PlayerTextDrawShow(playerid, UpgTxt1[playerid]);
+	PlayerTextDrawShow(playerid, UpgDelim1[playerid]);
+	PlayerTextDrawShow(playerid, UpgModInfo[playerid]);
+	PlayerTextDrawShow(playerid, UpgItemSlot[playerid]);
+	PlayerTextDrawShow(playerid, UpgTxt2[playerid]);
+	PlayerTextDrawShow(playerid, UpgStoneSlot[playerid]);
+	PlayerTextDrawShow(playerid, UpgTxt3[playerid]);
+	PlayerTextDrawShow(playerid, UpgPotionSlot[playerid]);
+	PlayerTextDrawShow(playerid, UpgTxt4[playerid]);
+	PlayerTextDrawShow(playerid, UpgBtn[playerid]);
+	PlayerTextDrawShow(playerid, UpgTxt5[playerid]);
+	PlayerTextDrawShow(playerid, UpgClose[playerid]);
 }
 
 stock HideModWindow(playerid)
 {
 	Windows[playerid][Mod] = false;
+
+	PlayerTextDrawHide(playerid, UpgBox[playerid]);
+	PlayerTextDrawHide(playerid, UpgTxt1[playerid]);
+	PlayerTextDrawHide(playerid, UpgDelim1[playerid]);
+	PlayerTextDrawHide(playerid, UpgModInfo[playerid]);
+	PlayerTextDrawHide(playerid, UpgItemSlot[playerid]);
+	PlayerTextDrawHide(playerid, UpgTxt2[playerid]);
+	PlayerTextDrawHide(playerid, UpgStoneSlot[playerid]);
+	PlayerTextDrawHide(playerid, UpgTxt3[playerid]);
+	PlayerTextDrawHide(playerid, UpgPotionSlot[playerid]);
+	PlayerTextDrawHide(playerid, UpgTxt4[playerid]);
+	PlayerTextDrawHide(playerid, UpgBtn[playerid]);
+	PlayerTextDrawHide(playerid, UpgTxt5[playerid]);
+	PlayerTextDrawHide(playerid, UpgClose[playerid]);
 }
 
 stock GetWeaponBaseDamage(weaponid)
@@ -4378,7 +4795,7 @@ stock InitPlayerTextDraws(playerid)
 	PlayerTextDrawSetOutline(playerid, UpgBox[playerid], 0);
 	PlayerTextDrawFont(playerid, UpgBox[playerid], 0);
 
-	UpgTxt1[playerid] = CreatePlayerTextDraw(playerid, 320.166687, 153.481506, "Modification");
+	UpgTxt1[playerid] = CreatePlayerTextDraw(playerid, 320.166687, 153.481506, "Модификация");
 	PlayerTextDrawLetterSize(playerid, UpgTxt1[playerid], 0.267666, 1.044148);
 	PlayerTextDrawAlignment(playerid, UpgTxt1[playerid], 2);
 	PlayerTextDrawColor(playerid, UpgTxt1[playerid], -1);
@@ -4401,7 +4818,7 @@ stock InitPlayerTextDraws(playerid)
 	PlayerTextDrawSetPreviewModel(playerid, UpgDelim1[playerid], 18656);
 	PlayerTextDrawSetPreviewRot(playerid, UpgDelim1[playerid], 0.000000, 0.000000, 0.000000, 1.000000);
 
-	UpgModInfo[playerid] = CreatePlayerTextDraw(playerid, 320.066711, 176.425201, "7th modification");
+	UpgModInfo[playerid] = CreatePlayerTextDraw(playerid, 320.066711, 176.425201, "7 modification");
 	PlayerTextDrawLetterSize(playerid, UpgModInfo[playerid], 0.245666, 0.919703);
 	PlayerTextDrawAlignment(playerid, UpgModInfo[playerid], 2);
 	PlayerTextDrawColor(playerid, UpgModInfo[playerid], -1);
@@ -4426,7 +4843,7 @@ stock InitPlayerTextDraws(playerid)
 	PlayerTextDrawSetPreviewModel(playerid, UpgItemSlot[playerid], -1);
 	PlayerTextDrawSetPreviewRot(playerid, UpgItemSlot[playerid], 0.000000, 0.000000, 90.000000, 1.000000);
 
-	UpgTxt2[playerid] = CreatePlayerTextDraw(playerid, 320.500091, 225.543746, "Item");
+	UpgTxt2[playerid] = CreatePlayerTextDraw(playerid, 320.500091, 225.543746, "Предмет");
 	PlayerTextDrawLetterSize(playerid, UpgTxt2[playerid], 0.189999, 0.766222);
 	PlayerTextDrawAlignment(playerid, UpgTxt2[playerid], 2);
 	PlayerTextDrawColor(playerid, UpgTxt2[playerid], -1);
@@ -4451,7 +4868,7 @@ stock InitPlayerTextDraws(playerid)
 	PlayerTextDrawSetPreviewModel(playerid, UpgStoneSlot[playerid], -1);
 	PlayerTextDrawSetPreviewRot(playerid, UpgStoneSlot[playerid], 0.000000, 0.000000, 90.000000, 1.000000);
 
-	UpgTxt3[playerid] = CreatePlayerTextDraw(playerid, 282.066864, 224.967407, "Stone");
+	UpgTxt3[playerid] = CreatePlayerTextDraw(playerid, 282.066864, 224.967407, "Камень");
 	PlayerTextDrawLetterSize(playerid, UpgTxt3[playerid], 0.189999, 0.766222);
 	PlayerTextDrawAlignment(playerid, UpgTxt3[playerid], 2);
 	PlayerTextDrawColor(playerid, UpgTxt3[playerid], -1);
@@ -4476,7 +4893,7 @@ stock InitPlayerTextDraws(playerid)
 	PlayerTextDrawSetPreviewModel(playerid, UpgPotionSlot[playerid], -1);
 	PlayerTextDrawSetPreviewRot(playerid, UpgPotionSlot[playerid], 0.000000, 0.000000, 90.000000, 1.000000);
 
-	UpgTxt4[playerid] = CreatePlayerTextDraw(playerid, 358.533477, 225.677017, "Potion");
+	UpgTxt4[playerid] = CreatePlayerTextDraw(playerid, 358.533477, 225.677017, "Эликсир");
 	PlayerTextDrawLetterSize(playerid, UpgTxt4[playerid], 0.189999, 0.766222);
 	PlayerTextDrawAlignment(playerid, UpgTxt4[playerid], 2);
 	PlayerTextDrawColor(playerid, UpgTxt4[playerid], -1);
@@ -4499,7 +4916,7 @@ stock InitPlayerTextDraws(playerid)
 	PlayerTextDrawFont(playerid, UpgBtn[playerid], 0);
 	PlayerTextDrawSetSelectable(playerid, UpgBtn[playerid], true);
 
-	UpgTxt5[playerid] = CreatePlayerTextDraw(playerid, 320.200012, 235.905120, "Upgrade");
+	UpgTxt5[playerid] = CreatePlayerTextDraw(playerid, 320.200012, 235.905120, "Улучшить");
 	PlayerTextDrawLetterSize(playerid, UpgTxt5[playerid], 0.275333, 1.060740);
 	PlayerTextDrawAlignment(playerid, UpgTxt5[playerid], 2);
 	PlayerTextDrawColor(playerid, UpgTxt5[playerid], 255);
