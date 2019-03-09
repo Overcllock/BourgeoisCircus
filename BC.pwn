@@ -18,6 +18,7 @@
 #include <Pawn.CMD>
 #include <YSF>
 #include <vnpc>
+#include <timerfix>
 
 #pragma dynamic 31294
 
@@ -61,7 +62,7 @@
 
 //Limits
 #define MAX_PARTICIPANTS 20
-#define MAX_OWNERS 2
+#define MAX_OWNERS 1
 #define MAX_SLOTS 25
 #define MAX_SLOTS_X 5
 #define MAX_SLOTS_Y 5
@@ -71,6 +72,7 @@
 #define MAX_DESCRIPTION_SIZE 45
 #define MAX_GRADES 3
 #define MAX_BOSSES 5
+#define MAX_ITEM_ID 204
 
 //Phases
 #define PHASE_PEACE 0
@@ -120,18 +122,22 @@
 //Teams
 #define BOSS_TEAM 1
 
+//Other
+#define DEFENSE_DIVIDER 7000
+#define NPC_SHOOT_DELAY 200
+
 /* Forwards */
 forward Time();
 forward OnPlayerLogin(playerid);
 forward OnTourEnd();
 forward OnTournamentEnd();
-forward UpdatePlayer(playerid);
 forward Float:GetDistanceBetweenPlayers(p1, p2);
 forward Float:GetPlayerMaxHP(playerid);
 forward Float:GetPlayerHP(playerid);
 forward SetPlayerHP(playerid, Float:hp);
 forward GivePlayerHP(playerid, Float:hp);
-forward SetPlayerMaxHP(playerid, Float:hp);
+forward SetPlayerMaxHP(playerid, Float:hp, bool:give_hp);
+forward SetPlayerRate(playerid, rate);
 forward GivePlayerRate(playerid, rate);
 forward UpdatePlayerMaxHP(playerid);
 forward CancelBossAttack();
@@ -139,6 +145,7 @@ forward FinishBossAttack();
 forward BossBehaviour();
 forward TeleportBossAttackersToHome();
 forward TeleportToHome(playerid);
+forward bool:CheckChance(chance);
 
 /* Variables */
 
@@ -147,6 +154,7 @@ new WorldTime_Timer = -1;
 new PrepareBossAttackTimer = -1;
 new BossAttackTimer = -1;
 new BossBehaviourTimer = -1;
+new TeleportTimer = -1;
 new Actors[MAX_ACTORS];
 new MySQL:sql_handle;
 enum TopItem
@@ -263,12 +271,12 @@ enum pInfo
 new PlayerInventory[MAX_PLAYERS][MAX_SLOTS][iInfo];
 new PlayerInfo[MAX_PLAYERS][pInfo];
 new PlayerHPMultiplicator[MAX_PLAYERS];
-new PlayerUpdater[MAX_PLAYERS];
 new PlayerConnect[MAX_PLAYERS];
 new Float:MaxHP[MAX_PLAYERS];
 new bool:IsInventoryOpen[MAX_PLAYERS] = false;
 new bool:IsDeath[MAX_PLAYERS] = false;
 new bool:IsParticipant[MAX_PLAYERS] = false;
+new bool:IsEasyMod[MAX_PLAYERS] = false;
 new SelectedSlot[MAX_PLAYERS] = -1;
 
 new AccountLogin[MAX_PLAYERS][128];
@@ -427,17 +435,94 @@ main()
 /* Commands */
 cmd:testnpc(playerid, params[])
 {
-	if(PlayerInfo[playerid][Admin] == 0)
-		return 0;
-	
 	new npcid = FCNPC_Create("Tester");
-	ShowNPCInTabList(npcid); 
+	PlayerInfo[npcid][DamageMin] = 100;
+	PlayerInfo[npcid][DamageMax] = 150;
+	PlayerInfo[npcid][Crit] = 10;
+	PlayerInfo[npcid][Accuracy] = 50;
+	PlayerInfo[npcid][Defense] = 1000;
+
 	new Float:x, Float:y, Float:z;
 	GetPlayerPos(playerid, x, y, z);
-	FCNPC_Spawn(npcid, DEFAULT_SKIN_MALE, x + 2, y + 2, z);
-	return 1;
+	FCNPC_Spawn(npcid, 79, x + 2, y + 2, z);
+	FCNPC_SetInterior(npcid, 0);
+	FCNPC_SetWeapon(npcid, 29);
+	FCNPC_SetAmmo(npcid, 10000);
+	FCNPC_AimAtPlayer(npcid, playerid, true);
+}
+//GM commands
+cmd:setrate(playerid, params[])
+{
+	new rate;
+	if(sscanf(params, "i", rate))
+		return SendClientMessage(playerid, COLOR_GREY, "USAGE: /setrate [rate]");
+	if(rate < 0 || rate > 3000)
+		return SendClientMessage(playerid, COLOR_GREY, "Value should be between 0 and 3000.");
+	SetPlayerRate(playerid, rate);
+	return SendClientMessage(playerid, COLOR_GREEN, "Rate changed succesfully.");
 }
 
+cmd:givemoney(playerid, params[])
+{
+	new money;
+	if(sscanf(params, "i", money))
+		return SendClientMessage(playerid, COLOR_GREY, "USAGE: /givemoney [value]");
+	PlayerInfo[playerid][Cash] += money;
+	GivePlayerMoney(playerid, money);
+	return SendClientMessage(playerid, COLOR_GREEN, "Done.");
+}
+
+cmd:giveitem(playerid, params[])
+{
+	new itemid;
+	new count;
+	if(sscanf(params, "ii", itemid, count))
+		return SendClientMessage(playerid, COLOR_GREY, "USAGE: /giveitem [id][count]");
+	if(itemid <= 0 || itemid == 81 || itemid > MAX_ITEM_ID)
+		return SendClientMessage(playerid, COLOR_GREY, "Invalid item id.");
+	if(count <= 0)
+		return SendClientMessage(playerid, COLOR_GREY, "Invalid count.");
+	if(IsInventoryFull(playerid))
+		return SendClientMessage(playerid, COLOR_GREY, "Inventory is full.");
+	
+	new ok = false;
+	if(IsEquip(itemid))
+		ok = AddEquip(playerid, itemid, MOD_CLEAR);
+	else
+		ok = AddItem(playerid, itemid, count);
+
+	if(ok)
+		return SendClientMessage(playerid, COLOR_GREEN, "Done.");
+	return SendClientMessage(playerid, COLOR_GREY, "AddItem() function error. Contact with developer.");
+}
+
+cmd:home(playerid, params[])
+{
+	TeleportToHome(playerid);
+	return SendClientMessage(playerid, COLOR_GREEN, "Done.");
+}
+
+cmd:easymod(playerid, params[])
+{
+	IsEasyMod[playerid] = true;
+	return SendClientMessage(playerid, COLOR_GREEN, "Done.");
+}
+
+cmd:spawnboss(playerid, params[])
+{
+	new bossid;
+	if(sscanf(params, "i", bossid))
+		return SendClientMessage(playerid, COLOR_GREY, "USAGE: /spawnboss [bossid]");
+
+	new query[255];
+	format(query, sizeof(query), "UPDATE `bosses` SET `RespawnTime` = '0' WHERE `ID` = '%d' LIMIT 1", bossid);
+	new Cache:q_result = mysql_query(sql_handle, query);
+	cache_delete(q_result);
+
+	return SendClientMessage(playerid, COLOR_GREEN, "Done.");
+}
+
+//Other commands
 cmd:createplayer(playerid, params[])
 {
 	if(PlayerInfo[playerid][Admin] == 0)
@@ -530,7 +615,7 @@ public OnGameModeInit()
 	DisableInteriorEnterExits();
 	EnableStuntBonusForAll(0);
 	LimitPlayerMarkerRadius(1000.0);
-	FCNPC_SetUpdateRate(15);
+	FCNPC_SetUpdateRate(60);
 	ShowPlayerMarkers(PLAYER_MARKERS_MODE_GLOBAL);
 	DisableNameTagLOS();
 	SetNameTagDrawDistance(9999.0);
@@ -585,7 +670,6 @@ public OnPlayerRequestClass(playerid, classid)
 public OnPlayerConnect(playerid)
 {
     ShowTextDraws(playerid);
-    PlayerUpdater[playerid] = SetTimerEx("UpdatePlayer", 1000, true, "i", playerid);
 	return 1;
 }
 
@@ -617,24 +701,61 @@ public OnTournamentEnd()
 
 }
 
+public FCNPC_OnGiveDamage(npcid, damagedid, Float:amount, weaponid, bodypart)
+{
+	OnPlayerGiveDamage(npcid, damagedid, amount, weaponid, bodypart);
+}
+
 public OnPlayerGiveDamage(playerid, damagedid, Float:amount, weaponid, bodypart)
 {
-	//tmp
-	//TODO:
-	//new Float:hp;
-	//GetPlayerHealth(damagedid, hp);
-	//SetPlayerHealth(damagedid, floatadd(hp, amount));
+	new Float:hp;
+	if(FCNPC_IsValid(damagedid))
+	{
+		hp = FCNPC_GetHealth(damagedid);
+		FCNPC_SetHealth(damagedid, floatadd(hp, amount));
+	}
+	else
+	{
+		GetPlayerHealth(damagedid, hp);
+		SetPlayerHealth(damagedid, floatadd(hp, amount));
+	}
+
+	new dodge = (PlayerInfo[damagedid][Dodge] - PlayerInfo[playerid][Accuracy]) / 2;
+	if(dodge < 0) dodge = 0;
+	new bool:dodged = CheckChance(dodge);
+	if(dodged)
+	{
+		SetPlayerChatBubble(damagedid, "Уклонение", 0x66CCCCFF, 80.0, 1200);
+		return 1;
+	}
+
+	new bool:is_crit = CheckChance(PlayerInfo[playerid][Crit]);
+	new damage;
+	if(is_crit)
+		damage = PlayerInfo[playerid][DamageMax];
+	else
+		damage = PlayerInfo[playerid][DamageMin] + random(PlayerInfo[playerid][DamageMax]-PlayerInfo[playerid][DamageMin]+1);
+	
+	new Float:defense_mul = floatsub(1.0, floatdiv(PlayerInfo[damagedid][Defense], DEFENSE_DIVIDER));
+	damage = floatround(floatmul(damage, defense_mul));
+
+	GivePlayerHP(damagedid, -damage);
+	
+	new dmginf[32];
+	format(dmginf, sizeof(dmginf), "%d", damage);
+	SetPlayerChatBubble(damagedid, dmginf, is_crit ? 0xFFCC00FF : 0xFFFFFFFF, 80.0, 1200);
+	return 1;
 }
 
 public OnPlayerDisconnect(playerid, reason)
 {
-	KillTimer(PlayerUpdater[playerid]);
 	if(IsPlayerParticipant(playerid) || PlayerInfo[playerid][Admin] > 0)
 		SavePlayer(playerid);
 	DeletePlayerTextDraws(playerid);
 	IsInventoryOpen[playerid] = false;
 	SelectedSlot[playerid] = -1;
 	IsParticipant[playerid] = false;
+	IsEasyMod[playerid] = false;
 
 	for (new i = 0; i < 10; i++)
 	    if (IsPlayerAttachedObjectSlotUsed(playerid, i))
@@ -663,19 +784,27 @@ public OnPlayerSpawn(playerid)
 	SetCameraBehindPlayer(playerid);
 	SetPlayerSkin(playerid, PlayerInfo[playerid][Skin]);
 	SetPlayerColor(playerid, HexRateColors[PlayerInfo[playerid][Rank]-1][0]);
-	UpdatePlayerWeapon(playerid);
+	if(!FCNPC_IsValid(playerid))
+		UpdatePlayerWeapon(playerid);
 	return 1;
 }
 
 public OnPlayerDeath(playerid, killerid, reason)
 {
+	IsDeath[playerid] = true; 
 	if(IsBoss[playerid])
 	{
 		RollBossLoot();
-		KillTimer(BossAttackTimer);
 		FinishBossAttack();
+		return 1;
 	}
-    IsDeath[playerid] = true;
+	if(IsBossAttacker[playerid])
+	{
+		IsBossAttacker[playerid] = false;
+		BossAttackersCount--;
+		if(BossAttackersCount <= 0)
+			FinishBossAttack();
+	}
 	return 1;
 }
 
@@ -1395,7 +1524,9 @@ public OnDialogResponse(playerid, dialogid, response, listitem, inputtext[])
 				{
 					format(msg, sizeof(msg), "Появляется %s!", boss[Name]);
 					SendClientMessageToAll(0x990099FF, msg);
-					KillTimer(PrepareBossAttackTimer);
+					if(IsValidTimer(PrepareBossAttackTimer))
+						KillTimer(PrepareBossAttackTimer);
+					PrepareBossAttackTimer = -1;
 					StartBossAttack();
 					return 1;
 				}
@@ -1492,6 +1623,7 @@ public OnPlayerClickPlayerTextDraw(playerid, PlayerText:playertextid)
 
 		AddEquip(playerid, PlayerInfo[playerid][AccSlot1ID], MOD_CLEAR);
 		PlayerInfo[playerid][AccSlot1ID] = -1;
+		UpdatePlayerStats(playerid);
 
 		if(IsInventoryOpen[playerid])
 			UpdateEquipSlots(playerid);
@@ -1508,6 +1640,7 @@ public OnPlayerClickPlayerTextDraw(playerid, PlayerText:playertextid)
 
 		AddEquip(playerid, PlayerInfo[playerid][AccSlot2ID], MOD_CLEAR);
 		PlayerInfo[playerid][AccSlot2ID] = -1;
+		UpdatePlayerStats(playerid);
 
 		if(IsInventoryOpen[playerid])
 			UpdateEquipSlots(playerid);
@@ -1686,6 +1819,12 @@ public Time()
 	TextDrawSetString(WorldTime, string);
 }
 
+public bool:CheckChance(chance)
+{
+	new rnd = random(100);
+	return rnd < chance;
+}
+
 public TeleportToHome(playerid)
 {
 	SetPlayerPos(playerid, 224.0761,-1839.8217,3.6037);
@@ -1694,7 +1833,9 @@ public TeleportToHome(playerid)
 
 public CancelBossAttack()
 {
-	KillTimer(PrepareBossAttackTimer);
+	if(IsValidTimer(PrepareBossAttackTimer))
+		KillTimer(PrepareBossAttackTimer);
+	PrepareBossAttackTimer = -1;
 	AttackedBoss = -1;
 	for(new i = 0; i < MAX_PLAYERS; i++)
 		IsBossAttacker[i] = false;
@@ -1704,14 +1845,20 @@ public CancelBossAttack()
 
 public FinishBossAttack()
 {
-	KillTimer(PrepareBossAttackTimer);
-	KillTimer(BossAttackTimer);
-	KillTimer(BossBehaviourTimer);
+	if(IsValidTimer(BossBehaviourTimer))
+		KillTimer(BossBehaviourTimer);
+	if(IsValidTimer(PrepareBossAttackTimer))
+		KillTimer(PrepareBossAttackTimer);
+	if(IsValidTimer(BossAttackTimer))
+		KillTimer(BossAttackTimer);
+	BossBehaviourTimer = -1;
+	PrepareBossAttackTimer = -1;
+	BossAttackTimer = -1;
 
 	if(FCNPC_IsDead(BossNPC))
 	{
-		SendClientMessageToAll(COLOR_GREEN, "Победа! Через 15 секунд все участники будут телепортированы.");
-		SetTimer("TeleportBossAttackersToHome", 15000, false);
+		SendClientMessageToAll(COLOR_GREEN, "Победа! Через 10 секунд все участники будут телепортированы.");
+		TeleportTimer = SetTimer("TeleportBossAttackersToHome", 10000, false);
 	}
 	else
 	{
@@ -1722,14 +1869,57 @@ public FinishBossAttack()
 
 public TeleportBossAttackersToHome()
 {
+	if(IsValidTimer(TeleportTimer))
+		KillTimer(TeleportTimer);
+	TeleportTimer = -1;
 	for(new i = 0; i < MAX_PLAYERS; i++)
-		if(IsBossAttacker[i]) TeleportToHome(i);
+		if(IsBossAttacker[i] && !IsDeath[i]) TeleportToHome(i);
+	print("Destroying boss...");
 	DestroyBoss();
 }
 
 public BossBehaviour()
 {
+	new id = BossNPC;
+	if(id == -1) return;
 
+	//If NPC bumped any obstacle - move him
+	if(FCNPC_IsMoving(id) && FCNPC_GetSpeed(id) < 0.1)
+	{
+		MoveAround(id);
+		return;
+	}
+
+	//Checking available target
+	if(!FCNPC_IsDead(id) && !FCNPC_IsShooting(id) && BossAttackersCount > 1 && CheckChance(5))
+	{
+		SetBossTarget(id);
+		return;
+	}
+
+	//If current target is dead, set new
+	new target = FCNPC_GetAimingPlayer(id);
+	if(target == -1 || IsDeath[target])
+	{
+		SetBossTarget(id);
+		return;
+	}
+
+	new Float:dist = GetDistanceBetweenPlayers(id, target);
+	if(!FCNPC_IsMovingAtPlayer(id, target) && dist > 10.0)
+	{
+		FCNPC_AimAtPlayer(id, target, false);
+		FCNPC_GoToPlayer(id, target);
+	}
+
+	//If player so close to target - attack it
+	if(dist <= 10)
+	{
+		if(FCNPC_IsMoving(id))
+			FCNPC_Stop(id);
+		if(!FCNPC_IsShooting(id))
+			FCNPC_AimAtPlayer(id, target, true, NPC_SHOOT_DELAY);
+	}
 }
 
 public UpdatePlayerMaxHP(playerid)
@@ -1742,14 +1932,17 @@ public UpdatePlayerMaxHP(playerid)
 	PlayerHPMultiplicator[playerid] = floatround(floatdiv(max_hp, 100));
 }
 
-public SetPlayerMaxHP(playerid, Float:hp)
+public SetPlayerMaxHP(playerid, Float:hp, bool:give_hp)
 {
 	new Float:diff;
 	diff = floatsub(hp, MaxHP[playerid]);
 	MaxHP[playerid] = hp;
 	PlayerHPMultiplicator[playerid] = floatround(floatdiv(hp, 100));
-	GivePlayerHP(playerid, diff);
-	UpdateHPBar(playerid);
+	if(give_hp)
+	{
+		GivePlayerHP(playerid, diff);
+		UpdateHPBar(playerid);
+	}
 }
 
 public Float:GetPlayerMaxHP(playerid)
@@ -1774,9 +1967,14 @@ public SetPlayerHP(playerid, Float:hp)
 	if(hp > max_hp)
 		hp = max_hp;
 	new Float:value = floatdiv(hp, PlayerHPMultiplicator[playerid]);
-	
-	SetPlayerHealth(playerid, value);
-	UpdateHPBar(playerid);
+
+	if(FCNPC_IsValid(playerid))
+		FCNPC_SetHealth(playerid, value);
+	else
+	{
+		SetPlayerHealth(playerid, value);
+		UpdateHPBar(playerid);
+	}
 }
 
 public GivePlayerHP(playerid, Float:hp)
@@ -1788,14 +1986,22 @@ public GivePlayerHP(playerid, Float:hp)
 		new_hp = max_hp;
 	new Float:value = floatdiv(new_hp, PlayerHPMultiplicator[playerid]);
 	
-	SetPlayerHealth(playerid, value);
-	UpdateHPBar(playerid);
+	if(FCNPC_IsValid(playerid))
+		FCNPC_SetHealth(playerid, value);
+	else
+	{
+		SetPlayerHealth(playerid, value);
+		UpdateHPBar(playerid);
+	}
 }
 
 public Float:GetPlayerHP(playerid)
 {
 	new Float:hp;
-	GetPlayerHealth(playerid, hp);
+	if(FCNPC_IsValid(playerid))
+		hp = FCNPC_GetHealth(playerid);
+	else
+		GetPlayerHealth(playerid, hp);
 	hp = floatmul(hp, PlayerHPMultiplicator[playerid]);
 	hp = floatround(hp);
 	return hp;
@@ -1804,6 +2010,13 @@ public Float:GetPlayerHP(playerid)
 public GivePlayerRate(playerid, rate)
 {
 	PlayerInfo[playerid][Rate] += rate;
+	UpdatePlayerRank(playerid);
+	UpdateLocalRatingTop(playerid);
+}
+
+public SetPlayerRate(playerid, rate)
+{
+	PlayerInfo[playerid][Rate] = rate;
 	UpdatePlayerRank(playerid);
 	UpdateLocalRatingTop(playerid);
 }
@@ -1855,19 +2068,89 @@ stock HideOpenedInfoWindows(playerid)
 stock SetPlayerSkills(playerid)
 {
 	for(new i = 0; i < 10; i++)
-		SetPlayerSkillLevel(playerid, i, 1000);
+	{
+		if(FCNPC_IsValid(playerid))
+		{
+			FCNPC_SetWeaponSkillLevel(playerid, i, 1000);
+			FCNPC_SetWeaponAccuracy(playerid, i, 0.7);
+		}
+		else
+			SetPlayerSkillLevel(playerid, i, 1000);
+	}
+}
+
+stock FindBossTarget(npcid)
+{
+	new targetid = -1;
+	new Float:min_dist = 9999;
+    for (new i = 0; i < MAX_PLAYERS; i++) 
+	{
+		if(i == npcid) continue;
+		if(IsDeath[i]) continue;
+		if(!IsBossAttacker[i]) continue;
+		
+		new Float:dist;
+		dist = GetDistanceBetweenPlayers(npcid, i);
+		if(dist < min_dist)
+		{
+			min_dist = dist;
+			targetid = i;
+		}
+	}
+
+	return targetid;
+}
+
+stock SetBossTarget(playerid)
+{
+	if(!FCNPC_IsValid(playerid))
+		return; 
+	if(FCNPC_IsAiming(playerid))
+		FCNPC_StopAim(playerid);
+	new targetid = FindBossTarget(playerid);
+
+	if(targetid == -1)
+	{
+		MoveAround(playerid);
+		return;
+	}
+
+	if(!FCNPC_IsAiming(playerid))
+		FCNPC_AimAtPlayer(playerid, targetid, false);
+	if(!FCNPC_IsMoving(playerid))
+		FCNPC_GoToPlayer(playerid, targetid);
+	print("Target setted.");
+	return;
+}
+
+stock MoveAround(playerid)
+{
+	new Float:x_offset = -10 + random(20);
+	new Float:y_offset = -10 + random(20);
+	new Float:x, Float:y, Float:z;
+
+	FCNPC_GetPosition(playerid, x, y, z);
+	
+	while(x + x_offset < -2387 || x + x_offset > -2313)
+		x_offset = -10 + random(20);
+	while(y + y_offset < -1668 || y + y_offset > -1593)
+		y_offset = -10 + random(20);
+		
+	FCNPC_GoTo(playerid, x + x_offset, y + y_offset, z);
 }
 
 stock DestroyBoss()
 {
+	IsBoss[BossNPC] = false;
 	FCNPC_Destroy(BossNPC);
 	BossNPC = -1;
-	SetBossCooldown(AttackedBoss);
 
-	AttackedBoss = -1;
 	for(new i = 0; i < MAX_PLAYERS; i++)
 		IsBossAttacker[i] = false;
 	BossAttackersCount = 0;
+	SetBossCooldown(AttackedBoss);
+	AttackedBoss = -1;
+	print("Boss destroyed.");
 }
 
 stock GetBossesList()
@@ -1916,6 +2199,7 @@ stock GetBossesList()
 
 stock SetBossCooldown(bossid)
 {
+	if(bossid == -1) return;
 	new resp_time;
 	switch(bossid)
 	{
@@ -2053,6 +2337,8 @@ stock RollBossLoot()
 
 stock UpdateHPBar(playerid)
 {
+	if(FCNPC_IsValid(playerid)) return;
+
 	new Float:hp;
 	new Float:max_hp;
 	hp = GetPlayerHP(playerid);
@@ -2087,6 +2373,7 @@ stock UpdatePlayerRank(playerid)
 	PlayerInfo[playerid][Rank] = new_rank;
 	if(new_rank > PlayerInfo[playerid][MaxRank])
 		PlayerInfo[playerid][MaxRank] = new_rank;
+	UpdatePlayerStats(playerid);
 }
 
 stock UpdatePlayerSkin(playerid)
@@ -2118,8 +2405,8 @@ stock UpdatePlayerWeapon(playerid)
 {
 	if(IsBoss[playerid])
 	{
-		ResetPlayerWeapons(playerid);
-		GivePlayerWeapon(playerid, PlayerInfo[playerid][WeaponSlotID], 999999);
+		FCNPC_SetWeapon(playerid, PlayerInfo[playerid][WeaponSlotID]);
+		FCNPC_SetAmmo(playerid, 10000);
 		return;
 	}
 
@@ -2156,9 +2443,9 @@ stock UpdatePlayerStats(playerid)
 	armor_defense = GetArmorModifiedDefense(default_defense, GetModifierLevel(PlayerInfo[playerid][ArmorMod], MOD_DEFENSE));
 	PlayerInfo[playerid][Defense] = armor_defense;
 
-	PlayerInfo[playerid][Accuracy] = DEFAULT_ACCURACY + GetPlayerPropValue(playerid, PROPERTY_ACCURACY);
-	PlayerInfo[playerid][Dodge] = DEFAULT_DODGE + GetPlayerPropValue(playerid, PROPERTY_DODGE);
-	PlayerInfo[playerid][Crit] = DEFAULT_CRIT + GetPlayerPropValue(playerid, PROPERTY_CRIT);
+	PlayerInfo[playerid][Accuracy] = DEFAULT_ACCURACY + GetPlayerPropValue(playerid, PROPERTY_ACCURACY) + PlayerInfo[playerid][Rank] * 10;
+	PlayerInfo[playerid][Dodge] = DEFAULT_DODGE + GetPlayerPropValue(playerid, PROPERTY_DODGE) + PlayerInfo[playerid][Rank] * 10;
+	PlayerInfo[playerid][Crit] = DEFAULT_CRIT + GetPlayerPropValue(playerid, PROPERTY_CRIT) + PlayerInfo[playerid][Rank] * 2;
 
 	new damage_multiplier = 100;
 	new defense_multiplier = 100;
@@ -2173,7 +2460,7 @@ stock UpdatePlayerStats(playerid)
 	UpdatePlayerMaxHP(playerid);
 	new hp_multiplier = 100 + GetPlayerPropValue(playerid, PROPERTY_HP);
 	new Float:new_max_hp = floatmul(MaxHP[playerid], floatdiv(hp_multiplier, 100));
-	SetPlayerMaxHP(playerid, new_max_hp);
+	SetPlayerMaxHP(playerid, new_max_hp, true);
 
 	if(IsInventoryOpen[playerid])
 		UpdatePlayerStatsVisual(playerid);
@@ -2805,16 +3092,14 @@ stock InitBoss(bossid)
 	PlayerInfo[bossid][Skin] = BossesSkins[AttackedBoss][0];
 	PlayerInfo[bossid][WeaponSlotID] = BossesWeapons[AttackedBoss][0];
 
-	SetPlayerMaxHP(bossid, boss[HP]);
-	SetPlayerSkills(bossid);
-	UpdatePlayerSkin(bossid);
-	UpdatePlayerWeapon(bossid);
-
 	FCNPC_Spawn(bossid, PlayerInfo[bossid][Skin], -2352.9387,-1628.2875,723.5609);
 	FCNPC_SetAngle(bossid, 90);
-	FCNPC_SetHealth(bossid, 100);
-	FCNPC_UseReloading(bossid, false);
-	FCNPC_UseInfiniteAmmo(bossid);
+	SetPlayerMaxHP(bossid, boss[HP], false);
+	SetPlayerHP(bossid, boss[HP]);
+	SetPlayerSkills(bossid);
+
+	UpdatePlayerSkin(bossid);
+	UpdatePlayerWeapon(bossid);
 }
 
 stock StartBossAttack()
@@ -2826,17 +3111,20 @@ stock StartBossAttack()
 	SetPlayerColor(BossNPC, 0x990099FF);
 	ShowNPCInTabList(BossNPC); 
 	FCNPC_SetInvulnerable(BossNPC, false);
-	InitBoss(BossNPC);
 	for(new i = 0; i < MAX_PLAYERS; i++)
 	{
 		if(IsBossAttacker[i])
 		{
+			SetPlayerHP(i, MaxHP[i]);
 			TeleportToRandomArenaPos(i);
 			SendClientMessage(i, COLOR_GREEN, "У вас есть 2 минуты, чтобы уничтожить босса.");
 		}
 	}
+	InitBoss(BossNPC);
 	BossAttackTimer = SetTimer("FinishBossAttack", 120000, false);
-	BossBehaviourTimer = SetTimer("BossBehaviour", 200, true);
+	SetBossTarget(BossNPC);
+	BossBehaviourTimer = SetTimer("BossBehaviour", 100, true);
+	print("Boss spawned!");
 }
 
 stock TeleportToRandomArenaPos(playerid)
@@ -2876,6 +3164,7 @@ stock ShowItemInfo(playerid, itemid)
 	PlayerTextDrawColor(playerid, InfItemName[playerid], HexGradeColors[item[Grade]-1][0]);
 	PlayerTextDrawSetStringRus(playerid, InfItemType[playerid], GetItemTypeString(item[Type]));
 	PlayerTextDrawSetStringRus(playerid, InfItemEffect[playerid][0], GetItemEffectString(item[Property][0], item[PropertyVal][0]));
+	PlayerTextDrawSetStringRus(playerid, InfItemEffect[playerid][1], GetItemEffectString(item[Property][1], item[PropertyVal][1]));
 	format(string, sizeof(string), "Цена: %d$", item[Price]);
 	PlayerTextDrawSetStringRus(playerid, InfPrice[playerid], string);
 
@@ -2886,6 +3175,7 @@ stock ShowItemInfo(playerid, itemid)
 	PlayerTextDrawShow(playerid, InfItemName[playerid]);
 	PlayerTextDrawShow(playerid, InfItemType[playerid]);
 	PlayerTextDrawShow(playerid, InfItemEffect[playerid][0]);
+	PlayerTextDrawShow(playerid, InfItemEffect[playerid][1]);
 	PlayerTextDrawShow(playerid, InfDelim2[playerid]);
 	PlayerTextDrawShow(playerid, InfDelim3[playerid]);
 	PlayerTextDrawShow(playerid, InfPrice[playerid]);
@@ -3155,6 +3445,8 @@ stock ShowModWindow(playerid, itemslot = -1)
 	Windows[playerid][Mod] = true;
 	IsSlotsBlocked[playerid] = true;
 
+	HideOpenedInfoWindows(playerid);
+
 	PlayerTextDrawSetPreviewModel(playerid, UpgPotionSlot[playerid], -1);
 	PlayerTextDrawSetPreviewRot(playerid, UpgPotionSlot[playerid], 0, 0, 0);
 	PlayerTextDrawSetPreviewModel(playerid, UpgStoneSlot[playerid], -1);
@@ -3324,7 +3616,7 @@ stock UpgradeItem(playerid, itemslot, stoneid, potionid = -1)
 
 	new roll = random(10001);
 	//success
-	if(roll <= chances[0])
+	if(roll <= chances[0] || IsEasyMod[playerid])
 	{
 		PlayerInventory[playerid][itemslot][Mod][level-1] = GetModifierByStone(stoneid);
 		if(level == MAX_MOD)
