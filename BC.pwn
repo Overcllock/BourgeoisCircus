@@ -112,6 +112,11 @@
 #define MOD_DODGE 3
 #define MOD_ACCURACY 4
 
+#define MOD_RESULT_SUCCESS 0
+#define MOD_RESULT_FAIL 1
+#define MOD_RESULT_RESET 2
+#define MOD_RESULT_DESTROY 3
+
 //Teams
 #define BOSS_TEAM 1
 
@@ -180,6 +185,11 @@ new bool:IsBossAttacker[MAX_PLAYERS] = false;
 new BossAttackersCount = 0;
 new BossNPC = -1;
 new bool:IsBoss[MAX_PLAYERS] = false;
+
+new ModItemSlot[MAX_PLAYERS] = -1;
+new ModStone[MAX_PLAYERS] = -1;
+new ModPotion[MAX_PLAYERS] = -1;
+new IsSlotsBlocked[MAX_PLAYERS] = false;
 
 enum TWindow
 {
@@ -387,7 +397,7 @@ new PlayerText:InfDelim1[MAX_PLAYERS];
 new PlayerText:InfItemIcon[MAX_PLAYERS];
 new PlayerText:InfItemName[MAX_PLAYERS];
 new PlayerText:InfItemType[MAX_PLAYERS];
-new PlayerText:InfItemEffect[MAX_PLAYERS];
+new PlayerText:InfItemEffect[MAX_PLAYERS][2];
 new PlayerText:InfDelim2[MAX_PLAYERS];
 new PlayerText:InfDescriptionStr[MAX_PLAYERS][3];
 new PlayerText:InfDelim3[MAX_PLAYERS];
@@ -405,7 +415,6 @@ new PlayerText:UpgTxt3[MAX_PLAYERS];
 new PlayerText:UpgPotionSlot[MAX_PLAYERS];
 new PlayerText:UpgTxt4[MAX_PLAYERS];
 new PlayerText:UpgBtn[MAX_PLAYERS];
-new PlayerText:UpgTxt5[MAX_PLAYERS];
 new PlayerText:UpgClose[MAX_PLAYERS];
 
 main()
@@ -1450,6 +1459,7 @@ public OnPlayerClickPlayerTextDraw(playerid, PlayerText:playertextid)
 	else if(playertextid == ChrInfWeaponSlot[playerid])
 	{
 		if(PlayerInfo[playerid][WeaponSlotID] == 0) return 0;
+		if(IsSlotsBlocked[playerid]) return 0;
 		if(IsInventoryFull(playerid))
 		{
 			ShowPlayerDialog(playerid, 1, DIALOG_STYLE_MSGBOX, "Ошибка", "Инвентарь полон.", "Закрыть", "");
@@ -1461,6 +1471,7 @@ public OnPlayerClickPlayerTextDraw(playerid, PlayerText:playertextid)
 	else if(playertextid == ChrInfArmorSlot[playerid])
 	{
 		if(PlayerInfo[playerid][ArmorSlotID] == 81) return 0;
+		if(IsSlotsBlocked[playerid]) return 0;
 		if(IsInventoryFull(playerid))
 		{
 			ShowPlayerDialog(playerid, 1, DIALOG_STYLE_MSGBOX, "Ошибка", "Инвентарь полон.", "Закрыть", "");
@@ -1472,6 +1483,7 @@ public OnPlayerClickPlayerTextDraw(playerid, PlayerText:playertextid)
 	else if(playertextid == ChrInfAccSlot1[playerid])
 	{
 		if(PlayerInfo[playerid][AccSlot1ID] == -1) return 0;
+		if(IsSlotsBlocked[playerid]) return 0;
 		if(IsInventoryFull(playerid))
 		{
 			ShowPlayerDialog(playerid, 1, DIALOG_STYLE_MSGBOX, "Ошибка", "Инвентарь полон.", "Закрыть", "");
@@ -1487,6 +1499,7 @@ public OnPlayerClickPlayerTextDraw(playerid, PlayerText:playertextid)
 	else if(playertextid == ChrInfAccSlot2[playerid])
 	{
 		if(PlayerInfo[playerid][AccSlot2ID] == -1) return 0;
+		if(IsSlotsBlocked[playerid]) return 0;
 		if(IsInventoryFull(playerid))
 		{
 			ShowPlayerDialog(playerid, 1, DIALOG_STYLE_MSGBOX, "Ошибка", "Инвентарь полон.", "Закрыть", "");
@@ -1501,8 +1514,8 @@ public OnPlayerClickPlayerTextDraw(playerid, PlayerText:playertextid)
 	}
 	else if(playertextid == ChrInfButUse[playerid])
 	{
-		if(SelectedSlot[playerid] == -1)
-			return 0;
+		if(SelectedSlot[playerid] == -1) return 0;
+		if(IsSlotsBlocked[playerid]) return 0;
 
 		new itemid = PlayerInventory[playerid][SelectedSlot[playerid]][ID];
 		if(itemid == -1)
@@ -1527,6 +1540,7 @@ public OnPlayerClickPlayerTextDraw(playerid, PlayerText:playertextid)
 	}
 	else if(playertextid == ChrInfButInfo[playerid])
 	{
+		if(IsSlotsBlocked[playerid]) return 0;
 		if(SelectedSlot[playerid] == -1)
 			return 0;
 		if(PlayerInventory[playerid][SelectedSlot[playerid]][ID] == -1)
@@ -1540,6 +1554,7 @@ public OnPlayerClickPlayerTextDraw(playerid, PlayerText:playertextid)
 	}
 	else if(playertextid == ChrInfButDel[playerid])
 	{
+		if(IsSlotsBlocked[playerid]) return 0;
 		if(SelectedSlot[playerid] == -1)
 			return 0;
 		if(PlayerInventory[playerid][SelectedSlot[playerid]][ID] == -1)
@@ -1562,16 +1577,68 @@ public OnPlayerClickPlayerTextDraw(playerid, PlayerText:playertextid)
 	}
 	else if(playertextid == ChrInfButMod[playerid])
 	{
+		if(Windows[playerid][Mod])
+		{
+			HideModWindow(playerid);
+			return 0;
+		}
 		if(SelectedSlot[playerid] != -1)
 		{
 			new itemid = PlayerInventory[playerid][SelectedSlot[playerid]][ID];
 			if(IsModifiableEquip(itemid))
 			{
-				ShowModWindow(playerid, itemid);
+				if(GetModLevel(PlayerInventory[playerid][SelectedSlot[playerid]][Mod]) == MAX_MOD)
+				{
+					ShowPlayerDialog(playerid, 1, DIALOG_STYLE_MSGBOX, "Модификация", "Этот предмет достиг максимального уровня модификации.", "Закрыть", "");
+					return 0;
+				}
+				ShowModWindow(playerid, SelectedSlot[playerid]);
 				return 1;
 			}
 		}
 		ShowModWindow(playerid);
+	}
+	else if(playertextid == UpgItemSlot[playerid])
+	{
+		if(SelectedSlot[playerid] == -1) return 0;
+		new itemid = PlayerInventory[playerid][SelectedSlot[playerid]][ID];
+		if(itemid == -1) return 0;
+		if(!IsModifiableEquip(itemid)) return 0;
+		if(GetModLevel(PlayerInventory[playerid][SelectedSlot[playerid]][Mod]) == MAX_MOD)
+		{
+			ShowPlayerDialog(playerid, 1, DIALOG_STYLE_MSGBOX, "Модификация", "Этот предмет достиг максимального уровня модификации.", "Закрыть", "");
+			return 0;
+		}
+
+		ModItemSlot[playerid] = SelectedSlot[playerid];
+		UpdateModWindow(playerid);
+	}
+	else if(playertextid == UpgStoneSlot[playerid])
+	{
+		if(SelectedSlot[playerid] == -1) return 0;
+		new itemid = PlayerInventory[playerid][SelectedSlot[playerid]][ID];
+		if(itemid == -1) return 0;
+		if(!IsModStone(itemid)) return 0;
+
+		ModStone[playerid] = itemid;
+		UpdateModWindow(playerid);
+	}
+	else if(playertextid == UpgPotionSlot[playerid])
+	{
+		if(SelectedSlot[playerid] == -1) return 0;
+		new itemid = PlayerInventory[playerid][SelectedSlot[playerid]][ID];
+		if(itemid == -1) return 0;
+		if(!IsModPotion(itemid)) return 0;
+		
+		ModPotion[playerid] = itemid;
+		UpdateModWindow(playerid);
+	}
+	else if(playertextid == UpgBtn[playerid])
+	{
+		if(ModItemSlot[playerid] == -1) return 0;
+		if(ModStone[playerid] == -1) return 0;
+		UpgradeItem(playerid, ModItemSlot[playerid], ModStone[playerid], ModPotion[playerid]);
+		UpdateModWindow(playerid);
 	}
 	else if(playertextid == InfClose[playerid])
 	{
@@ -1586,7 +1653,7 @@ public OnPlayerClickPlayerTextDraw(playerid, PlayerText:playertextid)
         if (playertextid == ChrInfInvSlot[playerid][i]) {
             if (SelectedSlot[playerid] != -1) 
 			{
-                if (PlayerInventory[playerid][SelectedSlot[playerid]][ID] != -1 && PlayerInventory[playerid][i][ID] == -1) 
+                if(!IsSlotsBlocked[playerid] && PlayerInventory[playerid][SelectedSlot[playerid]][ID] != -1 && PlayerInventory[playerid][i][ID] == -1) 
 				{
 					PlayerInventory[playerid][i] = PlayerInventory[playerid][SelectedSlot[playerid]];
 					PlayerInventory[playerid][SelectedSlot[playerid]] = EmptyInvItem;
@@ -2546,6 +2613,17 @@ stock SellItem(playerid, slotid, count = 1)
 	return true;
 }
 
+stock FindItem(playerid, itemid)
+{
+	if(IsPlayerConnected(playerid))
+	{
+		for(new i = 0; i < MAX_SLOTS; i++)
+			if(PlayerInventory[playerid][i][ID] == itemid)
+				return i;
+	}
+	return -1;
+}
+
 stock HasItem(playerid, id, count = 1)
 {
 	if(id == -1) return false;
@@ -2659,6 +2737,24 @@ stock GetItem(id)
 
 	cache_delete(q_result);
 	return item;
+}
+
+stock IsModPotion(item_id)
+{
+	switch(item_id)
+	{
+		case 191..194: return true;
+	}
+	return false;
+}
+
+stock IsModStone(item_id)
+{
+	switch(item_id)
+	{
+		case 187..190: return true;
+	}
+	return false;
 }
 
 stock IsModifiableEquip(item_id)
@@ -2779,7 +2875,7 @@ stock ShowItemInfo(playerid, itemid)
 	PlayerTextDrawSetStringRus(playerid, InfItemName[playerid], item[Name]);
 	PlayerTextDrawColor(playerid, InfItemName[playerid], HexGradeColors[item[Grade]-1][0]);
 	PlayerTextDrawSetStringRus(playerid, InfItemType[playerid], GetItemTypeString(item[Type]));
-	PlayerTextDrawSetStringRus(playerid, InfItemEffect[playerid], GetItemEffectString(item[Property][0], item[PropertyVal][0]));
+	PlayerTextDrawSetStringRus(playerid, InfItemEffect[playerid][0], GetItemEffectString(item[Property][0], item[PropertyVal][0]));
 	format(string, sizeof(string), "Цена: %d$", item[Price]);
 	PlayerTextDrawSetStringRus(playerid, InfPrice[playerid], string);
 
@@ -2789,7 +2885,7 @@ stock ShowItemInfo(playerid, itemid)
 	PlayerTextDrawShow(playerid, InfItemIcon[playerid]);
 	PlayerTextDrawShow(playerid, InfItemName[playerid]);
 	PlayerTextDrawShow(playerid, InfItemType[playerid]);
-	PlayerTextDrawShow(playerid, InfItemEffect[playerid]);
+	PlayerTextDrawShow(playerid, InfItemEffect[playerid][0]);
 	PlayerTextDrawShow(playerid, InfDelim2[playerid]);
 	PlayerTextDrawShow(playerid, InfDelim3[playerid]);
 	PlayerTextDrawShow(playerid, InfPrice[playerid]);
@@ -2819,7 +2915,8 @@ stock HideItemInfo(playerid)
 	PlayerTextDrawHide(playerid, InfItemIcon[playerid]);
 	PlayerTextDrawHide(playerid, InfItemName[playerid]);
 	PlayerTextDrawHide(playerid, InfItemType[playerid]);
-	PlayerTextDrawHide(playerid, InfItemEffect[playerid]);
+	PlayerTextDrawHide(playerid, InfItemEffect[playerid][0]);
+	PlayerTextDrawHide(playerid, InfItemEffect[playerid][1]);
 	PlayerTextDrawHide(playerid, InfDelim2[playerid]);
 	PlayerTextDrawHide(playerid, InfDelim3[playerid]);
 	PlayerTextDrawHide(playerid, InfPrice[playerid]);
@@ -3053,14 +3150,42 @@ stock HideCharInfo(playerid)
 	Windows[playerid][CharInfo] = false;
 }
 
-stock ShowModWindow(playerid, moditem = -1)
+stock ShowModWindow(playerid, itemslot = -1)
 {
 	Windows[playerid][Mod] = true;
+	IsSlotsBlocked[playerid] = true;
+
+	PlayerTextDrawSetPreviewModel(playerid, UpgPotionSlot[playerid], -1);
+	PlayerTextDrawSetPreviewRot(playerid, UpgPotionSlot[playerid], 0, 0, 0);
+	PlayerTextDrawSetPreviewModel(playerid, UpgStoneSlot[playerid], -1);
+	PlayerTextDrawSetPreviewRot(playerid, UpgStoneSlot[playerid], 0, 0, 0);
+	PlayerTextDrawSetPreviewModel(playerid, UpgItemSlot[playerid], -1);
+	PlayerTextDrawSetPreviewRot(playerid, UpgItemSlot[playerid], 0, 0, 0);
+	PlayerTextDrawBackgroundColor(playerid, UpgStoneSlot[playerid], -1061109505);
+	PlayerTextDrawBackgroundColor(playerid, UpgPotionSlot[playerid], -1061109505);
+	PlayerTextDrawBackgroundColor(playerid, UpgItemSlot[playerid], -1061109505);
+
+	if(itemslot != -1)
+	{
+		new item[BaseItem];
+		item = GetItem(PlayerInventory[playerid][itemslot][ID]);
+
+		PlayerTextDrawSetPreviewModel(playerid, UpgItemSlot[playerid], item[Model]);
+		PlayerTextDrawSetPreviewRot(playerid, UpgItemSlot[playerid], item[ModelRotX], item[ModelRotY], item[ModelRotZ]);
+		PlayerTextDrawBackgroundColor(playerid, UpgItemSlot[playerid], HexGradeColors[item[Grade]-1][0]);
+
+		new mod_level = GetModLevel(PlayerInventory[playerid][itemslot][Mod]);
+		new string[64];
+		format(string, sizeof(string), "%d модификация", mod_level+1);
+		PlayerTextDrawSetStringRus(playerid, UpgModInfo[playerid], string);
+		PlayerTextDrawShow(playerid, UpgModInfo[playerid]);
+
+		ModItemSlot[playerid] = itemslot;
+	}
 
 	PlayerTextDrawShow(playerid, UpgBox[playerid]);
 	PlayerTextDrawShow(playerid, UpgTxt1[playerid]);
 	PlayerTextDrawShow(playerid, UpgDelim1[playerid]);
-	PlayerTextDrawShow(playerid, UpgModInfo[playerid]);
 	PlayerTextDrawShow(playerid, UpgItemSlot[playerid]);
 	PlayerTextDrawShow(playerid, UpgTxt2[playerid]);
 	PlayerTextDrawShow(playerid, UpgStoneSlot[playerid]);
@@ -3068,13 +3193,17 @@ stock ShowModWindow(playerid, moditem = -1)
 	PlayerTextDrawShow(playerid, UpgPotionSlot[playerid]);
 	PlayerTextDrawShow(playerid, UpgTxt4[playerid]);
 	PlayerTextDrawShow(playerid, UpgBtn[playerid]);
-	PlayerTextDrawShow(playerid, UpgTxt5[playerid]);
 	PlayerTextDrawShow(playerid, UpgClose[playerid]);
 }
 
 stock HideModWindow(playerid)
 {
 	Windows[playerid][Mod] = false;
+	IsSlotsBlocked[playerid] = false;
+
+	ModItemSlot[playerid] = -1;
+	ModPotion[playerid] = -1;
+	ModStone[playerid] = -1;
 
 	PlayerTextDrawHide(playerid, UpgBox[playerid]);
 	PlayerTextDrawHide(playerid, UpgTxt1[playerid]);
@@ -3087,8 +3216,196 @@ stock HideModWindow(playerid)
 	PlayerTextDrawHide(playerid, UpgPotionSlot[playerid]);
 	PlayerTextDrawHide(playerid, UpgTxt4[playerid]);
 	PlayerTextDrawHide(playerid, UpgBtn[playerid]);
-	PlayerTextDrawHide(playerid, UpgTxt5[playerid]);
 	PlayerTextDrawHide(playerid, UpgClose[playerid]);
+}
+
+stock UpdateModWindow(playerid)
+{
+	PlayerTextDrawHide(playerid, UpgModInfo[playerid]);
+	PlayerTextDrawHide(playerid, UpgItemSlot[playerid]);
+	PlayerTextDrawHide(playerid, UpgStoneSlot[playerid]);
+	PlayerTextDrawHide(playerid, UpgPotionSlot[playerid]);
+
+	PlayerTextDrawSetPreviewModel(playerid, UpgPotionSlot[playerid], -1);
+	PlayerTextDrawSetPreviewRot(playerid, UpgPotionSlot[playerid], 0, 0, 0);
+	PlayerTextDrawSetPreviewModel(playerid, UpgStoneSlot[playerid], -1);
+	PlayerTextDrawSetPreviewRot(playerid, UpgStoneSlot[playerid], 0, 0, 0);
+	PlayerTextDrawSetPreviewModel(playerid, UpgItemSlot[playerid], -1);
+	PlayerTextDrawSetPreviewRot(playerid, UpgItemSlot[playerid], 0, 0, 0);
+	PlayerTextDrawBackgroundColor(playerid, UpgStoneSlot[playerid], -1061109505);
+	PlayerTextDrawBackgroundColor(playerid, UpgPotionSlot[playerid], -1061109505);
+	PlayerTextDrawBackgroundColor(playerid, UpgItemSlot[playerid], -1061109505);
+
+	if(ModItemSlot[playerid] != -1)
+	{
+		new item[BaseItem];
+		item = GetItem(PlayerInventory[playerid][ModItemSlot[playerid]][ID]);
+
+		PlayerTextDrawSetPreviewModel(playerid, UpgItemSlot[playerid], item[Model]);
+		PlayerTextDrawSetPreviewRot(playerid, UpgItemSlot[playerid], item[ModelRotX], item[ModelRotY], item[ModelRotZ]);
+		PlayerTextDrawBackgroundColor(playerid, UpgItemSlot[playerid], HexGradeColors[item[Grade]-1][0]);
+
+		new mod_level = GetModLevel(PlayerInventory[playerid][ModItemSlot[playerid]][Mod]);
+		new string[64];
+		format(string, sizeof(string), "%d модификация", mod_level+1);
+		PlayerTextDrawSetStringRus(playerid, UpgModInfo[playerid], string);
+		PlayerTextDrawShow(playerid, UpgModInfo[playerid]);
+	}
+	if(ModStone[playerid] != -1)
+	{
+		if(HasItem(playerid, ModStone[playerid]))
+		{
+			new item[BaseItem];
+			item = GetItem(ModStone[playerid]);
+
+			PlayerTextDrawSetPreviewModel(playerid, UpgStoneSlot[playerid], item[Model]);
+			PlayerTextDrawSetPreviewRot(playerid, UpgStoneSlot[playerid], item[ModelRotX], item[ModelRotY], item[ModelRotZ]);
+			PlayerTextDrawBackgroundColor(playerid, UpgStoneSlot[playerid], HexGradeColors[item[Grade]-1][0]);
+		}
+		else
+			ModStone[playerid] = -1;
+	}
+	if(ModPotion[playerid] != -1)
+	{
+		if(HasItem(playerid, ModPotion[playerid]))
+		{
+			new item[BaseItem];
+			item = GetItem(ModPotion[playerid]);
+
+			PlayerTextDrawSetPreviewModel(playerid, UpgPotionSlot[playerid], item[Model]);
+			PlayerTextDrawSetPreviewRot(playerid, UpgPotionSlot[playerid], item[ModelRotX], item[ModelRotY], item[ModelRotZ]);
+			PlayerTextDrawBackgroundColor(playerid, UpgPotionSlot[playerid], HexGradeColors[item[Grade]-1][0]);
+		}
+		else
+			ModPotion[playerid] = -1;
+	}
+
+	PlayerTextDrawShow(playerid, UpgItemSlot[playerid]);
+	PlayerTextDrawShow(playerid, UpgStoneSlot[playerid]);
+	PlayerTextDrawShow(playerid, UpgPotionSlot[playerid]);
+}
+
+stock UpgradeItem(playerid, itemslot, stoneid, potionid = -1)
+{
+	new itemid = PlayerInventory[playerid][itemslot][ID];
+	new level = GetModLevel(PlayerInventory[playerid][itemslot][Mod]) + 1;
+	if(level > MAX_MOD || itemid == -1)
+	{
+		SendClientMessage(playerid, COLOR_LIGHTRED, "Ошибка модификации.");
+		return;
+	}
+
+	new item[BaseItem];
+	item = GetItem(itemid);
+
+	new chances[4];
+	chances = GetModChances(level, item[Grade], potionid);
+
+	new stoneslot = FindItem(playerid, stoneid);
+	if(stoneslot == -1)
+	{
+		SendClientMessage(playerid, COLOR_LIGHTRED, "Ошибка модификации.");
+		return;
+	}
+
+	DeleteItem(playerid, stoneslot, 1);
+
+	if(potionid != -1)
+	{
+		new potionslot = FindItem(playerid, potionid);
+		if(potionslot == -1)
+		{
+			SendClientMessage(playerid, COLOR_LIGHTRED, "Ошибка модификации.");
+			return;
+		}
+
+		DeleteItem(playerid, potionslot, 1);
+	}
+
+	new roll = random(10001);
+	//success
+	if(roll <= chances[0])
+	{
+		PlayerInventory[playerid][itemslot][Mod][level-1] = GetModifierByStone(stoneid);
+		if(level == MAX_MOD)
+		{
+			ModItemSlot[playerid] = -1;
+			ModStone[playerid] = -1;
+			ModPotion[playerid] = -1;
+		}
+		if(level >= 5)
+		{
+			new cng_string[255];
+			new name[255];
+			GetPlayerName(playerid, name, sizeof(name));
+			format(cng_string, sizeof(cng_string), "{%s}%s{FF6347} успешно модернизирован %d на стадии {%s}%s.", 
+				GetColorByRate(PlayerInfo[playerid][Rate]), name, level, GetGradeColor(item[Grade]), item[Name]
+			);
+			SendClientMessageToAll(COLOR_LIGHTRED, cng_string);
+		}
+		ShowPlayerDialog(playerid, 1, DIALOG_STYLE_MSGBOX, "Модификация", "{66CC00}Модификация завершена успешно.", "Закрыть", "");
+	}
+	//fail
+	else if(roll <= chances[0] + chances[1])
+	{
+		ShowPlayerDialog(playerid, 1, DIALOG_STYLE_MSGBOX, "Модификация", "{FFCC00}Модификация предмета неудачна.", "Закрыть", "");
+	}
+	//reset
+	else if(roll <= chances[0] + chances[1] + chances[2])
+	{
+		for(new i = 0; i < MAX_MOD; i++)
+			PlayerInventory[playerid][itemslot][Mod][i] = 0;
+
+		ShowPlayerDialog(playerid, 1, DIALOG_STYLE_MSGBOX, "Модификация", "{CC0000}Модификация неудачна: камни уничтожены.", "Закрыть", "");
+	}
+	//destroy
+	else
+	{
+		DeleteItem(playerid, itemslot, 1);
+		ModItemSlot[playerid] = -1;
+		ModStone[playerid] = -1;
+		ModPotion[playerid] = -1;
+
+		ShowPlayerDialog(playerid, 1, DIALOG_STYLE_MSGBOX, "Модификация", "{CC0000}Модификация неудачна: предмет уничтожен.", "Закрыть", "");
+	}
+}
+
+stock GetModChances(level, grade, potionid = -1)
+{
+	new chances[4];
+
+	new query[255];
+	format(query, sizeof(query), "SELECT * FROM `mod_chances` WHERE `Level` = '%d' AND `Grade` = '%d' AND `Potion` = '%d' LIMIT 1", level, grade, potionid);
+	new Cache:q_result = mysql_query(sql_handle, query);
+
+	new row_count = 0;
+	cache_get_row_count(row_count);
+	if(row_count <= 0)
+	{
+		cache_delete(q_result);
+		print("Modification error.");
+		return chances;
+	}
+
+	new string[255];
+
+	cache_get_value_name(0, "Chances", string);
+	sscanf(string, "a<i>[4]", chances);
+	cache_delete(q_result);
+
+	return chances;
+}
+
+stock GetModifierByStone(stoneid)
+{
+	switch(stoneid)
+	{
+		case 187: return MOD_DAMAGE;
+		case 188: return MOD_DEFENSE;
+		case 189: return MOD_ACCURACY;
+		case 190: return MOD_DODGE;
+	}
+	return 0;
 }
 
 stock GetWeaponBaseDamage(weaponid)
@@ -3183,6 +3500,14 @@ stock MapModifiersDescs(mod[], modifiers[], count)
 		descs[i] = string;
 	}
 	return descs;
+}
+
+stock GetModLevel(mod[])
+{
+	new level = 0;
+	for(new i = 0; i < MAX_MOD; i++)
+		if(mod[i] != 0) level++;
+	return level;
 }
 
 stock GetModifierLevel(mod[], modifier)
@@ -4694,15 +5019,27 @@ stock InitPlayerTextDraws(playerid)
 	PlayerTextDrawFont(playerid, InfItemType[playerid], 1);
 	PlayerTextDrawSetProportional(playerid, InfItemType[playerid], 1);
 
-	InfItemEffect[playerid] = CreatePlayerTextDraw(playerid, 283.033142, 189.206115, "Decreases required rank for equip by 1");
-	PlayerTextDrawLetterSize(playerid, InfItemEffect[playerid], 0.167666, 0.749629);
-	PlayerTextDrawAlignment(playerid, InfItemEffect[playerid], 1);
-	PlayerTextDrawColor(playerid, InfItemEffect[playerid], -1);
-	PlayerTextDrawSetShadow(playerid, InfItemEffect[playerid], 0);
-	PlayerTextDrawSetOutline(playerid, InfItemEffect[playerid], 0);
-	PlayerTextDrawBackgroundColor(playerid, InfItemEffect[playerid], 51);
-	PlayerTextDrawFont(playerid, InfItemEffect[playerid], 1);
-	PlayerTextDrawSetProportional(playerid, InfItemEffect[playerid], 1);
+	InfItemEffect[playerid][0] = CreatePlayerTextDraw(playerid, 282.866516, 187.131805, "Decreases required rank for equip by 1");
+	PlayerTextDrawLetterSize(playerid, InfItemEffect[playerid][0], 0.167666, 0.749629);
+	PlayerTextDrawAlignment(playerid, InfItemEffect[playerid][0], 1);
+	PlayerTextDrawColor(playerid, InfItemEffect[playerid][0], -1);
+	PlayerTextDrawSetShadow(playerid, InfItemEffect[playerid][0], 0);
+	PlayerTextDrawSetOutline(playerid, InfItemEffect[playerid][0], 0);
+	PlayerTextDrawBackgroundColor(playerid, InfItemEffect[playerid][0], 51);
+	PlayerTextDrawFont(playerid, InfItemEffect[playerid][0], 1);
+	PlayerTextDrawSetProportional(playerid, InfItemEffect[playerid][0], 1);
+
+	InfItemEffect[playerid][1] = CreatePlayerTextDraw(playerid, 282.866546, 193.939468, "Damage +25%");
+	PlayerTextDrawLetterSize(playerid, InfItemEffect[playerid][1], 0.167666, 0.749629);
+	PlayerTextDrawAlignment(playerid, InfItemEffect[playerid][1], 1);
+	PlayerTextDrawColor(playerid, InfItemEffect[playerid][1], -1);
+	PlayerTextDrawSetShadow(playerid, InfItemEffect[playerid][1], 0);
+	PlayerTextDrawSetOutline(playerid, InfItemEffect[playerid][1], 0);
+	PlayerTextDrawBackgroundColor(playerid, InfItemEffect[playerid][1], 51);
+	PlayerTextDrawFont(playerid, InfItemEffect[playerid][1], 1);
+	PlayerTextDrawSetProportional(playerid, InfItemEffect[playerid][1], 1);
+	PlayerTextDrawSetPreviewModel(playerid, InfItemEffect[playerid][1], 19134);
+	PlayerTextDrawSetPreviewRot(playerid, InfItemEffect[playerid][1], 0.000000, 0.000000, 90.000000, 1.000000);
 
 	InfDelim2[playerid] = CreatePlayerTextDraw(playerid, 251.033248, 204.010681, "inf_delim2");
 	PlayerTextDrawLetterSize(playerid, InfDelim2[playerid], 0.000000, -0.233333);
@@ -4903,30 +5240,19 @@ stock InitPlayerTextDraws(playerid)
 	PlayerTextDrawFont(playerid, UpgTxt4[playerid], 1);
 	PlayerTextDrawSetProportional(playerid, UpgTxt4[playerid], 1);
 
-	UpgBtn[playerid] = CreatePlayerTextDraw(playerid, 369.333312, 237.654083, "btn_upg");
-	PlayerTextDrawLetterSize(playerid, UpgBtn[playerid], 0.000000, 0.835599);
-	PlayerTextDrawTextSize(playerid, UpgBtn[playerid], 270.333312, 0.000000);
-	PlayerTextDrawAlignment(playerid, UpgBtn[playerid], 1);
-	PlayerTextDrawColor(playerid, UpgBtn[playerid], 0);
+	UpgBtn[playerid] = CreatePlayerTextDraw(playerid, 320.200012, 235.905120, "Улучшить");
+	PlayerTextDrawLetterSize(playerid, UpgBtn[playerid], 0.275332, 1.060739);
+	PlayerTextDrawTextSize(playerid, UpgBtn[playerid], 15.033336, 99.389656);
+	PlayerTextDrawAlignment(playerid, UpgBtn[playerid], 2);
+	PlayerTextDrawColor(playerid, UpgBtn[playerid], 255);
 	PlayerTextDrawUseBox(playerid, UpgBtn[playerid], true);
-	PlayerTextDrawBoxColor(playerid, UpgBtn[playerid], 8388863);
+	PlayerTextDrawBoxColor(playerid, UpgBtn[playerid], 16711935);
 	PlayerTextDrawSetShadow(playerid, UpgBtn[playerid], 0);
 	PlayerTextDrawSetOutline(playerid, UpgBtn[playerid], 0);
-	PlayerTextDrawBackgroundColor(playerid, UpgBtn[playerid], 8388863);
-	PlayerTextDrawFont(playerid, UpgBtn[playerid], 0);
+	PlayerTextDrawBackgroundColor(playerid, UpgBtn[playerid], 0x00000000);
+	PlayerTextDrawFont(playerid, UpgBtn[playerid], 1);
+	PlayerTextDrawSetProportional(playerid, UpgBtn[playerid], 1);
 	PlayerTextDrawSetSelectable(playerid, UpgBtn[playerid], true);
-
-	UpgTxt5[playerid] = CreatePlayerTextDraw(playerid, 320.200012, 235.905120, "Улучшить");
-	PlayerTextDrawLetterSize(playerid, UpgTxt5[playerid], 0.275333, 1.060740);
-	PlayerTextDrawAlignment(playerid, UpgTxt5[playerid], 2);
-	PlayerTextDrawColor(playerid, UpgTxt5[playerid], 255);
-	PlayerTextDrawUseBox(playerid, UpgTxt5[playerid], true);
-	PlayerTextDrawBoxColor(playerid, UpgTxt5[playerid], 0);
-	PlayerTextDrawSetShadow(playerid, UpgTxt5[playerid], 0);
-	PlayerTextDrawSetOutline(playerid, UpgTxt5[playerid], 0);
-	PlayerTextDrawBackgroundColor(playerid, UpgTxt5[playerid], 51);
-	PlayerTextDrawFont(playerid, UpgTxt5[playerid], 1);
-	PlayerTextDrawSetProportional(playerid, UpgTxt5[playerid], 1);
 
 	UpgClose[playerid] = CreatePlayerTextDraw(playerid, 377.066680, 151.780822, "x");
 	PlayerTextDrawLetterSize(playerid, UpgClose[playerid], 0.347000, 1.243258);
@@ -5028,7 +5354,8 @@ stock DeletePlayerTextDraws(playerid)
 	PlayerTextDrawDestroy(playerid, InfDelim1[playerid]);
 	PlayerTextDrawDestroy(playerid, InfDelim2[playerid]);
 	PlayerTextDrawDestroy(playerid, InfDelim3[playerid]);
-	PlayerTextDrawDestroy(playerid, InfItemEffect[playerid]);
+	PlayerTextDrawDestroy(playerid, InfItemEffect[playerid][0]);
+	PlayerTextDrawDestroy(playerid, InfItemEffect[playerid][1]);
 	PlayerTextDrawDestroy(playerid, InfItemType[playerid]);
 	PlayerTextDrawDestroy(playerid, InfItemName[playerid]);
 	PlayerTextDrawDestroy(playerid, InfItemIcon[playerid]);
@@ -5044,7 +5371,6 @@ stock DeletePlayerTextDraws(playerid)
 	PlayerTextDrawDestroy(playerid, UpgTxt2[playerid]);
 	PlayerTextDrawDestroy(playerid, UpgTxt3[playerid]);
 	PlayerTextDrawDestroy(playerid, UpgTxt4[playerid]);
-	PlayerTextDrawDestroy(playerid, UpgTxt5[playerid]);
 	PlayerTextDrawDestroy(playerid, UpgBtn[playerid]);
 	PlayerTextDrawDestroy(playerid, UpgPotionSlot[playerid]);
 	PlayerTextDrawDestroy(playerid, UpgStoneSlot[playerid]);
