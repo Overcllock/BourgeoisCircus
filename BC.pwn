@@ -1,4 +1,4 @@
-//Bourgeois Circus 1.0
+//Bourgeois Circus 0.9
 
 #include <a_samp>
 #include <a_mail>
@@ -22,7 +22,7 @@
 
 #pragma dynamic 31294
 
-#define VERSION 1.00
+#define VERSION 0.901
 
 //Mysql settings
 #define SQL_HOST "127.0.0.1"
@@ -73,6 +73,7 @@
 #define MAX_GRADES 3
 #define MAX_BOSSES 5
 #define MAX_ITEM_ID 204
+#define MAX_LOOT 20
 
 //Phases
 #define PHASE_PEACE 0
@@ -146,6 +147,7 @@ forward BossBehaviour();
 forward TeleportBossAttackersToHome();
 forward TeleportToHome(playerid);
 forward bool:CheckChance(chance);
+forward RegeneratePlayerHP(playerid);
 
 /* Variables */
 
@@ -188,11 +190,19 @@ enum BossInfo
 	Dodge,
 	HP
 };
+enum LootInfo
+{
+	ItemID,
+	Count
+};
+
 new AttackedBoss = -1;
 new bool:IsBossAttacker[MAX_PLAYERS] = false;
 new BossAttackersCount = 0;
 new BossNPC = -1;
 new bool:IsBoss[MAX_PLAYERS] = false;
+new BossLootPickups[MAX_LOOT];
+new BossLootItems[MAX_LOOT][LootInfo];
 
 new ModItemSlot[MAX_PLAYERS] = -1;
 new ModStone[MAX_PLAYERS] = -1;
@@ -209,8 +219,10 @@ enum TWindow
 new Windows[MAX_PLAYERS][TWindow];
 
 //Pickups
-new home_enter = -1;
-new home_quit = -1;
+new home_enter = 0;
+new home_quit = 0;
+new boss_tp = 0;
+new arena_tp = 0;
 
 //Player
 enum iInfo 
@@ -273,6 +285,7 @@ new PlayerInfo[MAX_PLAYERS][pInfo];
 new PlayerHPMultiplicator[MAX_PLAYERS];
 new PlayerConnect[MAX_PLAYERS];
 new Float:MaxHP[MAX_PLAYERS];
+new Float:pHP[MAX_PLAYERS];
 new bool:IsInventoryOpen[MAX_PLAYERS] = false;
 new bool:IsDeath[MAX_PLAYERS] = false;
 new bool:IsParticipant[MAX_PLAYERS] = false;
@@ -282,6 +295,8 @@ new SelectedSlot[MAX_PLAYERS] = -1;
 new AccountLogin[MAX_PLAYERS][128];
 new ParticipantsCount[MAX_PLAYERS];
 new Participants[MAX_PLAYERS][MAX_PARTICIPANTS][128];
+
+new RegenerateTimer[MAX_PLAYERS] = -1;
 
 //Arrays
 new EmptyInvItem[iInfo] = {
@@ -572,6 +587,7 @@ cmd:kill(playerid, params[])
 		return 0;
 
 	SetPlayerHealth(playerid, 0);
+	pHP[playerid] = 0;
 	return 1;
 }
 
@@ -643,6 +659,7 @@ public OnGameModeExit()
 {
 	SaveTournamentInfo();
 	DeleteTextDraws();
+	ResetLoot();
 	KillTimer(WorldTime_Timer);
 	for (new i = 0; i < MAX_ACTORS; i++)
 		DestroyActor(Actors[i]);
@@ -681,6 +698,7 @@ public OnPlayerLogin(playerid)
 	IsInventoryOpen[playerid] = false;
 	SelectedSlot[playerid] = -1;
 	UpdatePlayerMaxHP(playerid);
+	pHP[playerid] = MaxHP[playerid];
 	SetPlayerSkills(playerid);
 	SpawnPlayer(playerid);
 	ResetPlayerMoney(playerid);
@@ -689,6 +707,7 @@ public OnPlayerLogin(playerid)
 	UpdateLocalRatingTop(playerid);
 	UpdatePlayerSkin(playerid);
 	HideAllWindows(playerid);
+	RegenerateTimer[playerid] = SetTimerEx("RegeneratePlayerHP", 1000, true, "i", playerid);
 }
 
 public OnTourEnd()
@@ -752,6 +771,9 @@ public OnPlayerDisconnect(playerid, reason)
 	if(IsPlayerParticipant(playerid) || PlayerInfo[playerid][Admin] > 0)
 		SavePlayer(playerid);
 	DeletePlayerTextDraws(playerid);
+	if(IsValidTimer(RegenerateTimer[playerid]))
+		KillTimer(RegenerateTimer[playerid]);
+	RegenerateTimer[playerid] = -1;
 	IsInventoryOpen[playerid] = false;
 	SelectedSlot[playerid] = -1;
 	IsParticipant[playerid] = false;
@@ -768,6 +790,7 @@ public OnPlayerDisconnect(playerid, reason)
 public OnPlayerSpawn(playerid)
 {
 	SetPlayerHealth(playerid, 100.0);
+	pHP[playerid] = MaxHP[playerid];
 	if (IsDeath[playerid]) 
 	{
 	    IsDeath[playerid] = false;
@@ -828,19 +851,47 @@ public OnPlayerText(playerid, text[])
 
 public OnPlayerPickUpPickup(playerid, pickupid)
 {
-	if (pickupid == home_enter)
+	if(pickupid == home_enter)
 	{
 	    SetPlayerPos(playerid, -2160.8616,641.5761,1052.3817);
 	    SetPlayerFacingAngle(playerid, 90);
 	    SetPlayerInterior(playerid, 1);
 		SetCameraBehindPlayer(playerid);
+		return 1;
 	}
-	else if (pickupid == home_quit)
+	else if(pickupid == home_quit)
 	{
 	    SetPlayerPos(playerid, 224.0981,-1839.8425,3.6037);
 	    SetPlayerFacingAngle(playerid, 180);
 	    SetPlayerInterior(playerid, 0);
 	    SetCameraBehindPlayer(playerid);
+		return 1;
+	}
+	for(new i = 0; i < MAX_LOOT; i++)
+	{
+		if(pickupid == BossLootPickups[i])
+		{
+			if(IsInventoryFull(playerid))
+			{
+				SendClientMessage(playerid, COLOR_GREY, "Инвентарь полон.");
+				continue;
+			}
+			SafeDestroyPickup(BossLootPickups[i]);
+			if(BossLootItems[i][ItemID] == -1) continue;
+
+			if(IsEquip(BossLootItems[i][ItemID]))
+				AddEquip(playerid, BossLootItems[i][ItemID], MOD_CLEAR);
+			else
+				AddItem(playerid, BossLootItems[i][ItemID], BossLootItems[i][Count]);
+			
+			new item[BaseItem];
+			item = GetItem(BossLootItems[i][ItemID]);
+			new string[255];
+			format(string, sizeof(string), "Подобрано: {%s}[%s] {ffffff}x%d.", 
+				GetGradeColor(item[Grade]), item[Name], BossLootItems[i][Count]
+			);
+			SendClientMessage(playerid, 0xFFFFFFFF, string);
+		}
 	}
 	return 1;
 }
@@ -1567,6 +1618,10 @@ public OnDialogResponse(playerid, dialogid, response, listitem, inputtext[])
 
 public OnPlayerUpdate(playerid)
 {
+	new Float:hp;
+	hp = GetPlayerHP(playerid);
+	if(floatabs(floatsub(hp, pHP[playerid])) > 0.5)
+		SetPlayerHP(playerid, pHP[playerid]);
 	UpdateHPBar(playerid);
 	return 1;
 }
@@ -1658,7 +1713,7 @@ public OnPlayerClickPlayerTextDraw(playerid, PlayerText:playertextid)
 		{
 			new equip[BaseItem];
 			equip = GetItem(itemid);
-			if(PlayerInfo[playerid][MaxRank] < equip[MinRank])
+			if((HasItem(playerid, 186, 1) ? PlayerInfo[playerid][MaxRank] + 1 : PlayerInfo[playerid][MaxRank]) < equip[MinRank])
 			{
 				new string[255];
 				format(string, sizeof(string), "{ffffff}Ваш ранг не соответствует минимальному для этого предмета.\nМинимальный ранг - {%s}%s", 
@@ -1859,6 +1914,7 @@ public FinishBossAttack()
 	{
 		SendClientMessageToAll(COLOR_GREEN, "Победа! Через 10 секунд все участники будут телепортированы.");
 		TeleportTimer = SetTimer("TeleportBossAttackersToHome", 10000, false);
+		SetBossCooldown(AttackedBoss);
 	}
 	else
 	{
@@ -1875,6 +1931,7 @@ public TeleportBossAttackersToHome()
 	for(new i = 0; i < MAX_PLAYERS; i++)
 		if(IsBossAttacker[i] && !IsDeath[i]) TeleportToHome(i);
 	print("Destroying boss...");
+	ResetLoot();
 	DestroyBoss();
 }
 
@@ -1966,6 +2023,7 @@ public SetPlayerHP(playerid, Float:hp)
 	new Float:max_hp = GetPlayerMaxHP(playerid);
 	if(hp > max_hp)
 		hp = max_hp;
+	pHP[playerid] = hp;
 	new Float:value = floatdiv(hp, PlayerHPMultiplicator[playerid]);
 
 	if(FCNPC_IsValid(playerid))
@@ -1984,6 +2042,7 @@ public GivePlayerHP(playerid, Float:hp)
 	new Float:new_hp = floatadd(cur_hp, hp);
 	if(new_hp > max_hp)
 		new_hp = max_hp;
+	pHP[playerid] = new_hp;
 	new Float:value = floatdiv(new_hp, PlayerHPMultiplicator[playerid]);
 	
 	if(FCNPC_IsValid(playerid))
@@ -2005,6 +2064,13 @@ public Float:GetPlayerHP(playerid)
 	hp = floatmul(hp, PlayerHPMultiplicator[playerid]);
 	hp = floatround(hp);
 	return hp;
+}
+
+public RegeneratePlayerHP(playerid)
+{
+	if(IsDeath[playerid] || GetPlayerHP(playerid) <= 0.1) return;
+	new Float:hp = floatmul(GetPlayerMaxHP(playerid), HasItem(playerid, 182, 1) ? 0.02 : 0.01);
+	GivePlayerHP(playerid, hp);
 }
 
 public GivePlayerRate(playerid, rate)
@@ -2148,7 +2214,6 @@ stock DestroyBoss()
 	for(new i = 0; i < MAX_PLAYERS; i++)
 		IsBossAttacker[i] = false;
 	BossAttackersCount = 0;
-	SetBossCooldown(AttackedBoss);
 	AttackedBoss = -1;
 	print("Boss destroyed.");
 }
@@ -2330,9 +2395,159 @@ stock GetArmorSellerItemsList()
 	return listitems;
 }
 
+stock SafeDestroyPickup(pickupid)
+{
+	if(	pickupid <= 0 || 
+		pickupid == home_enter ||
+		pickupid == home_quit ||
+		pickupid == boss_tp ||
+		pickupid == arena_tp)
+		return;
+	DestroyPickup(pickupid);
+}
+
+stock ResetLoot()
+{
+	for(new i = 0; i < MAX_LOOT; i++)
+	{
+		if(BossLootPickups[i] > 0)
+		{
+			SafeDestroyPickup(BossLootPickups[i]);
+			BossLootPickups[i] = 0;
+		}
+		BossLootItems[i][ItemID] = -1;
+		BossLootItems[i][Count] = 0;
+	}
+}
+
 stock RollBossLoot()
 {
+	if(AttackedBoss == -1 || !FCNPC_IsValid(BossNPC)) return;
+	new loot_mult = 4;
+	for(new i = 0; i < MAX_PLAYERS; i++)
+	{
+		if(!IsBossAttacker[i]) continue;
+		if(HasItem(i, 185, 1))
+		{
+			loot_mult /= 2;
+			break;
+		}
+	}
 
+	new iterations = random(MAX_LOOT / loot_mult) + MAX_LOOT / loot_mult + 1;
+	for(new i = 0; i < iterations; i++)
+	{
+		new loot[LootInfo];
+		loot = RollBossLootItem(AttackedBoss);
+		if(loot[ItemID] == -1) continue;
+
+		BossLootItems[i][ItemID] = loot[ItemID];
+		BossLootItems[i][Count] = loot[Count];
+
+		new Float:x, Float:y, Float:z;
+		FCNPC_GetPosition(BossNPC, x, y, z);
+		BossLootPickups[i] = CreatePickup(19055, 4, x + random(10), y + random(10), z, 0);
+	}
+}
+
+stock RollBossLootItem(bossid)
+{
+	new chance = random(10001);
+	new itemid = -1;
+	new count = 1;
+	switch(bossid)
+	{
+		case 0:
+		{
+			switch(chance)
+			{
+				case 0..199: itemid = GetRandomEquip(1, 1);
+				case 200..499: itemid = GetRandomAccessory(0);
+				case 500..4999: itemid = 195;
+				default: itemid = GetRandomBooster();
+			}
+		}
+		case 1:
+		{
+			switch(chance)
+			{
+				case 0..199: itemid = GetRandomEquip(2, 3);
+				case 200..599: itemid = GetRandomAccessory(0);
+				case 600..999: itemid = 191;
+				case 1000..5499: { itemid = 195; count = 2; }
+				default: { itemid = GetRandomBooster(); count = 2; }
+			}
+		}
+		case 2:
+		{
+			switch(chance)
+			{
+				case 0..199: itemid = GetRandomEquip(4, 6);
+				case 200..499: itemid = GetRandomAccessory(1);
+				case 500..1099: itemid = 191;
+				case 1100..1299: itemid = 192;
+				case 1300..5499: { itemid = GetRandomBooster(); count = 4; }
+				default: { itemid = 195; count = 4; }
+			}
+		}
+		case 3:
+		{
+			switch(chance)
+			{
+				case 0..299: itemid = GetRandomEquip(7, 8);
+				case 300..399: itemid = 202;
+				case 400..599: itemid = 192;
+				case 600..669: itemid = GetRandomAccessory(2);
+				case 670..699: itemid = 193;
+				case 700..999: { itemid = 191; count = 2; }
+				case 1000..5499: { itemid = GetRandomBooster(); count = 7; }
+				default: { itemid = 195; count = 7; }
+			}
+		}
+		case 4:
+		{
+			switch(chance)
+			{
+				case 0..299: itemid = GetRandomEquip(9, 9);
+				case 300..399: itemid = 203;
+				case 400..419: itemid = GetRandomAccessory(3);
+				case 420..479: itemid = 193;
+				case 480: itemid = 194;
+				case 481..699: { itemid = 192; count = 2; }
+				case 700..999: { itemid = 191; count = 3; }
+				case 1000..5499: { itemid = GetRandomBooster(); count = 14; }
+				default: { itemid = 195; count = 14; }
+			}
+		}
+	}
+
+	new loot[LootInfo];
+	loot[ItemID] = itemid;
+	loot[Count] = count;
+	return loot;
+}
+
+stock GetRandomEquip(minrank, maxrank)
+{
+	new rank = minrank + random(maxrank-minrank+1) - 1;
+	new type = random(2);
+	new baseid = type == 0 ? 1 : 82;
+
+	if(type == 0 && rank == 5)
+		return baseid + rank * 8 + random(16);
+	if(type == 0 && rank > 5)
+		return baseid + (rank+1) * 8 + random(8);
+	return baseid + rank * 8 + random(8);
+}
+
+stock GetRandomAccessory(type)
+{
+	return 154 + type * 7 + random(7);
+}
+
+stock GetRandomBooster()
+{
+	return 196 + random(6);
 }
 
 stock UpdateHPBar(playerid)
@@ -2820,12 +3035,16 @@ stock SaveInventorySlot(playerid, slot)
 
 stock AddItem(playerid, id, count = 1)
 {
-	if(IsInventoryFull(playerid))
-		return false;
+	new slot = -1;
+	slot = FindItem(playerid, id);
 
-	new slot = GetInvEmptySlotID(playerid);
+	if(slot == -1)
+	{
+		if(IsInventoryFull(playerid)) return false;
+		slot = GetInvEmptySlotID(playerid);
+	}
 	PlayerInventory[playerid][slot][ID] = id;
-	PlayerInventory[playerid][slot][Count] = count;
+	PlayerInventory[playerid][slot][Count] += count;
 
 	SaveInventorySlot(playerid, slot);
 
@@ -2864,6 +3083,7 @@ stock DeleteItem(playerid, slotid, count = 1)
 		for(new i = 0; i < MAX_MOD; i++)
 			PlayerInventory[playerid][slotid][Mod][i] = 0;
 		PlayerInventory[playerid][slotid][ID] = -1;
+		PlayerInventory[playerid][slotid][Count] = 0;
 	}
 
 	if(IsInventoryOpen[playerid])
@@ -2887,6 +3107,7 @@ stock SellItem(playerid, slotid, count = 1)
 		for(new i = 0; i < MAX_MOD; i++)
 			PlayerInventory[playerid][slotid][Mod][i] = 0;
 		PlayerInventory[playerid][slotid][ID] = -1;
+		PlayerInventory[playerid][slotid][Count] = 0;
 	}
 
 	if(IsInventoryOpen[playerid])
@@ -5676,8 +5897,8 @@ stock CreatePickups()
 {
     home_enter = CreatePickup(1318,23,224.0201,-1837.3518,4.2787);
     home_quit = CreatePickup(1318,23,-2158.6240,642.8425,1052.3750);
-    CreatePickup(19605,23,243.1539,-1831.6542,3.3772); //tp1
-    CreatePickup(19607,23,204.7617,-1831.6539,3.3772); //tp2
+    boss_tp = CreatePickup(19605,23,243.1539,-1831.6542,3.3772); //tp1
+    arena_tp = CreatePickup(19607,23,204.7617,-1831.6539,3.3772); //tp2
     
     Create3DTextLabel("Дом клоунов",0xf2622bFF,224.0201,-1837.3518,4.2787,70.0,0,1);
     Create3DTextLabel("К боссам",0xeaeaeaFF,243.1539,-1831.6542,3.9772,70.0,0,1);
