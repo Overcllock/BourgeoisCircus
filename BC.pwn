@@ -491,28 +491,6 @@ main()
 }
 
 /* Commands */
-cmd:gethp(playerid, params[])
-{
-	new id;
-	if(sscanf(params, "i", id))
-		return SendClientMessage(playerid, COLOR_GREY, "USAGE: /gethp [id]");
-	if(IsPlayerConnected(id))
-	{
-		new string[255];
-		format(string, sizeof(string), "HP(local): %.5f", GetPlayerHP(id));
-		SendClientMessage(playerid, COLOR_LIGHTRED, string);
-		if(FCNPC_IsValid(id))
-			format(string, sizeof(string), "HP(global): %.5f", FCNPC_GetHealth(id));
-		else
-		{
-			new Float:hp;
-			GetPlayerHealth(id, hp);
-			format(string, sizeof(string), "HP(global): %.5f", hp);
-		}
-		SendClientMessage(playerid, COLOR_LIGHTRED, string);
-	}
-	return 1;
-}
 //GM commands
 cmd:setrate(playerid, params[])
 {
@@ -1895,25 +1873,6 @@ public OnPlayerUpdate(playerid)
 	return 1;
 }
 
-public FCNPC_OnUpdate(npcid)
-{
-	if(!FCNPC_IsValid(npcid)) return 0;
-
-	/*new Float:s_hp;
-	s_hp = FCNPC_GetHealth(npcid);
-	if(s_hp < 5)
-	{
-		FCNPC_Kill(npcid);
-		return 1;
-	}
-
-	new Float:hp;
-	hp = GetPlayerHP(npcid);
-	if(floatabs(floatsub(hp, pHP[npcid])) > 0.5)
-		SetPlayerHP(npcid, pHP[npcid]);*/
-	return 1;
-}
-
 public OnPlayerClickPlayer(playerid, clickedplayerid, source)
 {
 	return 1;
@@ -3231,6 +3190,9 @@ stock SetBossTarget(playerid)
 
 stock MoveAround(playerid, bool:is_evading = false)
 {
+	if(!FCNPC_IsValid(playerid) || FCNPC_IsDead(playerid))
+		return;
+		
 	new Float:x_offset = -10 + random(20);
 	new Float:y_offset = -10 + random(20);
 	new Float:x, Float:y, Float:z;
