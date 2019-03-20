@@ -1,4 +1,4 @@
-//Bourgeois Circus 0.9
+//Bourgeois Circus 0.91
 
 #include <a_samp>
 #include <a_mail>
@@ -15,17 +15,22 @@
 #include <Pawn.CMD>
 #include <YSF>
 #include <vnpc>
-#include <timerfix>
+//#include <timerfix>
 
 #pragma dynamic 31294
 
-#define VERSION 0.901
+#define VERSION 0.911
 
 //Mysql settings
-#define SQL_HOST "127.0.0.1"
+
+/*#define SQL_HOST "127.0.0.1"
 #define SQL_USER "tsar"
 #define SQL_DB "bcircus"
-#define SQL_PASS "2151"
+#define SQL_PASS "2151"*/
+#define SQL_HOST "212.22.93.45"
+#define SQL_USER "gsvtqhss"
+#define SQL_DB "gsvtqhss_21809"
+#define SQL_PASS "21510055"
 
 //Data types
 #define TYPE_INT 0x01
@@ -59,7 +64,7 @@
 
 //Limits
 #define MAX_PARTICIPANTS 20
-#define MAX_OWNERS 1
+#define MAX_OWNERS 2
 #define MAX_SLOTS 25
 #define MAX_SLOTS_X 5
 #define MAX_SLOTS_Y 5
@@ -127,7 +132,23 @@
 
 //Other
 #define DEFENSE_DIVIDER 7000
-#define NPC_SHOOT_DELAY 50
+#define BOSS_SHOOT_DELAY 300
+#define RND_EQUIP_TYPE_WEAPON 0
+#define RND_EQUIP_TYPE_ARMOR 1
+#define RND_EQUIP_TYPE_RANDOM 2
+#define RND_EQUIP_GRADE_RANDOM 11
+
+//Delays
+#define DEFAULT_SHOOT_DELAY 200
+#define COLT_SHOOT_DELAY 120
+#define DEAGLE_SHOOT_DELAY 240
+#define MP5_SHOOT_DELAY 110
+#define TEC_SHOOT_DELAY 80
+#define AK_SHOOT_DELAY 160
+#define M4_SHOOT_DELAY 150
+#define SHOTGUN_SHOOT_DELAY 400
+#define SAWNOFF_SHOOT_DELAY 300
+#define COMBAT_SHOOT_DELAY 260
 
 /* Forwards */
 forward Time();
@@ -141,6 +162,7 @@ forward SetPlayerHP(playerid, Float:hp);
 forward GivePlayerHP(playerid, Float:hp);
 forward SetPlayerMaxHP(playerid, Float:hp, bool:give_hp);
 forward SetPlayerRate(playerid, rate);
+forward SetPlayerRateOffline(name[], rate);
 forward GivePlayerRate(playerid, rate);
 forward GivePlayerRateOffline(name[], rate);
 forward GivePlayerMoneyOffline(name[], money);
@@ -153,7 +175,7 @@ forward TeleportToHome(playerid);
 forward bool:CheckChance(chance);
 forward RegeneratePlayerHP(playerid);
 forward UpdatePvpTable();
-forward TourBehaviour();
+forward TourBehaviour(id);
 forward CheckDead(npcid);
 
 /* Variables */
@@ -165,6 +187,7 @@ new BossAttackTimer = -1;
 new BossBehaviourTimer = -1;
 new TeleportTimer = -1;
 new Actors[MAX_ACTORS];
+new ReadyIDs[MAX_OWNERS] = -1;
 new MySQL:sql_handle;
 enum TopItem
 {
@@ -224,7 +247,7 @@ new IsSlotsBlocked[MAX_PLAYERS] = false;
 
 new IsTourStarted = false;
 new TourPlayers[MAX_OWNERS] = -1;
-new TourBehaviourTimer = -1;
+new TourBehaviourTimer[MAX_PARTICIPANTS] = -1;
 new TourEndTimer = -1;
 new PvpTableUpdTimer = -1;
 new DeadCheckTimer[MAX_PLAYERS] = -1;
@@ -539,6 +562,7 @@ cmd:giveitem(playerid, params[])
 
 cmd:home(playerid, params[])
 {
+	if(IsTourStarted) return 1;
 	TeleportToHome(playerid);
 	return SendClientMessage(playerid, COLOR_GREY, "Done.");
 }
@@ -684,6 +708,8 @@ public OnGameModeInit()
 	mysql_set_charset("cp1251");
 	LoadTournamentInfo();
 	UpdateGlobalRatingTop();
+	for(new i = 0; i < MAX_OWNERS; i++)
+		ReadyIDs[i] = -1;
 	return 1;
 }
 
@@ -712,7 +738,21 @@ public OnPlayerRequestClass(playerid, classid)
 	else if(ok > 0)
 		ShowPlayerDialog(playerid, 101, DIALOG_STYLE_PASSWORD, "Авторизация", "Введите пароль:", "Вход", "Закрыть");
 	else
-		ShowPlayerDialog(playerid, 100, DIALOG_STYLE_PASSWORD, "Регистрация", "Указанный логин не зарегистрирован.\n\nПридумайте пароль:", "Далее", "Закрыть");
+	{
+		new query[255] = "SELECT * FROM `accounts`";
+		new Cache:q_result = mysql_query(sql_handle, query);
+		new count = 0;
+		cache_get_row_count(count);
+		cache_delete(q_result);
+		if(count < MAX_OWNERS + 1)
+			ShowPlayerDialog(playerid, 100, DIALOG_STYLE_PASSWORD, "Регистрация", "Указанный логин не зарегистрирован.\n\nПридумайте пароль:", "Далее", "Закрыть");\
+		else
+		{
+			SendClientMessage(playerid, COLOR_GREY, "Зарегистрировано максимальное количество аккаунтов.");
+			SendClientMessage(playerid, COLOR_GREEN, "Введите /q для выхода.");
+			return 1;
+		}
+	}
 	return 1;
 }
 
@@ -734,10 +774,12 @@ public OnPlayerLogin(playerid)
 		HideAllWindows(playerid);
 		ResetPlayerMoney(playerid);
 		GivePlayerMoney(playerid, PlayerInfo[playerid][Cash]);
+		UpdatePlayerPost(playerid);
 	}
 	PlayerConnect[playerid] = true;
 	IsInventoryOpen[playerid] = false;
 	SelectedSlot[playerid] = -1;
+	SetPVarInt(playerid, "LastKill", -1);
 	UpdatePlayerMaxHP(playerid);
 	pHP[playerid] = MaxHP[playerid];
 	SetPlayerSkills(playerid);
@@ -754,12 +796,16 @@ public OnPlayerLogin(playerid)
 
 public OnTourEnd(finished)
 {
-	if(IsValidTimer(TourBehaviourTimer))
-		KillTimer(TourBehaviourTimer);
 	if(IsValidTimer(TourEndTimer))
 		KillTimer(TourEndTimer);
 	if(IsValidTimer(PvpTableUpdTimer))
 		KillTimer(PvpTableUpdTimer);
+	for(new i = 0; i < MAX_PARTICIPANTS; i++)
+	{
+		if(IsValidTimer(TourBehaviourTimer[i]))
+			KillTimer(TourBehaviourTimer[i]);
+		TourBehaviourTimer[i] = -1;
+	}
 
 	for(new i = 0; i < MAX_DEATH_MESSAGES; i++)
 		SendDeathMessage(-1, MAX_PLAYERS + 1, 0);
@@ -795,7 +841,8 @@ public OnTourEnd(finished)
 		Tournament[Tour]++;
 		if(Tournament[Tour] > 5)
 			OnTournamentEnd();
-		UpdateTourParticipants();
+		else
+			UpdateTourParticipants();
 		UpdateGlobalRatingTop();
 	}
 	else
@@ -813,6 +860,7 @@ public OnTournamentEnd()
 	Tournament[Phase] = PHASE_PEACE;
 	GiveTournamentRewards();
 	UpdateTourParticipants();
+	UpdateBossesCooldowns();
 }
 
 stock SortPvpData()
@@ -837,6 +885,15 @@ public UpdatePvpTable()
 	new score[64];
 	new name[512];
 	new id = -1;
+	new minute, second;
+	new string[25];
+	PvpTtl--;
+	minute = PvpTtl / 60;
+	second = PvpTtl - minute * 60;
+	if(second <= 9)
+		format(string, 25, "%d:0%d", minute, second);
+	else
+		format(string, 25, "%d:%d", minute, second);
 
 	SortPvpData();
 	for(new j = 0; j < MAX_OWNERS; j++)
@@ -856,16 +913,6 @@ public UpdatePvpTable()
 			PlayerTextDrawSetStringRus(InitID, PvpPanelScoreLabels[InitID][i], score);
 			PlayerTextDrawShow(InitID, PvpPanelNameLabels[InitID][i]);
 		}
-
-		new minute, second;
-		new string[25];
-		PvpTtl--;
-		minute = PvpTtl / 60;
-		second = PvpTtl - minute * 60;
-		if(second <= 9)
-			format(string, 25, "%d:0%d", minute, second);
-		else
-			format(string, 25, "%d:%d", minute, second);
 		PlayerTextDrawSetStringRus(InitID, PvpPanelTimer[InitID], string);
 	}
 }
@@ -877,6 +924,60 @@ public FCNPC_OnGiveDamage(npcid, damagedid, Float:amount, weaponid, bodypart)
 
 public OnPlayerGiveDamage(playerid, damagedid, Float:amount, weaponid, bodypart)
 {
+	if(GetPlayerTeam(damagedid) != NO_TEAM && GetPlayerTeam(playerid) == GetPlayerTeam(damagedid))
+	{
+		new Float:hp;
+		if(FCNPC_IsValid(damagedid))
+			FCNPC_GiveHealth(damagedid, amount);
+		else
+		{
+			GetPlayerHealth(damagedid, hp);
+			SetPlayerHealth(damagedid, floatadd(hp, amount));
+		}
+		return 0;
+	}
+
+	new dodge = (PlayerInfo[damagedid][Dodge] - PlayerInfo[playerid][Accuracy]) / 2;
+	if(dodge < 0) dodge = 0;
+	new bool:dodged = CheckChance(dodge);
+	new bool:is_crit = CheckChance(PlayerInfo[playerid][Crit]);
+	new damage;
+	if(dodged)
+		damage = 0;
+	else if(is_crit)
+		damage = PlayerInfo[playerid][DamageMax];
+	else
+		damage = PlayerInfo[playerid][DamageMin] + random(PlayerInfo[playerid][DamageMax]-PlayerInfo[playerid][DamageMin]+1);
+	
+	new Float:defense_mul = floatsub(1.0, floatdiv(PlayerInfo[damagedid][Defense], DEFENSE_DIVIDER));
+	damage = floatround(floatmul(damage, defense_mul));
+
+	if(dodged)
+		SetPlayerChatBubble(damagedid, "Уклонение", 0x66CCCCFF, 80.0, 1200);
+	else
+	{
+		new dmginf[32];
+		format(dmginf, sizeof(dmginf), "%d", damage);
+		SetPlayerChatBubble(damagedid, dmginf, is_crit ? 0xFFCC00FF : 0xFFFFFFFF, 80.0, 1200);
+	}
+
+	new Float:new_hp;
+	new_hp = GetPlayerHP(damagedid);
+	new_hp -= damage;
+	if(new_hp < 100)
+	{
+		new lastkill = GetPVarInt(playerid, "LastKill");
+		if(lastkill != damagedid)
+		{
+			SetPVarInt(playerid, "LastKill", damagedid);
+			OnPlayerDeath(damagedid, playerid, weaponid);
+		}
+		SetPlayerHP(damagedid, 0);
+		return 1;
+	}
+
+	GivePlayerHP(damagedid, -damage);
+
 	new Float:hp;
 	if(FCNPC_IsValid(damagedid))
 		FCNPC_GiveHealth(damagedid, amount);
@@ -886,38 +987,6 @@ public OnPlayerGiveDamage(playerid, damagedid, Float:amount, weaponid, bodypart)
 		SetPlayerHealth(damagedid, floatadd(hp, amount));
 	}
 
-	if(GetPlayerTeam(damagedid) != NO_TEAM && GetPlayerTeam(playerid) == GetPlayerTeam(damagedid)) return 1;
-
-	new dodge = (PlayerInfo[damagedid][Dodge] - PlayerInfo[playerid][Accuracy]) / 2;
-	if(dodge < 0) dodge = 0;
-	new bool:dodged = CheckChance(dodge);
-	if(dodged)
-	{
-		SetPlayerChatBubble(damagedid, "Уклонение", 0x66CCCCFF, 80.0, 1200);
-		GivePlayerHP(damagedid, 0);
-		return 1;
-	}
-
-	new bool:is_crit = CheckChance(PlayerInfo[playerid][Crit]);
-	new damage;
-	if(is_crit)
-		damage = PlayerInfo[playerid][DamageMax];
-	else
-		damage = PlayerInfo[playerid][DamageMin] + random(PlayerInfo[playerid][DamageMax]-PlayerInfo[playerid][DamageMin]+1);
-	
-	new Float:defense_mul = floatsub(1.0, floatdiv(PlayerInfo[damagedid][Defense], DEFENSE_DIVIDER));
-	damage = floatround(floatmul(damage, defense_mul));
-
-	GivePlayerHP(damagedid, -damage);
-	if(FCNPC_IsValid(damagedid))
-	{
-		if(FCNPC_GetHealth(damagedid) < 10)
-			OnPlayerDeath(damagedid, playerid, weaponid);
-	}
-	
-	new dmginf[32];
-	format(dmginf, sizeof(dmginf), "%d", damage);
-	SetPlayerChatBubble(damagedid, dmginf, is_crit ? 0xFFCC00FF : 0xFFFFFFFF, 80.0, 1200);
 	return 1;
 }
 
@@ -979,36 +1048,54 @@ public OnPlayerSpawn(playerid)
 	return 1;
 }
 
+
+
 public OnPlayerDeath(playerid, killerid, reason)
 {
+	if(IsBoss[playerid])
+		return 0;
+
 	if(killerid != INVALID_PLAYER_ID)
 	{
-		IsDeath[playerid] = true; 
-		IsSpawned[playerid] = false;
 		PlayerInfo[killerid][Kills]++;
 		PlayerInfo[playerid][Deaths]++;
 	}
-	if(IsBoss[playerid])
-	{
-		RollBossLoot();
-		FinishBossAttack();
-		return 1;
-	}
+
+	IsDeath[playerid] = true; 
+	IsSpawned[playerid] = false;
+
 	if(IsBossAttacker[playerid])
 	{
 		IsBossAttacker[playerid] = false;
 		BossAttackersCount--;
 		if(BossAttackersCount <= 0)
 			FinishBossAttack();
+		return 1;
 	}
 	if(IsTourStarted && killerid != INVALID_PLAYER_ID)
 	{
+		new lastkill = GetPVarInt(killerid, "LastKill");
+		if(lastkill != -1) 
+		{
+			SetPVarInt(killerid, "LastKill", -1);
+			return 1;
+		}
+
+		SetPVarInt(killerid, "LastKill", playerid);
 		if(!FCNPC_IsDead(playerid))
 			FCNPC_Kill(playerid);
 		SendDeathMessage(killerid, playerid, reason);
 		new killer_idx = GetPvpIndex(killerid);
 		new player_idx = GetPvpIndex(playerid);
 		if(killer_idx == -1 || player_idx == -1) return 1;
+		if(GetPlayerTeam(playerid) == GetPlayerTeam(killerid))
+		{
+			SendClientMessage(killerid, COLOR_LIGHTRED, "Штраф за убийство союзника 50 очков.");
+			PvpInfo[player_idx][Score] -= 50;
+			if(PvpInfo[player_idx][Score] < 0)
+				PvpInfo[player_idx][Score] = 0;
+			return 1;
+		}
 		PvpInfo[killer_idx][Kills]++;
 		PvpInfo[player_idx][Deaths]++;
 		PvpInfo[killer_idx][Score] += GetScoreDiff(PlayerInfo[playerid][Rate], PlayerInfo[killerid][Rate], true);
@@ -1021,13 +1108,17 @@ public OnPlayerDeath(playerid, killerid, reason)
 
 public FCNPC_OnSpawn(npcid)
 {
+	if(IsBoss[npcid])
+		return 0;
     FCNPC_SetHealth(npcid, 100);
 	pHP[npcid] = MaxHP[npcid];
-	SetPlayerColor(npcid, IsTourStarted ? HexTeamColors[PlayerInfo[npcid][TeamColor]][0] : HexRateColors[PlayerInfo[npcid][Rank]-1][0]);
+	if(PlayerInfo[npcid][TeamColor] != -1 && IsTourStarted)
+		SetPlayerColor(npcid, IsTourStarted ? HexTeamColors[PlayerInfo[npcid][TeamColor]][0] : HexRateColors[PlayerInfo[npcid][Rank]-1][0]);
 	UpdatePlayerWeapon(npcid);
 	UpdatePlayerSkin(npcid);
 	if(IsTourStarted && IsTourParticipant(PlayerInfo[npcid][ID]))
 		TeleportToRandomArenaPos(npcid);
+	return 1;
 }
 
 public FCNPC_OnRespawn(npcid)
@@ -1039,8 +1130,15 @@ public FCNPC_OnRespawn(npcid)
 
 public FCNPC_OnDeath(npcid, killerid, reason)
 {
+	if(IsBoss[npcid])
+	{
+		RollBossLoot();
+		FinishBossAttack();
+		return 1;
+	}
 	if(IsTourStarted)
 		DeadCheckTimer[npcid] = SetTimerEx("CheckDead", 3000, false, "i", npcid);
+	return 1;
 }
 
 public CheckDead(npcid)
@@ -1129,6 +1227,10 @@ public OnPlayerKeyStateChange(playerid, newkeys, oldkeys)
 			strcat(text, "  Заходи ко мне почаще, чтобы не пропустить самое интересное! \n\n");
 			ShowPlayerDialog(playerid, 1, DIALOG_STYLE_MSGBOX, "Буржуа", text, "Закрыть", "");
 		}
+		else if(IsPlayerInRangeOfPoint(playerid, 2.0, 211.7733,-1838.2538,3.6687))
+		{
+			ShowPlayerPost(playerid);
+		}
 		else if(IsPlayerInRangeOfPoint(playerid, 2.0, 226.7674,-1837.6835,3.6120))
 		{
 			new listitems[] = "Информация о турнире\nТурнирная таблица\nУчастники следующего тура\nПодать сигнал готовности";
@@ -1166,6 +1268,11 @@ public OnPlayerKeyStateChange(playerid, newkeys, oldkeys)
 				ShowPlayerDialog(playerid, 1, DIALOG_STYLE_MSGBOX, "Боссы", "Сражения с боссами недоступны во время фазы войны.", "Закрыть", "");
 				return 1;
 			}
+			if(BossNPC != -1)
+			{
+				ShowPlayerDialog(playerid, 1, DIALOG_STYLE_MSGBOX, "Боссы", "Сражение уже идет.", "Закрыть", "");
+				return 1;
+			}
 			new listitems[1024];
 			listitems = GetBossesList();
 			ShowPlayerDialog(playerid, 800, DIALOG_STYLE_TABLIST_HEADERS, "Боссы", listitems, "Атака", "Закрыть");
@@ -1198,6 +1305,7 @@ public OnPlayerKeyStateChange(playerid, newkeys, oldkeys)
 	}
 	else if(newkeys & 131072)
 	{
+		if(IsTourStarted) return 1;
 		new listitems[] = "Информация о персонаже\nСменить персонажа";
 		ShowPlayerDialog(playerid, 1000, DIALOG_STYLE_TABLIST, "Bourgeois Circus", listitems, "Далее", "Закрыть");
 	}
@@ -1232,7 +1340,7 @@ public OnDialogResponse(playerid, dialogid, response, listitem, inputtext[])
 				pass = MD5_Hash(inputtext);
 
 				new query[255];
-				format(query, sizeof(query), "INSERT INTO `accounts`(`pass`, `admin`, `part_count`, `login`) VALUES ('%s','%d','%d','%s')", 
+				format(query, sizeof(query), "INSERT INTO `accounts`(`pass`, `admin`, `teamcolor`, `login`) VALUES ('%s','%d','%d','%s')", 
 					pass, 0, 0, login
 				);
 				new Cache:q_result = mysql_query(sql_handle, query);
@@ -1348,7 +1456,36 @@ public OnDialogResponse(playerid, dialogid, response, listitem, inputtext[])
 					}
 					case 3:
 					{
-
+						if(Tournament[Phase] == PHASE_WAR)
+						{
+							SendClientMessage(playerid, COLOR_GREY, "Фаза войны уже идет.");
+							return 1;
+						}
+						for(new i = 0; i < MAX_OWNERS; i++)
+						{
+							if(ReadyIDs[i] == playerid)
+							{
+								SendClientMessage(playerid, COLOR_GREY, "Вы уже подали сигнал.");
+								return 1;
+							}
+							if(ReadyIDs[i] == -1)
+							{
+								ReadyIDs[i] = playerid;
+								new name[255];
+								new string[255];
+								GetPlayerName(playerid, name, sizeof(name));
+								format(string, sizeof(string), "%s подал(а) сигнал о готовности к фазе войны.", name);
+								SendClientMessageToAll(COLOR_LIGHTRED, string);
+								break;
+							}
+						}
+						for(new i = 0; i < MAX_OWNERS; i++)
+							if(ReadyIDs[i] == -1) return 1;
+						SendClientMessageToAll(COLOR_LIGHTRED, "Начинается фаза войны!");
+						Tournament[Phase] = PHASE_WAR;
+						SaveTournamentInfo();
+						for(new i = 0; i < MAX_OWNERS; i++)
+							ReadyIDs[i] = -1;
 					}
 				}
 			}
@@ -1793,7 +1930,7 @@ public OnDialogResponse(playerid, dialogid, response, listitem, inputtext[])
 		{
 			if(response)
 			{
-				if(AttackedBoss != -1)
+				if(AttackedBoss != -1 && listitem != AttackedBoss)
 				{
 					ShowPlayerDialog(playerid, 1, DIALOG_STYLE_MSGBOX, "Боссы", "На одного из боссов уже идет атака.", "Закрыть", "");
 					return 0;
@@ -1835,6 +1972,14 @@ public OnDialogResponse(playerid, dialogid, response, listitem, inputtext[])
 			}
 			return 1;
 		}
+		//почта
+		case 900:
+		{
+			if(response)
+			{
+				ClaimMail(playerid, listitem);
+			}
+		}
 
 		//Основное меню
 		case 1000:
@@ -1861,15 +2006,43 @@ public OnDialogResponse(playerid, dialogid, response, listitem, inputtext[])
 	return 1;
 }
 
+public FCNPC_OnUpdate(npcid)
+{
+	if(IsTourStarted)
+	{
+		new lastkill = GetPVarInt(npcid, "LastKill");
+		if(lastkill != -1)
+		{
+			if(FCNPC_IsValid(lastkill) && !FCNPC_IsDead(lastkill))
+				SetPVarInt(npcid, "LastKill", -1);
+			else if(!IsDeath[npcid])
+				SetPVarInt(npcid, "LastKill", -1);
+		}
+	}
+	return 1;
+}
+
 public OnPlayerUpdate(playerid)
 {
-	if(FCNPC_IsValid(playerid)) return 1;
+	if(FCNPC_IsValid(playerid)) return 0;
 
 	new Float:hp;
 	hp = GetPlayerHP(playerid);
 	if(floatabs(floatsub(hp, pHP[playerid])) > 0.5)
 		SetPlayerHP(playerid, pHP[playerid]);
 	UpdateHPBar(playerid);
+
+	if(IsTourStarted)
+	{
+		new lastkill = GetPVarInt(playerid, "LastKill");
+		if(lastkill != -1)
+		{
+			if(FCNPC_IsValid(lastkill) && !FCNPC_IsDead(lastkill))
+				SetPVarInt(playerid, "LastKill", -1);
+			else if(!IsDeath[playerid])
+				SetPVarInt(playerid, "LastKill", -1);
+		}
+	}
 	return 1;
 }
 
@@ -1971,6 +2144,16 @@ public OnPlayerClickPlayerTextDraw(playerid, PlayerText:playertextid)
 			}
 			EquipItem(playerid, equip[Type], SelectedSlot[playerid]);
 			return 1;
+		}
+		if(IsLockbox(itemid))
+		{
+			if(IsInventoryFull(playerid))
+			{
+				ShowPlayerDialog(playerid, 1, DIALOG_STYLE_MSGBOX, "Ошибка", "Инвентарь полон.", "Закрыть", "");
+				return 0;
+			}
+			DeleteItem(playerid, SelectedSlot[playerid], 1);
+			OpenLockbox(playerid, itemid);
 		}
 	}
 	else if(playertextid == ChrInfButInfo[playerid])
@@ -2183,83 +2366,91 @@ public TeleportBossAttackersToHome()
 	DestroyBoss();
 }
 
-public TourBehaviour()
+public TourBehaviour(id)
 {
-	for(new i = 0; i < MAX_PARTICIPANTS; i++)
+	if(id == -1) return;
+	if(!FCNPC_IsValid(id)) return;
+
+	//If NPC bumped any obstacle - move him
+	if(FCNPC_IsMoving(id) && FCNPC_GetSpeed(id) < 0.2)
 	{
-		new id = PvpInfo[i][ID];
-		if(id == -1) continue;
-		if(!FCNPC_IsValid(id)) continue;
+		MoveAround(id);
+		return;
+	}
 
-		//If NPC bumped any obstacle - move him
-		if(FCNPC_IsMoving(id) && FCNPC_GetSpeed(id) < 0.1)
+	//Random jumping during moving
+	if(FCNPC_IsMoving(id))
+	{
+		if(CheckChance(10))
+			FCNPC_SetKeys(id, 128, 0, 32);
+	}
+
+	//If NPC too close with other players - move him
+	if(IsNPCCloseToAnyPlayer(id))
+	{
+		if(!FCNPC_IsMoving(id))
 		{
+			FCNPC_StopAim(id);
 			MoveAround(id);
-			return;
 		}
+		return;
+	}
 
-		//Checking available target
-		if(!FCNPC_IsAiming(id) && !FCNPC_IsDead(id))
-		{
-			new chance = random(100);
-			if(FCNPC_IsMoving(id) && chance > 5)
-				return;
-			
+	//Checking available target
+	if(!FCNPC_IsAiming(id) && !FCNPC_IsDead(id))
+		SetPlayerTarget(id);
+
+	//If current target is dead, set new
+	new target = FCNPC_GetAimingPlayer(id);
+	if(target == -1)
+		return;
+	if(FCNPC_IsDead(target))
+	{
+		SetPlayerTarget(id);
+		return;
+	}
+
+	new Float:dist = GetDistanceBetweenPlayers(id, target);
+	if(!FCNPC_IsMoving(id) && dist > 10.0)
+		FCNPC_GoToPlayer(id, target);
+
+	//If player so close to target - attack it
+	if(dist <= 10)
+	{
+		if(FCNPC_IsMoving(id))
+			FCNPC_Stop(id);
+		if(!FCNPC_IsShooting(id))
+			FCNPC_AimAtPlayer(id, target, true, GetWeaponDelay(FCNPC_GetWeapon(id)));
+	}
+	else
+		FCNPC_AimAtPlayer(id, target, false);
+
+	//If there are targets with less HP beside player - change target
+	new potential_target = FindPlayerTarget(id, true);
+	if(potential_target != -1)
+	{
+		new Float:t_hp = FCNPC_GetHealth(target);
+		new Float:pt_hp = FCNPC_GetHealth(potential_target);
+		if(floatsub(t_hp, pt_hp) >= 35)
 			SetPlayerTarget(id);
-			return;
-		}
-
-		//If current target is dead, set new
-		new target = FCNPC_GetAimingPlayer(id);
-		if(target == -1)
-			return;
-		if(FCNPC_IsDead(target))
-		{
-			SetPlayerTarget(id);
-			return;
-		}
-
-		new Float:dist = GetDistanceBetweenPlayers(id, target);
-		if(!FCNPC_IsMovingAtPlayer(id, target) && dist > 10.0)
-			FCNPC_GoToPlayer(id, target);
-
-		//If player so close to target - attack it
-		if(dist <= 10)
-		{
-			if(FCNPC_IsMoving(id))
-				FCNPC_Stop(id);
-			if(!FCNPC_IsShooting(id))
-				FCNPC_AimAtPlayer(id, target, true, NPC_SHOOT_DELAY);
-		}
-		else
-			FCNPC_AimAtPlayer(id, target, false);
-
-		//If there are targets with less HP beside player - change target
-		new potential_target = FindPlayerTarget(id, true);
-		if(potential_target != -1)
-		{
-			new Float:t_hp = FCNPC_GetHealth(target);
-			new Float:pt_hp = FCNPC_GetHealth(potential_target);
-			if(floatsub(t_hp, pt_hp) >= 35)
-				SetPlayerTarget(id);
-		}
 	}
 }
 
 public BossBehaviour()
 {
 	new id = BossNPC;
-	if(id == -1) return;
+	if(id == -1 || id == INVALID_PLAYER_ID) return;
 
 	//If NPC bumped any obstacle - move him
-	if(FCNPC_IsMoving(id) && FCNPC_GetSpeed(id) < 0.1)
+	if(FCNPC_IsMoving(id) && FCNPC_GetSpeed(id) < 0.2)
 	{
+		FCNPC_Stop(id);
 		MoveAround(id);
 		return;
 	}
 
 	//Checking available target
-	if(!FCNPC_IsDead(id) && !FCNPC_IsShooting(id) && BossAttackersCount > 1 && CheckChance(5))
+	if(!FCNPC_IsDead(id) && !FCNPC_IsShooting(id) && BossAttackersCount > 1 && CheckChance(15))
 	{
 		SetBossTarget(id);
 		return;
@@ -2277,7 +2468,7 @@ public BossBehaviour()
 	if(!FCNPC_IsMovingAtPlayer(id, target) && dist > 10.0)
 	{
 		FCNPC_AimAtPlayer(id, target, false);
-		FCNPC_GoToPlayer(id, target, FCNPC_MOVE_TYPE_SPRINT);
+		FCNPC_GoToPlayer(id, target);
 	}
 
 	//If player so close to target - attack it
@@ -2286,7 +2477,7 @@ public BossBehaviour()
 		if(FCNPC_IsMoving(id))
 			FCNPC_Stop(id);
 		if(!FCNPC_IsShooting(id))
-			FCNPC_AimAtPlayer(id, target, true, NPC_SHOOT_DELAY);
+			FCNPC_AimAtPlayer(id, target, true, BOSS_SHOOT_DELAY);
 	}
 }
 
@@ -2359,10 +2550,7 @@ public GivePlayerHP(playerid, Float:hp)
 		new_hp = max_hp;
 	if(new_hp < 0)
 		new_hp = 0;
-	if(FCNPC_IsValid(playerid) && new_hp < 50)
-		FCNPC_Kill(playerid);
-	else
-		SetPlayerHP(playerid, new_hp);
+	SetPlayerHP(playerid, new_hp);
 }
 
 public Float:GetPlayerHP(playerid)
@@ -2378,7 +2566,8 @@ public Float:GetPlayerHP(playerid)
 
 public RegeneratePlayerHP(playerid)
 {
-	if(IsDeath[playerid] || GetPlayerHP(playerid) <= 70) return;
+	if(IsDeath[playerid] || GetPlayerHP(playerid) < 100) return;
+	if(FCNPC_IsValid(playerid) && FCNPC_IsDead(playerid)) return;
 	new Float:hp;
 	if(FCNPC_IsValid(playerid))
 		hp = floatmul(GetPlayerMaxHP(playerid), 0.01);
@@ -2399,6 +2588,7 @@ public GivePlayerRate(playerid, rate)
 	PlayerInfo[playerid][Rate] += rate;
 	if(PlayerInfo[playerid][Rate] < 0) PlayerInfo[playerid][Rate] = 0;
 	if(PlayerInfo[playerid][Rate] > MAX_RATE) PlayerInfo[playerid][Rate] = MAX_RATE;
+	GivePlayerRateOffline(PlayerInfo[playerid][Name], rate);
 	UpdatePlayerRank(playerid);
 	UpdateLocalRatingTop(playerid);
 }
@@ -2452,16 +2642,33 @@ public GivePlayerRateOffline(name[], rate)
 	cache_delete(result);
 }
 
+public SetPlayerRateOffline(name[], rate)
+{
+	new new_rate = rate;
+	if(new_rate < 0) new_rate = 0;
+	if(new_rate > MAX_RATE) new_rate = MAX_RATE;
+	new query[255];
+	format(query, sizeof(query), "UPDATE `players` SET `Rate` = '%d' WHERE `Name` = '%s' LIMIT 1", new_rate, name);
+	new Cache:result = mysql_query(sql_handle, query);
+	cache_delete(result);
+}
+
 public SetPlayerRate(playerid, rate)
 {
 	PlayerInfo[playerid][Rate] = rate;
 	if(PlayerInfo[playerid][Rate] < 0) PlayerInfo[playerid][Rate] = 0;
 	if(PlayerInfo[playerid][Rate] > MAX_RATE) PlayerInfo[playerid][Rate] = MAX_RATE;
+	SetPlayerRateOffline(PlayerInfo[playerid][Name], rate);
 	UpdatePlayerRank(playerid);
 	UpdateLocalRatingTop(playerid);
 }
 
 /* Stock functions */
+stock IsValidTimer(timerid)
+{
+	if(timerid < 0) return false;
+	return true;
+}
 stock StartTour()
 {
 	new string[255];
@@ -2561,9 +2768,13 @@ stock StartTour()
 	SendClientMessageToAll(COLOR_LIGHTRED, string);
 
 	PvpTtl = 180;
-	TourBehaviourTimer = SetTimer("TourBehaviour", 200, true);
 	TourEndTimer = SetTimerEx("OnTourEnd", 180000, false, "i", 1);
 	PvpTableUpdTimer = SetTimer("UpdatePvpTable", 1000, true);
+	for(new i = 0; i < TourParticipantsCount; i++)
+	{
+		if(PvpInfo[i][ID] == -1) continue;
+		TourBehaviourTimer[i] = SetTimerEx("TourBehaviour", 200, true, "i", PvpInfo[i][ID]);
+	}
 
 	print("Tour started.");
 }
@@ -2578,6 +2789,23 @@ stock GetScoreDiff(rate1, rate2, bool:is_killer)
 	if(is_killer)
 		diff += 50;
 	return diff;
+}
+
+stock GetWeaponDelay(weaponid)
+{
+	switch(weaponid)
+	{
+		case 22: return COLT_SHOOT_DELAY;
+		case 24: return DEAGLE_SHOOT_DELAY;
+		case 25: return SHOTGUN_SHOOT_DELAY;
+		case 26: return SAWNOFF_SHOOT_DELAY;
+		case 27: return COMBAT_SHOOT_DELAY;
+		case 28,32: return TEC_SHOOT_DELAY;
+		case 29: return MP5_SHOOT_DELAY;
+		case 30: return AK_SHOOT_DELAY;
+		case 31: return M4_SHOOT_DELAY;
+	}
+	return DEFAULT_SHOOT_DELAY;
 }
 
 stock GetPvpIndex(playerid)
@@ -2633,7 +2861,153 @@ stock InitTourNPC(npcid)
 
 stock GiveTournamentRewards()
 {
-	
+	new query[255];
+	format(query, sizeof(query), "SELECT * FROM `players` WHERE 'Owner' <> 'Admin' LIMIT %d", MAX_PARTICIPANTS);
+	new Cache:q_result = mysql_query(sql_handle, query);
+	new row_count = 0;
+	cache_get_row_count(row_count);
+	if(row_count <= 0)
+	{
+		print("Cannot give tournament tewards.");
+		return;
+	}
+
+	q_result = cache_save();
+	cache_unset_active();
+
+	for(new i = 0; i < row_count; i++)
+	{
+		new name[255];
+		new rank = 1;
+		new place = MAX_PARTICIPANTS;
+		new money = 0;
+
+		cache_set_active(q_result);
+		cache_get_value_name(i, "Name", name);
+		cache_get_value_name_int(i, "Rank", rank);
+		cache_get_value_name_int(i, "GlobalTopPos", place);
+		cache_unset_active();
+
+		new reward[RewardInfo];
+		switch(place)
+		{
+			case 1:
+			{
+				reward[ItemID] = 203;
+				reward[ItemsCount] = 7;
+				money = 1000;
+			}
+			case 2:
+			{
+				reward[ItemID] = 203;
+				reward[ItemsCount] = 6;
+				money = 800;
+			}
+			case 3:
+			{
+				reward[ItemID] = 203;
+				reward[ItemsCount] = 5;
+				money = 500;
+			}
+			case 4..5:
+			{
+				reward[ItemID] = 203;
+				reward[ItemsCount] = 3;
+				money = 350;
+			}
+			case 6..8:
+			{
+				reward[ItemID] = 202;
+				reward[ItemsCount] = 4;
+				money = 200;
+			}
+			case 9..12:
+			{
+				reward[ItemID] = 202;
+				reward[ItemsCount] = 3;
+				money = 100;
+			}
+			case 13..16:
+			{
+				reward[ItemID] = 202;
+				reward[ItemsCount] = 2;
+				money = 50;
+			}
+			default:
+			{
+				reward[ItemID] = 202;
+				reward[ItemsCount] = 1;
+				money = 10;
+			}
+		}
+
+		money = money * floatround(floatpower(rank, 2));
+		reward[Money] = money;
+
+		new id = GetPlayerID(name);
+		if(id == -1)
+		{
+			if(reward[ItemID] != -1)
+				PendingItem(name, reward[ItemID], reward[ItemsCount]);
+			if(reward[Money] > 0)
+				GivePlayerMoneyOffline(name, reward[Money]);
+		}
+		else
+		{
+			if(reward[ItemID] != -1)
+			{
+				if(IsInventoryFull(id))
+				{
+					SendClientMessage(id, COLOR_GREY, "Инвентарь полон, награды отправлены на почту.");
+					PendingItem(name, reward[ItemID], reward[ItemsCount]);
+					UpdatePlayerPost(id);
+					continue;
+				}
+				if(IsEquip(reward[ItemID]))
+					AddEquip(id, reward[ItemID], MOD_CLEAR);
+				else
+					AddItem(id, reward[ItemID], reward[ItemsCount]);
+			}
+			if(reward[Money] > 0)
+				AddPlayerMoney(id, reward[Money]);
+		}
+	}
+}
+
+stock UpdateBossesCooldowns()
+{
+	new query[255];
+	format(query, sizeof(query), "SELECT * FROM `bosses` LIMIT %d", MAX_BOSSES);
+	new Cache:q_result = mysql_query(sql_handle, query);
+	new row_count = 0;
+	cache_get_row_count(row_count);
+	if(row_count <= 0)
+	{
+		print("Cannot update boss cooldowns.");
+		return;
+	}
+
+	q_result = cache_save();
+	cache_unset_active();
+
+	for(new i = 0; i < row_count; i++)
+	{
+		new cooldown = 0;
+		cache_set_active(q_result);
+		cache_get_value_name_int(i, "RespawnTime", cooldown);
+		cache_unset_active();
+
+		cooldown--;
+		if(cooldown < 0)
+			cooldown = 0;
+
+		new sub_query[255];
+		format(sub_query, sizeof(sub_query), "UPDATE `bosses` SET `RespawnTime` = '%d' WHERE `ID` = '%d' LIMIT 1", cooldown, i);
+		new Cache:result = mysql_query(sql_handle, sub_query);
+		cache_delete(result);
+	}
+
+	cache_delete(q_result);
 }
 
 stock GiveTourRates(tour)
@@ -2745,7 +3119,93 @@ stock AddPlayerMoney(playerid, money)
 
 stock UpdatePlayerPost(playerid)
 {
+	new query[255];
+	format(query, sizeof(query), "SELECT * FROM `pendings` WHERE `PlayerName` = '%s'", PlayerInfo[playerid][Name]);
+	new Cache:q_result = mysql_query(sql_handle, query);
+
+	new row_count = 0;
+	cache_get_row_count(row_count);
+	cache_delete(q_result);
+	if(row_count > 0)
+	{
+		new string[255];
+		format(string, sizeof(string), "У вас есть новые письма [%d].", row_count);
+		SendClientMessage(playerid, 0x3366CCFF, string);
+	}
+}
+
+stock ShowPlayerPost(playerid)
+{
+	new query[255];
+	format(query, sizeof(query), "SELECT * FROM `pendings` WHERE `PlayerName` = '%s' ORDER BY `PendingID` DESC", PlayerInfo[playerid][Name]);
+	new Cache:q_result = mysql_query(sql_handle, query);
+
+	new row_count = 0;
+	cache_get_row_count(row_count);
+	q_result = cache_save();
+	cache_unset_active();
+
+	new listitems[2048] = "Предмет\tКоличество";
+	new string[255];
+	for(new i = 0; i < row_count; i++)
+	{
+		cache_set_active(q_result);
+		new reward[RewardInfo];
+		cache_get_value_name_int(i, "ItemID", reward[ItemID]);
+		cache_get_value_name_int(i, "Count", reward[ItemsCount]);
+		cache_unset_active();
+
+		new item[BaseItem];
+		item = GetItem(reward[ItemID]);
+		format(string, sizeof(string), "\n{%s}%s\t{ffffff}%d", GetGradeColor(item[Grade]), item[Name], reward[ItemsCount]);
+		strcat(listitems, string);
+	}
+	cache_delete(q_result);
 	
+	if(row_count == 0)
+		ShowPlayerDialog(playerid, 1, DIALOG_STYLE_MSGBOX, "Почта", "Новых писем нет.", "Закрыть", "");
+	else
+		ShowPlayerDialog(playerid, 900, DIALOG_STYLE_TABLIST_HEADERS, "Почта", listitems, "Получить", "Закрыть");
+}
+
+stock ClaimMail(playerid, num)
+{
+	if(IsInventoryFull(playerid))
+	{
+		ShowPlayerDialog(playerid, 1, DIALOG_STYLE_MSGBOX, "Почта", "Инвентарь полон.", "Закрыть", "");
+		return;
+	}
+
+	new query[255];
+	format(query, sizeof(query), "SELECT * FROM `pendings` WHERE `PlayerName` = '%s' ORDER BY `PendingID` DESC", PlayerInfo[playerid][Name]);
+	new Cache:q_result = mysql_query(sql_handle, query);
+
+	new row_count = 0;
+	cache_get_row_count(row_count);
+	if(row_count < num)
+	{
+		print("Cannot claim mail.");
+		return;
+	}
+
+	new reward[RewardInfo];
+	new p_id = -1;
+	cache_get_value_name_int(num, "ItemID", reward[ItemID]);
+	cache_get_value_name_int(num, "Count", reward[ItemsCount]);
+	cache_get_value_name_int(num, "PendingID", p_id);
+	cache_delete(q_result);
+	if(IsEquip(reward[ItemID]))
+		AddEquip(playerid, reward[ItemID], MOD_CLEAR);
+	else
+		AddItem(playerid, reward[ItemID], reward[ItemsCount]);
+
+	if(p_id == -1) return;
+	new s_query[255];
+	format(s_query, sizeof(s_query), "DELETE FROM `pendings` WHERE `PendingID` = '%d'", p_id);
+	new Cache:result = mysql_query(sql_handle, s_query);
+	cache_delete(result);
+
+	SendClientMessage(playerid, COLOR_GREEN, "Предметы получены.");
 }
 
 stock UpdateTourParticipants()
@@ -3013,6 +3473,72 @@ stock SetPvpTableVisibility(playerid, bool:value)
 	}
 }
 
+stock OpenLockbox(playerid, lockboxid)
+{
+	new chance = random(10001);
+	new itemid = -1;
+	new count = 0;
+	new rank = PlayerInfo[playerid][Rank];
+	switch(lockboxid)
+	{
+		case 202:
+		{
+			switch(chance)
+			{
+				case 0..1299: { itemid = 196; count = 2; }
+				case 1300..2599: { itemid = 197; count = 2; }
+				case 2600..3899: { itemid = 198; count = 2; }
+				case 3900..5199: { itemid = 199; count = 2; }
+				case 5200..6499: { itemid = 200; count = 2; }
+				case 6500..7799: { itemid = 201; count = 2; }
+				case 7800..8399: { itemid = 191; count = 1; }
+				case 8400..8699: { itemid = 195; count = 1; }
+				case 8700..9099: { itemid = GetRandomEquip(rank, rank, RND_EQUIP_TYPE_WEAPON, GRADE_N); count = 1; }
+				case 9100..9499: { itemid = GetRandomEquip(rank, rank, RND_EQUIP_TYPE_ARMOR, GRADE_N); count = 1; }
+				case 9500..9699: { itemid = GetRandomEquip(rank, rank, RND_EQUIP_TYPE_WEAPON, GRADE_B); count = 1; }
+				case 9700..9899: { itemid = GetRandomEquip(rank, rank, RND_EQUIP_TYPE_ARMOR, GRADE_B); count = 1; }
+				case 9900..9989: { itemid = 192; count = 1; }
+				default: { itemid = 193; count = 1; }
+			}
+		}
+		case 203:
+		{
+			switch(chance)
+			{
+				case 0..1299: { itemid = 196; count = 5; }
+				case 1300..2599: { itemid = 197; count = 5; }
+				case 2600..3899: { itemid = 198; count = 5; }
+				case 3900..5199: { itemid = 199; count = 5; }
+				case 5200..6499: { itemid = 200; count = 5; }
+				case 6500..7799: { itemid = 201; count = 5; }
+				case 7800..8299: { itemid = 191; count = 2; }
+				case 8400..8699: { itemid = 195; count = 2; }
+				case 8700..9099: { itemid = GetRandomEquip(rank, rank, RND_EQUIP_TYPE_WEAPON, GRADE_N); count = 1; }
+				case 9100..9499: { itemid = GetRandomEquip(rank, rank, RND_EQUIP_TYPE_ARMOR, GRADE_N); count = 1; }
+				case 9500..9699: { itemid = GetRandomEquip(rank, rank, RND_EQUIP_TYPE_WEAPON, GRADE_B); count = 1; }
+				case 9700..9899: { itemid = GetRandomEquip(rank, rank, RND_EQUIP_TYPE_ARMOR, GRADE_B); count = 1; }
+				case 9900..9928: { itemid = 193; count = 1; }
+				case 9929: { itemid = 194; count = 1; }
+				default: { itemid = 192; count = 1; }
+			}
+		}
+	}
+	if(itemid == -1) return;
+
+	if(IsEquip(itemid))
+		AddEquip(playerid, itemid, MOD_CLEAR);
+	else
+		AddItem(playerid, itemid, count);
+
+	new item[BaseItem];
+	item = GetItem(itemid);
+	new string[255];
+	format(string, sizeof(string), "Получено: {%s}[%s] {ffffff}x%d.", 
+		GetGradeColor(item[Grade]), item[Name], count
+	);
+	SendClientMessage(playerid, 0xFFFFFFFF, string);
+}
+
 stock SwitchPlayer(playerid)
 {
 	new listitems[1024] = "Имя\tРейтинг";
@@ -3070,6 +3596,32 @@ stock SetPlayerSkills(playerid)
 	}
 }
 
+stock FindPlayerNearestTarget(npcid)
+{
+	if(npcid == -1) return -1;
+	new targetid = -1;
+	new Float:min_dist = 10000;
+
+	for (new i = 0; i < MAX_PARTICIPANTS; i++)
+	{
+		new id = PvpInfo[i][ID];
+		if(id == -1) continue;
+		if(npcid == id) continue;
+		if(GetPlayerTeam(id) != NO_TEAM && GetPlayerTeam(npcid) == GetPlayerTeam(id))
+			continue;
+		
+		new Float:dist;
+		dist = GetDistanceBetweenPlayers(npcid, id);
+		if(dist < min_dist)
+		{
+			min_dist = dist;
+			targetid = id;
+		}
+	}
+
+	return targetid;
+}
+
 stock FindPlayerTarget(npcid, bool:by_minhp = false)
 {
 	new targetid = -1;
@@ -3110,6 +3662,9 @@ stock FindPlayerTarget(npcid, bool:by_minhp = false)
 		}
 	}
 
+	if(targets_count <= 0)
+		targetid = FindPlayerNearestTarget(npcid);
+
 	if(!by_minhp)
 		return nearest_targets[0];
 
@@ -3129,12 +3684,12 @@ stock FindPlayerTarget(npcid, bool:by_minhp = false)
 
 stock SetPlayerTarget(playerid)
 {
-	FCNPC_StopAim(playerid);
+	if(FCNPC_IsAiming(playerid))
+		FCNPC_StopAim(playerid);
 	new targetid = FindPlayerTarget(playerid, true);
 
 	if(targetid == -1)
 	{
-		DebugLogInt("No target for", playerid);
 		MoveAround(playerid);
 		return 0;
 	}
@@ -3186,6 +3741,21 @@ stock SetBossTarget(playerid)
 		FCNPC_GoToPlayer(playerid, targetid);
 	print("Target setted.");
 	return;
+}
+
+stock IsNPCCloseToAnyPlayer(npcid)
+{
+	for(new i = 0; i < MAX_PARTICIPANTS; i++)
+	{
+		new id = PvpInfo[i][ID];
+		if(id == -1) continue;
+		if(id == npcid) continue;
+
+		if(GetDistanceBetweenPlayers(id, npcid) < 2) 
+			return true;
+	}
+	
+	return false;
 }
 
 stock MoveAround(playerid, bool:is_evading = false)
@@ -3554,17 +4124,20 @@ stock RollBossLootItem(bossid)
 	return loot;
 }
 
-stock GetRandomEquip(minrank, maxrank)
+stock GetRandomEquip(minrank, maxrank, eq_type = RND_EQUIP_TYPE_RANDOM, grade = RND_EQUIP_GRADE_RANDOM)
 {
 	new rank = minrank + random(maxrank-minrank+1) - 1;
-	new type = random(2);
+	new type = eq_type == RND_EQUIP_TYPE_RANDOM ? random(2) : eq_type;
 	new baseid = type == 0 ? 1 : 82;
 
 	if(type == 0 && rank == 5)
-		return baseid + rank * 8 + random(16);
+	{
+		rank += random(2);
+		return baseid + rank * 8 + (grade == RND_EQUIP_GRADE_RANDOM ? random(8) : grade-1);
+	}
 	if(type == 0 && rank > 5)
-		return baseid + (rank+1) * 8 + random(8);
-	return baseid + rank * 8 + random(8);
+		return baseid + (rank+1) * 8 + (grade == RND_EQUIP_GRADE_RANDOM ? random(8) : grade-1);
+	return baseid + rank * 8 + (grade == RND_EQUIP_GRADE_RANDOM ? random(8) : grade-1);
 }
 
 stock GetRandomAccessory(type)
@@ -4104,7 +4677,7 @@ stock AddItem(playerid, id, count = 1)
 
 stock PendingItem(name[], id, count = 1)
 {
-	new sub_query[255] = "SELECT MAX(`PendingID`) AS `PendingID` FROM `pendings";
+	new sub_query[255] = "SELECT MAX(`PendingID`) AS `PendingID` FROM `pendings`";
 	new Cache:sq_result = mysql_query(sql_handle, sub_query);
 	new p_id = -1;
 	new row_count = 0;
@@ -4114,17 +4687,11 @@ stock PendingItem(name[], id, count = 1)
 	else
 		cache_get_value_name_int(0, "PendingID", p_id);
 	cache_delete(sq_result);
-
-	if(p_id == -1)
-	{
-		print("Pending error: cannot create new ID.");
-		return;
-	}
 	p_id++;
 
 	new query[255];
-	format(query, sizeof(query), "INSERT INTO `pendings`(`PendingID`, `PlayerName`, `ItemID`, `SlotMod`, `Count`) VALUES ('%d','%s','%d','%s','%d')",
-		p_id, name, id, "0 0 0 0 0 0 0", count
+	format(query, sizeof(query), "INSERT INTO `pendings`(`PendingID`, `PlayerName`, `ItemID`, `Count`) VALUES ('%d','%s','%d','%d')",
+		p_id, name, id, count
 	);
 	new Cache:q_result = mysql_query(sql_handle, query);
 	cache_delete(q_result);
@@ -4359,6 +4926,16 @@ stock IsEquip(item_id)
 	new item[BaseItem];
 	item = GetItem(item_id);
 	return item[Type] == ITEMTYPE_WEAPON || item[Type] == ITEMTYPE_ARMOR || item[Type] == ITEMTYPE_ACCESSORY;
+}
+
+stock IsLockbox(item_id)
+{
+	if(item_id == -1)
+		return false;
+	
+	new item[BaseItem];
+	item = GetItem(item_id);
+	return item[Type] == ITEMTYPE_BOX;
 }
 
 stock IsPlayerParticipant(playerid)
@@ -5622,7 +6199,7 @@ stock CreatePlayer(playerid, name[], owner[], sex)
 		`ArmorSlotID`, `ArmorMod`, `AccSlot1ID`, `AccSlot2ID`) VALUES (";
 	new tmp[1024];
 
-	new sub_query[255] = "SELECT MAX(`ID`) AS `ID` FROM `players";
+	new sub_query[255] = "SELECT MAX(`ID`) AS `ID` FROM `players`";
 	new Cache:sq_result = mysql_query(sql_handle, sub_query);
 	new id = -1;
 	cache_get_value_name_int(0, "ID", id);
@@ -7111,6 +7688,7 @@ stock CreatePickups()
 	Create3DTextLabel("Портной",0xFFCC00FF,262.6658,-1825.2792,3.9126,55.0,0,1);
 	Create3DTextLabel("Буржуа",0x9933CCFF,221.0985,-1838.1259,3.6268,55.0,0,1);
 	Create3DTextLabel("Заведующий турнирами",0x3366FFFF,226.7674,-1837.6835,3.6120,55.0,0,1);
+	Create3DTextLabel("Почта",0x3366CCFF,212.3999,-1838.2000,3.0000,55.0,0,0);
 
 	Actors[0] =	CreateActor(26,-2166.7527,646.0400,1052.3750,179.9041);
 	Actors[1] =	CreateActor(6,189.2644,-1825.4902,4.1411,185.0134);
@@ -7283,4 +7861,5 @@ stock CreateMap()
 	CreateObject(3524,-2448.8999000,-1643.2000000,769.5999800,0.0000000,0.0000000,141.9940000); //object(skullpillar01_lvs) (8)
 	CreateObject(3524,-2435.8999000,-1643.2000000,769.5999800,0.0000000,0.0000000,223.9930000); //object(skullpillar01_lvs) (9)
 	CreateObject(2611,-2171.6001000,645.5999800,1053.3000000,0.0000000,0.0000000,90.0000000); //object(police_nb1) (1)
+	CreateObject(1291,212.3999900,-1838.2000000,3.0000000,0.0000000,0.0000000,270.0000000); //object(postbox1) (1)
 }
