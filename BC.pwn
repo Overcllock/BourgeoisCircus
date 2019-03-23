@@ -1,4 +1,4 @@
-//Bourgeois Circus 0.91
+//Bourgeois Circus 0.92
 
 #include <a_samp>
 #include <a_mail>
@@ -15,11 +15,10 @@
 #include <Pawn.CMD>
 #include <YSF>
 #include <vnpc>
-//#include <timerfix>
 
 #pragma dynamic 31294
 
-#define VERSION 0.911
+#define VERSION 0.921
 
 //Mysql settings
 
@@ -175,7 +174,6 @@ forward TeleportToHome(playerid);
 forward bool:CheckChance(chance);
 forward RegeneratePlayerHP(playerid);
 forward UpdatePvpTable();
-forward TourBehaviour(id);
 forward CheckDead(npcid);
 
 /* Variables */
@@ -189,6 +187,7 @@ new TeleportTimer = -1;
 new Actors[MAX_ACTORS];
 new ReadyIDs[MAX_OWNERS] = -1;
 new MySQL:sql_handle;
+new arena_area;
 enum TopItem
 {
 	Pos,
@@ -247,7 +246,6 @@ new IsSlotsBlocked[MAX_PLAYERS] = false;
 
 new IsTourStarted = false;
 new TourPlayers[MAX_OWNERS] = -1;
-new TourBehaviourTimer[MAX_PARTICIPANTS] = -1;
 new TourEndTimer = -1;
 new PvpTableUpdTimer = -1;
 new DeadCheckTimer[MAX_PLAYERS] = -1;
@@ -340,7 +338,6 @@ new PlayerInfo[MAX_PLAYERS][pInfo];
 new PlayerHPMultiplicator[MAX_PLAYERS];
 new bool:PlayerConnect[MAX_PLAYERS] = false;
 new Float:MaxHP[MAX_PLAYERS];
-new Float:pHP[MAX_PLAYERS];
 new bool:IsInventoryOpen[MAX_PLAYERS] = false;
 new bool:IsDeath[MAX_PLAYERS] = false;
 new bool:IsSpawned[MAX_PLAYERS] = false;
@@ -514,6 +511,12 @@ main()
 }
 
 /* Commands */
+cmd:ferma(playerid, params[])
+{
+	SetPlayerInterior(playerid, 0);
+	SetPlayerPos(playerid, 0, 0, 0);
+	return 1;
+}
 //GM commands
 cmd:setrate(playerid, params[])
 {
@@ -631,6 +634,7 @@ cmd:spawn(playerid, params[])
 	if(PlayerInfo[playerid][Admin] == 0)
 		return 0;
 
+	ResetWorldBounds(playerid);
 	SetPlayerPos(playerid, 224.0761,-1839.8217,3.6037);
 	SetPlayerInterior(playerid, 0);
 	return 1;
@@ -642,35 +646,15 @@ cmd:kill(playerid, params[])
 		return 0;
 
 	SetPlayerHealth(playerid, 0);
-	pHP[playerid] = 0;
 	return 1;
 }
 
-cmd:arena1(playerid, params[])
+cmd:arena(playerid, params[])
 {
 	if(PlayerInfo[playerid][Admin] == 0)
 		return 0;
-		
-	SetPlayerPos(playerid, -2443.683,-1633.3514,767.6721);
-	SetPlayerInterior(playerid, 0);
-	return 1;
-}
-
-cmd:arena2(playerid, params[])
-{
-	if(PlayerInfo[playerid][Admin] == 0)
-		return 0;
-		
-	SetPlayerPos(playerid, -2256.331,-1625.8031,767.6721);
-	SetPlayerInterior(playerid, 0);
-	return 1;
-}
-
-cmd:arena3(playerid, params[])
-{
-	if(PlayerInfo[playerid][Admin] == 0)
-		return 0;
-		
+	
+	SetPlayerWorldBounds(playerid, -2313.0295, -2390.5017, -1593.6758, -1669.8492);
 	SetPlayerPos(playerid, -2353.16186,-1630.952,723.561);
 	SetPlayerInterior(playerid, 0);
 	return 1;
@@ -686,7 +670,7 @@ public OnGameModeInit()
 	DisableInteriorEnterExits();
 	EnableStuntBonusForAll(0);
 	LimitPlayerMarkerRadius(1000.0);
-	FCNPC_SetUpdateRate(15);
+	FCNPC_SetUpdateRate(10);
 	FCNPC_UseCrashLog(true);
 	ShowPlayerMarkers(PLAYER_MARKERS_MODE_GLOBAL);
 	DisableNameTagLOS();
@@ -695,7 +679,7 @@ public OnGameModeInit()
 	CreatePickups();
 	InitTextDraws();
 	WorldTime_Timer = SetTimer("Time", 1000, true);
-
+	arena_area = CreateDynamicRectangle(-2390.5017, -1669.8492, -2313.0295, -1593.6758, 0, 0, -1);
 	sql_handle = mysql_connect(SQL_HOST, SQL_USER, SQL_PASS, SQL_DB);
 	if(!sql_handle)
 	{
@@ -721,6 +705,19 @@ public OnGameModeExit()
 	KillTimer(WorldTime_Timer);
 	for (new i = 0; i < MAX_ACTORS; i++)
 		DestroyActor(Actors[i]);
+	return 1;
+}
+
+public OnPlayerLeaveDynamicArea(playerid, areaid)
+{
+	if(FCNPC_IsValid(playerid)) return 0;
+
+	if(IsTourStarted && !IsDeath[playerid] && areaid == arena_area && IsPlayerParticipant(playerid))
+	{
+		OnPlayerSpawn(playerid);
+		TeleportToRandomArenaPos(playerid);
+	}
+
 	return 1;
 }
 
@@ -760,7 +757,6 @@ public OnPlayerConnect(playerid)
 {
 	IsDeath[playerid] = false;
 	IsSpawned[playerid] = false;
-	pHP[playerid] = 1000;
     ShowTextDraws(playerid);
 	return 1;
 }
@@ -781,7 +777,6 @@ public OnPlayerLogin(playerid)
 	SelectedSlot[playerid] = -1;
 	SetPVarInt(playerid, "LastKill", -1);
 	UpdatePlayerMaxHP(playerid);
-	pHP[playerid] = MaxHP[playerid];
 	SetPlayerSkills(playerid);
 	if(!FCNPC_IsValid(playerid))
 		SpawnPlayer(playerid);
@@ -800,12 +795,6 @@ public OnTourEnd(finished)
 		KillTimer(TourEndTimer);
 	if(IsValidTimer(PvpTableUpdTimer))
 		KillTimer(PvpTableUpdTimer);
-	for(new i = 0; i < MAX_PARTICIPANTS; i++)
-	{
-		if(IsValidTimer(TourBehaviourTimer[i]))
-			KillTimer(TourBehaviourTimer[i]);
-		TourBehaviourTimer[i] = -1;
-	}
 
 	for(new i = 0; i < MAX_DEATH_MESSAGES; i++)
 		SendDeathMessage(-1, MAX_PLAYERS + 1, 0);
@@ -826,6 +815,7 @@ public OnTourEnd(finished)
 	{
 		SetPvpTableVisibility(TourPlayers[i], false);
 		TeleportToHome(TourPlayers[i]);
+		SetPlayerColor(TourPlayers[i], HexRateColors[PlayerInfo[TourPlayers[i]][Rank]-1][0]);
 		SetPlayerHP(TourPlayers[i], MaxHP[TourPlayers[i]]);
 	}
 
@@ -926,14 +916,8 @@ public OnPlayerGiveDamage(playerid, damagedid, Float:amount, weaponid, bodypart)
 {
 	if(GetPlayerTeam(damagedid) != NO_TEAM && GetPlayerTeam(playerid) == GetPlayerTeam(damagedid))
 	{
-		new Float:hp;
 		if(FCNPC_IsValid(damagedid))
 			FCNPC_GiveHealth(damagedid, amount);
-		else
-		{
-			GetPlayerHealth(damagedid, hp);
-			SetPlayerHealth(damagedid, floatadd(hp, amount));
-		}
 		return 0;
 	}
 
@@ -963,7 +947,7 @@ public OnPlayerGiveDamage(playerid, damagedid, Float:amount, weaponid, bodypart)
 
 	new Float:new_hp;
 	new_hp = GetPlayerHP(damagedid);
-	new_hp -= damage;
+	new_hp = floatsub(new_hp, damage);
 	if(new_hp < 100)
 	{
 		new lastkill = GetPVarInt(playerid, "LastKill");
@@ -976,16 +960,13 @@ public OnPlayerGiveDamage(playerid, damagedid, Float:amount, weaponid, bodypart)
 		return 1;
 	}
 
-	GivePlayerHP(damagedid, -damage);
-
-	new Float:hp;
 	if(FCNPC_IsValid(damagedid))
-		FCNPC_GiveHealth(damagedid, amount);
-	else
 	{
-		GetPlayerHealth(damagedid, hp);
-		SetPlayerHealth(damagedid, floatadd(hp, amount));
+		FCNPC_GiveHealth(damagedid, amount);
+		GivePlayerHP(damagedid, -damage);
 	}
+	else
+		SetPlayerHP(damagedid, new_hp);
 
 	return 1;
 }
@@ -1019,8 +1000,8 @@ public OnPlayerDisconnect(playerid, reason)
 
 public OnPlayerSpawn(playerid)
 {
-	pHP[playerid] = MaxHP[playerid];
-	SetPlayerHealth(playerid, 100.0);
+	SetPlayerHP(playerid, MaxHP[playerid]);
+
 	if(IsDeath[playerid]) 
 	{
 	    IsDeath[playerid] = false;
@@ -1028,6 +1009,7 @@ public OnPlayerSpawn(playerid)
 			TeleportToRandomArenaPos(playerid);
 		else
 		{
+			ResetWorldBounds(playerid);
 			SetPlayerInterior(playerid, 1);
 			SetPlayerPos(playerid, -2170.3948,645.6729,1057.5938);
 			SetPlayerFacingAngle(playerid, 180);
@@ -1035,6 +1017,7 @@ public OnPlayerSpawn(playerid)
 	}
 	else 
 	{
+		ResetWorldBounds(playerid);
 	    SetPlayerInterior(playerid, PlayerInfo[playerid][Interior]);
 		SetPlayerPos(playerid, PlayerInfo[playerid][PosX], PlayerInfo[playerid][PosY], PlayerInfo[playerid][PosZ]);
 		SetPlayerFacingAngle(playerid, PlayerInfo[playerid][FacingAngle]);
@@ -1111,7 +1094,6 @@ public FCNPC_OnSpawn(npcid)
 	if(IsBoss[npcid])
 		return 0;
     FCNPC_SetHealth(npcid, 100);
-	pHP[npcid] = MaxHP[npcid];
 	if(PlayerInfo[npcid][TeamColor] != -1 && IsTourStarted)
 		SetPlayerColor(npcid, IsTourStarted ? HexTeamColors[PlayerInfo[npcid][TeamColor]][0] : HexRateColors[PlayerInfo[npcid][Rank]-1][0]);
 	UpdatePlayerWeapon(npcid);
@@ -1171,9 +1153,9 @@ public OnPlayerPickUpPickup(playerid, pickupid)
 {
 	if(pickupid == home_enter)
 	{
+		SetPlayerInterior(playerid, 1);
 	    SetPlayerPos(playerid, -2160.8616,641.5761,1052.3817);
 	    SetPlayerFacingAngle(playerid, 90);
-	    SetPlayerInterior(playerid, 1);
 		SetCameraBehindPlayer(playerid);
 		return 1;
 	}
@@ -2008,29 +1990,92 @@ public OnDialogResponse(playerid, dialogid, response, listitem, inputtext[])
 
 public FCNPC_OnUpdate(npcid)
 {
-	if(IsTourStarted)
+	if(!IsTourStarted) return 1;
+
+	new lastkill = GetPVarInt(npcid, "LastKill");
+	if(lastkill != -1)
 	{
-		new lastkill = GetPVarInt(npcid, "LastKill");
-		if(lastkill != -1)
-		{
-			if(FCNPC_IsValid(lastkill) && !FCNPC_IsDead(lastkill))
-				SetPVarInt(npcid, "LastKill", -1);
-			else if(!IsDeath[npcid])
-				SetPVarInt(npcid, "LastKill", -1);
-		}
+		if(FCNPC_IsValid(lastkill) && !FCNPC_IsDead(lastkill))
+			SetPVarInt(npcid, "LastKill", -1);
+		else if(!IsDeath[npcid])
+			SetPVarInt(npcid, "LastKill", -1);
 	}
+
+	new id = npcid;
+	if(id == -1 || id == INVALID_PLAYER_ID) return 1;
+	if(!FCNPC_IsValid(id)) return 1;
+
+	//If NPC bumped any obstacle - move him
+	if(FCNPC_IsMoving(id) && FCNPC_GetSpeed(id) < 0.2)
+	{
+		MoveAround(id);
+		return 1;
+	}
+
+	//Random jumping during moving
+	if(FCNPC_IsMoving(id))
+	{
+		if(CheckChance(10))
+			FCNPC_SetKeys(id, 128, 0, 32);
+	}
+
+	//If NPC too close with other players - move him
+	if(IsNPCCloseToAnyPlayer(id))
+	{
+		if(!FCNPC_IsMoving(id))
+		{
+			FCNPC_StopAim(id);
+			MoveAround(id);
+		}
+		return 1;
+	}
+
+	//Checking available target
+	if(!FCNPC_IsAiming(id) && !FCNPC_IsDead(id))
+		SetPlayerTarget(id);
+
+	//If current target is dead, set new
+	new target = FCNPC_GetAimingPlayer(id);
+	if(target == -1 || target == INVALID_PLAYER_ID)
+		return 1;
+	if(FCNPC_IsDead(target))
+	{
+		SetPlayerTarget(id);
+		return 1;
+	}
+
+	new Float:dist = GetDistanceBetweenPlayers(id, target);
+	if(!FCNPC_IsMoving(id) && dist > 10.0)
+		FCNPC_GoToPlayer(id, target);
+
+	//If player so close to target - attack it
+	if(dist <= 10)
+	{
+		if(FCNPC_IsMoving(id))
+			FCNPC_Stop(id);
+		if(!FCNPC_IsShooting(id))
+			FCNPC_AimAtPlayer(id, target, true, GetWeaponDelay(FCNPC_GetWeapon(id)));
+	}
+	else
+		FCNPC_AimAtPlayer(id, target, false);
+
+	//If there are targets with less HP beside player - change target
+	new potential_target = FindPlayerTarget(id, true);
+	if(potential_target != -1)
+	{
+		new Float:t_hp = FCNPC_GetHealth(target);
+		new Float:pt_hp = FCNPC_GetHealth(potential_target);
+		if(floatsub(t_hp, pt_hp) >= 35)
+			SetPlayerTarget(id);
+	}
+
 	return 1;
 }
 
 public OnPlayerUpdate(playerid)
 {
 	if(FCNPC_IsValid(playerid)) return 0;
-
-	new Float:hp;
-	hp = GetPlayerHP(playerid);
-	if(floatabs(floatsub(hp, pHP[playerid])) > 0.5)
-		SetPlayerHP(playerid, pHP[playerid]);
-	UpdateHPBar(playerid);
+	if(!IsSpawned[playerid]) return 0;
 
 	if(IsTourStarted)
 	{
@@ -2312,6 +2357,7 @@ public bool:CheckChance(chance)
 
 public TeleportToHome(playerid)
 {
+	ResetWorldBounds(playerid);
 	SetPlayerPos(playerid, 224.0761,-1839.8217,3.6037);
 	SetPlayerInterior(playerid, 0);
 	SetPlayerTeam(playerid, NO_TEAM);
@@ -2366,76 +2412,6 @@ public TeleportBossAttackersToHome()
 	DestroyBoss();
 }
 
-public TourBehaviour(id)
-{
-	if(id == -1) return;
-	if(!FCNPC_IsValid(id)) return;
-
-	//If NPC bumped any obstacle - move him
-	if(FCNPC_IsMoving(id) && FCNPC_GetSpeed(id) < 0.2)
-	{
-		MoveAround(id);
-		return;
-	}
-
-	//Random jumping during moving
-	if(FCNPC_IsMoving(id))
-	{
-		if(CheckChance(10))
-			FCNPC_SetKeys(id, 128, 0, 32);
-	}
-
-	//If NPC too close with other players - move him
-	if(IsNPCCloseToAnyPlayer(id))
-	{
-		if(!FCNPC_IsMoving(id))
-		{
-			FCNPC_StopAim(id);
-			MoveAround(id);
-		}
-		return;
-	}
-
-	//Checking available target
-	if(!FCNPC_IsAiming(id) && !FCNPC_IsDead(id))
-		SetPlayerTarget(id);
-
-	//If current target is dead, set new
-	new target = FCNPC_GetAimingPlayer(id);
-	if(target == -1)
-		return;
-	if(FCNPC_IsDead(target))
-	{
-		SetPlayerTarget(id);
-		return;
-	}
-
-	new Float:dist = GetDistanceBetweenPlayers(id, target);
-	if(!FCNPC_IsMoving(id) && dist > 10.0)
-		FCNPC_GoToPlayer(id, target);
-
-	//If player so close to target - attack it
-	if(dist <= 10)
-	{
-		if(FCNPC_IsMoving(id))
-			FCNPC_Stop(id);
-		if(!FCNPC_IsShooting(id))
-			FCNPC_AimAtPlayer(id, target, true, GetWeaponDelay(FCNPC_GetWeapon(id)));
-	}
-	else
-		FCNPC_AimAtPlayer(id, target, false);
-
-	//If there are targets with less HP beside player - change target
-	new potential_target = FindPlayerTarget(id, true);
-	if(potential_target != -1)
-	{
-		new Float:t_hp = FCNPC_GetHealth(target);
-		new Float:pt_hp = FCNPC_GetHealth(potential_target);
-		if(floatsub(t_hp, pt_hp) >= 35)
-			SetPlayerTarget(id);
-	}
-}
-
 public BossBehaviour()
 {
 	new id = BossNPC;
@@ -2458,7 +2434,7 @@ public BossBehaviour()
 
 	//If current target is dead, set new
 	new target = FCNPC_GetAimingPlayer(id);
-	if(target == -1 || IsDeath[target])
+	if(target == -1 || target == INVALID_PLAYER_ID || IsDeath[target])
 	{
 		SetBossTarget(id);
 		return;
@@ -2527,7 +2503,6 @@ public SetPlayerHP(playerid, Float:hp)
 		hp = max_hp;
 	if(hp < 0)
 		hp = 0;
-	pHP[playerid] = hp;
 	new Float:value = floatdiv(hp, PlayerHPMultiplicator[playerid]);
 	if(value < 0.5)
 		value = 0;
@@ -2566,7 +2541,7 @@ public Float:GetPlayerHP(playerid)
 
 public RegeneratePlayerHP(playerid)
 {
-	if(IsDeath[playerid] || GetPlayerHP(playerid) < 100) return;
+	if(IsDeath[playerid]) return;
 	if(FCNPC_IsValid(playerid) && FCNPC_IsDead(playerid)) return;
 	new Float:hp;
 	if(FCNPC_IsValid(playerid))
@@ -2773,7 +2748,6 @@ stock StartTour()
 	for(new i = 0; i < TourParticipantsCount; i++)
 	{
 		if(PvpInfo[i][ID] == -1) continue;
-		TourBehaviourTimer[i] = SetTimerEx("TourBehaviour", 200, true, "i", PvpInfo[i][ID]);
 	}
 
 	print("Tour started.");
@@ -2825,7 +2799,6 @@ stock GetPlayerInGameID(global_id)
 stock InitTourNPC(npcid)
 {
 	if(npcid == -1) return;
-	pHP[npcid] = 1000;
 
 	LoadPlayer(npcid);
 	UpdatePlayerStats(npcid);
@@ -2862,13 +2835,13 @@ stock InitTourNPC(npcid)
 stock GiveTournamentRewards()
 {
 	new query[255];
-	format(query, sizeof(query), "SELECT * FROM `players` WHERE 'Owner' <> 'Admin' LIMIT %d", MAX_PARTICIPANTS);
+	format(query, sizeof(query), "SELECT * FROM `players` WHERE `Owner` <> 'Admin' LIMIT %d", MAX_PARTICIPANTS);
 	new Cache:q_result = mysql_query(sql_handle, query);
 	new row_count = 0;
 	cache_get_row_count(row_count);
 	if(row_count <= 0)
 	{
-		print("Cannot give tournament tewards.");
+		print("Cannot give tournament rewards.");
 		return;
 	}
 
@@ -4202,6 +4175,7 @@ stock UpdatePlayerRank(playerid)
 	PlayerInfo[playerid][Rank] = new_rank;
 	if(new_rank > PlayerInfo[playerid][MaxRank])
 		PlayerInfo[playerid][MaxRank] = new_rank;
+	SetPlayerColor(playerid, IsTourStarted ? HexTeamColors[PlayerInfo[playerid][TeamColor]][0] : HexRateColors[PlayerInfo[playerid][Rank]-1][0]);
 	UpdatePlayerStats(playerid);
 }
 
@@ -5001,6 +4975,11 @@ stock StartBossAttack()
 	print("Boss spawned!");
 }
 
+stock ResetWorldBounds(playerid)
+{
+	SetPlayerWorldBounds(playerid, 307.0, 163.0, -1774.0, -1895.0);
+}
+
 stock TeleportToRandomArenaPos(playerid)
 {
 	if(FCNPC_IsValid(playerid))
@@ -5011,7 +4990,8 @@ stock TeleportToRandomArenaPos(playerid)
 	else
 	{
 		SetPlayerInterior(playerid, 0);
-		SetPlayerPos(playerid, -2315 - random(70), -1595 - random(75), 723.2609);
+		SetPlayerPos(playerid, -2314 - random(70), -1595 - random(75), 723.2609);
+		SetPlayerWorldBounds(playerid, -2313.0295, -2390.5017, -1593.6758, -1669.8492);
 	}
 }
 
