@@ -1,4 +1,4 @@
-//Bourgeois Circus 0.92
+//Bourgeois Circus 0.93
 
 #include <a_samp>
 #include <a_mail>
@@ -18,7 +18,7 @@
 
 #pragma dynamic 31294
 
-#define VERSION 0.921
+#define VERSION 0.931
 
 //Mysql settings
 
@@ -430,6 +430,9 @@ new PlayerText:PvpPanelHeader[MAX_PLAYERS];
 new PlayerText:PvpPanelTimer[MAX_PLAYERS];
 new PlayerText:PvpPanelNameLabels[MAX_PLAYERS][MAX_PVP_PANEL_ITEMS];
 new PlayerText:PvpPanelScoreLabels[MAX_PLAYERS][MAX_PVP_PANEL_ITEMS];
+new PlayerText:PvpPanelDelim[MAX_PLAYERS];
+new PlayerText:PvpPanelMyName[MAX_PLAYERS];
+new PlayerText:PvpPanelMyScore[MAX_PLAYERS];
 
 new PlayerText:ChrInfoBox[MAX_PLAYERS];
 new PlayerText:ChrInfoHeader[MAX_PLAYERS];
@@ -511,12 +514,6 @@ main()
 }
 
 /* Commands */
-cmd:ferma(playerid, params[])
-{
-	SetPlayerInterior(playerid, 0);
-	SetPlayerPos(playerid, 0, 0, 0);
-	return 1;
-}
 //GM commands
 cmd:setrate(playerid, params[])
 {
@@ -602,11 +599,6 @@ cmd:createplayer(playerid, params[])
 
 	CreatePlayer(playerid, name, owner, sex);
 	return 1;
-}
-
-cmd:updpart(playerid, params[])
-{
-	UpdateTourParticipants();
 }
 
 cmd:createinv(playerid, params[])
@@ -832,7 +824,16 @@ public OnTourEnd(finished)
 		if(Tournament[Tour] > 5)
 			OnTournamentEnd();
 		else
+		{
 			UpdateTourParticipants();
+			for(new i = 0; i < MAX_OWNERS; i++)
+			{
+				if(IsTourParticipant(PlayerInfo[TourPlayers[i]][ID]))
+					SendClientMessage(TourPlayers[i], COLOR_GREEN, "Вы прошли в следующий тур.");
+				else
+					SendClientMessage(TourPlayers[i], COLOR_LIGHTRED, "Вы выбываете из турнира.");
+			}
+		}
 		UpdateGlobalRatingTop();
 	}
 	else
@@ -903,6 +904,16 @@ public UpdatePvpTable()
 			PlayerTextDrawSetStringRus(InitID, PvpPanelScoreLabels[InitID][i], score);
 			PlayerTextDrawShow(InitID, PvpPanelNameLabels[InitID][i]);
 		}
+
+		new myplace = GetPvpIndex(InitID);
+		if(myplace == -1)
+			myplace = MAX_PARTICIPANTS-1;
+
+		format(name, sizeof(name), "%d. %s", myplace+1, PvpInfo[myplace][Name]);
+		PlayerTextDrawSetStringRus(InitID, PvpPanelMyName[InitID], name);
+		format(score, sizeof(score), "%d", PvpInfo[myplace][Score]);
+		PlayerTextDrawSetStringRus(InitID, PvpPanelMyScore[InitID], score);
+
 		PlayerTextDrawSetStringRus(InitID, PvpPanelTimer[InitID], string);
 	}
 }
@@ -1652,7 +1663,7 @@ public OnDialogResponse(playerid, dialogid, response, listitem, inputtext[])
 					}
 					case 1:
 					{
-
+						ShowPlayerDialog(playerid, 1, DIALOG_STYLE_MSGBOX, "Комбинирование", "Комбинации будут доступны в версии 1.0", "Закрыть", "");
 					}
 				}
 			}
@@ -1736,7 +1747,7 @@ public OnDialogResponse(playerid, dialogid, response, listitem, inputtext[])
 					}
 					case 1:
 					{
-
+						ShowPlayerDialog(playerid, 1, DIALOG_STYLE_MSGBOX, "Комбинирование", "Комбинации будут доступны в версии 1.0", "Закрыть", "");
 					}
 				}
 			}
@@ -2006,25 +2017,20 @@ public FCNPC_OnUpdate(npcid)
 	if(!FCNPC_IsValid(id)) return 1;
 
 	//If NPC bumped any obstacle - move him
-	if(FCNPC_IsMoving(id) && FCNPC_GetSpeed(id) < 0.2)
+	if(FCNPC_IsMoving(id) && FCNPC_GetSpeed(id) < 0.1)
 	{
 		MoveAround(id);
 		return 1;
 	}
 
-	//Random jumping during moving
-	if(FCNPC_IsMoving(id))
-	{
-		if(CheckChance(10))
-			FCNPC_SetKeys(id, 128, 0, 32);
-	}
-
 	//If NPC too close with other players - move him
+	new target = FCNPC_GetAimingPlayer(id);
 	if(IsNPCCloseToAnyPlayer(id))
 	{
-		if(!FCNPC_IsMoving(id))
+		if(!FCNPC_IsMoving(id) || (target != -1 && target != INVALID_PLAYER_ID && FCNPC_IsMovingAtPlayer(id, target)))
 		{
-			FCNPC_StopAim(id);
+			if(FCNPC_IsAiming(id))
+				FCNPC_StopAim(id);
 			MoveAround(id);
 		}
 		return 1;
@@ -2034,18 +2040,21 @@ public FCNPC_OnUpdate(npcid)
 	if(!FCNPC_IsAiming(id) && !FCNPC_IsDead(id))
 		SetPlayerTarget(id);
 
-	//If current target is dead, set new
-	new target = FCNPC_GetAimingPlayer(id);
+	//If current target is dead or invalid, set new
+	target = FCNPC_GetAimingPlayer(id);
 	if(target == -1 || target == INVALID_PLAYER_ID)
+	{
+		SetPlayerTarget(id);
 		return 1;
-	if(FCNPC_IsDead(target))
+	}
+	if(FCNPC_IsDead(target) || (!FCNPC_IsValid(target) && (!IsPlayerInDynamicArea(target, arena_area) || IsDeath[target])))
 	{
 		SetPlayerTarget(id);
 		return 1;
 	}
 
 	new Float:dist = GetDistanceBetweenPlayers(id, target);
-	if(!FCNPC_IsMoving(id) && dist > 10.0)
+	if(!FCNPC_IsMovingAtPlayer(id, target) && dist > 10.0)
 		FCNPC_GoToPlayer(id, target);
 
 	//If player so close to target - attack it
@@ -2066,19 +2075,25 @@ public FCNPC_OnUpdate(npcid)
 		new Float:t_hp = FCNPC_GetHealth(target);
 		new Float:pt_hp = FCNPC_GetHealth(potential_target);
 		if(floatsub(t_hp, pt_hp) >= 35)
-			SetPlayerTarget(id);
+			SetPlayerTarget(id, potential_target);
 	}
 
 	return 1;
 }
 
 public OnPlayerUpdate(playerid)
-{
+{    
 	if(FCNPC_IsValid(playerid)) return 0;
 	if(!IsSpawned[playerid]) return 0;
 
 	if(IsTourStarted)
 	{
+		if(IsValidDynamicArea(arena_area) && !IsPlayerInDynamicArea(playerid, arena_area))
+		{ 
+			OnPlayerSpawn(playerid);
+			TeleportToRandomArenaPos(playerid);
+		}
+
 		new lastkill = GetPVarInt(playerid, "LastKill");
 		if(lastkill != -1)
 		{
@@ -2274,6 +2289,8 @@ public OnPlayerClickPlayerTextDraw(playerid, PlayerText:playertextid)
 		}
 
 		ModItemSlot[playerid] = SelectedSlot[playerid];
+		ModStone[playerid] = -1;
+		ModPotion[playerid] = -1;
 		UpdateModWindow(playerid);
 	}
 	else if(playertextid == UpgStoneSlot[playerid])
@@ -2282,9 +2299,25 @@ public OnPlayerClickPlayerTextDraw(playerid, PlayerText:playertextid)
 		new itemid = PlayerInventory[playerid][SelectedSlot[playerid]][ID];
 		if(itemid == -1) return 0;
 		if(!IsModStone(itemid)) return 0;
+		if(ModItemSlot[playerid] == -1)
+		{
+			ShowPlayerDialog(playerid, 1, DIALOG_STYLE_MSGBOX, "Модификация", "Не выбран предмет для модификации.", "Закрыть", "");
+			return 0;
+		}
 
-		ModStone[playerid] = itemid;
-		UpdateModWindow(playerid);
+		new equip[BaseItem];
+		equip = GetItem(PlayerInventory[playerid][ModItemSlot[playerid]][ID]);
+		if( ((itemid == 187 || itemid == 189) && equip[Type] == ITEMTYPE_WEAPON) ||
+			((itemid == 188 || itemid == 190) && equip[Type] == ITEMTYPE_ARMOR) )
+		{
+			ModStone[playerid] = itemid;
+			UpdateModWindow(playerid);
+		}
+		else
+		{
+			ShowPlayerDialog(playerid, 1, DIALOG_STYLE_MSGBOX, "Модификация", "Нельзя использовать этот камень.", "Закрыть", "");
+			return 0;
+		}
 	}
 	else if(playertextid == UpgPotionSlot[playerid])
 	{
@@ -2292,6 +2325,11 @@ public OnPlayerClickPlayerTextDraw(playerid, PlayerText:playertextid)
 		new itemid = PlayerInventory[playerid][SelectedSlot[playerid]][ID];
 		if(itemid == -1) return 0;
 		if(!IsModPotion(itemid)) return 0;
+		if(ModItemSlot[playerid] == -1)
+		{
+			ShowPlayerDialog(playerid, 1, DIALOG_STYLE_MSGBOX, "Модификация", "Не выбран предмет для модификации.", "Закрыть", "");
+			return 0;
+		}
 		
 		ModPotion[playerid] = itemid;
 		UpdateModWindow(playerid);
@@ -3425,6 +3463,7 @@ stock SetPvpTableVisibility(playerid, bool:value)
 		PlayerTextDrawShow(playerid, PvpPanelBox[playerid]);
 		PlayerTextDrawShow(playerid, PvpPanelHeader[playerid]);
 		PlayerTextDrawShow(playerid, PvpPanelTimer[playerid]);
+		PlayerTextDrawShow(playerid, PvpPanelDelim[playerid]);
 		for(new i = 0; i < MAX_PVP_PANEL_ITEMS; i++)
 		{
 			PlayerTextDrawSetStringRus(playerid, PvpPanelNameLabels[playerid][i], " ");
@@ -3432,17 +3471,23 @@ stock SetPvpTableVisibility(playerid, bool:value)
 			PlayerTextDrawShow(playerid, PvpPanelNameLabels[playerid][i]);
 			PlayerTextDrawShow(playerid, PvpPanelScoreLabels[playerid][i]);
 		}
+		PlayerTextDrawColor(playerid, PvpPanelMyName[playerid], HexRateColors[PlayerInfo[playerid][Rank]-1][0]);
+		PlayerTextDrawShow(playerid, PvpPanelMyName[playerid]);
+		PlayerTextDrawShow(playerid, PvpPanelMyScore[playerid]);
 	}
 	else
 	{
 		PlayerTextDrawHide(playerid, PvpPanelBox[playerid]);
 		PlayerTextDrawHide(playerid, PvpPanelHeader[playerid]);
 		PlayerTextDrawHide(playerid, PvpPanelTimer[playerid]);
+		PlayerTextDrawHide(playerid, PvpPanelDelim[playerid]);
 		for(new i = 0; i < MAX_PVP_PANEL_ITEMS; i++)
 		{
 			PlayerTextDrawHide(playerid, PvpPanelNameLabels[playerid][i]);
 			PlayerTextDrawHide(playerid, PvpPanelScoreLabels[playerid][i]);
 		}
+		PlayerTextDrawHide(playerid, PvpPanelMyName[playerid]);
+		PlayerTextDrawHide(playerid, PvpPanelMyScore[playerid]);
 	}
 }
 
@@ -3625,6 +3670,8 @@ stock FindPlayerTarget(npcid, bool:by_minhp = false)
 			continue;
 		if(GetPlayerTeam(PvpInfo[i][ID]) != NO_TEAM && GetPlayerTeam(npcid) == GetPlayerTeam(PvpInfo[i][ID]))
 			continue;
+		if(!FCNPC_IsValid(PvpInfo[i][ID]) && !IsPlayerInDynamicArea(PvpInfo[i][ID], arena_area))
+			continue;
 		
 		new Float:dist;
 		dist = GetDistanceBetweenPlayers(npcid, PvpInfo[i][ID]);
@@ -3655,11 +3702,15 @@ stock FindPlayerTarget(npcid, bool:by_minhp = false)
 	return targetid;
 }
 
-stock SetPlayerTarget(playerid)
+stock SetPlayerTarget(playerid, target = -1)
 {
 	if(FCNPC_IsAiming(playerid))
 		FCNPC_StopAim(playerid);
-	new targetid = FindPlayerTarget(playerid, true);
+	new targetid;
+	if(target == -1)
+		targetid = FindPlayerTarget(playerid, true);
+	else
+		targetid = target;
 
 	if(targetid == -1)
 	{
@@ -3668,7 +3719,6 @@ stock SetPlayerTarget(playerid)
 	}
 
 	FCNPC_AimAtPlayer(playerid, targetid, false);
-	FCNPC_GoToPlayer(playerid, targetid);
 	return 1;
 }
 
@@ -3736,16 +3786,16 @@ stock MoveAround(playerid, bool:is_evading = false)
 	if(!FCNPC_IsValid(playerid) || FCNPC_IsDead(playerid))
 		return;
 		
-	new Float:x_offset = -10 + random(20);
-	new Float:y_offset = -10 + random(20);
+	new Float:x_offset = -20 + random(40);
+	new Float:y_offset = -20 + random(40);
 	new Float:x, Float:y, Float:z;
 
 	FCNPC_GetPosition(playerid, x, y, z);
 	
 	while(x + x_offset < -2387 || x + x_offset > -2313)
-		x_offset = -10 + random(20);
+		x_offset = -20 + random(40);
 	while(y + y_offset < -1668 || y + y_offset > -1593)
-		y_offset = -10 + random(20);
+		y_offset = -20 + random(40);
 	
 	if(is_evading)
 		FCNPC_GoTo(playerid, x + x_offset, y + y_offset, z, FCNPC_MOVE_TYPE_SPRINT, FCNPC_MOVE_SPEED_SPRINT);
@@ -5581,12 +5631,12 @@ stock GetWeaponBaseDamage(weaponid)
 		case 42..48: { damage[0] = 55; damage[1] = 72; }
 		case 49: { damage[0] = 38; damage[1] = 66; }
 		case 50..56: { damage[0] = 51; damage[1] = 89; }
-		case 57: { damage[0] = 98; damage[1] = 160; }
-		case 58..64: { damage[0] = 132; damage[1] = 216; }
+		case 57: { damage[0] = 281; damage[1] = 429; }
+		case 58..64: { damage[0] = 379; damage[1] = 579; }
 		case 65: { damage[0] = 146; damage[1] = 312; }
 		case 66..72: { damage[0] = 197; damage[1] = 421; }
-		case 73: { damage[0] = 219; damage[1] = 434; }
-		case 74..80: { damage[0] = 296; damage[1] = 586; }
+		case 73: { damage[0] = 319; damage[1] = 534; }
+		case 74..80: { damage[0] = 431; damage[1] = 721; }
 		default: { damage[0] = 13; damage[1] = 15; }
 	}
 	return damage;
@@ -7539,6 +7589,40 @@ stock InitPlayerTextDraws(playerid)
 		name_y += 15.0;
 		score_y += 15.0;
 	}
+
+	PvpPanelDelim[playerid] = CreatePlayerTextDraw(playerid, 8.399996, 398.471099, "delim");
+	PlayerTextDrawLetterSize(playerid, PvpPanelDelim[playerid], 0.000000, 0.000000);
+	PlayerTextDrawTextSize(playerid, PvpPanelDelim[playerid], 153.666671, 4.562957);
+	PlayerTextDrawAlignment(playerid, PvpPanelDelim[playerid], 1);
+	PlayerTextDrawColor(playerid, PvpPanelDelim[playerid], -5963521);
+	PlayerTextDrawUseBox(playerid, PvpPanelDelim[playerid], true);
+	PlayerTextDrawBoxColor(playerid, PvpPanelDelim[playerid], 0);
+	PlayerTextDrawBackgroundColor(playerid, PvpPanelDelim[playerid], 0x00000000);
+	PlayerTextDrawSetShadow(playerid, PvpPanelDelim[playerid], 0);
+	PlayerTextDrawSetOutline(playerid, PvpPanelDelim[playerid], 0);
+	PlayerTextDrawFont(playerid, PvpPanelDelim[playerid], 5);
+	PlayerTextDrawSetPreviewModel(playerid, PvpPanelDelim[playerid], 18656);
+	PlayerTextDrawSetPreviewRot(playerid, PvpPanelDelim[playerid], 0.000000, 0.000000, 0.000000, 1.000000);
+
+	PvpPanelMyName[playerid] = CreatePlayerTextDraw(playerid, 14.699000, 406.053466, " ");
+	PlayerTextDrawLetterSize(playerid, PvpPanelMyName[playerid], 0.292665, 1.268146);
+	PlayerTextDrawAlignment(playerid, PvpPanelMyName[playerid], 1);
+	PlayerTextDrawColor(playerid, PvpPanelMyName[playerid], -1);
+	PlayerTextDrawSetShadow(playerid, PvpPanelMyName[playerid], 0);
+	PlayerTextDrawSetOutline(playerid, PvpPanelMyName[playerid], 1);
+	PlayerTextDrawBackgroundColor(playerid, PvpPanelMyName[playerid], 51);
+	PlayerTextDrawFont(playerid, PvpPanelMyName[playerid], 1);
+	PlayerTextDrawSetProportional(playerid, PvpPanelMyName[playerid], 1);
+
+	PvpPanelMyScore[playerid] = CreatePlayerTextDraw(playerid, 128.066635, 406.053466, " ");
+	PlayerTextDrawLetterSize(playerid, PvpPanelMyScore[playerid], 0.292665, 1.268146);
+	PlayerTextDrawAlignment(playerid, PvpPanelMyScore[playerid], 1);
+	PlayerTextDrawColor(playerid, PvpPanelMyScore[playerid], -1);
+	PlayerTextDrawSetShadow(playerid, PvpPanelMyScore[playerid], 0);
+	PlayerTextDrawSetOutline(playerid, PvpPanelMyScore[playerid], 1);
+	PlayerTextDrawBackgroundColor(playerid, PvpPanelMyScore[playerid], 51);
+	PlayerTextDrawFont(playerid, PvpPanelMyScore[playerid], 1);
+	PlayerTextDrawSetProportional(playerid, PvpPanelMyScore[playerid], 1);
 }
 
 stock ShowTextDraws(playerid)
