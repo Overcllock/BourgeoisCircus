@@ -714,8 +714,8 @@ public OnPlayerLeaveDynamicArea(playerid, areaid)
 
 	if(IsTourStarted && !IsDeath[playerid] && areaid == arena_area && IsPlayerParticipant(playerid))
 	{
-		OnPlayerSpawn(playerid);
 		TeleportToRandomArenaPos(playerid);
+		UpdatePlayerVisual(playerid);
 	}
 
 	return 1;
@@ -811,8 +811,8 @@ public OnTourEnd(finished)
 		{
 			if(IsValidTimer(DeadCheckTimer[i]))
 				KillTimer(DeadCheckTimer[i]);
-			for(new i = 0; i < MAX_OWNERS; i++)
-				FCNPC_HideInTabListForPlayer(npcid, TourPlayers[i]);
+			for(new j = 0; j < MAX_OWNERS; j++)
+				FCNPC_HideInTabListForPlayer(i, TourPlayers[j]);
 			FCNPC_Destroy(i);
 		}
 	}
@@ -872,18 +872,18 @@ public OnTournamentEnd()
 stock SortPvpData()
 {
 	new tmp[pvpInf];
-	for (new i = 1; i < MAX_PARTICIPANTS; i++)
-	{
-		tmp = PvpInfo[i];
-		for (j = i - 1; j >= 0; j--)
-		{
-			if(PvpInfo[j-1][Score] < tmp[Score])
-				break;
-	
-			PvpInfo[j + 1] = PvpInfo[j];
-			PvpInfo[j] = tmp;
-		}
-	}
+	for(new i = 0; i < MAX_PARTICIPANTS; i++)
+    {
+        for(new j = MAX_PARTICIPANTS-1; j > i; j--)
+        {
+            if(PvpInfo[j-1][Score] < PvpInfo[j][Score])
+            {
+				tmp = PvpInfo[j-1];
+				PvpInfo[j-1] = PvpInfo[j];
+				PvpInfo[j] = tmp;
+            }
+        }
+    }
 }
 
 public UpdatePvpTable()
@@ -1078,16 +1078,19 @@ public OnPlayerSpawn(playerid)
 		SetPlayerFacingAngle(playerid, PlayerInfo[playerid][FacingAngle]);
 	}
 
+	UpdatePlayerVisual(playerid);
+	IsSpawned[playerid] = true;
+	return 1;
+}
+
+stock UpdatePlayerVisual(playerid)
+{
 	SetCameraBehindPlayer(playerid);
 	SetPlayerSkin(playerid, PlayerInfo[playerid][Skin]);
 	SetPlayerColor(playerid, IsTourStarted ? HexTeamColors[PlayerInfo[playerid][TeamColor]][0] : HexRateColors[PlayerInfo[playerid][Rank]-1][0]);
 	if(!FCNPC_IsValid(playerid))
 		UpdatePlayerWeapon(playerid);
-	IsSpawned[playerid] = true;
-	return 1;
 }
-
-
 
 public OnPlayerDeath(playerid, killerid, reason)
 {
@@ -2079,7 +2082,7 @@ public OnPlayerUpdate(playerid)
 		if(IsValidDynamicArea(arena_area) && !IsPlayerInDynamicArea(playerid, arena_area))
 		{
 			TeleportToRandomArenaPos(playerid);
-			OnPlayerSpawn(playerid);
+			UpdatePlayerVisual(playerid);
 		}
 
 		new lastkill = GetPVarInt(playerid, "LastKill");
@@ -2876,6 +2879,8 @@ stock ParticipantBehaviour(id)
 		if(floatsub(t_hp, pt_hp) >= 35)
 			SetPlayerTarget(id, potential_target);
 	}
+	
+	return 1;
 }
 
 stock BossBehaviour(id)
@@ -3309,7 +3314,6 @@ stock UpdateTourParticipants()
 	else
 	{
 		new p_count = MAX_PARTICIPANTS - (MAX_OWNERS * 2 * (Tournament[Tour]-1));
-		DebugLogInt("New participants", p_count);
 		new query[255] = "SELECT * FROM `accounts` WHERE `admin` = '0'";
 		new Cache:q_result = mysql_query(sql_handle, query);
 
@@ -3326,7 +3330,6 @@ stock UpdateTourParticipants()
 			cache_get_value_name(i, "login", owner);
 			cache_unset_active();
 			new owner_parts = p_count / row_count;
-			DebugLogInt("New owner participants", owner_parts);
 			format(query, sizeof(query), "SELECT * FROM `tournament_tab` WHERE `Owner` = '%s' ORDER BY `Score` DESC LIMIT %d", owner, owner_parts);
 			new Cache:result = mysql_query(sql_handle, query);
 			
