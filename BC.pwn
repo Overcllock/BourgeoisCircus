@@ -2652,6 +2652,7 @@ stock StartTour()
 			PvpInfo[i][ID] = playerid;
 			format(PvpInfo[i][Name], 255, "%s", player[Name]);
 			TeleportToRandomArenaPos(playerid);
+			DamageCounter[playerid] = 0;
 			SetPlayerColor(playerid, HexTeamColors[PlayerInfo[playerid][TeamColor]][0]);
 			SetPlayerHP(playerid, MaxHP[playerid]);
 			SetPvpTableVisibility(playerid, true);
@@ -2776,6 +2777,7 @@ stock InitTourNPC(npcid)
 	if(npcid == -1) return;
 
 	LoadPlayer(npcid);
+	DamageCounter[npcid] = 0;
 
 	new query[255];
 	format(query, sizeof(query), "SELECT * FROM `accounts` WHERE `login` = '%s' LIMIT 1", PlayerInfo[npcid][Owner]);
