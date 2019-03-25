@@ -1,4 +1,4 @@
-//Bourgeois Circus 0.93
+//Bourgeois Circus 0.94
 
 #include <a_samp>
 #include <a_mail>
@@ -18,7 +18,7 @@
 
 #pragma dynamic 31294
 
-#define VERSION 0.931
+#define VERSION 0.941
 
 //Mysql settings
 
@@ -126,9 +126,6 @@
 #define MOD_RESULT_RESET 2
 #define MOD_RESULT_DESTROY 3
 
-//Teams
-#define BOSS_TEAM 1
-
 //Other
 #define DEFENSE_DIVIDER 7000
 #define BOSS_SHOOT_DELAY 300
@@ -140,14 +137,14 @@
 //Delays
 #define DEFAULT_SHOOT_DELAY 200
 #define COLT_SHOOT_DELAY 120
-#define DEAGLE_SHOOT_DELAY 240
+#define DEAGLE_SHOOT_DELAY 290
 #define MP5_SHOOT_DELAY 110
-#define TEC_SHOOT_DELAY 80
+#define TEC_SHOOT_DELAY 70
 #define AK_SHOOT_DELAY 160
 #define M4_SHOOT_DELAY 150
-#define SHOTGUN_SHOOT_DELAY 400
-#define SAWNOFF_SHOOT_DELAY 300
-#define COMBAT_SHOOT_DELAY 260
+#define SHOTGUN_SHOOT_DELAY 430
+#define SAWNOFF_SHOOT_DELAY 350
+#define COMBAT_SHOOT_DELAY 270
 
 /* Forwards */
 forward Time();
@@ -168,7 +165,6 @@ forward GivePlayerMoneyOffline(name[], money);
 forward UpdatePlayerMaxHP(playerid);
 forward CancelBossAttack();
 forward FinishBossAttack();
-forward BossBehaviour();
 forward TeleportBossAttackersToHome();
 forward TeleportToHome(playerid);
 forward bool:CheckChance(chance);
@@ -178,16 +174,7 @@ forward CheckDead(npcid);
 
 /* Variables */
 
-//Global
-new WorldTime_Timer = -1;
-new PrepareBossAttackTimer = -1;
-new BossAttackTimer = -1;
-new BossBehaviourTimer = -1;
-new TeleportTimer = -1;
-new Actors[MAX_ACTORS];
-new ReadyIDs[MAX_OWNERS] = -1;
-new MySQL:sql_handle;
-new arena_area;
+//Enums
 enum TopItem
 {
 	Pos,
@@ -202,10 +189,6 @@ enum tInfo
 	Tour,
 	ParticipantsIDs[MAX_PARTICIPANTS]
 };
-new Tournament[tInfo];
-new TourParticipantsCount = 0;
-new TournamentTab[MAX_PARTICIPANTS][TopItem];
-
 enum BossInfo
 {
 	ID,
@@ -230,26 +213,6 @@ enum RewardInfo
 	ItemsCount,
 	Money
 };
-
-new AttackedBoss = -1;
-new bool:IsBossAttacker[MAX_PLAYERS] = false;
-new BossAttackersCount = 0;
-new BossNPC = -1;
-new bool:IsBoss[MAX_PLAYERS] = false;
-new BossLootPickups[MAX_LOOT];
-new BossLootItems[MAX_LOOT][LootInfo];
-
-new ModItemSlot[MAX_PLAYERS] = -1;
-new ModStone[MAX_PLAYERS] = -1;
-new ModPotion[MAX_PLAYERS] = -1;
-new IsSlotsBlocked[MAX_PLAYERS] = false;
-
-new IsTourStarted = false;
-new TourPlayers[MAX_OWNERS] = -1;
-new TourEndTimer = -1;
-new PvpTableUpdTimer = -1;
-new DeadCheckTimer[MAX_PLAYERS] = -1;
-new PvpTtl = 0;
 enum pvpInf
 {
 	ID,
@@ -257,9 +220,7 @@ enum pvpInf
 	Kills,
 	Deaths,
 	Score
-}
-new PvpInfo[MAX_PARTICIPANTS][pvpInf];
-
+};
 enum TWindow
 {
 	bool:CharInfo,
@@ -267,15 +228,6 @@ enum TWindow
 	bool:EquipInfo,
 	bool:Mod
 };
-new Windows[MAX_PLAYERS][TWindow];
-
-//Pickups
-new home_enter = 0;
-new home_quit = 0;
-new boss_tp = 0;
-new arena_tp = 0;
-
-//Player
 enum iInfo 
 {
 	ID,
@@ -333,9 +285,54 @@ enum pInfo
 	WeaponMod[MAX_MOD],
 	ArmorMod[MAX_MOD]
 };
+
+//Global
+new WorldTime_Timer = -1;
+new PrepareBossAttackTimer = -1;
+new BossAttackTimer = -1;
+new TeleportTimer = -1;
+new Actors[MAX_ACTORS];
+new ReadyIDs[MAX_OWNERS] = -1;
+new MySQL:sql_handle;
+new arena_area;
+new Tournament[tInfo];
+new TourParticipantsCount = 0;
+new TournamentTab[MAX_PARTICIPANTS][TopItem];
+
+new AttackedBoss = -1;
+new bool:IsBossAttacker[MAX_PLAYERS] = false;
+new BossAttackersCount = 0;
+new BossNPC = -1;
+new bool:IsBoss[MAX_PLAYERS] = false;
+new BossLootPickups[MAX_LOOT];
+new BossLootItems[MAX_LOOT][LootInfo];
+
+new ModItemSlot[MAX_PLAYERS] = -1;
+new ModStone[MAX_PLAYERS] = -1;
+new ModPotion[MAX_PLAYERS] = -1;
+new IsSlotsBlocked[MAX_PLAYERS] = false;
+
+new IsTourStarted = false;
+new TourPlayers[MAX_OWNERS] = -1;
+new TourEndTimer = -1;
+new PvpTableUpdTimer = -1;
+new DeadCheckTimer[MAX_PLAYERS] = -1;
+new PvpTtl = 0;
+new PvpInfo[MAX_PARTICIPANTS][pvpInf];
+
+new Windows[MAX_PLAYERS][TWindow];
+
+//Pickups
+new home_enter = 0;
+new home_quit = 0;
+new boss_tp = 0;
+new arena_tp = 0;
+
+//Player
 new PlayerInventory[MAX_PLAYERS][MAX_SLOTS][iInfo];
 new PlayerInfo[MAX_PLAYERS][pInfo];
 new PlayerHPMultiplicator[MAX_PLAYERS];
+new DamageCounter[MAX_PLAYERS] = 0;
 new bool:PlayerConnect[MAX_PLAYERS] = false;
 new Float:MaxHP[MAX_PLAYERS];
 new bool:IsInventoryOpen[MAX_PLAYERS] = false;
@@ -517,6 +514,9 @@ main()
 //GM commands
 cmd:setrate(playerid, params[])
 {
+	if(PlayerInfo[playerid][Admin] == 0)
+		return 0;
+		
 	new rate;
 	if(sscanf(params, "i", rate))
 		return SendClientMessage(playerid, COLOR_GREY, "USAGE: /setrate [rate]");
@@ -528,6 +528,9 @@ cmd:setrate(playerid, params[])
 
 cmd:givemoney(playerid, params[])
 {
+	if(PlayerInfo[playerid][Admin] == 0)
+		return 0;
+		
 	new money;
 	if(sscanf(params, "i", money))
 		return SendClientMessage(playerid, COLOR_GREY, "USAGE: /givemoney [value]");
@@ -538,6 +541,9 @@ cmd:givemoney(playerid, params[])
 
 cmd:giveitem(playerid, params[])
 {
+	if(PlayerInfo[playerid][Admin] == 0)
+		return 0;
+		
 	new itemid;
 	new count;
 	if(sscanf(params, "ii", itemid, count))
@@ -569,12 +575,18 @@ cmd:home(playerid, params[])
 
 cmd:easymod(playerid, params[])
 {
+	if(PlayerInfo[playerid][Admin] == 0)
+		return 0;
+		
 	IsEasyMod[playerid] = true;
 	return SendClientMessage(playerid, COLOR_GREY, "Easymod on.");
 }
 
 cmd:spawnboss(playerid, params[])
 {
+	if(PlayerInfo[playerid][Admin] == 0)
+		return 0;
+
 	new bossid;
 	if(sscanf(params, "i", bossid))
 		return SendClientMessage(playerid, COLOR_GREY, "USAGE: /spawnboss [bossid]");
@@ -621,17 +633,6 @@ cmd:createinv(playerid, params[])
 	return 1;
 }
 
-cmd:spawn(playerid, params[])
-{
-	if(PlayerInfo[playerid][Admin] == 0)
-		return 0;
-
-	ResetWorldBounds(playerid);
-	SetPlayerPos(playerid, 224.0761,-1839.8217,3.6037);
-	SetPlayerInterior(playerid, 0);
-	return 1;
-}
-
 cmd:kill(playerid, params[])
 {
 	if(PlayerInfo[playerid][Admin] == 0)
@@ -658,6 +659,7 @@ public OnGameModeInit()
 	new mode_txt[64];
 	format(mode_txt, sizeof(mode_txt), "Bourgeois Circus %.2f", VERSION);
 	SetGameModeText(mode_txt);
+
 	ShowNameTags(1);
 	DisableInteriorEnterExits();
 	EnableStuntBonusForAll(0);
@@ -667,25 +669,30 @@ public OnGameModeInit()
 	ShowPlayerMarkers(PLAYER_MARKERS_MODE_GLOBAL);
 	DisableNameTagLOS();
 	SetNameTagDrawDistance(9999.0);
+
 	CreateMap();
 	CreatePickups();
 	InitTextDraws();
+
 	WorldTime_Timer = SetTimer("Time", 1000, true);
 	arena_area = CreateDynamicRectangle(-2390.5017, -1669.8492, -2313.0295, -1593.6758, 0, 0, -1);
+
+	for(new i = 0; i < MAX_OWNERS; i++)
+		ReadyIDs[i] = -1;
+
 	sql_handle = mysql_connect(SQL_HOST, SQL_USER, SQL_PASS, SQL_DB);
-	if(!sql_handle)
+	if(sql_handle == MYSQL_INVALID_HANDLE)
 	{
 		print("Database connection failed.");
 		return 0;
 	}
 
 	print("Database connection success.");
-	
 	mysql_set_charset("cp1251");
+
 	LoadTournamentInfo();
 	UpdateGlobalRatingTop();
-	for(new i = 0; i < MAX_OWNERS; i++)
-		ReadyIDs[i] = -1;
+
 	return 1;
 }
 
@@ -697,6 +704,7 @@ public OnGameModeExit()
 	KillTimer(WorldTime_Timer);
 	for (new i = 0; i < MAX_ACTORS; i++)
 		DestroyActor(Actors[i]);
+	DestroyAllDynamicAreas();
 	return 1;
 }
 
@@ -770,6 +778,7 @@ public OnPlayerLogin(playerid)
 	SetPVarInt(playerid, "LastKill", -1);
 	UpdatePlayerMaxHP(playerid);
 	SetPlayerSkills(playerid);
+	SetPlayerHP(playerid, MaxHP[playerid]);
 	if(!FCNPC_IsValid(playerid))
 		SpawnPlayer(playerid);
 	else
@@ -793,13 +802,17 @@ public OnTourEnd(finished)
 
 	if(finished == 1)
 		UpdateTournamentTable();
+
 	IsTourStarted = false;
 	for(new i = 0; i < MAX_PLAYERS; i++)
 	{
+		DamageCounter[i] = 0;
 		if(FCNPC_IsValid(i))
 		{
 			if(IsValidTimer(DeadCheckTimer[i]))
 				KillTimer(DeadCheckTimer[i]);
+			for(new i = 0; i < MAX_OWNERS; i++)
+				FCNPC_HideInTabListForPlayer(npcid, TourPlayers[i]);
 			FCNPC_Destroy(i);
 		}
 	}
@@ -846,9 +859,11 @@ public OnTournamentEnd()
 	format(string, sizeof(string), "%d турнир завершен!", Tournament[Number]);
 	SendClientMessageToAll(COLOR_LIGHTRED, string);
 	SendClientMessageToAll(COLOR_LIGHTRED, "Начинается фаза мира.");
+
 	Tournament[Tour] = 1;
 	Tournament[Number]++;
 	Tournament[Phase] = PHASE_PEACE;
+
 	GiveTournamentRewards();
 	UpdateTourParticipants();
 	UpdateBossesCooldowns();
@@ -857,18 +872,18 @@ public OnTournamentEnd()
 stock SortPvpData()
 {
 	new tmp[pvpInf];
-    for(new i = 0; i < MAX_PARTICIPANTS; i++)
-    {
-        for(new j = MAX_PARTICIPANTS-1; j > i; j--)
-        {
-            if(PvpInfo[j-1][Score] < PvpInfo[j][Score])
-            {
-				tmp = PvpInfo[j-1];
-				PvpInfo[j-1] = PvpInfo[j];
-				PvpInfo[j] = tmp;
-            }
-        }
-    }
+	for (new i = 1; i < MAX_PARTICIPANTS; i++)
+	{
+		tmp = PvpInfo[i];
+		for (j = i - 1; j >= 0; j--)
+		{
+			if(PvpInfo[j-1][Score] < tmp[Score])
+				break;
+	
+			PvpInfo[j + 1] = PvpInfo[j];
+			PvpInfo[j] = tmp;
+		}
+	}
 }
 
 public UpdatePvpTable()
@@ -878,6 +893,7 @@ public UpdatePvpTable()
 	new id = -1;
 	new minute, second;
 	new string[25];
+
 	PvpTtl--;
 	minute = PvpTtl / 60;
 	second = PvpTtl - minute * 60;
@@ -887,6 +903,7 @@ public UpdatePvpTable()
 		format(string, 25, "%d:%d", minute, second);
 
 	SortPvpData();
+
 	for(new j = 0; j < MAX_OWNERS; j++)
 	{
 		new InitID = TourPlayers[j];
@@ -947,12 +964,30 @@ public OnPlayerGiveDamage(playerid, damagedid, Float:amount, weaponid, bodypart)
 	new Float:defense_mul = floatsub(1.0, floatdiv(PlayerInfo[damagedid][Defense], DEFENSE_DIVIDER));
 	damage = floatround(floatmul(damage, defense_mul));
 
+	new real_damage;
+	if((floatround(GetPlayerHP(damagedid)) - damage) <= 0)
+		real_damage = floatround(GetPlayerHP(damagedid));
+	else
+		real_damage = damage;
+	DamageCounter[playerid] += real_damage;
+	new points = DamageCounter[playerid] / 100;
+	if(points > 0)
+	{
+		DamageCounter[playerid] -= points * 100;
+		if(DamageCounter[playerid] < 0)
+			DamageCounter[playerid] = 0;
+		
+		new damager_idx = GetPvpIndex(playerid);
+		if(damager_idx != -1)
+			PvpInfo[damager_idx][Score] += points;
+	}
+
 	if(dodged)
 		SetPlayerChatBubble(damagedid, "Уклонение", 0x66CCCCFF, 80.0, 1200);
 	else
 	{
 		new dmginf[32];
-		format(dmginf, sizeof(dmginf), "%d", damage);
+		format(dmginf, sizeof(dmginf), "%d", real_damage);
 		SetPlayerChatBubble(damagedid, dmginf, is_crit ? 0xFFCC00FF : 0xFFFFFFFF, 80.0, 1200);
 	}
 
@@ -986,12 +1021,21 @@ public OnPlayerDisconnect(playerid, reason)
 {
 	if(IsTourStarted && IsTourParticipant(PlayerInfo[playerid][ID]))
 		OnTourEnd(0);
+	if(IsBossAttacker[playerid] && BossNPC != -1)
+	{
+		BossAttackersCount--;
+		if(BossAttackersCount <= 0)
+			FinishBossAttack();
+	}
 	if(IsPlayerParticipant(playerid) || PlayerInfo[playerid][Admin] > 0)
 		SavePlayer(playerid, !FCNPC_IsValid(playerid));
+
 	DeletePlayerTextDraws(playerid);
+
 	if(IsValidTimer(RegenerateTimer[playerid]))
 		KillTimer(RegenerateTimer[playerid]);
 	RegenerateTimer[playerid] = -1;
+
 	IsInventoryOpen[playerid] = false;
 	SelectedSlot[playerid] = -1;
 	IsParticipant[playerid] = false;
@@ -1033,6 +1077,7 @@ public OnPlayerSpawn(playerid)
 		SetPlayerPos(playerid, PlayerInfo[playerid][PosX], PlayerInfo[playerid][PosY], PlayerInfo[playerid][PosZ]);
 		SetPlayerFacingAngle(playerid, PlayerInfo[playerid][FacingAngle]);
 	}
+
 	SetCameraBehindPlayer(playerid);
 	SetPlayerSkin(playerid, PlayerInfo[playerid][Skin]);
 	SetPlayerColor(playerid, IsTourStarted ? HexTeamColors[PlayerInfo[playerid][TeamColor]][0] : HexRateColors[PlayerInfo[playerid][Rank]-1][0]);
@@ -1074,11 +1119,12 @@ public OnPlayerDeath(playerid, killerid, reason)
 			SetPVarInt(killerid, "LastKill", -1);
 			return 1;
 		}
-
 		SetPVarInt(killerid, "LastKill", playerid);
+
 		if(!FCNPC_IsDead(playerid))
 			FCNPC_Kill(playerid);
 		SendDeathMessage(killerid, playerid, reason);
+
 		new killer_idx = GetPvpIndex(killerid);
 		new player_idx = GetPvpIndex(playerid);
 		if(killer_idx == -1 || player_idx == -1) return 1;
@@ -1090,6 +1136,7 @@ public OnPlayerDeath(playerid, killerid, reason)
 				PvpInfo[player_idx][Score] = 0;
 			return 1;
 		}
+
 		PvpInfo[killer_idx][Kills]++;
 		PvpInfo[player_idx][Deaths]++;
 		PvpInfo[killer_idx][Score] += GetScoreDiff(PlayerInfo[playerid][Rate], PlayerInfo[killerid][Rate], true);
@@ -1106,7 +1153,8 @@ public FCNPC_OnSpawn(npcid)
 		return 0;
     FCNPC_SetHealth(npcid, 100);
 	if(PlayerInfo[npcid][TeamColor] != -1 && IsTourStarted)
-		SetPlayerColor(npcid, IsTourStarted ? HexTeamColors[PlayerInfo[npcid][TeamColor]][0] : HexRateColors[PlayerInfo[npcid][Rank]-1][0]);
+		SetPlayerColor(npcid, HexTeamColors[PlayerInfo[npcid][TeamColor]][0]);
+
 	UpdatePlayerWeapon(npcid);
 	UpdatePlayerSkin(npcid);
 	if(IsTourStarted && IsTourParticipant(PlayerInfo[npcid][ID]))
@@ -1116,8 +1164,6 @@ public FCNPC_OnSpawn(npcid)
 
 public FCNPC_OnRespawn(npcid)
 {
-	if(IsTourStarted)
-		TeleportToRandomArenaPos(npcid);
     FCNPC_OnSpawn(npcid);
 }
 
@@ -2001,6 +2047,12 @@ public OnDialogResponse(playerid, dialogid, response, listitem, inputtext[])
 
 public FCNPC_OnUpdate(npcid)
 {
+	if(npcid == BossNPC && !IsTourStarted)
+	{
+		BossBehaviour(npcid);
+		return 1;
+	}
+
 	if(!IsTourStarted) return 1;
 
 	new lastkill = GetPVarInt(npcid, "LastKill");
@@ -2012,71 +2064,7 @@ public FCNPC_OnUpdate(npcid)
 			SetPVarInt(npcid, "LastKill", -1);
 	}
 
-	new id = npcid;
-	if(id == -1 || id == INVALID_PLAYER_ID) return 1;
-	if(!FCNPC_IsValid(id)) return 1;
-
-	//If NPC bumped any obstacle - move him
-	if(FCNPC_IsMoving(id) && FCNPC_GetSpeed(id) < 0.1)
-	{
-		MoveAround(id);
-		return 1;
-	}
-
-	//If NPC too close with other players - move him
-	new target = FCNPC_GetAimingPlayer(id);
-	if(IsNPCCloseToAnyPlayer(id))
-	{
-		if(!FCNPC_IsMoving(id) || (target != -1 && target != INVALID_PLAYER_ID && FCNPC_IsMovingAtPlayer(id, target)))
-		{
-			if(FCNPC_IsAiming(id))
-				FCNPC_StopAim(id);
-			MoveAround(id);
-		}
-		return 1;
-	}
-
-	//Checking available target
-	if(!FCNPC_IsAiming(id) && !FCNPC_IsDead(id))
-		SetPlayerTarget(id);
-
-	//If current target is dead or invalid, set new
-	target = FCNPC_GetAimingPlayer(id);
-	if(target == -1 || target == INVALID_PLAYER_ID)
-	{
-		SetPlayerTarget(id);
-		return 1;
-	}
-	if(FCNPC_IsDead(target) || (!FCNPC_IsValid(target) && (!IsPlayerInDynamicArea(target, arena_area) || IsDeath[target])))
-	{
-		SetPlayerTarget(id);
-		return 1;
-	}
-
-	new Float:dist = GetDistanceBetweenPlayers(id, target);
-	if(!FCNPC_IsMovingAtPlayer(id, target) && dist > 10.0)
-		FCNPC_GoToPlayer(id, target);
-
-	//If player so close to target - attack it
-	if(dist <= 10)
-	{
-		if(FCNPC_IsMoving(id))
-			FCNPC_Stop(id);
-		if(!FCNPC_IsShooting(id))
-			FCNPC_AimAtPlayer(id, target, true, GetWeaponDelay(FCNPC_GetWeapon(id)));
-	}
-	else
-		FCNPC_AimAtPlayer(id, target, false);
-
-	//If there are targets with less HP beside player - change target
-	new potential_target = FindPlayerTarget(id, true);
-	if(potential_target != -1)
-	{
-		new Float:t_hp = FCNPC_GetHealth(target);
-		new Float:pt_hp = FCNPC_GetHealth(potential_target);
-		if(floatsub(t_hp, pt_hp) >= 35)
-			SetPlayerTarget(id, potential_target);
-	}
+	ParticipantBehaviour(npcid);
 
 	return 1;
 }
@@ -2089,9 +2077,9 @@ public OnPlayerUpdate(playerid)
 	if(IsTourStarted)
 	{
 		if(IsValidDynamicArea(arena_area) && !IsPlayerInDynamicArea(playerid, arena_area))
-		{ 
-			OnPlayerSpawn(playerid);
+		{
 			TeleportToRandomArenaPos(playerid);
+			OnPlayerSpawn(playerid);
 		}
 
 		new lastkill = GetPVarInt(playerid, "LastKill");
@@ -2415,13 +2403,10 @@ public CancelBossAttack()
 
 public FinishBossAttack()
 {
-	if(IsValidTimer(BossBehaviourTimer))
-		KillTimer(BossBehaviourTimer);
 	if(IsValidTimer(PrepareBossAttackTimer))
 		KillTimer(PrepareBossAttackTimer);
 	if(IsValidTimer(BossAttackTimer))
 		KillTimer(BossAttackTimer);
-	BossBehaviourTimer = -1;
 	PrepareBossAttackTimer = -1;
 	BossAttackTimer = -1;
 
@@ -2442,57 +2427,14 @@ public TeleportBossAttackersToHome()
 {
 	if(IsValidTimer(TeleportTimer))
 		KillTimer(TeleportTimer);
+
 	TeleportTimer = -1;
 	for(new i = 0; i < MAX_PLAYERS; i++)
-		if(IsBossAttacker[i] && !IsDeath[i]) TeleportToHome(i);
-	print("Destroying boss...");
+		if(IsBossAttacker[i] && !IsDeath[i]) 
+			TeleportToHome(i);
+
 	ResetLoot();
 	DestroyBoss();
-}
-
-public BossBehaviour()
-{
-	new id = BossNPC;
-	if(id == -1 || id == INVALID_PLAYER_ID) return;
-
-	//If NPC bumped any obstacle - move him
-	if(FCNPC_IsMoving(id) && FCNPC_GetSpeed(id) < 0.2)
-	{
-		FCNPC_Stop(id);
-		MoveAround(id);
-		return;
-	}
-
-	//Checking available target
-	if(!FCNPC_IsDead(id) && !FCNPC_IsShooting(id) && BossAttackersCount > 1 && CheckChance(15))
-	{
-		SetBossTarget(id);
-		return;
-	}
-
-	//If current target is dead, set new
-	new target = FCNPC_GetAimingPlayer(id);
-	if(target == -1 || target == INVALID_PLAYER_ID || IsDeath[target])
-	{
-		SetBossTarget(id);
-		return;
-	}
-
-	new Float:dist = GetDistanceBetweenPlayers(id, target);
-	if(!FCNPC_IsMovingAtPlayer(id, target) && dist > 10.0)
-	{
-		FCNPC_AimAtPlayer(id, target, false);
-		FCNPC_GoToPlayer(id, target);
-	}
-
-	//If player so close to target - attack it
-	if(dist <= 10)
-	{
-		if(FCNPC_IsMoving(id))
-			FCNPC_Stop(id);
-		if(!FCNPC_IsShooting(id))
-			FCNPC_AimAtPlayer(id, target, true, BOSS_SHOOT_DELAY);
-	}
 }
 
 public UpdatePlayerMaxHP(playerid)
@@ -2697,7 +2639,6 @@ stock StartTour()
 	}
 
 	IsTourStarted = true;
-	DebugLogInt("Tour parts count", TourParticipantsCount);
 
 	//teleport all
 	new npcid = -1;
@@ -2720,10 +2661,10 @@ stock StartTour()
 		npcid = FCNPC_Create(player[Name]);
 		if(!FCNPC_IsValid(npcid))
 		{
-			print("Failed to create NPC with name - ");
-			print(player[Name]);
+			print("Failed to create NPC.");
 			continue;
 		}
+
 		InitTourNPC(npcid);
 		PvpInfo[i][ID] = npcid;
 		format(PvpInfo[i][Name], 255, "%s", player[Name]);
@@ -2783,10 +2724,6 @@ stock StartTour()
 	PvpTtl = 180;
 	TourEndTimer = SetTimerEx("OnTourEnd", 180000, false, "i", 1);
 	PvpTableUpdTimer = SetTimer("UpdatePvpTable", 1000, true);
-	for(new i = 0; i < TourParticipantsCount; i++)
-	{
-		if(PvpInfo[i][ID] == -1) continue;
-	}
 
 	print("Tour started.");
 }
@@ -2839,7 +2776,6 @@ stock InitTourNPC(npcid)
 	if(npcid == -1) return;
 
 	LoadPlayer(npcid);
-	UpdatePlayerStats(npcid);
 
 	new query[255];
 	format(query, sizeof(query), "SELECT * FROM `accounts` WHERE `login` = '%s' LIMIT 1", PlayerInfo[npcid][Owner]);
@@ -2863,11 +2799,124 @@ stock InitTourNPC(npcid)
 
 	PlayerInfo[npcid][TeamColor] = teamcolor;
 
-	ShowNPCInTabList(npcid);
+	for(new i = 0; i < MAX_OWNERS; i++)
+		FCNPC_ShowInTabListForPlayer(npcid, TourPlayers[i]);
+
 	FCNPC_SetInvulnerable(npcid, false);
 	FCNPC_SetInterior(npcid, 0);
 	OnPlayerLogin(npcid);
 	UpdatePlayerWeapon(npcid);
+}
+
+stock ParticipantBehaviour(id)
+{
+	if(id == -1 || id == INVALID_PLAYER_ID) return 1;
+	if(!FCNPC_IsValid(id)) return 1;
+
+	//If NPC bumped any obstacle - move him
+	if(FCNPC_IsMoving(id) && FCNPC_GetSpeed(id) < 0.1)
+	{
+		MoveAround(id);
+		return 1;
+	}
+
+	//If NPC too close with other players - move him
+	new target = FCNPC_GetAimingPlayer(id);
+	if(IsNPCCloseToAnyPlayer(id))
+	{
+		if(!FCNPC_IsMoving(id) || (target != -1 && target != INVALID_PLAYER_ID && FCNPC_IsMovingAtPlayer(id, target)))
+		{
+			if(FCNPC_IsAiming(id))
+				FCNPC_StopAim(id);
+			MoveAround(id);
+		}
+		return 1;
+	}
+
+	//Checking available target
+	if(!FCNPC_IsAiming(id) && !FCNPC_IsDead(id))
+		SetPlayerTarget(id);
+
+	//If current target is dead or invalid, set new
+	target = FCNPC_GetAimingPlayer(id);
+	if(target == -1 || target == INVALID_PLAYER_ID)
+	{
+		SetPlayerTarget(id);
+		return 1;
+	}
+	if(FCNPC_IsDead(target) || (!FCNPC_IsValid(target) && (!IsPlayerInDynamicArea(target, arena_area) || IsDeath[target])))
+	{
+		SetPlayerTarget(id);
+		return 1;
+	}
+
+	new Float:dist = GetDistanceBetweenPlayers(id, target);
+	if(!FCNPC_IsMovingAtPlayer(id, target) && dist > 10.0)
+		FCNPC_GoToPlayer(id, target);
+
+	//If player so close to target - attack it
+	if(dist <= 10)
+	{
+		if(FCNPC_IsMoving(id))
+			FCNPC_Stop(id);
+		if(!FCNPC_IsShooting(id))
+			FCNPC_AimAtPlayer(id, target, true, GetWeaponDelay(FCNPC_GetWeapon(id)));
+	}
+	else
+		FCNPC_AimAtPlayer(id, target, false);
+
+	//If there are targets with less HP beside player - change target
+	new potential_target = FindPlayerTarget(id, true);
+	if(potential_target != -1)
+	{
+		new Float:t_hp = FCNPC_GetHealth(target);
+		new Float:pt_hp = FCNPC_GetHealth(potential_target);
+		if(floatsub(t_hp, pt_hp) >= 35)
+			SetPlayerTarget(id, potential_target);
+	}
+}
+
+stock BossBehaviour(id)
+{
+	if(id == -1 || id == INVALID_PLAYER_ID) return;
+
+	//If NPC bumped any obstacle - move him
+	if(FCNPC_IsMoving(id) && FCNPC_GetSpeed(id) < 0.1)
+	{
+		MoveAround(id);
+		return;
+	}
+
+	//Checking available target
+	if(!FCNPC_IsDead(id) && BossAttackersCount > 1 && CheckChance(15))
+	{
+		SetBossTarget(id);
+		return;
+	}
+
+	//If current target is dead, set new
+	new target = FCNPC_GetAimingPlayer(id);
+	if(target == -1 || target == INVALID_PLAYER_ID || IsDeath[target])
+	{
+		SetBossTarget(id);
+		return;
+	}
+
+	new Float:dist = GetDistanceBetweenPlayers(id, target);
+	if(!FCNPC_IsMovingAtPlayer(id, target) && dist > 10.0)
+	{
+		FCNPC_AimAtPlayer(id, target, false);
+		FCNPC_GoToPlayer(id, target);
+	}
+
+	//If player so close to target - attack it
+	if(dist <= 10)
+	{
+		if(FCNPC_IsMoving(id))
+			FCNPC_Stop(id);
+		if(!FCNPC_IsShooting(id))
+			FCNPC_AimAtPlayer(id, target, true, BOSS_SHOOT_DELAY);
+	}
 }
 
 stock GiveTournamentRewards()
@@ -5021,7 +5070,6 @@ stock StartBossAttack()
 	InitBoss(BossNPC);
 	BossAttackTimer = SetTimer("FinishBossAttack", 120000, false);
 	SetBossTarget(BossNPC);
-	BossBehaviourTimer = SetTimer("BossBehaviour", 100, true);
 	print("Boss spawned!");
 }
 
