@@ -1,4 +1,4 @@
-//Bourgeois Circus 0.94
+//Bourgeois Circus 0.95
 
 #include <a_samp>
 #include <a_mail>
@@ -18,7 +18,7 @@
 
 #pragma dynamic 31294
 
-#define VERSION 0.941
+#define VERSION 0.951
 
 //Mysql settings
 
@@ -136,13 +136,13 @@
 
 //Delays
 #define DEFAULT_SHOOT_DELAY 200
-#define COLT_SHOOT_DELAY 120
-#define DEAGLE_SHOOT_DELAY 290
-#define MP5_SHOOT_DELAY 110
-#define TEC_SHOOT_DELAY 70
+#define COLT_SHOOT_DELAY 170
+#define DEAGLE_SHOOT_DELAY 410
+#define MP5_SHOOT_DELAY 130
+#define TEC_SHOOT_DELAY 90
 #define AK_SHOOT_DELAY 160
 #define M4_SHOOT_DELAY 150
-#define SHOTGUN_SHOOT_DELAY 430
+#define SHOTGUN_SHOOT_DELAY 530
 #define SAWNOFF_SHOOT_DELAY 350
 #define COMBAT_SHOOT_DELAY 270
 
@@ -179,6 +179,8 @@ enum TopItem
 {
 	Pos,
 	Name[255],
+	Kills,
+	Deaths,
 	Score,
 	Rate
 };
@@ -954,7 +956,7 @@ public OnPlayerGiveDamage(playerid, damagedid, Float:amount, weaponid, bodypart)
 	new bool:dodged = CheckChance(dodge);
 	new bool:is_crit = CheckChance(PlayerInfo[playerid][Crit]);
 	new damage;
-	if(dodged)
+	if(dodged || weaponid == 0)
 		damage = 0;
 	else if(is_crit)
 		damage = PlayerInfo[playerid][DamageMax];
@@ -970,10 +972,10 @@ public OnPlayerGiveDamage(playerid, damagedid, Float:amount, weaponid, bodypart)
 	else
 		real_damage = damage;
 	DamageCounter[playerid] += real_damage;
-	new points = DamageCounter[playerid] / 100;
+	new points = DamageCounter[playerid] / 50;
 	if(points > 0)
 	{
-		DamageCounter[playerid] -= points * 100;
+		DamageCounter[playerid] -= points * 50;
 		if(DamageCounter[playerid] < 0)
 			DamageCounter[playerid] = 0;
 		
@@ -2741,6 +2743,8 @@ stock GetScoreDiff(rate1, rate2, bool:is_killer)
 		diff = floatround(floatabs(floatmul(3001 - floatabs(diff), 0.007)));
 	if(is_killer)
 		diff += 50;
+	else
+		diff = floatround(floatmul(diff, 0.75));
 	return diff;
 }
 
@@ -2895,11 +2899,8 @@ stock BossBehaviour(id)
 	}
 
 	//Checking available target
-	if(!FCNPC_IsDead(id) && BossAttackersCount > 1 && CheckChance(15))
-	{
+	if(!FCNPC_IsDead(id) && BossAttackersCount > 1)
 		SetBossTarget(id);
-		return;
-	}
 
 	//If current target is dead, set new
 	new target = FCNPC_GetAimingPlayer(id);
@@ -2911,10 +2912,7 @@ stock BossBehaviour(id)
 
 	new Float:dist = GetDistanceBetweenPlayers(id, target);
 	if(!FCNPC_IsMovingAtPlayer(id, target) && dist > 10.0)
-	{
-		FCNPC_AimAtPlayer(id, target, false);
 		FCNPC_GoToPlayer(id, target);
-	}
 
 	//If player so close to target - attack it
 	if(dist <= 10)
@@ -2924,6 +2922,8 @@ stock BossBehaviour(id)
 		if(!FCNPC_IsShooting(id))
 			FCNPC_AimAtPlayer(id, target, true, BOSS_SHOOT_DELAY);
 	}
+	else
+		FCNPC_AimAtPlayer(id, target, false);
 }
 
 stock GiveTournamentRewards()
@@ -2961,49 +2961,49 @@ stock GiveTournamentRewards()
 			case 1:
 			{
 				reward[ItemID] = 203;
-				reward[ItemsCount] = 7;
+				reward[ItemsCount] = 15;
 				money = 1000;
 			}
 			case 2:
 			{
 				reward[ItemID] = 203;
-				reward[ItemsCount] = 6;
+				reward[ItemsCount] = 13;
 				money = 800;
 			}
 			case 3:
 			{
 				reward[ItemID] = 203;
-				reward[ItemsCount] = 5;
+				reward[ItemsCount] = 11;
 				money = 500;
 			}
 			case 4..5:
 			{
 				reward[ItemID] = 203;
-				reward[ItemsCount] = 3;
+				reward[ItemsCount] = 7;
 				money = 350;
 			}
 			case 6..8:
 			{
 				reward[ItemID] = 202;
-				reward[ItemsCount] = 4;
+				reward[ItemsCount] = 10;
 				money = 200;
 			}
 			case 9..12:
 			{
 				reward[ItemID] = 202;
-				reward[ItemsCount] = 3;
+				reward[ItemsCount] = 8;
 				money = 100;
 			}
 			case 13..16:
 			{
 				reward[ItemID] = 202;
-				reward[ItemsCount] = 2;
+				reward[ItemsCount] = 6;
 				money = 50;
 			}
 			default:
 			{
 				reward[ItemID] = 202;
-				reward[ItemsCount] = 1;
+				reward[ItemsCount] = 4;
 				money = 10;
 			}
 		}
@@ -3377,8 +3377,8 @@ stock UpdateTournamentTable()
 		new id = PvpInfo[i][ID];
 		if(id == -1) break;
 		
-		format(query, sizeof(query), "INSERT INTO `tournament_tab`(`ID`, `Name`, `Score`, `Owner`) VALUES ('%d','%s','%d','%s')",
-			PlayerInfo[id][ID], PlayerInfo[id][Name], PvpInfo[i][Score], PlayerInfo[id][Owner]
+		format(query, sizeof(query), "INSERT INTO `tournament_tab`(`ID`, `Name`, `Score`, `Kills`, `Deaths`, `Owner`) VALUES ('%d','%s','%d','%d','%d','%s')",
+			PlayerInfo[id][ID], PlayerInfo[id][Name], PvpInfo[i][Score], PvpInfo[i][Kills], PvpInfo[i][Deaths], PlayerInfo[id][Owner]
 		);
 		new Cache:q_res = mysql_query(sql_handle, query);
 		cache_delete(q_res);
@@ -3802,8 +3802,6 @@ stock SetBossTarget(playerid)
 {
 	if(!FCNPC_IsValid(playerid))
 		return; 
-	if(FCNPC_IsAiming(playerid))
-		FCNPC_StopAim(playerid);
 	new targetid = FindBossTarget(playerid);
 
 	if(targetid == -1)
@@ -3812,11 +3810,16 @@ stock SetBossTarget(playerid)
 		return;
 	}
 
+	new cur_target = FCNPC_GetAimingPlayer(playerid);
+	if(cur_target == targetid)
+		return;
+
+	if(FCNPC_IsAiming(playerid))
+		FCNPC_StopAim(playerid);
 	if(!FCNPC_IsAiming(playerid))
 		FCNPC_AimAtPlayer(playerid, targetid, false);
 	if(!FCNPC_IsMoving(playerid))
 		FCNPC_GoToPlayer(playerid, targetid);
-	print("Target setted.");
 	return;
 }
 
@@ -5672,8 +5675,8 @@ stock GetWeaponBaseDamage(weaponid)
 	{
 		case 1: { damage[0] = 17; damage[1] = 20; }
 		case 2..8: { damage[0] = 23; damage[1] = 27; }
-		case 9: { damage[0] = 29; damage[1] = 40; }
-		case 10..16: { damage[0] = 38; damage[1] = 54; }
+		case 9: { damage[0] = 61; damage[1] = 89; }
+		case 10..16: { damage[0] = 79; damage[1] = 116; }
 		case 17: { damage[0] = 9; damage[1] = 18; }
 		case 18..24: { damage[0] = 12; damage[1] = 24; }
 		case 25: { damage[0] = 14; damage[1] = 31; }
@@ -6513,8 +6516,12 @@ stock ShowTournamentTab(playerid)
 		cache_set_active(q_result);
 		new id = -1;
 		new score = 0;
+		new kills = 0;
+		new deaths = 0;
 		cache_get_value_name_int(i, "ID", id);
 		cache_get_value_name_int(i, "Score", score);
+		cache_get_value_name_int(i, "Kills", kills);
+		cache_get_value_name_int(i, "Deaths", deaths);
 		if(id == -1) continue;
 
 		new player[pInfo];
@@ -6523,18 +6530,20 @@ stock ShowTournamentTab(playerid)
 		format(TournamentTab[i][Name], 255, "%s", player[Name]);
 		TournamentTab[i][Rate] = player[Rate];
 		TournamentTab[i][Score] = score;
+		TournamentTab[i][Kills] = kills;
+		TournamentTab[i][Deaths] = deaths;
 		TournamentTab[i][Pos] = i+1;
 	}
 
 	cache_delete(q_result);
 
-	new top[4000] = "¹ ï\\ï\tÈìÿ\tÐåéòèíã\tÎ÷êè";
+	new top[4000] = "¹ ï\\ï\tÈìÿ\tÐåçóëüòàò\tÎ÷êè";
 	new string[255];
 	for (new i = 0; i < row_count; i++) 
 	{
-		format(string, sizeof(string), "\n{%s}%d\t{%s}%s\t{%s}%s\t{9900CC}%d", 
-			GetPlaceColor(i+1), i+1, GetColorByRate(TournamentTab[i][Rate]), TournamentTab[i][Name], 
-			GetColorByRate(TournamentTab[i][Rate]), GetRateInterval(TournamentTab[i][Rate]), TournamentTab[i][Score]
+		format(string, sizeof(string), "\n{%s}%d\t{%s}%s\t{00CC00}%d {ffffff}- {CC0000}%d\t{9900CC}%d", 
+			GetPlaceColor(i+1), i+1, GetColorByRate(TournamentTab[i][Rate]), TournamentTab[i][Name],
+			TournamentTab[i][Kills], TournamentTab[i][Deaths], TournamentTab[i][Score]
 		);
 		strcat(top, string);
 	}
