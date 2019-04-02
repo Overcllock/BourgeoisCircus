@@ -80,6 +80,7 @@
 #define MAX_TEAMCOLORS 2
 #define MAX_RATE 3000
 #define MAX_DEATH_MESSAGES 5
+#define MAX_CMB_ITEMS 3
 
 //Phases
 #define PHASE_PEACE 0
@@ -228,7 +229,8 @@ enum TWindow
 	bool:CharInfo,
 	bool:ItemInfo,
 	bool:EquipInfo,
-	bool:Mod
+	bool:Mod,
+	bool:Cmb
 };
 enum iInfo 
 {
@@ -313,6 +315,9 @@ new ModItemSlot[MAX_PLAYERS] = -1;
 new ModStone[MAX_PLAYERS] = -1;
 new ModPotion[MAX_PLAYERS] = -1;
 new IsSlotsBlocked[MAX_PLAYERS] = false;
+
+new CmbItem[MAX_PLAYERS][MAX_CMB_ITEMS] = -1;
+new CmbItemCount[MAX_PLAYERS][MAX_CMB_ITEMS] = -1;
 
 new IsTourStarted = false;
 new TourPlayers[MAX_OWNERS] = -1;
@@ -504,6 +509,16 @@ new PlayerText:UpgPotionSlot[MAX_PLAYERS];
 new PlayerText:UpgTxt4[MAX_PLAYERS];
 new PlayerText:UpgBtn[MAX_PLAYERS];
 new PlayerText:UpgClose[MAX_PLAYERS];
+
+new PlayerText:CmbBox[MAX_PLAYERS];
+new PlayerText:CmbTxt1[MAX_PLAYERS];
+new PlayerText:CmbDelim1[MAX_PLAYERS];
+new PlayerText:CmbItemSlot[MAX_PLAYERS][MAX_CMB_ITEMS];
+new PlayerText:CmbTxt2[MAX_PLAYERS];
+new PlayerText:CmbTxt3[MAX_PLAYERS];
+new PlayerText:CmbTxt4[MAX_PLAYERS];
+new PlayerText:CmbBtn[MAX_PLAYERS];
+new PlayerText:CmbClose[MAX_PLAYERS];
 
 main()
 {
@@ -1263,13 +1278,10 @@ public OnPlayerKeyStateChange(playerid, newkeys, oldkeys)
 	if(newkeys & 1024) SelectTextDraw(playerid,0xCCCCFF65);
 	else if(newkeys & 16)
 	{
+		//буржуа
 		if(IsPlayerInRangeOfPoint(playerid, 2.0, 221.0985,-1838.1259,3.6268))
 		{
-			new text[1024] = "{CCCCFF}\n\n";
-			strcat(text, "                        Привет! Я - Буржуа, владелец цирка.      \n");
-			strcat(text, "Я буду сообщать о важнейших событиях, которые тут происходят.\n");
-			strcat(text, "  Заходи ко мне почаще, чтобы не пропустить самое интересное! \n\n");
-			ShowPlayerDialog(playerid, 1, DIALOG_STYLE_MSGBOX, "Буржуа", text, "Закрыть", "");
+			ShowCmbWindow(playerid);
 		}
 		else if(IsPlayerInRangeOfPoint(playerid, 2.0, 211.7733,-1838.2538,3.6687))
 		{
@@ -2025,6 +2037,31 @@ public OnDialogResponse(playerid, dialogid, response, listitem, inputtext[])
 			}
 		}
 
+		//комбинации
+		case 910:
+		{
+			if(response)
+			{
+				new cmbitem = GetPVarInt(playerid, "CmbItemID");
+				new cmbslot = GetPVarInt(playerid, "CmbItemSlot");
+				new have_count = GetPVarInt(playerid, "CmbItemCount");
+
+				if(cmbitem == -1) return 1;
+				if(cmbslot < 1 || cmbslot > 3) return 1;
+
+				new item = GetItem(cmbitem);
+				
+				new count = strval(inputtext);
+				if(count < have_count)
+				{
+					ShowPlayerDialog(playerid, 1, DIALOG_STYLE_MSGBOX, "Ошибка", "Недостаточно предметов.", "Закрыть", "");
+					return 1;
+				}
+
+				SetCmbItem(playerid, cmbslot, cmbitem, count);
+			}
+		}
+
 		//Основное меню
 		case 1000:
 		{
@@ -2114,6 +2151,10 @@ public OnPlayerClickPlayerTextDraw(playerid, PlayerText:playertextid)
 	else if(playertextid == UpgClose[playerid])
 	{
 		HideModWindow(playerid);
+	}
+	else if(playertextid == CmbClose[playerid])
+	{
+		HideCmbWindow(playerid);
 	}
 	else if(playertextid == ChrInfWeaponSlot[playerid])
 	{
@@ -2326,6 +2367,26 @@ public OnPlayerClickPlayerTextDraw(playerid, PlayerText:playertextid)
 		
 		ModPotion[playerid] = itemid;
 		UpdateModWindow(playerid);
+	}
+	for(new slotid = 1; slotid <= MAX_CMB_ITEMS; slotid++)
+	{
+		if(playertextid != CmbItemSlot[playerid][slotid-1]) return 0;
+
+		if(SelectedSlot[playerid] == -1) return 0;
+		new itemid = PlayerInventory[playerid][SelectedSlot[playerid]][ID];
+		if(itemid == -1) return 0;
+
+		SetPVarInt(playerid, "CmbItemID", itemid);
+		SetPVarInt(playerid, "CmbItemSlot", slotid);
+		SetPVarInt(playerid, "CmbItemInvSlot", SelectedSlot[playerid]);
+
+		if(IsEquip(itemid))
+		{
+			SetPVarInt(playerid, "CmbItemCount", 1);
+			SetCmbItem(playerid, slotid, itemid, 1);
+		}
+		else
+			ShowPlayerDialog(playerid, 910, DIALOG_STYLE_INPUT, "Комбинирование", "Укажите количество:", "ОК", "Отмена");
 	}
 	else if(playertextid == UpgBtn[playerid])
 	{
@@ -3646,6 +3707,7 @@ stock HideAllWindows(playerid)
 	HideEquipInfo(playerid);
 	HideItemInfo(playerid);
 	HideModWindow(playerid);
+	HideCmbWindow(playerid);
 }
 
 stock HideOpenedInfoWindows(playerid)
@@ -5398,7 +5460,7 @@ stock HideCharInfo(playerid)
 	PlayerTextDrawHide(playerid, ChrInfButMod[playerid]);
 	PlayerTextDrawHide(playerid, ChrInfDelim4[playerid]);
 
-	for (new i = 0; i < MAX_SLOTS; i++)
+	for(new i = 0; i < MAX_SLOTS; i++)
 	{
 		PlayerTextDrawHide(playerid, ChrInfInvSlot[playerid][i]);
 		PlayerTextDrawHide(playerid, ChrInfInvSlotCount[playerid][i]);
@@ -5406,6 +5468,52 @@ stock HideCharInfo(playerid)
 
 	IsInventoryOpen[playerid] = false;
 	Windows[playerid][CharInfo] = false;
+}
+
+stock ShowCmbWindow(playerid)
+{
+	Windows[playerid][Cmb] = true;
+	IsSlotsBlocked[playerid] = true;
+
+	HideOpenedInfoWindows(playerid);
+
+	for(new i = 0; i < MAX_CMB_ITEMS; i++)
+	{
+		PlayerTextDrawSetPreviewModel(playerid, CmbItemSlot[playerid][i], -1);
+		PlayerTextDrawSetPreviewRot(playerid, CmbItemSlot[playerid][i], 0, 0, 0);
+		PlayerTextDrawBackgroundColor(playerid, CmbItemSlot[playerid][i], -1061109505);
+		PlayerTextDrawShow(playerid, CmbItemSlot[playerid][i]);
+	}
+
+	PlayerTextDrawShow(playerid, CmbBox[playerid]);
+	PlayerTextDrawShow(playerid, CmbTxt1[playerid]);
+	PlayerTextDrawShow(playerid, CmbTxt2[playerid]);
+	PlayerTextDrawShow(playerid, CmbTxt3[playerid]);
+	PlayerTextDrawShow(playerid, CmbTxt4[playerid]);
+	PlayerTextDrawShow(playerid, CmbDelim1[playerid]);
+	PlayerTextDrawShow(playerid, CmbBtn[playerid]);
+	PlayerTextDrawShow(playerid, CmbClose[playerid]);
+}
+
+stock HideCmbWindow(playerid)
+{
+	Windows[playerid][Cmb] = false;
+	IsSlotsBlocked[playerid] = false;
+
+	for(new i = 0; i < MAX_CMB_ITEMS; i++)
+	{
+		CmbItem[playerid][i] = -1;
+		PlayerTextDrawHide(playerid, CmbItemSlot[playerid][i]);
+	}
+
+	PlayerTextDrawHide(playerid, CmbBox[playerid]);
+	PlayerTextDrawHide(playerid, CmbTxt1[playerid]);
+	PlayerTextDrawHide(playerid, CmbTxt2[playerid]);
+	PlayerTextDrawHide(playerid, CmbTxt3[playerid]);
+	PlayerTextDrawHide(playerid, CmbTxt4[playerid]);
+	PlayerTextDrawHide(playerid, CmbDelim1[playerid]);
+	PlayerTextDrawHide(playerid, CmbBtn[playerid]);
+	PlayerTextDrawHide(playerid, CmbClose[playerid]);
 }
 
 stock ShowModWindow(playerid, itemslot = -1)
@@ -5477,6 +5585,52 @@ stock HideModWindow(playerid)
 	PlayerTextDrawHide(playerid, UpgTxt4[playerid]);
 	PlayerTextDrawHide(playerid, UpgBtn[playerid]);
 	PlayerTextDrawHide(playerid, UpgClose[playerid]);
+}
+
+stock SetCmbItem(playerid, slot, item, count)
+{
+	if(slot > MAX_CMB_ITEMS || slot < 1)
+	{
+		ShowPlayerDialog(playerid, 1, DIALOG_STYLE_MSGBOX, "Комбинации", "Недопустимый предмет.", "Закрыть", "");
+		return 1;
+	}
+	
+	CmbItem[playerid][slot-1] = item; 
+	CmbItemCount[playerid][slot-1] = count;
+
+	UpdateCmbWindow(playerid);
+}
+
+stock UpdateCmbWindow(playerid)
+{
+	for(new i = 0; i < MAX_CMB_ITEMS; i++)
+	{
+		PlayerTextDrawHide(playerid, CmbItemSlot[playerid][i]);
+		PlayerTextDrawHide(playerid, CmbItemSlotCount[playerid][i]);
+
+		PlayerTextDrawSetPreviewModel(playerid, CmbItemSlot[playerid][i], -1);
+		PlayerTextDrawSetPreviewRot(playerid, CmbItemSlot[playerid][i], 0, 0, 0);
+		PlayerTextDrawBackgroundColor(playerid, CmbItemSlot[playerid][i], -1061109505);
+
+		if(CmbItem[playerid][i] != -1)
+		{
+			if(HasItem(playerid, CmbItem[playerid][i]))
+			{
+				new item[BaseItem];
+				item = GetItem(CmbItem[playerid][i]);
+
+				PlayerTextDrawSetPreviewModel(playerid, CmbItemSlot[playerid][i], item[Model]);
+				PlayerTextDrawSetPreviewRot(playerid, CmbItemSlot[playerid][i], item[ModelRotX], item[ModelRotY], item[ModelRotZ]);
+				PlayerTextDrawBackgroundColor(playerid, CmbItemSlot[playerid][i], HexGradeColors[item[Grade]-1][0]);
+
+				if(!IsEquip(item[ID]))
+				{
+					PlayerTextDrawSetStringRus(playerid, CmbItemSlotCount[playerid][i], GetString(CmbItemCount[i], TYPE_INT));
+					PlayerTextDrawShow(playerid, CmbItemSlotCount[playerid][i]);
+				}
+			}
+		}
+	}
 }
 
 stock UpdateModWindow(playerid)
