@@ -1,4 +1,4 @@
-//Bourgeois Circus 0.95
+//Bourgeois Circus 1.0
 
 #include <a_samp>
 #include <a_mail>
@@ -18,18 +18,18 @@
 
 #pragma dynamic 31294
 
-#define VERSION 0.951
+#define VERSION 1.001
 
 //Mysql settings
 
-/*#define SQL_HOST "127.0.0.1"
+#define SQL_HOST "127.0.0.1"
 #define SQL_USER "tsar"
 #define SQL_DB "bcircus"
-#define SQL_PASS "2151"*/
-#define SQL_HOST "212.22.93.45"
+#define SQL_PASS "2151"
+/*#define SQL_HOST "212.22.93.45"
 #define SQL_USER "gsvtqhss"
 #define SQL_DB "gsvtqhss_21809"
-#define SQL_PASS "21510055"
+#define SQL_PASS "21510055"*/
 
 //Data types
 #define TYPE_INT 0x01
@@ -63,7 +63,7 @@
 
 //Limits
 #define MAX_PARTICIPANTS 20
-#define MAX_OWNERS 2
+#define MAX_OWNERS 1
 #define MAX_SLOTS 25
 #define MAX_SLOTS_X 5
 #define MAX_SLOTS_Y 5
@@ -317,7 +317,8 @@ new ModPotion[MAX_PLAYERS] = -1;
 new IsSlotsBlocked[MAX_PLAYERS] = false;
 
 new CmbItem[MAX_PLAYERS][MAX_CMB_ITEMS] = -1;
-new CmbItemCount[MAX_PLAYERS][MAX_CMB_ITEMS] = -1;
+new CmbItemCount[MAX_PLAYERS][MAX_CMB_ITEMS] = 0;
+new CmbItemInvSlot[MAX_PLAYERS][MAX_CMB_ITEMS] = -1;
 
 new IsTourStarted = false;
 new TourPlayers[MAX_OWNERS] = -1;
@@ -514,6 +515,7 @@ new PlayerText:CmbBox[MAX_PLAYERS];
 new PlayerText:CmbTxt1[MAX_PLAYERS];
 new PlayerText:CmbDelim1[MAX_PLAYERS];
 new PlayerText:CmbItemSlot[MAX_PLAYERS][MAX_CMB_ITEMS];
+new PlayerText:CmbItemSlotCount[MAX_PLAYERS][MAX_CMB_ITEMS];
 new PlayerText:CmbTxt2[MAX_PLAYERS];
 new PlayerText:CmbTxt3[MAX_PLAYERS];
 new PlayerText:CmbTxt4[MAX_PLAYERS];
@@ -1538,6 +1540,7 @@ public OnDialogResponse(playerid, dialogid, response, listitem, inputtext[])
 						for(new i = 0; i < MAX_OWNERS; i++)
 							if(ReadyIDs[i] == -1) return 1;
 						SendClientMessageToAll(COLOR_LIGHTRED, "Начинается фаза войны!");
+						UpdateTempItems();
 						Tournament[Phase] = PHASE_WAR;
 						SaveTournamentInfo();
 						for(new i = 0; i < MAX_OWNERS; i++)
@@ -2044,6 +2047,7 @@ public OnDialogResponse(playerid, dialogid, response, listitem, inputtext[])
 			{
 				new cmbitem = GetPVarInt(playerid, "CmbItemID");
 				new cmbslot = GetPVarInt(playerid, "CmbItemSlot");
+				new cmbinvslot = GetPVarInt(playerid, "CmbItemInvSlot");
 				new have_count = GetPVarInt(playerid, "CmbItemCount");
 
 				if(cmbitem == -1) return 1;
@@ -2058,7 +2062,7 @@ public OnDialogResponse(playerid, dialogid, response, listitem, inputtext[])
 					return 1;
 				}
 
-				SetCmbItem(playerid, cmbslot, cmbitem, count);
+				SetCmbItem(playerid, cmbslot, cmbinvslot, cmbitem, count);
 			}
 		}
 
@@ -2368,6 +2372,26 @@ public OnPlayerClickPlayerTextDraw(playerid, PlayerText:playertextid)
 		ModPotion[playerid] = itemid;
 		UpdateModWindow(playerid);
 	}
+	else if(playertextid == UpgBtn[playerid])
+	{
+		if(ModItemSlot[playerid] == -1) return 0;
+		if(ModStone[playerid] == -1) return 0;
+		UpgradeItem(playerid, ModItemSlot[playerid], ModStone[playerid], ModPotion[playerid]);
+		UpdateModWindow(playerid);
+	}
+	else if(playertextid == CmbBtn[playerid])
+	{
+		CombineItems(playerid);
+	}
+	else if(playertextid == InfClose[playerid])
+	{
+		HideItemInfo(playerid);
+	}
+	else if(playertextid == EqInfClose[playerid])
+	{
+		HideEquipInfo(playerid);
+	}
+
 	for(new slotid = 1; slotid <= MAX_CMB_ITEMS; slotid++)
 	{
 		if(playertextid != CmbItemSlot[playerid][slotid-1]) return 0;
@@ -2383,25 +2407,10 @@ public OnPlayerClickPlayerTextDraw(playerid, PlayerText:playertextid)
 		if(IsEquip(itemid))
 		{
 			SetPVarInt(playerid, "CmbItemCount", 1);
-			SetCmbItem(playerid, slotid, itemid, 1);
+			SetCmbItem(playerid, slotid, SelectedSlot[playerid], itemid, 1);
 		}
 		else
 			ShowPlayerDialog(playerid, 910, DIALOG_STYLE_INPUT, "Комбинирование", "Укажите количество:", "ОК", "Отмена");
-	}
-	else if(playertextid == UpgBtn[playerid])
-	{
-		if(ModItemSlot[playerid] == -1) return 0;
-		if(ModStone[playerid] == -1) return 0;
-		UpgradeItem(playerid, ModItemSlot[playerid], ModStone[playerid], ModPotion[playerid]);
-		UpdateModWindow(playerid);
-	}
-	else if(playertextid == InfClose[playerid])
-	{
-		HideItemInfo(playerid);
-	}
-	else if(playertextid == EqInfClose[playerid])
-	{
-		HideEquipInfo(playerid);
 	}
 
 	for (new i = 0; i < MAX_SLOTS; i++) {
@@ -3100,6 +3109,11 @@ stock GiveTournamentRewards()
 				AddPlayerMoney(id, reward[Money]);
 		}
 	}
+}
+
+stock UpdateTempItems()
+{
+	
 }
 
 stock UpdateBossesCooldowns()
@@ -5503,6 +5517,7 @@ stock HideCmbWindow(playerid)
 	for(new i = 0; i < MAX_CMB_ITEMS; i++)
 	{
 		CmbItem[playerid][i] = -1;
+		CmbItemCount[playerid][i] = 0;
 		PlayerTextDrawHide(playerid, CmbItemSlot[playerid][i]);
 	}
 
@@ -5587,7 +5602,7 @@ stock HideModWindow(playerid)
 	PlayerTextDrawHide(playerid, UpgClose[playerid]);
 }
 
-stock SetCmbItem(playerid, slot, item, count)
+stock SetCmbItem(playerid, slot, invslot, item, count)
 {
 	if(slot > MAX_CMB_ITEMS || slot < 1)
 	{
@@ -5597,6 +5612,7 @@ stock SetCmbItem(playerid, slot, item, count)
 	
 	CmbItem[playerid][slot-1] = item; 
 	CmbItemCount[playerid][slot-1] = count;
+	CmbItemInvSlot[playerid][slot-1] = invslot;
 
 	UpdateCmbWindow(playerid);
 }
@@ -5614,20 +5630,20 @@ stock UpdateCmbWindow(playerid)
 
 		if(CmbItem[playerid][i] != -1)
 		{
-			if(HasItem(playerid, CmbItem[playerid][i]))
+			if(!HasItem(playerid, CmbItem[playerid][i]))
+				return;
+				
+			new item[BaseItem];
+			item = GetItem(CmbItem[playerid][i]);
+
+			PlayerTextDrawSetPreviewModel(playerid, CmbItemSlot[playerid][i], item[Model]);
+			PlayerTextDrawSetPreviewRot(playerid, CmbItemSlot[playerid][i], item[ModelRotX], item[ModelRotY], item[ModelRotZ]);
+			PlayerTextDrawBackgroundColor(playerid, CmbItemSlot[playerid][i], HexGradeColors[item[Grade]-1][0]);
+
+			if(!IsEquip(item[ID]))
 			{
-				new item[BaseItem];
-				item = GetItem(CmbItem[playerid][i]);
-
-				PlayerTextDrawSetPreviewModel(playerid, CmbItemSlot[playerid][i], item[Model]);
-				PlayerTextDrawSetPreviewRot(playerid, CmbItemSlot[playerid][i], item[ModelRotX], item[ModelRotY], item[ModelRotZ]);
-				PlayerTextDrawBackgroundColor(playerid, CmbItemSlot[playerid][i], HexGradeColors[item[Grade]-1][0]);
-
-				if(!IsEquip(item[ID]))
-				{
-					PlayerTextDrawSetStringRus(playerid, CmbItemSlotCount[playerid][i], GetString(CmbItemCount[i], TYPE_INT));
-					PlayerTextDrawShow(playerid, CmbItemSlotCount[playerid][i]);
-				}
+				PlayerTextDrawSetStringRus(playerid, CmbItemSlotCount[playerid][i], GetString(CmbItemCount[i], TYPE_INT));
+				PlayerTextDrawShow(playerid, CmbItemSlotCount[playerid][i]);
 			}
 		}
 	}
@@ -5697,6 +5713,80 @@ stock UpdateModWindow(playerid)
 	PlayerTextDrawShow(playerid, UpgItemSlot[playerid]);
 	PlayerTextDrawShow(playerid, UpgStoneSlot[playerid]);
 	PlayerTextDrawShow(playerid, UpgPotionSlot[playerid]);
+}
+
+stock CombineItems(playerid)
+{
+	new query[255];
+	format(query, sizeof(query), "SELECT * FROM `combinations` WHERE \
+	`Item1_ID` = '%d' AND \
+	`Item1_Count` = '%d' AND \
+	`Item2_ID` = '%d' AND \
+	`Item2_Count` = '%d' AND \
+	`Item3_ID` = '%d' AND \
+	`Item3_Count` = '%d' LIMIT 1",
+		CmbItem[playerid][0], CmbItemCount[playerid][0],
+		CmbItem[playerid][1], CmbItemCount[playerid][1],
+		CmbItem[playerid][2], CmbItemCount[playerid][2]
+	);
+
+	new Cache:q_result = mysql_query(sql_handle, query);
+	new rows = 0;
+	cache_get_row_count(rows);
+	if(rows <= 0)
+	{
+		ShowPlayerDialog(playerid, 1, DIALOG_STYLE_MSGBOX, "Комбинирование", "Комбинация не существует.", "Закрыть", "");
+		cache_delete(q_result);
+		return;
+	}
+
+	new chance;
+	new price;
+	new result_id;
+	new result_count;
+
+	cache_get_value_name_int(0, "Chance", chance);
+	cache_get_value_name_int(0, "Price", price);
+	cache_get_value_name_int(0, "ResultID", result_id);
+	cache_get_value_name_int(0, "ResultCount", result_count);
+
+	cache_delete(q_result);
+
+	if(PlayerInfo[playerid][Cash] < price)
+	{
+		ShowPlayerDialog(playerid, 1, DIALOG_STYLE_MSGBOX, "Комбинирование", "Недостаточно средств.", "Закрыть", "");
+		return;
+	}
+
+	if(IsInventoryFull(playerid))
+	{
+		ShowPlayerDialog(playerid, 1, DIALOG_STYLE_MSGBOX, "Комбинирование", "Инвентарь полон.", "Закрыть", "");
+		return;
+	}
+
+	new bool:success = CheckChance(chance);
+
+	PlayerInfo[playerid][Cash] -= price;
+	GivePlayerMoney(playerid, -price);
+
+	for(new i = 0; i < MAX_CMB_ITEMS; i++)
+	{
+		if(!success && IsEquip(CmbItem[playerid][i]))
+			continue;
+
+		DeleteItem(playerid, CmbItemInvSlot[playerid][i], CmbItemCount[playerid][i]);
+	}
+
+	if(success)
+	{
+		ShowPlayerDialog(playerid, 1, DIALOG_STYLE_MSGBOX, "Комбинирование", "{33CC00}Успешная комбинация.", "Закрыть", "");
+		if(IsEquip(result_id))
+			AddEquip(playerid, result_id, MOD_CLEAR);
+		else
+			AddItem(playerid, result_id, result_count);
+	}
+	else
+		ShowPlayerDialog(playerid, 1, DIALOG_STYLE_MSGBOX, "Комбинирование", "{CC3300}Кобминация неудачна.", "Закрыть", "");
 }
 
 stock UpgradeItem(playerid, itemslot, stoneid, potionid = -1)
@@ -6109,6 +6199,19 @@ stock GetHexPlaceColor(place)
 	    default: color = 0xCCCCCCFF;
 	}
 	return color;
+}
+
+stock GetString(Float:value, type = TYPE_INT)
+{
+	new string[64] = "";
+	switch(type)
+	{
+		case TYPE_INT: { format(string, sizeof(string), "%d", floatround(value)); }
+		case TYPE_FLOAT: { format(string, sizeof(string), "%.3f", value); }
+		default: { return ""; }
+	}
+
+	return string;
 }
 
 stock ArrayToString(array[], size, type = TYPE_INT)
