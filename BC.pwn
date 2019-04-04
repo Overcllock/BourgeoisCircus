@@ -127,6 +127,12 @@
 #define MOD_RESULT_RESET 2
 #define MOD_RESULT_DESTROY 3
 
+//Market
+#define MARKET_CATEGORY_WEAPON 0
+#define MARKET_CATEGORY_ARMOR 1
+#define MARKET_CATEGORY_MATERIAL 2
+#define MARKET_CATEGORY_MYLOTS 3
+
 //Other
 #define DEFENSE_DIVIDER 7000
 #define BOSS_SHOOT_DELAY 300
@@ -3116,6 +3122,11 @@ stock UpdateTempItems()
 	
 }
 
+stock UpdateMarketItems()
+{
+
+}
+
 stock UpdateBossesCooldowns()
 {
 	new query[255];
@@ -3273,6 +3284,29 @@ stock UpdatePlayerPost(playerid)
 		new string[255];
 		format(string, sizeof(string), "У вас есть новые письма [%d].", row_count);
 		SendClientMessage(playerid, 0x3366CCFF, string);
+	}
+}
+
+stock ShowMarket(playerid, category)
+{
+	switch(category)
+	{
+		case MARKET_CATEGORY_WEAPON:
+		{
+
+		}
+		case MARKET_CATEGORY_ARMOR:
+		{
+			
+		}
+		case MARKET_CATEGORY_MATERIAL:
+		{
+			
+		}
+		case MARKET_CATEGORY_MYLOTS:
+		{
+			
+		}
 	}
 }
 
