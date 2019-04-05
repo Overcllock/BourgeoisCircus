@@ -81,6 +81,8 @@
 #define MAX_RATE 3000
 #define MAX_DEATH_MESSAGES 5
 #define MAX_CMB_ITEMS 3
+#define MAX_MARKET_CATEGORIES 4
+#define MAX_MARKET_ITEMS 20
 
 //Phases
 #define PHASE_PEACE 0
@@ -236,7 +238,8 @@ enum TWindow
 	bool:ItemInfo,
 	bool:EquipInfo,
 	bool:Mod,
-	bool:Cmb
+	bool:Cmb,
+	bool:MarketSell
 };
 enum iInfo 
 {
@@ -892,6 +895,7 @@ public OnTournamentEnd()
 	GiveTournamentRewards();
 	UpdateTourParticipants();
 	UpdateBossesCooldowns();
+	UpdateMarketItems();
 }
 
 stock SortPvpData()
@@ -1607,7 +1611,7 @@ public OnDialogResponse(playerid, dialogid, response, listitem, inputtext[])
 
 				if(IsEquip(itemid))
 				{
-					new ok = DeleteItem(playerid, SelectedSlot[playerid], 1);
+					new ok = DeleteItem(playerid, SelectedSlot[playerid]);
 					if(ok)
 					{
 						new item[BaseItem];
@@ -2089,9 +2093,20 @@ public OnDialogResponse(playerid, dialogid, response, listitem, inputtext[])
 					}
 				}
 			}
-			else
-				return 0;
-			return 1;
+		}
+
+		//рынок
+		case 1100:
+		{
+			if(response)
+			{
+				switch(listitem)
+				{
+					case 0:	ShowMarketBuyList(playerid);
+					case 1:	ShowMarketSellWindow(playerid);
+					case 2:	ShowMarketMyLotList(playerid);
+				}
+			}
 		}
 	}
 	return 1;
@@ -2256,7 +2271,7 @@ public OnPlayerClickPlayerTextDraw(playerid, PlayerText:playertextid)
 				ShowPlayerDialog(playerid, 1, DIALOG_STYLE_MSGBOX, "Ошибка", "Инвентарь полон.", "Закрыть", "");
 				return 0;
 			}
-			DeleteItem(playerid, SelectedSlot[playerid], 1);
+			DeleteItem(playerid, SelectedSlot[playerid]);
 			OpenLockbox(playerid, itemid);
 		}
 	}
@@ -2893,6 +2908,15 @@ stock InitTourNPC(npcid)
 	UpdatePlayerWeapon(npcid);
 }
 
+stock GetPlayerHPPercent(playerid)
+{
+	new Float:hp = GetPlayerHP(playerid);
+	new Float:max_hp = GetPlayerMaxHP(playerid);
+	new Float:percent = floatmul(floatdiv(hp, max_hp), 100);
+
+	return floatround(percent);
+}
+
 stock ParticipantBehaviour(id)
 {
 	if(id == -1 || id == INVALID_PLAYER_ID) return 1;
@@ -2910,11 +2934,14 @@ stock ParticipantBehaviour(id)
 	if(IsNPCCloseToAnyPlayer(id))
 	{
 		if(!FCNPC_IsMoving(id) || (target != -1 && target != INVALID_PLAYER_ID && FCNPC_IsMovingAtPlayer(id, target)))
-		{
-			if(FCNPC_IsAiming(id))
-				FCNPC_StopAim(id);
 			MoveAround(id);
-		}
+		return 1;
+	}
+
+	//If NPC's HP is low, but target's HP is not critical - run away
+	if(target != -1 && target != INVALID_PLAYER_ID && GetPlayerHPPercent(id) < 10 && GetPlayerHPPercent(target) > 10 && !FCNPC_IsMoving(id))
+	{
+		MoveAround(id);
 		return 1;
 	}
 
@@ -3119,12 +3146,83 @@ stock GiveTournamentRewards()
 
 stock UpdateTempItems()
 {
-	
+	new query[255] = "UPDATE `inventories` SET `ItemID` = '-1', `Count` = '0' WHERE `ItemID` >= '182' AND `ItemID` <= '186'";
+	new Cache:q_result = mysql_query(sql_handle, query);
+	cache_delete(q_result);
+
+	for(new i = 0; i < MAX_PLAYERS; i++)
+	{
+		if(!IsPlayerConnected(i)) continue;
+		for(new j = 0; j < MAX_SLOTS; j++)
+		{
+			if(PlayerInventory[i][j][ID] >= 182 && PlayerInventory[i][j][ID] <= 186)
+			{
+				DeleteItem(playerid, j);
+				UpdatePlayerStats(playerid);
+			}
+		}
+	}
 }
 
 stock UpdateMarketItems()
 {
+	new query[255] = "SELECT * FROM `marketplace`";
+	new Cache:q_result = mysql_query(sql_handle, query);
+	new row_count = 0;
+	cache_get_row_count(row_count);
+	if(row_count <= 0)
+	{
+		print("Cannot update marketplace.");
+		return;
+	}
 
+	q_result = cache_save();
+	cache_unset_active();
+
+	for(new i = 0; i < row_count; i++)
+	{
+		new id = -1;
+		new time = 0;
+		cache_set_active(q_result);
+
+		cache_get_value_name_int(i, "ID", id);
+		cache_get_value_name_int(i, "Time", time);
+
+		time--;
+		if(time <= 0)
+		{
+			new itemid = -1;
+			new count = 0;
+			new owner[255];
+
+			cache_get_value_name_int(i, "ItemID", itemid);
+			cache_get_value_name_int(i, "ItemCount", count);
+			cache_get_value_name(i, "Owner", owner);
+
+			cache_unset_active();
+
+			PendingItem(owner, item_id, count);
+			new playerid = GetPlayerID(owner);
+			if(playerid != -1 && IsPlayerConnected(playerid))
+				UpdatePlayerPost(playerid);
+
+			new sub_query[255];
+			format(sub_query, sizeof(sub_query), "DELETE FROM `marketplace` WHERE `ID` = '%d'", id);
+			new Cache:result = mysql_query(sql_handle, sub_query);
+			cache_delete(result);
+		}
+		else
+		{
+			cache_unset_active();
+
+			new sub_query[255];
+			format(sub_query, sizeof(sub_query), "UPDATE `marketplace` SET `Time` = '%d' WHERE `ID` = '%d' LIMIT 1", time, id);
+			new Cache:result = mysql_query(sql_handle, sub_query);
+			cache_delete(result);
+		}
+	}
+
+	cache_delete(q_result);
 }
 
 stock UpdateBossesCooldowns()
@@ -3287,27 +3385,124 @@ stock UpdatePlayerPost(playerid)
 	}
 }
 
-stock ShowMarket(playerid, category)
+stock ShowMarketMenu(playerid)
 {
-	switch(category)
-	{
-		case MARKET_CATEGORY_WEAPON:
-		{
+	new listitems[] = "Купить предмет\nПродать предмет\nМои лоты";
+	ShowPlayerDialog(playerid, 1100, DIALOG_STYLE_TABLIST, "Рынок", listitems, "Далее", "Закрыть");
+}
 
-		}
-		case MARKET_CATEGORY_ARMOR:
-		{
-			
-		}
-		case MARKET_CATEGORY_MATERIAL:
-		{
-			
-		}
-		case MARKET_CATEGORY_MYLOTS:
-		{
-			
-		}
+stock ShowMarketSellingItems(playerid, content[])
+{
+	new listitems[1024] = "Предмет\tЦена за 1 шт\tВладелец\tВремя регистрации";
+	strcat(listitems, content);
+	ShowPlayerDialog(playerid, 1101, DIALOG_STYLE_TABLIST_HEADERS, "Рынок", listitems, "Купить", "Назад");
+}
+
+stock ShowMarketMyItems(playerid, content[])
+{
+	new listitems[1024] = "Предмет\tЦена за 1 шт\tВремя регистрации";
+	strcat(listitems, content);
+	ShowPlayerDialog(playerid, 1102, DIALOG_STYLE_TABLIST_HEADERS, "Рынок", listitems, "Снять", "Назад");
+}
+
+stock ShowMarketBuyList(playerid, category)
+{
+	new query[255];
+	format(query, sizeof(query), "SELECT * FROM `marketplace` WHERE `Category` = '%d' ORDER BY `Price` LIMIT %d", category, MAX_MARKET_ITEMS);
+	new Cache:q_result = mysql_query(sql_handle, query);
+
+	new row_count = 0;
+	cache_get_row_count(row_count);
+	q_result = cache_save();
+	cache_unset_active();
+
+	if(row_count <= 0)
+	{
+		cache_delete(q_result);
+		SendClientMessage(playerid, COLOR_GREY, "В этой категории нет лотов.");
+		ShowMarketMenu(playerid);
+		return;
 	}
+
+	new content[1024] = "";
+	new buf[255];
+	for(new i = 0; i < row_count; i++)
+	{
+		new item[BaseItem];
+		new id;
+		new count;
+		new owner[255];
+		new time;
+		new price;
+
+		cache_set_active(q_result);
+
+		cache_get_value_name_int(i, "ItemID", id);
+		cache_get_value_name_int(i, "Time", id);
+		cache_get_value_name_int(i, "Price", id);
+		cache_get_value_name_int(i, "ItemCount", id);
+		cache_get_value_name(i, "Owner", owner);
+
+		cache_unset_active();
+
+		item = GetItem(id);
+		format(buf, sizeof(buf), "\n{%s}[%s]{ffffff}[x%d]\t{00CC00}%d$\t{ffffff}%s\t{ffffff}%d",
+			GetGradeColor(item[Grade]), item[Name], count, price, owner, time
+		);
+
+		strcat(content, buf);
+	}
+
+	ShowMarketSellingItems(playerid, content);
+}
+
+stock ShowMarketMyLotList(playerid)
+{
+	new query[255];
+	format(query, sizeof(query), "SELECT * FROM `marketplace` WHERE `Owner` = '%s' ORDER BY `Time` LIMIT %d", PlayerInfo[playerid][Owner], MAX_MARKET_ITEMS);
+	new Cache:q_result = mysql_query(sql_handle, query);
+
+	new row_count = 0;
+	cache_get_row_count(row_count);
+	q_result = cache_save();
+	cache_unset_active();
+
+	if(row_count <= 0)
+	{
+		cache_delete(q_result);
+		SendClientMessage(playerid, COLOR_GREY, "Не зарегистрировано ни одного предмета.");
+		ShowMarketMenu(playerid);
+		return;
+	}
+
+	new content[1024] = "";
+	new buf[255];
+	for(new i = 0; i < row_count; i++)
+	{
+		new item[BaseItem];
+		new id;
+		new count;
+		new time;
+		new price;
+
+		cache_set_active(q_result);
+
+		cache_get_value_name_int(i, "ItemID", id);
+		cache_get_value_name_int(i, "Time", id);
+		cache_get_value_name_int(i, "Price", id);
+		cache_get_value_name_int(i, "ItemCount", id);
+
+		cache_unset_active();
+
+		item = GetItem(id);
+		format(buf, sizeof(buf), "\n{%s}[%s]{ffffff}[x%d]\t{00CC00}%d$\t{ffffff}%d",
+			GetGradeColor(item[Grade]), item[Name], count, price, time
+		);
+
+		strcat(content, buf);
+	}
+
+	ShowMarketMyItems(playerid, content);
 }
 
 stock ShowPlayerPost(playerid)
@@ -3756,6 +3951,7 @@ stock HideAllWindows(playerid)
 	HideItemInfo(playerid);
 	HideModWindow(playerid);
 	HideCmbWindow(playerid);
+	HideMarketSellWindow(playerid);
 }
 
 stock HideOpenedInfoWindows(playerid)
@@ -3952,6 +4148,9 @@ stock MoveAround(playerid, bool:is_evading = false)
 {
 	if(!FCNPC_IsValid(playerid) || FCNPC_IsDead(playerid))
 		return;
+
+	if(FCNPC_IsAiming(playerid))
+		FCNPC_StopAim(playerid);
 		
 	new Float:x_offset = -20 + random(40);
 	new Float:y_offset = -20 + random(40);
@@ -5565,6 +5764,20 @@ stock HideCmbWindow(playerid)
 	PlayerTextDrawHide(playerid, CmbClose[playerid]);
 }
 
+stock ShowMarketSellWindow(playerid)
+{
+	Windows[playerid[MarketSell] = true;
+	IsSlotsBlocked[playerid] = true;
+
+	HideOpenedInfoWindows(playerid);
+}
+
+stock HideMarketSellWindow(playerid)
+{
+	Windows[playerid][MarketSell] = false;
+	IsSlotsBlocked[playerid] = false;
+}
+
 stock ShowModWindow(playerid, itemslot = -1)
 {
 	Windows[playerid][Mod] = true;
@@ -5846,7 +6059,7 @@ stock UpgradeItem(playerid, itemslot, stoneid, potionid = -1)
 		return;
 	}
 
-	DeleteItem(playerid, stoneslot, 1);
+	DeleteItem(playerid, stoneslot);
 
 	if(potionid != -1)
 	{
@@ -5857,7 +6070,7 @@ stock UpgradeItem(playerid, itemslot, stoneid, potionid = -1)
 			return;
 		}
 
-		DeleteItem(playerid, potionslot, 1);
+		DeleteItem(playerid, potionslot);
 	}
 
 	new roll = random(10001);
@@ -5899,7 +6112,7 @@ stock UpgradeItem(playerid, itemslot, stoneid, potionid = -1)
 	//destroy
 	else
 	{
-		DeleteItem(playerid, itemslot, 1);
+		DeleteItem(playerid, itemslot);
 		ModItemSlot[playerid] = -1;
 		ModStone[playerid] = -1;
 		ModPotion[playerid] = -1;
