@@ -2108,6 +2108,17 @@ public OnDialogResponse(playerid, dialogid, response, listitem, inputtext[])
 				}
 			}
 		}
+		case 1101:
+		{
+			
+		}
+		case 1102:
+		{
+			if(response)
+				CancelItem(playerid, listitem);
+			else
+				ShowMarketMyLotList(playerid);
+		} 
 	}
 	return 1;
 }
@@ -3383,6 +3394,16 @@ stock UpdatePlayerPost(playerid)
 		format(string, sizeof(string), "У вас есть новые письма [%d].", row_count);
 		SendClientMessage(playerid, 0x3366CCFF, string);
 	}
+}
+
+stock BuyItem(playerid, category, listitem)
+{
+	
+}
+
+stock CancelItem(playerid, listitem)
+{
+
 }
 
 stock ShowMarketMenu(playerid)
