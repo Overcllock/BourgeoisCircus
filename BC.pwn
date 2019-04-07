@@ -325,9 +325,9 @@ new ModStone[MAX_PLAYERS] = -1;
 new ModPotion[MAX_PLAYERS] = -1;
 new IsSlotsBlocked[MAX_PLAYERS] = false;
 
-new CmbItem[MAX_PLAYERS][MAX_CMB_ITEMS] = -1;
-new CmbItemCount[MAX_PLAYERS][MAX_CMB_ITEMS] = 0;
-new CmbItemInvSlot[MAX_PLAYERS][MAX_CMB_ITEMS] = -1;
+new CmbItem[MAX_PLAYERS][MAX_CMB_ITEMS];
+new CmbItemCount[MAX_PLAYERS][MAX_CMB_ITEMS];
+new CmbItemInvSlot[MAX_PLAYERS][MAX_CMB_ITEMS];
 
 new IsTourStarted = false;
 new TourPlayers[MAX_OWNERS] = -1;
@@ -2063,7 +2063,8 @@ public OnDialogResponse(playerid, dialogid, response, listitem, inputtext[])
 				if(cmbitem == -1) return 1;
 				if(cmbslot < 1 || cmbslot > 3) return 1;
 
-				new item = GetItem(cmbitem);
+				new item[BaseItem];
+				item = GetItem(cmbitem);
 				
 				new count = strval(inputtext);
 				if(count < have_count)
@@ -2102,7 +2103,7 @@ public OnDialogResponse(playerid, dialogid, response, listitem, inputtext[])
 			{
 				switch(listitem)
 				{
-					case 0:	ShowMarketBuyList(playerid);
+					//case 0:	ShowMarketBuyList(playerid);
 					case 1:	ShowMarketSellWindow(playerid);
 					case 2:	ShowMarketMyLotList(playerid);
 				}
@@ -3168,8 +3169,8 @@ stock UpdateTempItems()
 		{
 			if(PlayerInventory[i][j][ID] >= 182 && PlayerInventory[i][j][ID] <= 186)
 			{
-				DeleteItem(playerid, j);
-				UpdatePlayerStats(playerid);
+				DeleteItem(i, j);
+				UpdatePlayerStats(i);
 			}
 		}
 	}
@@ -3212,7 +3213,7 @@ stock UpdateMarketItems()
 
 			cache_unset_active();
 
-			PendingItem(owner, item_id, count);
+			PendingItem(owner, itemid, count);
 			new playerid = GetPlayerID(owner);
 			if(playerid != -1 && IsPlayerConnected(playerid))
 				UpdatePlayerPost(playerid);
@@ -5787,16 +5788,16 @@ stock HideCmbWindow(playerid)
 
 stock ShowMarketSellWindow(playerid)
 {
-	Windows[playerid[MarketSell] = true;
+	/*Windows[playerid[MarketSell] = true;
 	IsSlotsBlocked[playerid] = true;
 
-	HideOpenedInfoWindows(playerid);
+	HideOpenedInfoWindows(playerid);*/
 }
 
 stock HideMarketSellWindow(playerid)
 {
-	Windows[playerid][MarketSell] = false;
-	IsSlotsBlocked[playerid] = false;
+	/*Windows[playerid][MarketSell] = false;
+	IsSlotsBlocked[playerid] = false;*/
 }
 
 stock ShowModWindow(playerid, itemslot = -1)
@@ -5875,7 +5876,7 @@ stock SetCmbItem(playerid, slot, invslot, item, count)
 	if(slot > MAX_CMB_ITEMS || slot < 1)
 	{
 		ShowPlayerDialog(playerid, 1, DIALOG_STYLE_MSGBOX, "Комбинации", "Недопустимый предмет.", "Закрыть", "");
-		return 1;
+		return;
 	}
 	
 	CmbItem[playerid][slot-1] = item; 
@@ -5910,7 +5911,9 @@ stock UpdateCmbWindow(playerid)
 
 			if(!IsEquip(item[ID]))
 			{
-				PlayerTextDrawSetStringRus(playerid, CmbItemSlotCount[playerid][i], GetString(CmbItemCount[i], TYPE_INT));
+			    new string[64];
+				format(string, sizeof(string), "%d", CmbItemCount[i]);
+				PlayerTextDrawSetStringRus(playerid, CmbItemSlotCount[playerid][i], string);
 				PlayerTextDrawShow(playerid, CmbItemSlotCount[playerid][i]);
 			}
 		}
@@ -6467,19 +6470,6 @@ stock GetHexPlaceColor(place)
 	    default: color = 0xCCCCCCFF;
 	}
 	return color;
-}
-
-stock GetString(Float:value, type = TYPE_INT)
-{
-	new string[64] = "";
-	switch(type)
-	{
-		case TYPE_INT: { format(string, sizeof(string), "%d", floatround(value)); }
-		case TYPE_FLOAT: { format(string, sizeof(string), "%.3f", value); }
-		default: { return ""; }
-	}
-
-	return string;
 }
 
 stock ArrayToString(array[], size, type = TYPE_INT)
