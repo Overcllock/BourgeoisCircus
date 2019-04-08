@@ -82,6 +82,15 @@
 #define MAX_DEATH_MESSAGES 5
 #define MAX_NPC_MOVING_TICKS 60
 #define MAX_NPC_IDLE_TICKS 30
+#define MAX_CMB_ITEMS 3
+#define MAX_MARKET_CATEGORIES 4
+#define MAX_MARKET_ITEMS 20
+
+//Market
+#define MARKET_CATEGORY_WEAPON 0
+#define MARKET_CATEGORY_ARMOR 1
+#define MARKET_CATEGORY_MATERIAL 2
+#define MARKET_CATEGORY_MYLOTS 3
 
 //Phases
 #define PHASE_PEACE 0
@@ -316,6 +325,10 @@ new ModStone[MAX_PLAYERS] = -1;
 new ModPotion[MAX_PLAYERS] = -1;
 new IsSlotsBlocked[MAX_PLAYERS] = false;
 
+new CmbItem[MAX_PLAYERS][MAX_CMB_ITEMS];
+new CmbItemCount[MAX_PLAYERS][MAX_CMB_ITEMS];
+new CmbItemInvSlot[MAX_PLAYERS][MAX_CMB_ITEMS];
+
 new IsTourStarted = false;
 new TourPlayers[MAX_OWNERS] = -1;
 new TourEndTimer = -1;
@@ -508,6 +521,17 @@ new PlayerText:UpgPotionSlot[MAX_PLAYERS];
 new PlayerText:UpgTxt4[MAX_PLAYERS];
 new PlayerText:UpgBtn[MAX_PLAYERS];
 new PlayerText:UpgClose[MAX_PLAYERS];
+
+new PlayerText:CmbBox[MAX_PLAYERS];
+new PlayerText:CmbTxt1[MAX_PLAYERS];
+new PlayerText:CmbDelim1[MAX_PLAYERS];
+new PlayerText:CmbItemSlot[MAX_PLAYERS][MAX_CMB_ITEMS];
+new PlayerText:CmbItemSlotCount[MAX_PLAYERS][MAX_CMB_ITEMS];
+new PlayerText:CmbTxt2[MAX_PLAYERS];
+new PlayerText:CmbTxt3[MAX_PLAYERS];
+new PlayerText:CmbTxt4[MAX_PLAYERS];
+new PlayerText:CmbBtn[MAX_PLAYERS];
+new PlayerText:CmbClose[MAX_PLAYERS];
 
 main()
 {
@@ -876,6 +900,8 @@ public OnTournamentEnd()
 	GiveTournamentRewards();
 	UpdateTourParticipants();
 	UpdateBossesCooldowns();
+	UpdateMarketItems();
+	UpdateTempItems();
 }
 
 stock SortPvpData()
@@ -1276,23 +1302,28 @@ public OnPlayerKeyStateChange(playerid, newkeys, oldkeys)
 	if(newkeys & 1024) SelectTextDraw(playerid,0xCCCCFF65);
 	else if(newkeys & 16)
 	{
+		//буржуа
 		if(IsPlayerInRangeOfPoint(playerid, 2.0, 221.0985,-1838.1259,3.6268))
 		{
-			new text[1024] = "{CCCCFF}\n\n";
-			strcat(text, "                        Привет! Я - Буржуа, владелец цирка.      \n");
-			strcat(text, "Я буду сообщать о важнейших событиях, которые тут происходят.\n");
-			strcat(text, "  Заходи ко мне почаще, чтобы не пропустить самое интересное! \n\n");
-			ShowPlayerDialog(playerid, 1, DIALOG_STYLE_MSGBOX, "Буржуа", text, "Закрыть", "");
+			ShowCmbWindow(playerid);
 		}
+		//рынок
+		else if(IsPlayerInRangeOfPoint(playerid, 2.0, 0, 0, 0/*TODO*/))
+		{
+			ShowMarketMenu(playerid);
+		}
+		//почта
 		else if(IsPlayerInRangeOfPoint(playerid, 2.0, 211.7733,-1838.2538,3.6687))
 		{
 			ShowPlayerPost(playerid);
 		}
+		//заведующий турнирами
 		else if(IsPlayerInRangeOfPoint(playerid, 2.0, 226.7674,-1837.6835,3.6120))
 		{
 			new listitems[] = "Информация о турнире\nТурнирная таблица\nУчастники следующего тура\nПодать сигнал готовности";
 			ShowPlayerDialog(playerid, 200, DIALOG_STYLE_TABLIST, "Заведующий турнирами", listitems, "Далее", "Закрыть");
 		}
+		//доска почета
 		else if(IsPlayerInRangeOfPoint(playerid,1.2,-2171.3132,645.5896,1052.3817)) 
 		{
 			new listitems[] = "Общий рейтинг участников\nРейтинг моих участников";
@@ -2038,6 +2069,33 @@ public OnDialogResponse(playerid, dialogid, response, listitem, inputtext[])
 			}
 		}
 
+		//комбинации
+		case 910:
+		{
+			if(response)
+			{
+				new cmbitem = GetPVarInt(playerid, "CmbItemID");
+				new cmbslot = GetPVarInt(playerid, "CmbItemSlot");
+				new cmbinvslot = GetPVarInt(playerid, "CmbItemInvSlot");
+				new have_count = GetPVarInt(playerid, "CmbItemCount");
+
+				if(cmbitem == -1) return 1;
+				if(cmbslot < 1 || cmbslot > 3) return 1;
+
+				new item[BaseItem];
+				item = GetItem(cmbitem);
+				
+				new count = strval(inputtext);
+				if(count < have_count)
+				{
+					ShowPlayerDialog(playerid, 1, DIALOG_STYLE_MSGBOX, "Ошибка", "Недостаточно предметов.", "Закрыть", "");
+					return 1;
+				}
+
+				SetCmbItem(playerid, cmbslot, cmbinvslot, cmbitem, count);
+			}
+		}
+
 		//Основное меню
 		case 1000:
 		{
@@ -2058,6 +2116,62 @@ public OnDialogResponse(playerid, dialogid, response, listitem, inputtext[])
 			else
 				return 0;
 			return 1;
+		}
+
+		//рынок
+		case 1100:
+		{
+			if(response)
+			{
+				switch(listitem)
+				{
+					case 0:	ShowPlayerDialog(playerid, 1103, DIALOG_STYLE_TABLIST, "Рынок", "Оружие\nДоспехи\nРасходные материалы", "Далее", "Назад");
+					case 1:	ShowMarketSellWindow(playerid);
+					case 2:	ShowMarketMyLotList(playerid);
+				}
+			}
+		}
+		case 1101:
+		{
+			if(response)
+			{
+				new category = GetPVarInt(playerid, "MarketBuyCategory");
+				if(category == MARKET_CATEGORY_MATERIAL)
+					ShowPlayerDialog(playerid, 1104, DIALOG_STYLE_INPUT, "Рынок", "Введите количество:", "Купить", "Отмена");
+				else
+					BuyItem(playerid, category, listitem);
+			}
+			else
+				ShowMarketMenu(playerid);
+		}
+		case 1102:
+		{
+			if(response)
+				CancelItem(playerid, listitem);
+			else
+				ShowMarketMyLotList(playerid);
+		}
+		case 1103:
+		{
+			if(response)
+			{
+				SetPVarInt(playerid, "MarketBuyCategory", listitem);
+				ShowMarketBuyList(playerid, listitem);
+			}
+			else
+				ShowMarketMenu(playerid);
+		}
+		case 1104:
+		{
+			if(response)
+			{
+				
+			}
+			else
+			{
+				new category = GetPVarInt(playerid, "MarketBuyCategory");
+				ShowMarketBuyList(playerid, category);
+			}
 		}
 	}
 	return 1;
@@ -2136,6 +2250,14 @@ public OnPlayerClickPlayerTextDraw(playerid, PlayerText:playertextid)
 	else if(playertextid == UpgClose[playerid])
 	{
 		HideModWindow(playerid);
+	}
+	else if(playertextid == CmbClose[playerid])
+	{
+		HideCmbWindow(playerid);
+	}
+	else if(playertextid == CmbBtn[playerid])
+	{
+		CombineItems(playerid);
 	}
 	else if(playertextid == ChrInfWeaponSlot[playerid])
 	{
@@ -2365,6 +2487,27 @@ public OnPlayerClickPlayerTextDraw(playerid, PlayerText:playertextid)
 		HideEquipInfo(playerid);
 	}
 
+	for(new slotid = 1; slotid <= MAX_CMB_ITEMS; slotid++)
+	{
+		if(playertextid != CmbItemSlot[playerid][slotid-1]) return 0;
+
+		if(SelectedSlot[playerid] == -1) return 0;
+		new itemid = PlayerInventory[playerid][SelectedSlot[playerid]][ID];
+		if(itemid == -1) return 0;
+
+		SetPVarInt(playerid, "CmbItemID", itemid);
+		SetPVarInt(playerid, "CmbItemSlot", slotid);
+		SetPVarInt(playerid, "CmbItemInvSlot", SelectedSlot[playerid]);
+
+		if(IsEquip(itemid))
+		{
+			SetPVarInt(playerid, "CmbItemCount", 1);
+			SetCmbItem(playerid, slotid, SelectedSlot[playerid], itemid, 1);
+		}
+		else
+			ShowPlayerDialog(playerid, 910, DIALOG_STYLE_INPUT, "Комбинирование", "Укажите количество:", "ОК", "Отмена");
+	}
+
 	for (new i = 0; i < MAX_SLOTS; i++) {
         if (playertextid == ChrInfInvSlot[playerid][i]) {
             if (SelectedSlot[playerid] != -1) 
@@ -2536,11 +2679,6 @@ public GivePlayerHP(playerid, Float:hp)
 public Float:GetPlayerHP(playerid)
 {
 	new Float:hp;
-	/*if(FCNPC_IsValid(playerid))
-		hp = FCNPC_GetHealth(playerid);
-	else
-		GetPlayerHealth(playerid, hp);
-	hp = floatmul(hp, PlayerHPMultiplicator[playerid]);*/
 	hp = GetPVarFloat(playerid, "HP");
 	return hp;
 }
@@ -3148,6 +3286,217 @@ stock UpdateBossesCooldowns()
 	cache_delete(q_result);
 }
 
+stock UpdateTempItems()
+{
+	new query[255] = "UPDATE `inventories` SET `ItemID` = '-1', `Count` = '0' WHERE `ItemID` >= '182' AND `ItemID` <= '186'";
+	new Cache:q_result = mysql_query(sql_handle, query);
+	cache_delete(q_result);
+
+	for(new i = 0; i < MAX_PLAYERS; i++)
+	{
+		if(!IsPlayerConnected(i)) continue;
+		for(new j = 0; j < MAX_SLOTS; j++)
+		{
+			if(PlayerInventory[i][j][ID] >= 182 && PlayerInventory[i][j][ID] <= 186)
+			{
+				DeleteItem(i, j);
+				UpdatePlayerStats(i);
+			}
+		}
+	}
+}
+
+stock UpdateMarketItems()
+{
+	new query[255] = "SELECT * FROM `marketplace`";
+	new Cache:q_result = mysql_query(sql_handle, query);
+	new row_count = 0;
+	cache_get_row_count(row_count);
+	if(row_count <= 0)
+	{
+		print("Cannot update marketplace.");
+		return;
+	}
+
+	q_result = cache_save();
+	cache_unset_active();
+
+	for(new i = 0; i < row_count; i++)
+	{
+		new id = -1;
+		new time = 0;
+		cache_set_active(q_result);
+
+		cache_get_value_name_int(i, "ID", id);
+		cache_get_value_name_int(i, "Time", time);
+
+		time--;
+		if(time <= 0)
+		{
+			new itemid = -1;
+			new count = 0;
+			new owner[255];
+
+			cache_get_value_name_int(i, "ItemID", itemid);
+			cache_get_value_name_int(i, "ItemCount", count);
+			cache_get_value_name(i, "Owner", owner);
+
+			cache_unset_active();
+
+			PendingItem(owner, itemid, count);
+			new playerid = GetPlayerID(owner);
+			if(playerid != -1 && IsPlayerConnected(playerid))
+				UpdatePlayerPost(playerid);
+
+			new sub_query[255];
+			format(sub_query, sizeof(sub_query), "DELETE FROM `marketplace` WHERE `ID` = '%d'", id);
+			new Cache:result = mysql_query(sql_handle, sub_query);
+			cache_delete(result);
+		}
+		else
+		{
+			cache_unset_active();
+
+			new sub_query[255];
+			format(sub_query, sizeof(sub_query), "UPDATE `marketplace` SET `Time` = '%d' WHERE `ID` = '%d' LIMIT 1", time, id);
+			new Cache:result = mysql_query(sql_handle, sub_query);
+			cache_delete(result);
+		}
+	}
+
+	cache_delete(q_result);
+}
+
+stock BuyItem(playerid, category, listitem)
+{
+	
+}
+
+stock CancelItem(playerid, listitem)
+{
+
+}
+
+stock ShowMarketMenu(playerid)
+{
+	new listitems[] = "Купить предмет\nПродать предмет\nМои лоты";
+	ShowPlayerDialog(playerid, 1100, DIALOG_STYLE_TABLIST, "Рынок", listitems, "Далее", "Закрыть");
+}
+
+stock ShowMarketSellingItems(playerid, content[])
+{
+	new listitems[1024] = "Предмет\tЦена за 1 шт\tВладелец\tВремя регистрации";
+	strcat(listitems, content);
+	ShowPlayerDialog(playerid, 1101, DIALOG_STYLE_TABLIST_HEADERS, "Рынок", listitems, "Купить", "Назад");
+}
+
+stock ShowMarketMyItems(playerid, content[])
+{
+	new listitems[1024] = "Предмет\tЦена за 1 шт\tВремя регистрации";
+	strcat(listitems, content);
+	ShowPlayerDialog(playerid, 1102, DIALOG_STYLE_TABLIST_HEADERS, "Рынок", listitems, "Снять", "Назад");
+}
+
+stock ShowMarketBuyList(playerid, category)
+{
+	new query[255];
+	format(query, sizeof(query), "SELECT * FROM `marketplace` WHERE `Category` = '%d' ORDER BY `Price` LIMIT %d", category, MAX_MARKET_ITEMS);
+	new Cache:q_result = mysql_query(sql_handle, query);
+
+	new row_count = 0;
+	cache_get_row_count(row_count);
+	q_result = cache_save();
+	cache_unset_active();
+
+	if(row_count <= 0)
+	{
+		cache_delete(q_result);
+		SendClientMessage(playerid, COLOR_GREY, "В этой категории нет лотов.");
+		ShowMarketMenu(playerid);
+		return;
+	}
+
+	new content[1024] = "";
+	new buf[255];
+	for(new i = 0; i < row_count; i++)
+	{
+		new item[BaseItem];
+		new id;
+		new count;
+		new owner[255];
+		new time;
+		new price;
+
+		cache_set_active(q_result);
+
+		cache_get_value_name_int(i, "ItemID", id);
+		cache_get_value_name_int(i, "Time", id);
+		cache_get_value_name_int(i, "Price", id);
+		cache_get_value_name_int(i, "ItemCount", id);
+		cache_get_value_name(i, "Owner", owner);
+
+		cache_unset_active();
+
+		item = GetItem(id);
+		format(buf, sizeof(buf), "\n{%s}[%s]{ffffff}[x%d]\t{00CC00}%d$\t{ffffff}%s\t{ffffff}%d",
+			GetGradeColor(item[Grade]), item[Name], count, price, owner, time
+		);
+
+		strcat(content, buf);
+	}
+
+	ShowMarketSellingItems(playerid, content);
+}
+
+stock ShowMarketMyLotList(playerid)
+{
+	new query[255];
+	format(query, sizeof(query), "SELECT * FROM `marketplace` WHERE `Owner` = '%s' ORDER BY `Time` LIMIT %d", PlayerInfo[playerid][Owner], MAX_MARKET_ITEMS);
+	new Cache:q_result = mysql_query(sql_handle, query);
+
+	new row_count = 0;
+	cache_get_row_count(row_count);
+	q_result = cache_save();
+	cache_unset_active();
+
+	if(row_count <= 0)
+	{
+		cache_delete(q_result);
+		SendClientMessage(playerid, COLOR_GREY, "Не зарегистрировано ни одного предмета.");
+		ShowMarketMenu(playerid);
+		return;
+	}
+
+	new content[1024] = "";
+	new buf[255];
+	for(new i = 0; i < row_count; i++)
+	{
+		new item[BaseItem];
+		new id;
+		new count;
+		new time;
+		new price;
+
+		cache_set_active(q_result);
+
+		cache_get_value_name_int(i, "ItemID", id);
+		cache_get_value_name_int(i, "Time", id);
+		cache_get_value_name_int(i, "Price", id);
+		cache_get_value_name_int(i, "ItemCount", id);
+
+		cache_unset_active();
+
+		item = GetItem(id);
+		format(buf, sizeof(buf), "\n{%s}[%s]{ffffff}[x%d]\t{00CC00}%d$\t{ffffff}%d",
+			GetGradeColor(item[Grade]), item[Name], count, price, time
+		);
+
+		strcat(content, buf);
+	}
+
+	ShowMarketMyItems(playerid, content);
+}
+
 stock GiveTourRates(tour)
 {
 	for(new i = 0; i < MAX_PARTICIPANTS; i++)
@@ -3717,6 +4066,8 @@ stock HideAllWindows(playerid)
 	HideEquipInfo(playerid);
 	HideItemInfo(playerid);
 	HideModWindow(playerid);
+	HideCmbWindow(playerid);
+	HideMarketSellWindow(playerid);
 }
 
 stock HideOpenedInfoWindows(playerid)
@@ -5629,6 +5980,67 @@ stock HideCharInfo(playerid)
 	Windows[playerid][CharInfo] = false;
 }
 
+stock ShowCmbWindow(playerid)
+{
+	Windows[playerid][Cmb] = true;
+	IsSlotsBlocked[playerid] = true;
+
+	HideOpenedInfoWindows(playerid);
+
+	for(new i = 0; i < MAX_CMB_ITEMS; i++)
+	{
+		PlayerTextDrawSetPreviewModel(playerid, CmbItemSlot[playerid][i], -1);
+		PlayerTextDrawSetPreviewRot(playerid, CmbItemSlot[playerid][i], 0, 0, 0);
+		PlayerTextDrawBackgroundColor(playerid, CmbItemSlot[playerid][i], -1061109505);
+		PlayerTextDrawShow(playerid, CmbItemSlot[playerid][i]);
+	}
+
+	PlayerTextDrawShow(playerid, CmbBox[playerid]);
+	PlayerTextDrawShow(playerid, CmbTxt1[playerid]);
+	PlayerTextDrawShow(playerid, CmbTxt2[playerid]);
+	PlayerTextDrawShow(playerid, CmbTxt3[playerid]);
+	PlayerTextDrawShow(playerid, CmbTxt4[playerid]);
+	PlayerTextDrawShow(playerid, CmbDelim1[playerid]);
+	PlayerTextDrawShow(playerid, CmbBtn[playerid]);
+	PlayerTextDrawShow(playerid, CmbClose[playerid]);
+}
+
+stock HideCmbWindow(playerid)
+{
+	Windows[playerid][Cmb] = false;
+	IsSlotsBlocked[playerid] = false;
+
+	for(new i = 0; i < MAX_CMB_ITEMS; i++)
+	{
+		CmbItem[playerid][i] = -1;
+		CmbItemCount[playerid][i] = 0;
+		PlayerTextDrawHide(playerid, CmbItemSlot[playerid][i]);
+	}
+
+	PlayerTextDrawHide(playerid, CmbBox[playerid]);
+	PlayerTextDrawHide(playerid, CmbTxt1[playerid]);
+	PlayerTextDrawHide(playerid, CmbTxt2[playerid]);
+	PlayerTextDrawHide(playerid, CmbTxt3[playerid]);
+	PlayerTextDrawHide(playerid, CmbTxt4[playerid]);
+	PlayerTextDrawHide(playerid, CmbDelim1[playerid]);
+	PlayerTextDrawHide(playerid, CmbBtn[playerid]);
+	PlayerTextDrawHide(playerid, CmbClose[playerid]);
+}
+
+stock ShowMarketSellWindow(playerid)
+{
+	Windows[playerid[MarketSell] = true;
+	IsSlotsBlocked[playerid] = true;
+
+	HideOpenedInfoWindows(playerid);
+}
+
+stock HideMarketSellWindow(playerid)
+{
+	Windows[playerid][MarketSell] = false;
+	IsSlotsBlocked[playerid] = false;
+}
+
 stock ShowModWindow(playerid, itemslot = -1)
 {
 	Windows[playerid][Mod] = true;
@@ -5764,6 +6176,129 @@ stock UpdateModWindow(playerid)
 	PlayerTextDrawShow(playerid, UpgItemSlot[playerid]);
 	PlayerTextDrawShow(playerid, UpgStoneSlot[playerid]);
 	PlayerTextDrawShow(playerid, UpgPotionSlot[playerid]);
+}
+
+stock SetCmbItem(playerid, slot, invslot, item, count)
+{
+	if(slot > MAX_CMB_ITEMS || slot < 1)
+	{
+		ShowPlayerDialog(playerid, 1, DIALOG_STYLE_MSGBOX, "Комбинации", "Недопустимый предмет.", "Закрыть", "");
+		return;
+	}
+	
+	CmbItem[playerid][slot-1] = item; 
+	CmbItemCount[playerid][slot-1] = count;
+	CmbItemInvSlot[playerid][slot-1] = invslot;
+
+	UpdateCmbWindow(playerid);
+}
+
+stock UpdateCmbWindow(playerid)
+{
+	for(new i = 0; i < MAX_CMB_ITEMS; i++)
+	{
+		PlayerTextDrawHide(playerid, CmbItemSlot[playerid][i]);
+		PlayerTextDrawHide(playerid, CmbItemSlotCount[playerid][i]);
+
+		PlayerTextDrawSetPreviewModel(playerid, CmbItemSlot[playerid][i], -1);
+		PlayerTextDrawSetPreviewRot(playerid, CmbItemSlot[playerid][i], 0, 0, 0);
+		PlayerTextDrawBackgroundColor(playerid, CmbItemSlot[playerid][i], -1061109505);
+
+		if(CmbItem[playerid][i] != -1)
+		{
+			if(!HasItem(playerid, CmbItem[playerid][i]))
+				return;
+				
+			new item[BaseItem];
+			item = GetItem(CmbItem[playerid][i]);
+
+			PlayerTextDrawSetPreviewModel(playerid, CmbItemSlot[playerid][i], item[Model]);
+			PlayerTextDrawSetPreviewRot(playerid, CmbItemSlot[playerid][i], item[ModelRotX], item[ModelRotY], item[ModelRotZ]);
+			PlayerTextDrawBackgroundColor(playerid, CmbItemSlot[playerid][i], HexGradeColors[item[Grade]-1][0]);
+
+			if(!IsEquip(item[ID]))
+			{
+			    new string[64];
+				format(string, sizeof(string), "%d", CmbItemCount[i]);
+				PlayerTextDrawSetStringRus(playerid, CmbItemSlotCount[playerid][i], string);
+				PlayerTextDrawShow(playerid, CmbItemSlotCount[playerid][i]);
+			}
+		}
+	}
+}
+
+stock CombineItems(playerid)
+{
+	new query[255];
+	format(query, sizeof(query), "SELECT * FROM `combinations` WHERE \
+	`Item1_ID` = '%d' AND \
+	`Item1_Count` = '%d' AND \
+	`Item2_ID` = '%d' AND \
+	`Item2_Count` = '%d' AND \
+	`Item3_ID` = '%d' AND \
+	`Item3_Count` = '%d' LIMIT 1",
+		CmbItem[playerid][0], CmbItemCount[playerid][0],
+		CmbItem[playerid][1], CmbItemCount[playerid][1],
+		CmbItem[playerid][2], CmbItemCount[playerid][2]
+	);
+
+	new Cache:q_result = mysql_query(sql_handle, query);
+	new rows = 0;
+	cache_get_row_count(rows);
+	if(rows <= 0)
+	{
+		ShowPlayerDialog(playerid, 1, DIALOG_STYLE_MSGBOX, "Комбинирование", "Комбинация не существует.", "Закрыть", "");
+		cache_delete(q_result);
+		return;
+	}
+
+	new chance;
+	new price;
+	new result_id;
+	new result_count;
+
+	cache_get_value_name_int(0, "Chance", chance);
+	cache_get_value_name_int(0, "Price", price);
+	cache_get_value_name_int(0, "ResultID", result_id);
+	cache_get_value_name_int(0, "ResultCount", result_count);
+
+	cache_delete(q_result);
+
+	if(PlayerInfo[playerid][Cash] < price)
+	{
+		ShowPlayerDialog(playerid, 1, DIALOG_STYLE_MSGBOX, "Комбинирование", "Недостаточно средств.", "Закрыть", "");
+		return;
+	}
+
+	if(IsInventoryFull(playerid))
+	{
+		ShowPlayerDialog(playerid, 1, DIALOG_STYLE_MSGBOX, "Комбинирование", "Инвентарь полон.", "Закрыть", "");
+		return;
+	}
+
+	new bool:success = CheckChance(chance);
+
+	PlayerInfo[playerid][Cash] -= price;
+	GivePlayerMoney(playerid, -price);
+
+	for(new i = 0; i < MAX_CMB_ITEMS; i++)
+	{
+		if(!success && IsEquip(CmbItem[playerid][i]))
+			continue;
+
+		DeleteItem(playerid, CmbItemInvSlot[playerid][i], CmbItemCount[playerid][i]);
+	}
+
+	if(success)
+	{
+		ShowPlayerDialog(playerid, 1, DIALOG_STYLE_MSGBOX, "Комбинирование", "{33CC00}Успешная комбинация.", "Закрыть", "");
+		if(IsEquip(result_id))
+			AddEquip(playerid, result_id, MOD_CLEAR);
+		else
+			AddItem(playerid, result_id, result_count);
+	}
+	else
+		ShowPlayerDialog(playerid, 1, DIALOG_STYLE_MSGBOX, "Комбинирование", "{CC3300}Кобминация неудачна.", "Закрыть", "");
 }
 
 stock UpgradeItem(playerid, itemslot, stoneid, potionid = -1)
