@@ -80,9 +80,17 @@
 #define MAX_TEAMCOLORS 2
 #define MAX_RATE 3000
 #define MAX_DEATH_MESSAGES 5
+#define MAX_NPC_MOVING_TICKS 60
+#define MAX_NPC_IDLE_TICKS 30
 #define MAX_CMB_ITEMS 3
 #define MAX_MARKET_CATEGORIES 4
 #define MAX_MARKET_ITEMS 20
+
+//Market
+#define MARKET_CATEGORY_WEAPON 0
+#define MARKET_CATEGORY_ARMOR 1
+#define MARKET_CATEGORY_MATERIAL 2
+#define MARKET_CATEGORY_MYLOTS 3
 
 //Phases
 #define PHASE_PEACE 0
@@ -191,7 +199,18 @@ enum TopItem
 	Kills,
 	Deaths,
 	Score,
-	Rate
+	Rate,
+	RateDiff
+};
+enum MarketItem
+{
+	ID,
+	LotID,
+	Count,
+	Price,
+	rTime,
+	Owner[255],
+	Mod[MAX_MOD]
 };
 enum tInfo
 {
@@ -230,7 +249,8 @@ enum pvpInf
 	Name[255],
 	Kills,
 	Deaths,
-	Score
+	Score,
+	RateDiff
 };
 enum TWindow
 {
@@ -829,7 +849,10 @@ public OnTourEnd(finished)
 		SendDeathMessage(-1, MAX_PLAYERS + 1, 0);
 
 	if(finished == 1)
+	{
+		GiveTourRates(Tournament[Tour]);
 		UpdateTournamentTable();
+	}
 
 	IsTourStarted = false;
 	for(new i = 0; i < MAX_PLAYERS; i++)
@@ -857,7 +880,6 @@ public OnTourEnd(finished)
 	{
 		format(string, sizeof(string), "%d тур завершен.", Tournament[Tour]);
 		SendClientMessageToAll(COLOR_LIGHTRED, string);
-		GiveTourRates(Tournament[Tour]);
 		GiveTourRewards(Tournament[Tour]);
 		for(new i = 0; i < MAX_OWNERS; i++)
 			ShowTournamentTab(TourPlayers[i]);
@@ -896,6 +918,7 @@ public OnTournamentEnd()
 	UpdateTourParticipants();
 	UpdateBossesCooldowns();
 	UpdateMarketItems();
+	UpdateTempItems();
 }
 
 stock SortPvpData()
@@ -1295,15 +1318,23 @@ public OnPlayerKeyStateChange(playerid, newkeys, oldkeys)
 		{
 			ShowCmbWindow(playerid);
 		}
+		//рынок
+		else if(IsPlayerInRangeOfPoint(playerid, 2.0, 231.7, -1840.6, 2.5))
+		{
+			ShowMarketMenu(playerid);
+		}
+		//почта
 		else if(IsPlayerInRangeOfPoint(playerid, 2.0, 211.7733,-1838.2538,3.6687))
 		{
 			ShowPlayerPost(playerid);
 		}
+		//заведующий турнирами
 		else if(IsPlayerInRangeOfPoint(playerid, 2.0, 226.7674,-1837.6835,3.6120))
 		{
 			new listitems[] = "Информация о турнире\nТурнирная таблица\nУчастники следующего тура\nПодать сигнал готовности";
 			ShowPlayerDialog(playerid, 200, DIALOG_STYLE_TABLIST, "Заведующий турнирами", listitems, "Далее", "Закрыть");
 		}
+		//доска почета
 		else if(IsPlayerInRangeOfPoint(playerid,1.2,-2171.3132,645.5896,1052.3817)) 
 		{
 			new listitems[] = "Общий рейтинг участников\nРейтинг моих участников";
@@ -2103,7 +2134,7 @@ public OnDialogResponse(playerid, dialogid, response, listitem, inputtext[])
 			{
 				switch(listitem)
 				{
-					//case 0:	ShowMarketBuyList(playerid);
+					case 0:	ShowPlayerDialog(playerid, 1103, DIALOG_STYLE_TABLIST, "Рынок", "Оружие\nДоспехи\nРасходные материалы", "Далее", "Назад");
 					case 1:	ShowMarketSellWindow(playerid);
 					case 2:	ShowMarketMyLotList(playerid);
 				}
@@ -2111,15 +2142,99 @@ public OnDialogResponse(playerid, dialogid, response, listitem, inputtext[])
 		}
 		case 1101:
 		{
-			
+			if(response)
+			{
+				new category = GetPVarInt(playerid, "MarketBuyCategory");
+				if(category == MARKET_CATEGORY_MATERIAL)
+				{
+					SetPVarInt(playerid, "MarketBuyItemID", listitem);
+					ShowPlayerDialog(playerid, 1104, DIALOG_STYLE_INPUT, "Рынок", "Введите количество:", "Купить", "Отмена");
+				}
+				else
+				{
+					new item[MarketItem];
+					item = GetMarketItem(listitem, category);
+
+					if(PlayerInfo[playerid][Cash] < item[Price])
+					{
+						SendClientMessage(playerid, COLOR_GREY, "Недостаточно денег.");
+						ShowMarketBuyList(playerid, category);
+						return 1;
+					}
+
+					if(IsInventoryFull(playerid))
+					{
+						SendClientMessage(playerid, COLOR_GREY, "Инвентарь полон.");
+						ShowMarketBuyList(playerid, category);
+						return 1;
+					}
+
+					BuyItem(playerid, item[LotID]);
+				}
+			}
+			else
+				ShowMarketMenu(playerid);
 		}
 		case 1102:
 		{
 			if(response)
 				CancelItem(playerid, listitem);
 			else
-				ShowMarketMyLotList(playerid);
-		} 
+				ShowMarketMenu(playerid);
+		}
+		case 1103:
+		{
+			if(response)
+			{
+				SetPVarInt(playerid, "MarketBuyCategory", listitem);
+				ShowMarketBuyList(playerid, listitem);
+			}
+			else
+				ShowMarketMenu(playerid);
+		}
+		case 1104:
+		{
+			new category = GetPVarInt(playerid, "MarketBuyCategory");
+			if(response)
+			{
+				new item[MarketItem];
+				new id = GetPVarInt(playerid, "MarketBuyItemID");
+				if(id < 0)
+				{
+					print("Cannot buy item.");
+					return 1;
+				}
+
+				item = GetMarketItem(id, category);
+
+				new count = strval(inputtext);
+				if(count < 1 || count > item[Count])
+				{
+					SendClientMessage(playerid, COLOR_GREY, "Неверное количество.");
+					ShowMarketBuyList(playerid, category);
+					return 1;
+				}
+
+				new amount = item[Price] * count;
+				if(amount > PlayerInfo[playerid][Cash])
+				{
+					SendClientMessage(playerid, COLOR_GREY, "Недостаточно денег.");
+					ShowMarketBuyList(playerid, category);
+					return 1;
+				}
+
+				if(IsInventoryFull(playerid))
+				{
+					SendClientMessage(playerid, COLOR_GREY, "Инвентарь полон.");
+					ShowMarketBuyList(playerid, category);
+					return 1;
+				}
+
+				BuyItem(playerid, item[LotID], count);
+			}
+			else
+				ShowMarketBuyList(playerid, category);
+		}
 	}
 	return 1;
 }
@@ -2192,6 +2307,10 @@ public OnPlayerClickPlayerTextDraw(playerid, PlayerText:playertextid)
 	else if(playertextid == CmbClose[playerid])
 	{
 		HideCmbWindow(playerid);
+	}
+	else if(playertextid == CmbBtn[playerid])
+	{
+		CombineItems(playerid);
 	}
 	else if(playertextid == ChrInfWeaponSlot[playerid])
 	{
@@ -2427,11 +2546,11 @@ public OnPlayerClickPlayerTextDraw(playerid, PlayerText:playertextid)
 
 	for(new slotid = 1; slotid <= MAX_CMB_ITEMS; slotid++)
 	{
-		if(playertextid != CmbItemSlot[playerid][slotid-1]) return 0;
+		if(playertextid != CmbItemSlot[playerid][slotid-1]) break;
 
-		if(SelectedSlot[playerid] == -1) return 0;
+		if(SelectedSlot[playerid] == -1) break;
 		new itemid = PlayerInventory[playerid][SelectedSlot[playerid]][ID];
-		if(itemid == -1) return 0;
+		if(itemid == -1) break;
 
 		SetPVarInt(playerid, "CmbItemID", itemid);
 		SetPVarInt(playerid, "CmbItemSlot", slotid);
@@ -2619,11 +2738,7 @@ public GivePlayerHP(playerid, Float:hp)
 public Float:GetPlayerHP(playerid)
 {
 	new Float:hp;
-	if(FCNPC_IsValid(playerid))
-		hp = FCNPC_GetHealth(playerid);
-	else
-		GetPlayerHealth(playerid, hp);
-	hp = floatmul(hp, PlayerHPMultiplicator[playerid]);
+	hp = GetPVarFloat(playerid, "HP");
 	return hp;
 }
 
@@ -3130,7 +3245,7 @@ stock GiveTournamentRewards()
 		if(id == -1)
 		{
 			if(reward[ItemID] != -1)
-				PendingItem(name, reward[ItemID], reward[ItemsCount]);
+				PendingItem(name, reward[ItemID], MOD_CLEAR, reward[ItemsCount]);
 			if(reward[Money] > 0)
 				GivePlayerMoneyOffline(name, reward[Money]);
 		}
@@ -3141,7 +3256,7 @@ stock GiveTournamentRewards()
 				if(IsInventoryFull(id))
 				{
 					SendClientMessage(id, COLOR_GREY, "Инвентарь полон, награды отправлены на почту.");
-					PendingItem(name, reward[ItemID], reward[ItemsCount]);
+					PendingItem(name, reward[ItemID], MOD_CLEAR, reward[ItemsCount]);
 					UpdatePlayerPost(id);
 					continue;
 				}
@@ -3154,6 +3269,458 @@ stock GiveTournamentRewards()
 				AddPlayerMoney(id, reward[Money]);
 		}
 	}
+}
+
+stock UpdateBossesCooldowns()
+{
+	new query[255];
+	format(query, sizeof(query), "SELECT * FROM `bosses` LIMIT %d", MAX_BOSSES);
+	new Cache:q_result = mysql_query(sql_handle, query);
+	new row_count = 0;
+	cache_get_row_count(row_count);
+	if(row_count <= 0)
+	{
+		print("Cannot update boss cooldowns.");
+		return;
+	}
+
+	q_result = cache_save();
+	cache_unset_active();
+
+	for(new i = 0; i < row_count; i++)
+	{
+		new cooldown = 0;
+		cache_set_active(q_result);
+		cache_get_value_name_int(i, "RespawnTime", cooldown);
+		cache_unset_active();
+
+		cooldown--;
+		if(cooldown < 0)
+			cooldown = 0;
+
+		new sub_query[255];
+		format(sub_query, sizeof(sub_query), "UPDATE `bosses` SET `RespawnTime` = '%d' WHERE `ID` = '%d' LIMIT 1", cooldown, i);
+		new Cache:result = mysql_query(sql_handle, sub_query);
+		cache_delete(result);
+	}
+
+	cache_delete(q_result);
+}
+
+stock UpdateTempItems()
+{
+	new query[255] = "UPDATE `inventories` SET `ItemID` = '-1', `Count` = '0' WHERE `ItemID` >= '182' AND `ItemID` <= '186'";
+	new Cache:q_result = mysql_query(sql_handle, query);
+	cache_delete(q_result);
+
+	for(new i = 0; i < MAX_PLAYERS; i++)
+	{
+		if(!IsPlayerConnected(i)) continue;
+		for(new j = 0; j < MAX_SLOTS; j++)
+		{
+			if(PlayerInventory[i][j][ID] >= 182 && PlayerInventory[i][j][ID] <= 186)
+			{
+				DeleteItem(i, j);
+				UpdatePlayerStats(i);
+			}
+		}
+	}
+}
+
+stock UpdateMarketItems()
+{
+	new query[255] = "SELECT * FROM `marketplace`";
+	new Cache:q_result = mysql_query(sql_handle, query);
+	new row_count = 0;
+	cache_get_row_count(row_count);
+	if(row_count <= 0)
+	{
+		print("Cannot update marketplace.");
+		return;
+	}
+
+	q_result = cache_save();
+	cache_unset_active();
+
+	for(new i = 0; i < row_count; i++)
+	{
+		new id = -1;
+		new time = 0;
+		cache_set_active(q_result);
+
+		cache_get_value_name_int(i, "ID", id);
+		cache_get_value_name_int(i, "Time", time);
+
+		time--;
+		if(time <= 0)
+		{
+			new itemid = -1;
+			new count = 0;
+			new owner[255];
+
+			cache_get_value_name_int(i, "ItemID", itemid);
+			cache_get_value_name_int(i, "ItemCount", count);
+			cache_get_value_name(i, "Owner", owner);
+
+			cache_unset_active();
+
+			PendingItem(owner, itemid, MOD_CLEAR, count);
+			new playerid = GetPlayerID(owner);
+			if(playerid != -1 && IsPlayerConnected(playerid))
+				UpdatePlayerPost(playerid);
+
+			new sub_query[255];
+			format(sub_query, sizeof(sub_query), "DELETE FROM `marketplace` WHERE `ID` = '%d'", id);
+			new Cache:result = mysql_query(sql_handle, sub_query);
+			cache_delete(result);
+		}
+		else
+		{
+			cache_unset_active();
+
+			new sub_query[255];
+			format(sub_query, sizeof(sub_query), "UPDATE `marketplace` SET `Time` = '%d' WHERE `ID` = '%d' LIMIT 1", time, id);
+			new Cache:result = mysql_query(sql_handle, sub_query);
+			cache_delete(result);
+		}
+	}
+
+	cache_delete(q_result);
+}
+
+stock GetMarketItem(id, category)
+{
+	new item[MarketItem];
+	new query[255];
+	format(query, sizeof(query), "SELECT * FROM `marketplace` WHERE `Category` = '%d'", category);
+	new Cache:q_result = mysql_query(sql_handle, query);
+	new row_count = 0;
+	cache_get_row_count(row_count);
+	if(row_count <= 0)
+	{
+		print("GetMarketItem() error.");
+		return item;
+	}
+
+	new string[255];
+
+	cache_get_value_name_int(id, "ID", item[LotID]);
+	cache_get_value_name_int(id, "ItemID", item[ID]);
+	cache_get_value_name_int(id, "Price", item[Price]);
+	cache_get_value_name_int(id, "Time", item[rTime]);
+	cache_get_value_name_int(id, "ItemCount", item[Count]);
+	cache_get_value_name(id, "Owner", string);
+	sscanf(string, "s[255]", item[Owner]);
+	cache_get_value_name(id, "ItemMod", string);
+	sscanf(string, "a<i>[7]", item[Mod]);
+
+	cache_delete(q_result);
+	return item;
+}
+
+stock GetMarketItemByLotID(id)
+{
+	new item[MarketItem];
+	new query[255];
+	format(query, sizeof(query), "SELECT * FROM `marketplace` WHERE `ID` = '%d' LIMIT 1", id);
+	new Cache:q_result = mysql_query(sql_handle, query);
+	new row_count = 0;
+	cache_get_row_count(row_count);
+	if(row_count <= 0)
+	{
+		print("GetMarketItemByLotID() error.");
+		return item;
+	}
+
+	new string[255];
+	
+	item[LotID] = id;
+	cache_get_value_name_int(0, "ItemID", item[ID]);
+	cache_get_value_name_int(0, "Price", item[Price]);
+	cache_get_value_name_int(0, "Time", item[rTime]);
+	cache_get_value_name_int(0, "ItemCount", item[Count]);
+	cache_get_value_name(0, "Owner", string);
+	sscanf(string, "s[255]", item[Owner]);
+	cache_get_value_name(0, "ItemMod", string);
+	sscanf(string, "a<i>[7]", item[Mod]);
+
+	cache_delete(q_result);
+	return item;
+}
+
+stock AddItemToMarket(playerid, slotid, lotid, category, time = 2)
+{
+	new item[MarketItem];
+	item = GetMarketItemByLotID(lotid)
+
+	new query[255] = "SELECT MAX(`ID`) AS `ID` FROM `marketplace`";
+	new Cache:q_result = mysql_query(sql_handle, query);
+	new id = -1;
+	cache_get_value_name_int(0, "ID", id);
+	cache_delete(q_result);
+
+	if(id == -1)
+	{
+		SendClientMessage(playerid, COLOR_LIGHTRED, "Ошибка: не удалось сгенерировать ID лота.");
+		return;
+	}
+
+	id++;
+
+	format(query, sizeof(query), "INSERT INTO `marketplace`(`ID`, `Owner`, `ItemID`, `Category`, `ItemCount`, `ItemMod`, `Price`, `Time`) VALUES ('%d','%s','%d','%d','%d','%s','%d','%d')",
+		id, item[Owner], item[ID], category, item[Count], ArrayToString(item[Mod]), item[Price], time
+	);
+	new Cache:sq_result = mysql_query(sql_handle, query);
+	cache_delete(sq_result);
+
+	DeleteItem(playerid, slotid, item[Count]);
+	SendClientMessage(playerid, COLOR_GREEN, "Предмет зарегистрирован.");
+}
+
+stock DeleteItemFromMarket(lotid, count = 1)
+{
+	new item[MarketItem];
+	item = GetMarketItemByLotID(lotid);
+	if(item[Count] <= count)
+	{
+		new query[255];
+		format(query, sizeof(query), "DELETE FROM `marketplace` WHERE `ID` = '%d'", item[LotID]);
+		new Cache:q_result = mysql_query(sql_handle, query);
+		cache_delete(q_result);
+	}
+	else
+	{
+		new query[255];
+		format(query, sizeof(query), "UPDATE `marketplace` SET `ItemCount` = '%d' WHERE `ID` = '%d'", item[Count] - count, item[LotID]);
+		new Cache:q_result = mysql_query(sql_handle, query);
+		cache_delete(q_result);
+	}
+}
+
+stock MarketItemExist(id)
+{
+	new query[255];
+	format(query, sizeof(query), "SELECT * FROM `marketplace` WHERE `ID` = '%d'", id);
+	new Cache:q_result = mysql_query(sql_handle, query);
+
+	new count = 0;
+	cache_get_row_count(count);
+	cache_delete(q_result);
+
+	if(count > 0)
+		return true;
+	return false;
+}
+
+stock BuyItem(playerid, lotid, count = 1)
+{
+	new item[MarketItem];
+	item = GetMarketItemByLotID(lotid);
+
+	new category = GetPVarInt(playerid, "MarketBuyCategory");
+
+	new player[pInfo];
+	player = GetPlayerByName(item[Owner]);
+	if(strcmp(player[Owner], PlayerInfo[playerid][Owner], true) == 0)
+	{
+		SendClientMessage(playerid, COLOR_GREY, "Вы не можете приобретать предметы у своих же участников.");
+		ShowMarketBuyList(playerid, category);
+		return;
+	}
+
+	if(!MarketItemExist(item[LotID]))
+	{
+		SendClientMessage(playerid, COLOR_GREY, "Предложение больше не актуально.");
+		ShowMarketBuyList(playerid, category);
+		return;
+	}
+
+	DeleteItemFromMarket(item[LotID], count);
+
+	new amount = item[Price] * count;
+	PlayerInfo[playerid][Cash] -= amount;
+	GivePlayerMoney(playerid, -amount);
+
+	if(IsEquip(item[ID]))
+		AddEquip(playerid, item[ID], item[Mod]);
+	else
+		AddItem(playerid, item[ID], count);
+	
+	new owner_id = GetPlayerID(item[Owner]);
+	if(owner_id != -1)
+	{
+		PlayerInfo[owner_id][Cash] += amount;
+		GivePlayerMoney(owner_id, amount);
+	}
+	else
+		GivePlayerMoneyOffline(item[Owner], amount);
+	
+	SendClientMessage(playerid, COLOR_GREEN, "Предмет куплен.");
+	ShowMarketBuyList(playerid, category);
+}
+
+stock CancelItem(playerid, listitem)
+{
+	new query[255];
+	format(query, sizeof(query), "SELECT * FROM `marketplace` WHERE `Owner` = '%s' ORDER BY `Time` LIMIT %d", PlayerInfo[playerid][Name], MAX_MARKET_ITEMS);
+	new Cache:q_result = mysql_query(sql_handle, query);
+
+	new row_count = 0;
+	cache_get_row_count(row_count);
+	if(row_count <= 0)
+	{
+		cache_delete(q_result);
+		SendClientMessage(playerid, COLOR_GREY, "Не зарегистрировано ни одного предмета.");
+		ShowMarketMenu(playerid);
+		return;
+	}
+
+	new lotid = -1;
+	cache_get_value_name_int(listitem, "ID", lotid);
+	cache_delete(q_result);
+
+	if(lotid == -1)
+	{
+		SendClientMessage(playerid, COLOR_GREY, "Не удалось отменить регистрацию.");
+		ShowMarketMenu(playerid);
+		return;
+	}
+
+	new item[MarketItem];
+	item = GetMarketItemByLotID(lotid);
+
+	if(!MarketItemExist(item[LotID]))
+	{
+		SendClientMessage(playerid, COLOR_GREY, "Предмет уже снят или куплен.");
+		ShowMarketMenu(playerid);
+		return;
+	}
+
+	SendClientMessage(playerid, COLOR_GREEN, "Регистрация отменена. Предметы отправлены на почту.");
+	PendingItem(item[Owner], item[ID], item[Mod], item[Count]);
+	UpdatePlayerPost(playerid);
+
+	DeleteItemFromMarket(item[LotID], item[Count]);
+}
+
+stock ShowMarketMenu(playerid)
+{
+	new listitems[] = "Купить предмет\nПродать предмет\nМои лоты";
+	ShowPlayerDialog(playerid, 1100, DIALOG_STYLE_TABLIST, "Рынок", listitems, "Далее", "Закрыть");
+}
+
+stock ShowMarketSellingItems(playerid, category, content[])
+{
+	new listitems[1024];
+	if(category == MARKET_CATEGORY_MATERIAL)
+		listitems = "Предмет\tЦена за 1 шт\tВладелец\tВремя регистрации";
+	else
+		listitems = "Предмет (улучшения)\tЦена\tВладелец\tВремя регистрации";
+	strcat(listitems, content);
+	ShowPlayerDialog(playerid, 1101, DIALOG_STYLE_TABLIST_HEADERS, "Рынок", listitems, "Купить", "Назад");
+}
+
+stock ShowMarketMyItems(playerid, content[])
+{
+	new listitems[1024] = "Предмет\tЦена за 1 шт\tВремя регистрации";
+	strcat(listitems, content);
+	ShowPlayerDialog(playerid, 1102, DIALOG_STYLE_TABLIST_HEADERS, "Рынок", listitems, "Снять", "Назад");
+}
+
+stock GetColorByStoneModifier(value)
+{
+	new color[32] = "ffffff";
+	switch(value)
+	{
+		case 1: color = "FFCC00";
+		case 2: color = "CC0000";
+		case 3: color = "3366FF";
+		case 4: color = "00CC00";
+	}
+	return color;
+}
+
+stock GetModString(mod[])
+{
+	new out[255] = "";
+	for(new i = 0; i < MAX_MOD; i++)
+	{
+		if(mod[i] == 0) break;
+		new mstr[32];
+		format(mstr, sizeof(mstr), " {%s}o", GetColorByStoneModifier(mod[i]));
+		strcat(out, mstr);
+	}
+
+	if(strlen(out) > 0)
+	{
+		strdel(out, 0, 1);
+		strins(out, "{ffffff}(", 0);
+		strcat(out, "{ffffff})");
+	}
+
+	return out;
+}
+
+stock ShowMarketBuyList(playerid, category)
+{
+	new query[255];
+	format(query, sizeof(query), "SELECT * FROM `marketplace` WHERE `Category` = '%d' ORDER BY `Price` LIMIT %d", category, MAX_MARKET_ITEMS);
+	new Cache:q_result = mysql_query(sql_handle, query);
+
+	new row_count = 0;
+	cache_get_row_count(row_count);
+	q_result = cache_save();
+	cache_unset_active();
+
+	if(row_count <= 0)
+	{
+		cache_delete(q_result);
+		SendClientMessage(playerid, COLOR_GREY, "В этой категории нет лотов.");
+		ShowPlayerDialog(playerid, 1103, DIALOG_STYLE_TABLIST, "Рынок", "Оружие\nДоспехи\nРасходные материалы", "Далее", "Назад");
+		return;
+	}
+
+	new content[1024] = "";
+	new buf[255];
+	for(new i = 0; i < row_count; i++)
+	{
+		new item[BaseItem];
+		new m_item[MarketItem];
+
+		new m_id = -1;
+		cache_set_active(q_result);
+		cache_get_value_name_int(i, "ID", m_id);
+		cache_unset_active();
+
+		if(m_id == -1)
+		{
+			print("MySql error in ShowMarketBuyList().");
+			SendClientMessage(playerid, COLOR_LIGHTRED, "Произошла ошибка, возврат в меню.");
+			ShowMarketMenu(playerid);
+			return;
+		}
+
+		m_item = GetMarketItemByLotID(m_id);
+		item = GetItem(m_item[ID]);
+
+		if(category == MARKET_CATEGORY_MATERIAL)
+		{
+			format(buf, sizeof(buf), "\n{%s}[%s]{ffffff}[x%d]\t{00CC00}%d$\t{ffffff}%s\t{ffffff}%d",
+				GetGradeColor(item[Grade]), item[Name], m_item[Count], m_item[Price], m_item[Owner], m_item[rTime]
+			);
+		}
+		else
+		{
+			format(buf, sizeof(buf), "\n{%s}[%s]%s\t{00CC00}%d$\t{ffffff}%s\t{ffffff}%d",
+				GetGradeColor(item[Grade]), item[Name], GetModString(m_item[Mod]), m_item[Price], m_item[Owner], m_item[rTime]
+			);
+		}
+
+		strcat(content, buf);
+	}
+
+	cache_delete(q_result);
+	ShowMarketSellingItems(playerid, category, content);
 }
 
 stock UpdateTempItems()
@@ -3240,48 +3807,77 @@ stock UpdateMarketItems()
 stock UpdateBossesCooldowns()
 {
 	new query[255];
-	format(query, sizeof(query), "SELECT * FROM `bosses` LIMIT %d", MAX_BOSSES);
+	format(query, sizeof(query), "SELECT * FROM `marketplace` WHERE `Owner` = '%s' ORDER BY `Time` LIMIT %d", PlayerInfo[playerid][Name], MAX_MARKET_ITEMS);
 	new Cache:q_result = mysql_query(sql_handle, query);
+
 	new row_count = 0;
 	cache_get_row_count(row_count);
-	if(row_count <= 0)
-	{
-		print("Cannot update boss cooldowns.");
-		return;
-	}
-
 	q_result = cache_save();
 	cache_unset_active();
 
+	if(row_count <= 0)
+	{
+		cache_delete(q_result);
+		SendClientMessage(playerid, COLOR_GREY, "Не зарегистрировано ни одного предмета.");
+		ShowMarketMenu(playerid);
+		return;
+	}
+
+	new content[1024] = "";
+	new buf[255];
 	for(new i = 0; i < row_count; i++)
 	{
-		new cooldown = 0;
+		new item[BaseItem];
+		new m_item[MarketItem];
+
+		new m_id = -1;
 		cache_set_active(q_result);
-		cache_get_value_name_int(i, "RespawnTime", cooldown);
+		cache_get_value_name_int(i, "ID", m_id);
 		cache_unset_active();
 
-		cooldown--;
-		if(cooldown < 0)
-			cooldown = 0;
+		if(m_id == -1)
+		{
+			print("MySql error in ShowMarketBuyList().");
+			SendClientMessage(playerid, COLOR_LIGHTRED, "Произошла ошибка, возврат в меню.");
+			ShowMarketMenu(playerid);
+			return;
+		}
 
-		new sub_query[255];
-		format(sub_query, sizeof(sub_query), "UPDATE `bosses` SET `RespawnTime` = '%d' WHERE `ID` = '%d' LIMIT 1", cooldown, i);
-		new Cache:result = mysql_query(sql_handle, sub_query);
-		cache_delete(result);
+		m_item = GetMarketItemByLotID(m_id);
+		item = GetItem(m_item[ID]);
+
+		format(buf, sizeof(buf), "\n{%s}[%s]{ffffff}[x%d]\t{00CC00}%d$\t{ffffff}%d",
+			GetGradeColor(item[Grade]), item[Name], m_item[Count], m_item[Price], m_item[rTime]
+		);
+
+		strcat(content, buf);
 	}
 
 	cache_delete(q_result);
+	ShowMarketMyItems(playerid, content);
 }
 
 stock GiveTourRates(tour)
 {
+	new first_mid = 0;
+	new second_mid = 0;
+	for(new i = 0; i < TourParticipantsCount / 2; i++)
+		first_mid += PvpInfo[i][Score];
+	for(new i = TourParticipantsCount / 2; i < TourParticipantsCount; i++)
+		second_mid += PvpInfo[i][Score];
+	
+	first_mid /= TourParticipantsCount / 2;
+	second_mid /= TourParticipantsCount / 2;
+
 	for(new i = 0; i < MAX_PARTICIPANTS; i++)
 	{
 		new id = PvpInfo[i][ID];
 		if(id == -1) break;
 
-		new rate = GetRateDifference(tour, i+1);
-		if(IsPlayerConnected(id))
+		new rate = GetRateDifference(id, PvpInfo[i][Score], first_mid, second_mid, tour);
+		PvpInfo[i][RateDiff] = rate;
+
+		if(IsPlayerConnected(id) && !FCNPC_IsValid(id))
 			GivePlayerRate(id, rate);
 		else
 			GivePlayerRateOffline(PvpInfo[i][Name], rate);
@@ -3348,7 +3944,7 @@ stock GiveTourRewards(tour)
 				if(IsInventoryFull(id))
 				{
 					SendClientMessage(id, COLOR_GREY, "Инвентарь полон, награды отправлены на почту.");
-					PendingItem(PvpInfo[i][Name], reward[ItemID], reward[ItemsCount]);
+					PendingItem(PvpInfo[i][Name], reward[ItemID], MOD_CLEAR, reward[ItemsCount]);
 					UpdatePlayerPost(id);
 					continue;
 				}
@@ -3363,7 +3959,7 @@ stock GiveTourRewards(tour)
 		else
 		{
 			if(reward[ItemID] != -1 && reward[ItemsCount] > 0)
-				PendingItem(PvpInfo[i][Name], reward[ItemID], reward[ItemsCount]);
+				PendingItem(PvpInfo[i][Name], reward[ItemID], MOD_CLEAR, reward[ItemsCount]);
 			if(reward[Money] > 0)
 				GivePlayerMoneyOffline(PvpInfo[i][Name], reward[Money]);
 		}
@@ -3586,9 +4182,16 @@ stock ClaimMail(playerid, num)
 	cache_get_value_name_int(num, "ItemID", reward[ItemID]);
 	cache_get_value_name_int(num, "Count", reward[ItemsCount]);
 	cache_get_value_name_int(num, "PendingID", p_id);
+
+	new string[255];
+	new mod[MAX_MOD];
+	cache_get_value_name(num, "ItemMod", string);
+	sscanf(string, "a<i>[7]", mod);
+
 	cache_delete(q_result);
+
 	if(IsEquip(reward[ItemID]))
-		AddEquip(playerid, reward[ItemID], MOD_CLEAR);
+		AddEquip(playerid, reward[ItemID], mod);
 	else
 		AddItem(playerid, reward[ItemID], reward[ItemsCount]);
 
@@ -3703,8 +4306,8 @@ stock UpdateTournamentTable()
 		new id = PvpInfo[i][ID];
 		if(id == -1) break;
 		
-		format(query, sizeof(query), "INSERT INTO `tournament_tab`(`ID`, `Name`, `Score`, `Kills`, `Deaths`, `Owner`) VALUES ('%d','%s','%d','%d','%d','%s')",
-			PlayerInfo[id][ID], PlayerInfo[id][Name], PvpInfo[i][Score], PvpInfo[i][Kills], PvpInfo[i][Deaths], PlayerInfo[id][Owner]
+		format(query, sizeof(query), "INSERT INTO `tournament_tab`(`ID`, `Name`, `Score`, `Kills`, `Deaths`, `Owner`, `RateDiff`) VALUES ('%d','%s','%d','%d','%d','%s','%d')",
+			PlayerInfo[id][ID], PlayerInfo[id][Name], PvpInfo[i][Score], PvpInfo[i][Kills], PvpInfo[i][Deaths], PlayerInfo[id][Owner], PvpInfo[i][RateDiff]
 		);
 		new Cache:q_res = mysql_query(sql_handle, query);
 		cache_delete(q_res);
@@ -3731,108 +4334,91 @@ stock IsAnyPlayersInRangeOfPoint(max_count, Float:range, Float:x, Float:y, Float
 {
 	new count = 0;
 	for(new i = 0; i < MAX_PLAYERS && count < max_count; i++)
+	{
+		if(!IsPlayerConnected(i)) continue;
 		if(IsPlayerInRangeOfPoint(i, range, x, y, z)) count++;
+	}
 
 	if(count >= max_count) return true;
 	return false;
 }
 
-stock GetRateDifference(tour, pos)
+stock Float:GetUpRankCoefficient(rank)
 {
-	new rate = 0;
+	switch(rank)
+	{
+		case 1: return 0.08;
+		case 2: return 0.06;
+		case 3: return 0.05;
+		case 4: return 0.05;
+		case 5: return 0.05;
+		case 6: return 0.04;
+		case 7: return 0.03;
+		case 8: return 0.02;
+		case 9: return 0.01;
+	}
+	return 0.0;
+}
+
+stock Float:GetDownRankCoefficient(rank)
+{
+	switch(rank)
+	{
+		case 1: return 0.05;
+		case 2: return 0.05;
+		case 3: return 0.05;
+		case 4: return 0.06;
+		case 5: return 0.06;
+		case 6: return 0.06;
+		case 7: return 0.07;
+		case 8: return 0.07;
+		case 9: return 0.08;
+	}
+	return 0.0;
+}
+
+stock Float:GetUpTourCoefficient(tour)
+{
 	switch(tour)
 	{
-		case 1:
-		{
-			switch(pos)
-			{
-				case 1: rate = 30;
-				case 2: rate = 27;
-				case 3: rate = 24;
-				case 4: rate = 21;
-				case 5: rate = 16;
-				case 6: rate = 13;
-				case 7: rate = 10;
-				case 8: rate = 7;
-				case 9: rate = 5;
-				case 10: rate = 2;
-				case 11: rate = -2;
-				case 12: rate = -5;
-				case 13: rate = -7;
-				case 14: rate = -10;
-				case 15: rate = -13;
-				case 16: rate = -16;
-				case 17: rate = -21;
-				case 18: rate = -24;
-				case 19: rate = -27;
-				case 20: rate = -30;
-			}
-		}
-		case 2:
-		{
-			switch(pos)
-			{
-				case 1: rate = 36;
-				case 2: rate = 32;
-				case 3: rate = 28;
-				case 4: rate = 25;
-				case 5: rate = 22;
-				case 6: rate = 18;
-				case 7: rate = 12;
-				case 8: rate = 6;
-				case 9: rate = -2;
-				case 10: rate = -4;
-				case 11: rate = -6;
-				case 12: rate = -9;
-				case 13: rate = -12;
-				case 14: rate = -15;
-				case 15: rate = -18;
-				case 16: rate = -22;
-			}
-		}
-		case 3:
-		{
-			switch(pos)
-			{
-				case 1: rate = 43;
-				case 2: rate = 40;
-				case 3: rate = 36;
-				case 4: rate = 30;
-				case 5: rate = 24;
-				case 6: rate = 16;
-				case 7: rate = 7;
-				case 8: rate = -3;
-				case 9: rate = -5;
-				case 10: rate = -8;
-				case 11: rate = -12;
-				case 12: rate = -16;
-			}
-		}
-		case 4:
-		{
-			switch(pos)
-			{
-				case 1: rate = 51;
-				case 2: rate = 46;
-				case 3: rate = 40;
-				case 4: rate = 32;
-				case 5: rate = 20;
-				case 6: rate = 8;
-				case 7: rate = -4;
-				case 8: rate = -10;
-			}
-		}
-		case 5:
-		{
-			switch(pos)
-			{
-				case 1: rate = 65;
-				case 2: rate = 45;
-				case 3: rate = 25;
-				case 4: rate = 0;
-			}
-		}
+		case 1: return 1.0;
+		case 2: return 1.2;
+		case 3: return 1.4;
+		case 4: return 1.7;
+		case 5: return 2.0;
 	}
+	return 0.0;
+}
+
+stock Float:GetDownTourCoefficient(tour)
+{
+	switch(tour)
+	{
+		case 1: return 1.2;
+		case 2: return 1.0;
+		case 3: return 0.7;
+		case 4: return 0.4;
+	}
+	return 0.0;
+}
+
+stock GetRateDifference(playerid, score, first_mid, second_mid, tour)
+{
+	new rate = 0;
+	new score_diff = 0;
+	if(PlayerInfo[playerid][GlobalTopPosition] <= MAX_PARTICIPANTS / 2)
+		score_diff = score - first_mid;
+	else
+		score_diff = score - second_mid;
+	
+	if(score_diff > 0)
+		rate = floatround(floatmul(floatmul(score_diff, GetUpRankCoefficient(PlayerInfo[playerid][Rank])), GetUpTourCoefficient(tour)));
+	else
+		rate = floatround(floatmul(floatmul(score_diff, GetDownRankCoefficient(PlayerInfo[playerid][Rank])), GetDownTourCoefficient(tour)));
+
+	if(rate > 75) rate = 75;
+	if(rate < -75) rate = -75;
+
 	return rate;
 }
 
@@ -5087,7 +5673,7 @@ stock AddItem(playerid, id, count = 1)
 	return true;
 }
 
-stock PendingItem(name[], id, count = 1)
+stock PendingItem(name[], id, mod[], count = 1)
 {
 	new sub_query[255] = "SELECT MAX(`PendingID`) AS `PendingID` FROM `pendings`";
 	new Cache:sq_result = mysql_query(sql_handle, sub_query);
@@ -5102,8 +5688,8 @@ stock PendingItem(name[], id, count = 1)
 	p_id++;
 
 	new query[255];
-	format(query, sizeof(query), "INSERT INTO `pendings`(`PendingID`, `PlayerName`, `ItemID`, `Count`) VALUES ('%d','%s','%d','%d')",
-		p_id, name, id, count
+	format(query, sizeof(query), "INSERT INTO `pendings`(`PendingID`, `PlayerName`, `ItemID`, `Count`, `ItemMod`) VALUES ('%d','%s','%d','%d','%s')",
+		p_id, name, id, count, ArrayToString(mod, MAX_MOD)
 	);
 	new Cache:q_result = mysql_query(sql_handle, query);
 	cache_delete(q_result);
@@ -5788,16 +6374,16 @@ stock HideCmbWindow(playerid)
 
 stock ShowMarketSellWindow(playerid)
 {
-	/*Windows[playerid[MarketSell] = true;
+	Windows[playerid][MarketSell] = true;
 	IsSlotsBlocked[playerid] = true;
 
-	HideOpenedInfoWindows(playerid);*/
+	HideOpenedInfoWindows(playerid);
 }
 
 stock HideMarketSellWindow(playerid)
 {
-	/*Windows[playerid][MarketSell] = false;
-	IsSlotsBlocked[playerid] = false;*/
+	Windows[playerid][MarketSell] = false;
+	IsSlotsBlocked[playerid] = false;
 }
 
 stock ShowModWindow(playerid, itemslot = -1)
@@ -5984,6 +6570,55 @@ stock UpdateModWindow(playerid)
 	PlayerTextDrawShow(playerid, UpgItemSlot[playerid]);
 	PlayerTextDrawShow(playerid, UpgStoneSlot[playerid]);
 	PlayerTextDrawShow(playerid, UpgPotionSlot[playerid]);
+}
+
+stock SetCmbItem(playerid, slot, invslot, item, count)
+{
+	if(slot > MAX_CMB_ITEMS || slot < 1)
+	{
+		ShowPlayerDialog(playerid, 1, DIALOG_STYLE_MSGBOX, "Комбинации", "Недопустимый предмет.", "Закрыть", "");
+		return;
+	}
+	
+	CmbItem[playerid][slot-1] = item; 
+	CmbItemCount[playerid][slot-1] = count;
+	CmbItemInvSlot[playerid][slot-1] = invslot;
+
+	UpdateCmbWindow(playerid);
+}
+
+stock UpdateCmbWindow(playerid)
+{
+	for(new i = 0; i < MAX_CMB_ITEMS; i++)
+	{
+		PlayerTextDrawHide(playerid, CmbItemSlot[playerid][i]);
+		PlayerTextDrawHide(playerid, CmbItemSlotCount[playerid][i]);
+
+		PlayerTextDrawSetPreviewModel(playerid, CmbItemSlot[playerid][i], -1);
+		PlayerTextDrawSetPreviewRot(playerid, CmbItemSlot[playerid][i], 0, 0, 0);
+		PlayerTextDrawBackgroundColor(playerid, CmbItemSlot[playerid][i], -1061109505);
+
+		if(CmbItem[playerid][i] != -1)
+		{
+			if(!HasItem(playerid, CmbItem[playerid][i]))
+				return;
+				
+			new item[BaseItem];
+			item = GetItem(CmbItem[playerid][i]);
+
+			PlayerTextDrawSetPreviewModel(playerid, CmbItemSlot[playerid][i], item[Model]);
+			PlayerTextDrawSetPreviewRot(playerid, CmbItemSlot[playerid][i], item[ModelRotX], item[ModelRotY], item[ModelRotZ]);
+			PlayerTextDrawBackgroundColor(playerid, CmbItemSlot[playerid][i], HexGradeColors[item[Grade]-1][0]);
+
+			if(!IsEquip(item[ID]))
+			{
+			    new string[64];
+				format(string, sizeof(string), "%d", CmbItemCount[i]);
+				PlayerTextDrawSetStringRus(playerid, CmbItemSlotCount[playerid][i], string);
+				PlayerTextDrawShow(playerid, CmbItemSlotCount[playerid][i]);
+			}
+		}
+	}
 }
 
 stock CombineItems(playerid)
@@ -7033,10 +7668,12 @@ stock ShowTournamentTab(playerid)
 		new score = 0;
 		new kills = 0;
 		new deaths = 0;
+		new r_diff = 0;
 		cache_get_value_name_int(i, "ID", id);
 		cache_get_value_name_int(i, "Score", score);
 		cache_get_value_name_int(i, "Kills", kills);
 		cache_get_value_name_int(i, "Deaths", deaths);
+		cache_get_value_name_int(i, "RateDiff", r_diff);
 		if(id == -1) continue;
 
 		new player[pInfo];
@@ -7044,6 +7681,7 @@ stock ShowTournamentTab(playerid)
 
 		format(TournamentTab[i][Name], 255, "%s", player[Name]);
 		TournamentTab[i][Rate] = player[Rate];
+		TournamentTab[i][RateDiff] = r_diff;
 		TournamentTab[i][Score] = score;
 		TournamentTab[i][Kills] = kills;
 		TournamentTab[i][Deaths] = deaths;
@@ -7056,7 +7694,21 @@ stock ShowTournamentTab(playerid)
 	new string[255];
 	for (new i = 0; i < row_count; i++) 
 	{
-		format(string, sizeof(string), "\n{%s}%d\t{%s}%s\t{00CC00}%d {ffffff}- {CC0000}%d\t{9900CC}%d", 
+		new rate_color[255];
+		new rate_str[32];
+		new rate_diff = TournamentTab[i][RateDiff];
+		if(rate_diff >= 0)
+		{
+		    rate_color = "33CC00";
+			format(rate_str, sizeof(rate_str), "+%d", rate_diff);
+		}
+		else
+		{
+		    rate_color = "CC0000";
+			format(rate_str, sizeof(rate_str), "%d", rate_diff);
+		}
+
+		format(string, sizeof(string), "\n{%s}%d\t{%s}%s\t{00CC00}%d {ffffff}- {CC0000}%d\t{9900CC}%d {ffffff}({%s}%s{ffffff})", 
 			GetPlaceColor(i+1), i+1, GetColorByRate(TournamentTab[i][Rate]), TournamentTab[i][Name],
 			TournamentTab[i][Kills], TournamentTab[i][Deaths], TournamentTab[i][Score]
 		);
@@ -7065,11 +7717,37 @@ stock ShowTournamentTab(playerid)
 	ShowPlayerDialog(playerid, 1, DIALOG_STYLE_TABLIST_HEADERS, "Турнирная таблица", top, "Закрыть", "");
 }
 
+stock GetPlayerByName(name[])
+{
+	new player[pInfo];
+	
+	new query[255];
+	format(query, sizeof(query), "SELECT * FROM `players` WHERE `Name` = '%s' LIMIT 1", name);
+	new Cache:q_result = mysql_query(sql_handle, query);
+	new row_count;
+	cache_get_row_count(row_count);
+	if(row_count <= 0)
+	{
+		print("GetPlayerByName() error. Player with this name not found.");
+		return player;
+	}
+
+	cache_get_value_name_int(0, "Rate", player[Rate]);
+	new owner[255];
+	cache_get_value_name_int(0, "ID", player[ID]);
+	cache_get_value_name(0, "Owner", owner);
+	format(player[Owner], 255, "%s", owner);
+	format(player[Name], 255, "%s", name);
+
+	cache_delete(q_result);
+	return player;
+}
+
 stock GetPlayer(id)
 {
 	new player[pInfo];
-	new query[255];
 
+	new query[255];
 	format(query, sizeof(query), "SELECT * FROM `players` WHERE `ID` = '%d' LIMIT 1", id);
 	new Cache:q_result = mysql_query(sql_handle, query);
 	new row_count;
@@ -8330,6 +9008,7 @@ stock CreatePickups()
 	Create3DTextLabel("Буржуа",0x9933CCFF,221.0985,-1838.1259,3.6268,55.0,0,1);
 	Create3DTextLabel("Заведующий турнирами",0x3366FFFF,226.7674,-1837.6835,3.6120,55.0,0,1);
 	Create3DTextLabel("Почта",0x3366CCFF,212.3999,-1838.2000,3.0000,55.0,0,0);
+	Create3DTextLabel("Рынок",0xFF9900FF,231.7,-1840.6,4.2,55.0,0,0);
 
 	Actors[0] =	CreateActor(26,-2166.7527,646.0400,1052.3750,179.9041);
 	Actors[1] =	CreateActor(6,189.2644,-1825.4902,4.1411,185.0134);
@@ -8503,4 +9182,5 @@ stock CreateMap()
 	CreateObject(3524,-2435.8999000,-1643.2000000,769.5999800,0.0000000,0.0000000,223.9930000); //object(skullpillar01_lvs) (9)
 	CreateObject(2611,-2171.6001000,645.5999800,1053.3000000,0.0000000,0.0000000,90.0000000); //object(police_nb1) (1)
 	CreateObject(1291,212.3999900,-1838.2000000,3.0000000,0.0000000,0.0000000,270.0000000); //object(postbox1) (1)
+	CreateObject(3077,231.7000000,-1840.6000000,2.5000000,0.0000000,0.0000000,0.0000000); //object(nf_blackboard) (1)
 }
