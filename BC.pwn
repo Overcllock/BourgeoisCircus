@@ -1,4 +1,4 @@
-//Bourgeois Circus 0.96
+//Bourgeois Circus 1.0
 
 #include <a_samp>
 #include <a_mail>
@@ -18,18 +18,18 @@
 
 #pragma dynamic 31294
 
-#define VERSION 0.961
+#define VERSION 0.101
 
 //Mysql settings
 
-/*#define SQL_HOST "127.0.0.1"
+#define SQL_HOST "127.0.0.1"
 #define SQL_USER "tsar"
 #define SQL_DB "bcircus"
-#define SQL_PASS "2151"*/
-#define SQL_HOST "212.22.93.45"
+#define SQL_PASS "2151"
+/*#define SQL_HOST "212.22.93.45"
 #define SQL_USER "gsvtqhss"
 #define SQL_DB "gsvtqhss_21809"
-#define SQL_PASS "21510055"
+#define SQL_PASS "21510055"*/
 
 //Data types
 #define TYPE_INT 0x01
@@ -63,7 +63,7 @@
 
 //Limits
 #define MAX_PARTICIPANTS 20
-#define MAX_OWNERS 2
+#define MAX_OWNERS 1
 #define MAX_SLOTS 25
 #define MAX_SLOTS_X 5
 #define MAX_SLOTS_Y 5
@@ -193,7 +193,8 @@ enum TopItem
 	Kills,
 	Deaths,
 	Score,
-	Rate
+	Rate,
+	RateDiff
 };
 enum MarketItem
 {
@@ -241,7 +242,8 @@ enum pvpInf
 	Name[255],
 	Kills,
 	Deaths,
-	Score
+	Score,
+	RateDiff
 };
 enum TWindow
 {
@@ -843,7 +845,10 @@ public OnTourEnd(finished)
 		SendDeathMessage(-1, MAX_PLAYERS + 1, 0);
 
 	if(finished == 1)
+	{
+		GiveTourRates(Tournament[Tour]);
 		UpdateTournamentTable();
+	}
 
 	IsTourStarted = false;
 	for(new i = 0; i < MAX_PLAYERS; i++)
@@ -871,7 +876,6 @@ public OnTourEnd(finished)
 	{
 		format(string, sizeof(string), "%d тур завершен.", Tournament[Tour]);
 		SendClientMessageToAll(COLOR_LIGHTRED, string);
-		GiveTourRates(Tournament[Tour]);
 		GiveTourRewards(Tournament[Tour]);
 		Tournament[Tour]++;
 		for(new i = 0; i < MAX_OWNERS; i++)
@@ -3487,6 +3491,32 @@ stock GetMarketItemByLotID(id)
 	return item;
 }
 
+stock AddItemToMarket(playerid, slotid, item[], category, time = 2)
+{
+	new query[255] = "SELECT MAX(`ID`) AS `ID` FROM `marketplace`";
+	new Cache:q_result = mysql_query(sql_handle, query);
+	new id = -1;
+	cache_get_value_name_int(0, "ID", id);
+	cache_delete(q_result);
+
+	if(id == -1)
+	{
+		SendClientMessage(playerid, COLOR_LIGHTRED, "Ошибка: не удалось сгенерировать ID лота.");
+		return;
+	}
+
+	id++;
+
+	format(query, sizeof(query), "INSERT INTO `marketplace`(`ID`, `Owner`, `ItemID`, `Category`, `ItemCount`, `ItemMod`, `Price`, `Time`) VALUES ('%d','%s','%d','%d','%d','%s','%d','%d')",
+		id, item[Owner], item[ID], category, item[Count], ArrayToString(item[Mod]), item[Price], time
+	);
+	new Cache:sq_result = mysql_query(sql_handle, query);
+	cache_delete(sq_result);
+
+	DeleteItem(playerid, slotid, item[Count]);
+	SendClientMessage(playerid, COLOR_GREEN, "Предмет зарегистрирован.");
+}
+
 stock DeleteItemFromMarket(item[], count = 1)
 {
 	if(item[Count] <= count)
@@ -3719,13 +3749,24 @@ stock ShowMarketMyLotList(playerid)
 
 stock GiveTourRates(tour)
 {
+	new first_mid = 0;
+	new second_mid = 0;
+	for(new i = 0; i < TourParticipantsCount / 2; i++)
+		first_mid += PvpInfo[i][Score];
+	for(new i = TourParticipantsCount / 2; i < TourParticipantsCount; i++)
+		second_mid += PvpInfo[i][Score];
+	
+	first_mid /= TourParticipantsCount / 2;
+	second_mid /= TourParticipantsCount / 2;
+
 	for(new i = 0; i < MAX_PARTICIPANTS; i++)
 	{
 		new id = PvpInfo[i][ID];
 		if(id == -1) break;
 
-		new rate = GetRateDifference(tour, i+1);
-		if(IsPlayerConnected(id))
+		new rate = GetRateDifference(id, PvpInfo[i][Score], first_mid, second_mid, tour, i+1);
+		PvpInfo[i][RateDiff] = rate;
+		if(IsPlayerConnected(id) && !FCNPC_IsValid(id))
 			GivePlayerRate(id, rate);
 		else
 			GivePlayerRateOffline(PvpInfo[i][Name], rate);
@@ -3900,9 +3941,16 @@ stock ClaimMail(playerid, num)
 	cache_get_value_name_int(num, "ItemID", reward[ItemID]);
 	cache_get_value_name_int(num, "Count", reward[ItemsCount]);
 	cache_get_value_name_int(num, "PendingID", p_id);
+
+	new string[255];
+	new mod[MAX_MOD];
+	cache_get_value_name(num, "Mod", string);
+	sscanf(string, "a<i>[7]", mod);
+
 	cache_delete(q_result);
+
 	if(IsEquip(reward[ItemID]))
-		AddEquip(playerid, reward[ItemID], MOD_CLEAR);
+		AddEquip(playerid, reward[ItemID], mod);
 	else
 		AddItem(playerid, reward[ItemID], reward[ItemsCount]);
 
@@ -4017,8 +4065,8 @@ stock UpdateTournamentTable()
 		new id = PvpInfo[i][ID];
 		if(id == -1) break;
 		
-		format(query, sizeof(query), "INSERT INTO `tournament_tab`(`ID`, `Name`, `Score`, `Kills`, `Deaths`, `Owner`) VALUES ('%d','%s','%d','%d','%d','%s')",
-			PlayerInfo[id][ID], PlayerInfo[id][Name], PvpInfo[i][Score], PvpInfo[i][Kills], PvpInfo[i][Deaths], PlayerInfo[id][Owner]
+		format(query, sizeof(query), "INSERT INTO `tournament_tab`(`ID`, `Name`, `Score`, `Kills`, `Deaths`, `Owner`, `RateDiff`) VALUES ('%d','%s','%d','%d','%d','%s','%d')",
+			PlayerInfo[id][ID], PlayerInfo[id][Name], PvpInfo[i][Score], PvpInfo[i][Kills], PvpInfo[i][Deaths], PlayerInfo[id][Owner], PvpInfo[i][RateDiff]
 		);
 		new Cache:q_res = mysql_query(sql_handle, query);
 		cache_delete(q_res);
@@ -4051,102 +4099,20 @@ stock IsAnyPlayersInRangeOfPoint(max_count, Float:range, Float:x, Float:y, Float
 	return false;
 }
 
-stock GetRateDifference(tour, pos)
+stock GetRateDifference(playerid, score, first_mid, second_mid, tour, pos)
 {
 	new rate = 0;
-	switch(tour)
-	{
-		case 1:
-		{
-			switch(pos)
-			{
-				case 1: rate = 30;
-				case 2: rate = 27;
-				case 3: rate = 24;
-				case 4: rate = 21;
-				case 5: rate = 16;
-				case 6: rate = 13;
-				case 7: rate = 10;
-				case 8: rate = 7;
-				case 9: rate = 5;
-				case 10: rate = 2;
-				case 11: rate = -2;
-				case 12: rate = -5;
-				case 13: rate = -7;
-				case 14: rate = -10;
-				case 15: rate = -13;
-				case 16: rate = -16;
-				case 17: rate = -21;
-				case 18: rate = -24;
-				case 19: rate = -27;
-				case 20: rate = -30;
-			}
-		}
-		case 2:
-		{
-			switch(pos)
-			{
-				case 1: rate = 36;
-				case 2: rate = 32;
-				case 3: rate = 28;
-				case 4: rate = 25;
-				case 5: rate = 22;
-				case 6: rate = 18;
-				case 7: rate = 12;
-				case 8: rate = 6;
-				case 9: rate = -2;
-				case 10: rate = -4;
-				case 11: rate = -6;
-				case 12: rate = -9;
-				case 13: rate = -12;
-				case 14: rate = -15;
-				case 15: rate = -18;
-				case 16: rate = -22;
-			}
-		}
-		case 3:
-		{
-			switch(pos)
-			{
-				case 1: rate = 43;
-				case 2: rate = 40;
-				case 3: rate = 36;
-				case 4: rate = 30;
-				case 5: rate = 24;
-				case 6: rate = 16;
-				case 7: rate = 7;
-				case 8: rate = -3;
-				case 9: rate = -5;
-				case 10: rate = -8;
-				case 11: rate = -12;
-				case 12: rate = -16;
-			}
-		}
-		case 4:
-		{
-			switch(pos)
-			{
-				case 1: rate = 51;
-				case 2: rate = 46;
-				case 3: rate = 40;
-				case 4: rate = 32;
-				case 5: rate = 20;
-				case 6: rate = 8;
-				case 7: rate = -4;
-				case 8: rate = -10;
-			}
-		}
-		case 5:
-		{
-			switch(pos)
-			{
-				case 1: rate = 65;
-				case 2: rate = 45;
-				case 3: rate = 25;
-				case 4: rate = 0;
-			}
-		}
-	}
+	new score_diff = 0;
+	if(PlayerInfo[playerid][GlobalTopPosition] <= MAX_PARTICIPANTS / 2)
+		score_diff = score - first_mid;
+	else
+		score_diff = score - second_mid;
+	
+	if(score_diff > 0)
+		rate = floatround(floatmul(floatmul(score_diff, GetUpRankCoefficient(PlayerInfo[playerid][Rank])), GetUpTourCoefficient(tour)));
+	else
+		rate = floatround(floatmul(floatmul(score_diff, GetDownRankCoefficient(PlayerInfo[playerid][Rank])), GetDownTourCoefficient(tour)));
+
 	return rate;
 }
 
@@ -5561,8 +5527,8 @@ stock PendingItem(name[], id, count = 1, mod[] = MOD_CLEAR)
 	p_id++;
 
 	new query[255];
-	format(query, sizeof(query), "INSERT INTO `pendings`(`PendingID`, `PlayerName`, `ItemID`, `Count`) VALUES ('%d','%s','%d','%d')",
-		p_id, name, id, count
+	format(query, sizeof(query), "INSERT INTO `pendings`(`PendingID`, `PlayerName`, `ItemID`, `Count`, `Mod`) VALUES ('%d','%s','%d','%d','%s')",
+		p_id, name, id, count, ArrayToString(mod)
 	);
 	new Cache:q_result = mysql_query(sql_handle, query);
 	cache_delete(q_result);
@@ -7494,10 +7460,12 @@ stock ShowTournamentTab(playerid)
 		new score = 0;
 		new kills = 0;
 		new deaths = 0;
+		new r_diff = 0;
 		cache_get_value_name_int(i, "ID", id);
 		cache_get_value_name_int(i, "Score", score);
 		cache_get_value_name_int(i, "Kills", kills);
 		cache_get_value_name_int(i, "Deaths", deaths);
+		cache_get_value_name_int(i, "RateDiff", r_diff);
 		if(id == -1) continue;
 
 		new player[pInfo];
@@ -7505,6 +7473,7 @@ stock ShowTournamentTab(playerid)
 
 		format(TournamentTab[i][Name], 255, "%s", player[Name]);
 		TournamentTab[i][Rate] = player[Rate];
+		TournamentTab[i][RateDiff] = r_diff;
 		TournamentTab[i][Score] = score;
 		TournamentTab[i][Kills] = kills;
 		TournamentTab[i][Deaths] = deaths;
@@ -7519,7 +7488,7 @@ stock ShowTournamentTab(playerid)
 	{
 		new rate_color[255];
 		new rate_str[32];
-		new rate_diff = GetRateDifference(Tournament[Tour] - 1, i+1);
+		new rate_diff = TournamentTab[i][RateDiff];
 		if(rate_diff >= 0)
 		{
 		    rate_color = "33CC00";
