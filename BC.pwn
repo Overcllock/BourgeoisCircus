@@ -85,6 +85,7 @@
 #define MAX_CMB_ITEMS 3
 #define MAX_MARKET_CATEGORIES 4
 #define MAX_MARKET_ITEMS 20
+#define MAX_TOUR_TIME 180
 
 //Market
 #define MARKET_CATEGORY_WEAPON 0
@@ -2248,15 +2249,15 @@ public OnDialogResponse(playerid, dialogid, response, listitem, inputtext[])
 
 public FCNPC_OnUpdate(npcid)
 {
+	new Float:hp;
+	hp = GetPVarFloat(npcid, "HP");
+	SetPlayerHP(npcid, hp);
+
 	if(npcid == BossNPC && !IsTourStarted)
 	{
 		BossBehaviour(npcid);
 		return 1;
 	}
-
-	new Float:hp;
-	hp = GetPVarFloat(npcid, "HP");
-	SetPlayerHP(npcid, hp);
 
 	if(!IsTourStarted) return 1;
 
@@ -2955,8 +2956,9 @@ stock StartTour()
 	format(string, sizeof(string), "Начинается %d тур!", Tournament[Tour]);
 	SendClientMessageToAll(COLOR_LIGHTRED, string);
 
-	PvpTtl = 180;
-	TourEndTimer = SetTimerEx("OnTourEnd", 180000, false, "i", 1);
+	new tour_time = MAX_TOUR_TIME - (20 * (Tournament[Tour] - 1));
+	PvpTtl = tour_time;
+	TourEndTimer = SetTimerEx("OnTourEnd", tour_time * 1000, false, "i", 1);
 	PvpTableUpdTimer = SetTimer("UpdatePvpTable", 1000, true);
 
 	print("Tour started.");
