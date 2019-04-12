@@ -1,4 +1,4 @@
-//Bourgeois Circus 1.0
+//Bourgeois Circus 0.97
 
 #include <a_samp>
 #include <a_mail>
@@ -18,18 +18,18 @@
 
 #pragma dynamic 31294
 
-#define VERSION 1.001
+#define VERSION 0.971
 
 //Mysql settings
 
-#define SQL_HOST "127.0.0.1"
+/*#define SQL_HOST "127.0.0.1"
 #define SQL_USER "tsar"
 #define SQL_DB "bcircus"
-#define SQL_PASS "2151"
-/*#define SQL_HOST "212.22.93.45"
+#define SQL_PASS "2151"*/
+#define SQL_HOST "212.22.93.45"
 #define SQL_USER "gsvtqhss"
 #define SQL_DB "gsvtqhss_21809"
-#define SQL_PASS "21510055"*/
+#define SQL_PASS "21510055"
 
 //Data types
 #define TYPE_INT 0x01
@@ -53,7 +53,7 @@
 #define DEFAULT_ARMOR_ID 81
 #define DEFAULT_DAMAGE_MIN 13
 #define DEFAULT_DAMAGE_MAX 15
-#define DEFAULT_DEFENSE 5
+#define DEFAULT_DEFENSE 100
 #define DEFAULT_CRIT 5
 #define DEFAULT_DODGE 0
 #define DEFAULT_ACCURACY 5
@@ -63,7 +63,7 @@
 
 //Limits
 #define MAX_PARTICIPANTS 20
-#define MAX_OWNERS 1
+#define MAX_OWNERS 2
 #define MAX_SLOTS 25
 #define MAX_SLOTS_X 5
 #define MAX_SLOTS_Y 5
@@ -344,6 +344,8 @@ new CmbItem[MAX_PLAYERS][MAX_CMB_ITEMS];
 new CmbItemCount[MAX_PLAYERS][MAX_CMB_ITEMS];
 new CmbItemInvSlot[MAX_PLAYERS][MAX_CMB_ITEMS];
 
+new MarketSellingItem[MAX_PLAYERS][MarketItem];
+
 new IsTourStarted = false;
 new TourPlayers[MAX_OWNERS] = -1;
 new TourEndTimer = -1;
@@ -389,6 +391,15 @@ new EmptyInvItem[iInfo] = {
 	0
 };
 new MOD_CLEAR[MAX_MOD] = {0,0,0,0,0,0,0};
+new EmptyMarketSellingItem[MarketItem] = {
+	-1,
+	-1,
+	0,
+	0,
+	0,
+	"None",
+	{0,0,0,0,0,0,0}
+};
 new BossesNames[MAX_BOSSES][128] = {
 	{"BOSS_Edemsky"},
 	{"BOSS_FactoryWorker"},
@@ -546,7 +557,25 @@ new PlayerText:CmbTxt2[MAX_PLAYERS];
 new PlayerText:CmbTxt3[MAX_PLAYERS];
 new PlayerText:CmbTxt4[MAX_PLAYERS];
 new PlayerText:CmbBtn[MAX_PLAYERS];
+new PlayerText:CmbBtnBox[MAX_PLAYERS];
 new PlayerText:CmbClose[MAX_PLAYERS];
+
+new PlayerText:MpBox[MAX_PLAYERS];
+new PlayerText:MpDelim1[MAX_PLAYERS];
+new PlayerText:MpClose[MAX_PLAYERS];
+new PlayerText:MpTxt1[MAX_PLAYERS];
+new PlayerText:MpItem[MAX_PLAYERS];
+new PlayerText:MpItemCount[MAX_PLAYERS];
+new PlayerText:MpTxt2[MAX_PLAYERS];
+new PlayerText:MpDelim2[MAX_PLAYERS];
+new PlayerText:MpTxtPrice[MAX_PLAYERS];
+new PlayerText:MpTxtCount[MAX_PLAYERS];
+new PlayerText:MpBtn1Box[MAX_PLAYERS];
+new PlayerText:MpBtn2Box[MAX_PLAYERS];
+new PlayerText:MpBtn1[MAX_PLAYERS];
+new PlayerText:MpBtn2[MAX_PLAYERS];
+new PlayerText:MpBtnBox[MAX_PLAYERS];
+new PlayerText:MpBtn[MAX_PLAYERS];
 
 main()
 {
@@ -1193,7 +1222,7 @@ public OnPlayerDeath(playerid, killerid, reason)
 		PvpInfo[player_idx][Deaths]++;
 		
 		GiveKillScore(playerid, _killerid);
-		if((PlayerInfo[_killerid][Rate] - PlayerInfo[playerid][Rate]) >= 100)
+		if((PlayerInfo[_killerid][Rate] - PlayerInfo[playerid][Rate]) < 100)
 		{
 			PvpInfo[player_idx][Score] -= GetScoreDiff(PlayerInfo[playerid][Rate], PlayerInfo[_killerid][Rate], false);
 			if(PvpInfo[player_idx][Score] < 0)
@@ -1325,7 +1354,7 @@ public OnPlayerKeyStateChange(playerid, newkeys, oldkeys)
 			ShowCmbWindow(playerid);
 		}
 		//рынок
-		else if(IsPlayerInRangeOfPoint(playerid, 2.0, 231.7, -1840.6, 2.5))
+		else if(IsPlayerInRangeOfPoint(playerid, 3.0, 231.7, -1840.6, 2.5))
 		{
 			ShowMarketMenu(playerid);
 		}
@@ -2103,7 +2132,12 @@ public OnDialogResponse(playerid, dialogid, response, listitem, inputtext[])
 				item = GetItem(cmbitem);
 				
 				new count = strval(inputtext);
-				if(count < have_count)
+				if(count < 1)
+				{
+					ShowPlayerDialog(playerid, 1, DIALOG_STYLE_MSGBOX, "Ошибка", "Неверное количество.", "Закрыть", "");
+					return 1;
+				}
+				if(count > have_count)
 				{
 					ShowPlayerDialog(playerid, 1, DIALOG_STYLE_MSGBOX, "Ошибка", "Недостаточно предметов.", "Закрыть", "");
 					return 1;
@@ -2181,7 +2215,7 @@ public OnDialogResponse(playerid, dialogid, response, listitem, inputtext[])
 				}
 			}
 			else
-				ShowMarketMenu(playerid);
+				ShowPlayerDialog(playerid, 1103, DIALOG_STYLE_TABLIST, "Рынок", "Оружие\nДоспехи\nРасходные материалы", "Далее", "Назад");
 		}
 		case 1102:
 		{
@@ -2242,6 +2276,46 @@ public OnDialogResponse(playerid, dialogid, response, listitem, inputtext[])
 			}
 			else
 				ShowMarketBuyList(playerid, category);
+		}
+		case 1105:
+		{
+			if(response)
+			{
+				new count = strval(inputtext);
+
+				if(count < 1)
+				{
+					ShowPlayerDialog(playerid, 1, DIALOG_STYLE_MSGBOX, "Ошибка", "Неверное значение.", "Закрыть", "");
+					return 1;
+				}
+
+				if(HasItem(playerid, MarketSellingItem[playerid][ID], count))
+				{
+					MarketSellingItem[playerid][Count] = count;
+					UpdateMarketSellWindow(playerid);
+				}
+				else
+				{
+					ShowPlayerDialog(playerid, 1, DIALOG_STYLE_MSGBOX, "Ошибка", "У вас нет такого количества предметов.", "Закрыть", "");
+					return 1;
+				}
+			}
+		}
+		case 1106:
+		{
+			if(response)
+			{
+				new price = strval(inputtext);
+
+				if(price < 1 || price > 1000000000)
+				{
+					ShowPlayerDialog(playerid, 1, DIALOG_STYLE_MSGBOX, "Ошибка", "Неверное значение.", "Закрыть", "");
+					return 1;
+				}
+
+				MarketSellingItem[playerid][Price] = price;
+				UpdateMarketSellWindow(playerid);
+			}
 		}
 	}
 	return 1;
@@ -2328,6 +2402,50 @@ public OnPlayerClickPlayerTextDraw(playerid, PlayerText:playertextid)
 	else if(playertextid == CmbBtn[playerid])
 	{
 		CombineItems(playerid);
+	}
+	else if(playertextid == MpClose[playerid])
+	{
+		HideMarketSellWindow(playerid);
+	}
+	else if(playertextid == MpBtn[playerid])
+	{
+		new category = GetMarketCategoryByItem(MarketSellingItem[playerid][ID]);
+		RegisterMarketItem(playerid, category);
+	}
+	else if(playertextid == MpBtn1[playerid])
+	{
+		ShowPlayerDialog(playerid, 1106, DIALOG_STYLE_INPUT, "Рынок", "Введите новое значение:", "Принять", "Закрыть");
+	}
+	else if(playertextid == MpBtn2[playerid])
+	{
+		ShowPlayerDialog(playerid, 1105, DIALOG_STYLE_INPUT, "Рынок", "Введите новое значение:", "Принять", "Закрыть");
+	}
+	else if(playertextid == MpItem[playerid])
+	{
+		if(SelectedSlot[playerid] == -1) return 0;
+		new itemid = PlayerInventory[playerid][SelectedSlot[playerid]][ID];
+		if(itemid == -1) return 0;
+
+		new item[BaseItem];
+		item = GetItem(itemid);
+
+		if(item[Type] == ITEMTYPE_BOX || item[Type] == ITEMTYPE_PASSIVE)
+		{
+			ShowPlayerDialog(playerid, 1, DIALOG_STYLE_MSGBOX, "Ошибка", "Этот предмет нельзя продать.", "Закрыть", "");
+			return 0;
+		}
+
+		MarketSellingItem[playerid][ID] = itemid;
+		for(new i = 0; i < MAX_MOD; i++)
+			MarketSellingItem[playerid][Mod][i] = PlayerInventory[playerid][SelectedSlot[playerid]][Mod][i];
+		MarketSellingItem[playerid][Count] = 1;
+		MarketSellingItem[playerid][Price] = item[Price] / 2;
+		MarketSellingItem[playerid][rTime] = 2;
+		sscanf(PlayerInfo[playerid][Name], "s[255]", MarketSellingItem[playerid][Owner]);
+		MarketSellingItem[playerid][LotID] = GetMarketNextLotID();
+		SetPVarInt(playerid, "MarketSellingItemInvSlot", SelectedSlot[playerid]);
+
+		UpdateMarketSellWindow(playerid);
 	}
 	else if(playertextid == ChrInfWeaponSlot[playerid])
 	{
@@ -2557,48 +2675,57 @@ public OnPlayerClickPlayerTextDraw(playerid, PlayerText:playertextid)
 		HideEquipInfo(playerid);
 	}
 
-	for(new slotid = 1; slotid <= MAX_CMB_ITEMS; slotid++)
+	if(Windows[playerid][Cmb])
 	{
-		if(playertextid != CmbItemSlot[playerid][slotid-1]) break;
-
-		if(SelectedSlot[playerid] == -1) break;
-		new itemid = PlayerInventory[playerid][SelectedSlot[playerid]][ID];
-		if(itemid == -1) break;
-
-		SetPVarInt(playerid, "CmbItemID", itemid);
-		SetPVarInt(playerid, "CmbItemSlot", slotid);
-		SetPVarInt(playerid, "CmbItemInvSlot", SelectedSlot[playerid]);
-
-		if(IsEquip(itemid))
+		for(new slotid = 1; slotid <= MAX_CMB_ITEMS; slotid++)
 		{
-			SetPVarInt(playerid, "CmbItemCount", 1);
-			SetCmbItem(playerid, slotid, SelectedSlot[playerid], itemid, 1);
+			if(playertextid != CmbItemSlot[playerid][slotid-1]) continue;
+
+			if(SelectedSlot[playerid] == -1) continue;
+			new itemid = PlayerInventory[playerid][SelectedSlot[playerid]][ID];
+			if(itemid == -1) continue;
+
+			SetPVarInt(playerid, "CmbItemID", itemid);
+			SetPVarInt(playerid, "CmbItemSlot", slotid);
+			SetPVarInt(playerid, "CmbItemInvSlot", SelectedSlot[playerid]);
+
+			if(IsEquip(itemid))
+			{
+				SetPVarInt(playerid, "CmbItemCount", 1);
+				SetCmbItem(playerid, slotid, SelectedSlot[playerid], itemid, 1);
+			}
+			else
+			{
+				SetPVarInt(playerid, "CmbItemCount", PlayerInventory[playerid][SelectedSlot[playerid]][Count]);
+				ShowPlayerDialog(playerid, 910, DIALOG_STYLE_INPUT, "Комбинирование", "Укажите количество:", "ОК", "Отмена");
+			}
 		}
-		else
-			ShowPlayerDialog(playerid, 910, DIALOG_STYLE_INPUT, "Комбинирование", "Укажите количество:", "ОК", "Отмена");
 	}
 
-	for (new i = 0; i < MAX_SLOTS; i++) {
-        if (playertextid == ChrInfInvSlot[playerid][i]) {
-            if (SelectedSlot[playerid] != -1) 
-			{
-                if(!IsSlotsBlocked[playerid] && PlayerInventory[playerid][SelectedSlot[playerid]][ID] != -1 && PlayerInventory[playerid][i][ID] == -1) 
+	if(IsInventoryOpen[playerid])
+	{
+		for (new i = 0; i < MAX_SLOTS; i++) {
+			if (playertextid == ChrInfInvSlot[playerid][i]) {
+				if (SelectedSlot[playerid] != -1) 
 				{
-					PlayerInventory[playerid][i] = PlayerInventory[playerid][SelectedSlot[playerid]];
-					PlayerInventory[playerid][SelectedSlot[playerid]] = EmptyInvItem;
-                    new oldslot = SelectedSlot[playerid];
-                    SelectedSlot[playerid] = -1;
-                    UpdateSlot(playerid, oldslot);
-                    UpdateSlot(playerid, i);
-                    break;
-                }
-                SetSlotSelection(playerid, SelectedSlot[playerid], false);
-            }
-            SelectedSlot[playerid] = i;
-            SetSlotSelection(playerid, i, true);
-            break;
-        }
-    }
+					if(!IsSlotsBlocked[playerid] && PlayerInventory[playerid][SelectedSlot[playerid]][ID] != -1 && PlayerInventory[playerid][i][ID] == -1) 
+					{
+						PlayerInventory[playerid][i] = PlayerInventory[playerid][SelectedSlot[playerid]];
+						PlayerInventory[playerid][SelectedSlot[playerid]] = EmptyInvItem;
+						new oldslot = SelectedSlot[playerid];
+						SelectedSlot[playerid] = -1;
+						UpdateSlot(playerid, oldslot);
+						UpdateSlot(playerid, i);
+						break;
+					}
+					SetSlotSelection(playerid, SelectedSlot[playerid], false);
+				}
+				SelectedSlot[playerid] = i;
+				SetSlotSelection(playerid, i, true);
+				break;
+			}
+		}
+	}
 	return 1;
 }
 
@@ -3562,6 +3689,96 @@ stock MarketItemExist(id)
 	return false;
 }
 
+stock GetMarketLotsCountByCategory(category)
+{
+	new query[255];
+	format(query, sizeof(query), "SELECT * FROM `marketplace` WHERE `Category` = '%d'", category);
+	new Cache:q_result = mysql_query(sql_handle, query);
+
+	new count = 0;
+	cache_get_row_count(count);
+	cache_delete(q_result);
+
+	return count;
+}
+
+stock GetMarketLotsCountByOwner(owner[])
+{
+	new query[255];
+	format(query, sizeof(query), "SELECT * FROM `marketplace` WHERE `Owner` = '%d'", owner);
+	new Cache:q_result = mysql_query(sql_handle, query);
+
+	new count = 0;
+	cache_get_row_count(count);
+	cache_delete(q_result);
+
+	return count;
+}
+
+stock RegisterMarketItem(playerid, category)
+{
+	if(MarketSellingItem[playerid][ID] == -1) return;
+	if(!HasItem(playerid, MarketSellingItem[playerid][ID], MarketSellingItem[playerid][Count])) return;
+	if(GetMarketLotsCountByCategory(category) >= MAX_MARKET_ITEMS)
+	{
+		ShowPlayerDialog(playerid, 1, DIALOG_STYLE_MSGBOX, "Ошибка", "Достигнут лимит лотов в этой категории.", "Закрыть", "");
+		return;
+	}
+	if(GetMarketLotsCountByOwner(PlayerInfo[playerid][Name]) >= MAX_MARKET_ITEMS)
+	{
+		ShowPlayerDialog(playerid, 1, DIALOG_STYLE_MSGBOX, "Ошибка", "Достигнут персональный лимит зарегистрированных лотов.", "Закрыть", "");
+		return;
+	}
+
+	new query[255];
+	format(query, sizeof(query), "INSERT INTO `marketplace`(`ID`, `Owner`, `ItemID`, `Category`, `ItemCount`, `ItemMod`, `Price`, `Time`) VALUES ('%d', '%s', '%d', '%d', '%d', '%s', '%d', '%d')",
+		MarketSellingItem[playerid][LotID], MarketSellingItem[playerid][Owner], MarketSellingItem[playerid][ID], category, MarketSellingItem[playerid][Count],
+		ArrayToString(MarketSellingItem[playerid][Mod], MAX_MOD), MarketSellingItem[playerid][Price], MarketSellingItem[playerid][rTime]
+	);
+	new Cache:q_result = mysql_query(sql_handle, query);
+	cache_delete(q_result);
+
+	new slotid = GetPVarInt(playerid, "MarketSellingItemInvSlot");
+	DeleteItem(playerid, slotid, MarketSellingItem[playerid][Count]);
+	SendClientMessageToAll(0xFFCC66FF, "Зарегистрирован новый предмет на рынке.");
+
+	MarketSellingItem[playerid] = EmptyMarketSellingItem;
+	UpdateMarketSellWindow(playerid);
+}
+
+stock GetMarketCategoryByItem(itemid)
+{
+	new item[BaseItem];
+	item = GetItem(itemid);
+	new category = MARKET_CATEGORY_MATERIAL;
+
+	switch(item[Type])
+	{
+		case ITEMTYPE_ACCESSORY, ITEMTYPE_ARMOR: category = MARKET_CATEGORY_ARMOR;
+		case ITEMTYPE_WEAPON: category = MARKET_CATEGORY_WEAPON;
+	}
+
+	return category;
+}
+
+stock GetMarketNextLotID()
+{
+	new query[255] = "SELECT MAX(`ID`) AS `ID` FROM `marketplace`";
+	new Cache:q_result = mysql_query(sql_handle, query);
+	new id = -1;
+	new row_count = 0;
+	cache_get_row_count(row_count);
+
+	if(row_count <= 0)
+		id = 0;
+	else
+		cache_get_value_name_int(0, "ID", id);
+	cache_delete(q_result);
+
+	id++;
+	return id;
+}
+
 stock BuyItem(playerid, lotid, count = 1)
 {
 	new item[MarketItem];
@@ -3651,6 +3868,7 @@ stock CancelItem(playerid, listitem)
 	UpdatePlayerPost(playerid);
 
 	DeleteItemFromMarket(item[LotID], item[Count]);
+	ShowMarketMenu(playerid);
 }
 
 stock ShowMarketMenu(playerid)
@@ -6333,7 +6551,12 @@ stock ShowCmbWindow(playerid)
 	PlayerTextDrawShow(playerid, CmbTxt4[playerid]);
 	PlayerTextDrawShow(playerid, CmbDelim1[playerid]);
 	PlayerTextDrawShow(playerid, CmbBtn[playerid]);
+	PlayerTextDrawShow(playerid, CmbBtnBox[playerid]);
 	PlayerTextDrawShow(playerid, CmbClose[playerid]);
+
+	SelectTextDraw(playerid,0xCCCCFF65);
+	if(!IsInventoryOpen[playerid])
+		ShowCharInfo(playerid);
 }
 
 stock HideCmbWindow(playerid)
@@ -6346,6 +6569,7 @@ stock HideCmbWindow(playerid)
 		CmbItem[playerid][i] = -1;
 		CmbItemCount[playerid][i] = 0;
 		PlayerTextDrawHide(playerid, CmbItemSlot[playerid][i]);
+		PlayerTextDrawHide(playerid, CmbItemSlotCount[playerid][i]);
 	}
 
 	PlayerTextDrawHide(playerid, CmbBox[playerid]);
@@ -6355,7 +6579,12 @@ stock HideCmbWindow(playerid)
 	PlayerTextDrawHide(playerid, CmbTxt4[playerid]);
 	PlayerTextDrawHide(playerid, CmbDelim1[playerid]);
 	PlayerTextDrawHide(playerid, CmbBtn[playerid]);
+	PlayerTextDrawHide(playerid, CmbBtnBox[playerid]);
 	PlayerTextDrawHide(playerid, CmbClose[playerid]);
+
+	if(IsInventoryOpen[playerid])
+		HideCharInfo(playerid);
+	CancelSelectTextDraw(playerid);
 }
 
 stock ShowMarketSellWindow(playerid)
@@ -6364,12 +6593,114 @@ stock ShowMarketSellWindow(playerid)
 	IsSlotsBlocked[playerid] = true;
 
 	HideOpenedInfoWindows(playerid);
+
+	MarketSellingItem[playerid] = EmptyMarketSellingItem;
+
+	PlayerTextDrawShow(playerid, MpBox[playerid]);
+	PlayerTextDrawShow(playerid, MpDelim1[playerid]);
+	PlayerTextDrawShow(playerid, MpClose[playerid]);
+	PlayerTextDrawShow(playerid, MpTxt1[playerid]);
+	PlayerTextDrawShow(playerid, MpTxt2[playerid]);
+	PlayerTextDrawShow(playerid, MpDelim2[playerid]);
+
+	PlayerTextDrawSetPreviewModel(playerid, MpItem[playerid], -1);
+	PlayerTextDrawSetPreviewRot(playerid, MpItem[playerid], 0, 0, 0);
+	PlayerTextDrawBackgroundColor(playerid, MpItem[playerid], -1061109505);
+	PlayerTextDrawShow(playerid, MpItem[playerid]);
+
+	SelectTextDraw(playerid,0xCCCCFF65);
+	if(!IsInventoryOpen[playerid])
+		ShowCharInfo(playerid);
 }
 
 stock HideMarketSellWindow(playerid)
 {
 	Windows[playerid][MarketSell] = false;
 	IsSlotsBlocked[playerid] = false;
+
+	MarketSellingItem[playerid] = EmptyMarketSellingItem;
+
+	PlayerTextDrawHide(playerid, MpBox[playerid]);
+	PlayerTextDrawHide(playerid, MpDelim1[playerid]);
+	PlayerTextDrawHide(playerid, MpClose[playerid]);
+	PlayerTextDrawHide(playerid, MpTxt1[playerid]);
+	PlayerTextDrawHide(playerid, MpTxt2[playerid]);
+	PlayerTextDrawHide(playerid, MpDelim2[playerid]);
+	PlayerTextDrawHide(playerid, MpTxtPrice[playerid]);
+	PlayerTextDrawHide(playerid, MpTxtCount[playerid]);
+	PlayerTextDrawHide(playerid, MpBtn1Box[playerid]);
+	PlayerTextDrawHide(playerid, MpBtn2Box[playerid]);
+	PlayerTextDrawHide(playerid, MpBtn1[playerid]);
+	PlayerTextDrawHide(playerid, MpBtn2[playerid]);
+	PlayerTextDrawHide(playerid, MpBtnBox[playerid]);
+	PlayerTextDrawHide(playerid, MpBtn[playerid]);
+	PlayerTextDrawHide(playerid, MpItem[playerid]);
+	PlayerTextDrawHide(playerid, MpItemCount[playerid]);
+
+	if(IsInventoryOpen[playerid])
+		HideCharInfo(playerid);
+	CancelSelectTextDraw(playerid);
+}
+
+stock UpdateMarketSellWindow(playerid)
+{
+	PlayerTextDrawHide(playerid, MpItem[playerid]);
+	PlayerTextDrawHide(playerid, MpItemCount[playerid]);
+	PlayerTextDrawHide(playerid, MpTxtCount[playerid]);
+	PlayerTextDrawHide(playerid, MpBtn2Box[playerid]);
+	PlayerTextDrawHide(playerid, MpBtn2[playerid]);
+
+	PlayerTextDrawSetPreviewModel(playerid, MpItem[playerid], -1);
+	PlayerTextDrawSetPreviewRot(playerid, MpItem[playerid], 0, 0, 0);
+	PlayerTextDrawBackgroundColor(playerid, MpItem[playerid], -1061109505);
+
+	if(MarketSellingItem[playerid][ID] != -1)
+	{
+		new item[BaseItem];
+		new string[128];
+		item = GetItem(MarketSellingItem[playerid][ID]);
+
+		PlayerTextDrawSetPreviewModel(playerid, MpItem[playerid], item[Model]);
+		PlayerTextDrawSetPreviewRot(playerid, MpItem[playerid], item[ModelRotX], item[ModelRotY], item[ModelRotZ]);
+		PlayerTextDrawBackgroundColor(playerid, MpItem[playerid], HexGradeColors[item[Grade]-1][0]);
+
+		if(!IsEquip(MarketSellingItem[playerid][ID]))
+		{
+			format(string, sizeof(string), "%d", MarketSellingItem[playerid][Count]);
+			PlayerTextDrawSetStringRus(playerid, MpItemCount[playerid], string);
+			PlayerTextDrawShow(playerid, MpItemCount[playerid]);
+
+			format(string, sizeof(string), "Кол-во: %d", MarketSellingItem[playerid][Count]);
+			PlayerTextDrawSetStringRus(playerid, MpTxtCount[playerid], string);
+			PlayerTextDrawShow(playerid, MpTxtCount[playerid]);
+
+			PlayerTextDrawShow(playerid, MpBtn2Box[playerid]);
+			PlayerTextDrawShow(playerid, MpBtn2[playerid]);
+		}
+
+		format(string, sizeof(string), "Цена: %d$", MarketSellingItem[playerid][Price]);
+		PlayerTextDrawSetStringRus(playerid, MpTxtPrice[playerid], string);
+		PlayerTextDrawShow(playerid, MpTxtPrice[playerid]);
+
+		PlayerTextDrawShow(playerid, MpBtn1Box[playerid]);
+		PlayerTextDrawShow(playerid, MpBtn1[playerid]);
+		PlayerTextDrawShow(playerid, MpBtnBox[playerid]);
+
+		PlayerTextDrawShow(playerid, MpBtn[playerid]);
+	}
+	else
+	{
+		PlayerTextDrawHide(playerid, MpTxtPrice[playerid]);
+		PlayerTextDrawHide(playerid, MpTxtCount[playerid]);
+		PlayerTextDrawHide(playerid, MpBtn1Box[playerid]);
+		PlayerTextDrawHide(playerid, MpBtn2Box[playerid]);
+		PlayerTextDrawHide(playerid, MpBtn1[playerid]);
+		PlayerTextDrawHide(playerid, MpBtn2[playerid]);
+		PlayerTextDrawHide(playerid, MpBtnBox[playerid]);
+		PlayerTextDrawHide(playerid, MpBtn[playerid]);
+	}
+
+	PlayerTextDrawShow(playerid, MpItem[playerid]);
 }
 
 stock ShowModWindow(playerid, itemslot = -1)
@@ -6509,6 +6840,17 @@ stock UpdateModWindow(playerid)
 	PlayerTextDrawShow(playerid, UpgPotionSlot[playerid]);
 }
 
+stock CmbItemExist(playerid, item)
+{
+	for(new i = 0; i < MAX_CMB_ITEMS; i++)
+	{
+		if(CmbItem[playerid][i] == item)
+			return true;
+	}
+	
+	return false;
+}
+
 stock SetCmbItem(playerid, slot, invslot, item, count)
 {
 	if(slot > MAX_CMB_ITEMS || slot < 1)
@@ -6516,12 +6858,21 @@ stock SetCmbItem(playerid, slot, invslot, item, count)
 		ShowPlayerDialog(playerid, 1, DIALOG_STYLE_MSGBOX, "Комбинации", "Недопустимый предмет.", "Закрыть", "");
 		return;
 	}
+
+	if(CmbItemExist(playerid, item))
+	{
+		ShowPlayerDialog(playerid, 1, DIALOG_STYLE_MSGBOX, "Комбинации", "Предмет уже зарегистрирован.", "Закрыть", "");
+		return;
+	}
 	
-	CmbItem[playerid][slot-1] = item; 
+	CmbItem[playerid][slot-1] = item;
 	CmbItemCount[playerid][slot-1] = count;
 	CmbItemInvSlot[playerid][slot-1] = invslot;
 
 	UpdateCmbWindow(playerid);
+
+	SetSlotSelection(playerid, SelectedSlot[playerid], false);
+	SelectedSlot[playerid] = -1;
 }
 
 stock UpdateCmbWindow(playerid)
@@ -6537,9 +6888,6 @@ stock UpdateCmbWindow(playerid)
 
 		if(CmbItem[playerid][i] != -1)
 		{
-			if(!HasItem(playerid, CmbItem[playerid][i]))
-				return;
-				
 			new item[BaseItem];
 			item = GetItem(CmbItem[playerid][i]);
 
@@ -6550,11 +6898,13 @@ stock UpdateCmbWindow(playerid)
 			if(!IsEquip(item[ID]))
 			{
 			    new string[64];
-				format(string, sizeof(string), "%d", CmbItemCount[i]);
+				format(string, sizeof(string), "%d", CmbItemCount[playerid][i]);
 				PlayerTextDrawSetStringRus(playerid, CmbItemSlotCount[playerid][i], string);
 				PlayerTextDrawShow(playerid, CmbItemSlotCount[playerid][i]);
 			}
 		}
+
+		PlayerTextDrawShow(playerid, CmbItemSlot[playerid][i]);
 	}
 }
 
@@ -6619,6 +6969,15 @@ stock CombineItems(playerid)
 
 		DeleteItem(playerid, CmbItemInvSlot[playerid][i], CmbItemCount[playerid][i]);
 	}
+
+	for(new i = 0; i < MAX_CMB_ITEMS; i++)
+	{
+		CmbItem[playerid][i] = -1;
+		CmbItemCount[playerid][i] = 0;
+		CmbItemInvSlot[playerid][i] = -1;
+	}
+
+	UpdateCmbWindow(playerid);
 
 	if(success)
 	{
@@ -6799,25 +7158,25 @@ stock GetArmorBaseDefense(armorid)
 	new defense;
 	switch(armorid)
 	{
-		case 82: defense = 9;
-		case 83..89: defense = 12;
-		case 90: defense = 16;
-		case 91..97: defense = 22;
-		case 98: defense = 31;
-		case 99..105: defense = 42;
-		case 106: defense = 56;
-		case 107..113: defense = 76;
-		case 114: defense = 99;
-		case 115..121: defense = 134;
-		case 122: defense = 168;
-		case 123..129: defense = 227;
-		case 130: defense = 302;
-		case 131..137: defense = 408;
-		case 138: defense = 517;
-		case 139..145: defense = 698;
+		case 82: defense = 180;
+		case 83..89: defense = 234;
+		case 90: defense = 275;
+		case 91..97: defense = 358;
+		case 98: defense = 330;
+		case 99..105: defense = 429;
+		case 106: defense = 383;
+		case 107..113: defense = 498;
+		case 114: defense = 437;
+		case 115..121: defense = 568;
+		case 122: defense = 502;
+		case 123..129: defense = 653;
+		case 130: defense = 595;
+		case 131..137: defense = 774;
+		case 138: defense = 676;
+		case 139..145: defense = 879;
 		case 146: defense = 841;
 		case 147..153: defense = 1135;
-		default: defense = 5;
+		default: defense = 100;
 	}
 	return defense;
 }
@@ -8818,6 +9177,397 @@ stock InitPlayerTextDraws(playerid)
 	PlayerTextDrawBackgroundColor(playerid, PvpPanelMyScore[playerid], 51);
 	PlayerTextDrawFont(playerid, PvpPanelMyScore[playerid], 1);
 	PlayerTextDrawSetProportional(playerid, PvpPanelMyScore[playerid], 1);
+
+	CmbBox[playerid] = CreatePlayerTextDraw(playerid, 378.966583, 156.640747, "cmb_box");
+	PlayerTextDrawLetterSize(playerid, CmbBox[playerid], 0.000000, 10.401419);
+	PlayerTextDrawTextSize(playerid, CmbBox[playerid], 258.333312, 0.000000);
+	PlayerTextDrawAlignment(playerid, CmbBox[playerid], 1);
+	PlayerTextDrawColor(playerid, CmbBox[playerid], 0);
+	PlayerTextDrawUseBox(playerid, CmbBox[playerid], true);
+	PlayerTextDrawBoxColor(playerid, CmbBox[playerid], 102);
+	PlayerTextDrawSetShadow(playerid, CmbBox[playerid], 0);
+	PlayerTextDrawSetOutline(playerid, CmbBox[playerid], 0);
+	PlayerTextDrawFont(playerid, CmbBox[playerid], 0);
+
+	CmbDelim1[playerid] = CreatePlayerTextDraw(playerid, 259.699981, 166.880035, "cmb_delim");
+	PlayerTextDrawLetterSize(playerid, CmbDelim1[playerid], 0.000000, 0.000000);
+	PlayerTextDrawTextSize(playerid, CmbDelim1[playerid], 117.399993, 2.074081);
+	PlayerTextDrawAlignment(playerid, CmbDelim1[playerid], 1);
+	PlayerTextDrawColor(playerid, CmbDelim1[playerid], 16711935);
+	PlayerTextDrawUseBox(playerid, CmbDelim1[playerid], true);
+	PlayerTextDrawBoxColor(playerid, CmbDelim1[playerid], 0);
+	PlayerTextDrawSetShadow(playerid, CmbDelim1[playerid], 0);
+	PlayerTextDrawSetOutline(playerid, CmbDelim1[playerid], 0);
+	PlayerTextDrawFont(playerid, CmbDelim1[playerid], 5);
+	PlayerTextDrawSetPreviewModel(playerid, CmbDelim1[playerid], 18656);
+	PlayerTextDrawSetPreviewRot(playerid, CmbDelim1[playerid], 0.000000, 0.000000, 0.000000, 1.000000);
+
+	CmbClose[playerid] = CreatePlayerTextDraw(playerid, 371.966674, 156.385162, "X");
+	PlayerTextDrawLetterSize(playerid, CmbClose[playerid], 0.320666, 1.015110);
+	PlayerTextDrawTextSize(playerid, CmbClose[playerid], 6.366667, 7.051848);
+	PlayerTextDrawAlignment(playerid, CmbClose[playerid], 2);
+	PlayerTextDrawColor(playerid, CmbClose[playerid], -2147483393);
+	PlayerTextDrawUseBox(playerid, CmbClose[playerid], true);
+	PlayerTextDrawBoxColor(playerid, CmbClose[playerid], 0);
+	PlayerTextDrawSetShadow(playerid, CmbClose[playerid], 0);
+	PlayerTextDrawSetOutline(playerid, CmbClose[playerid], 1);
+	PlayerTextDrawBackgroundColor(playerid, CmbClose[playerid], 34);
+	PlayerTextDrawFont(playerid, CmbClose[playerid], 1);
+	PlayerTextDrawSetProportional(playerid, CmbClose[playerid], 1);
+	PlayerTextDrawSetSelectable(playerid, CmbClose[playerid], true);
+	PlayerTextDrawSetPreviewModel(playerid, CmbClose[playerid], 18656);
+	PlayerTextDrawSetPreviewRot(playerid, CmbClose[playerid], 0.000000, 0.000000, 0.000000, 1.000000);
+
+	CmbTxt1[playerid] = CreatePlayerTextDraw(playerid, 320.699768, 155.887298, "Комбинирование");
+	PlayerTextDrawLetterSize(playerid, CmbTxt1[playerid], 0.237333, 1.052444);
+	PlayerTextDrawAlignment(playerid, CmbTxt1[playerid], 2);
+	PlayerTextDrawColor(playerid, CmbTxt1[playerid], -1);
+	PlayerTextDrawSetShadow(playerid, CmbTxt1[playerid], 0);
+	PlayerTextDrawSetOutline(playerid, CmbTxt1[playerid], 1);
+	PlayerTextDrawBackgroundColor(playerid, CmbTxt1[playerid], 51);
+	PlayerTextDrawFont(playerid, CmbTxt1[playerid], 1);
+	PlayerTextDrawSetProportional(playerid, CmbTxt1[playerid], 1);
+	PlayerTextDrawSetPreviewModel(playerid, CmbTxt1[playerid], 18656);
+	PlayerTextDrawSetPreviewRot(playerid, CmbTxt1[playerid], 0.000000, 0.000000, 0.000000, 1.000000);
+
+	CmbItemSlot[playerid][0] = CreatePlayerTextDraw(playerid, 309.000000, 175.000000, "item1");
+	PlayerTextDrawLetterSize(playerid, CmbItemSlot[playerid][0], 0.000000, 0.000000);
+	PlayerTextDrawTextSize(playerid, CmbItemSlot[playerid][0], 20.000000, 20.000000);
+	PlayerTextDrawAlignment(playerid, CmbItemSlot[playerid][0], 1);
+	PlayerTextDrawColor(playerid, CmbItemSlot[playerid][0], -1);
+	PlayerTextDrawUseBox(playerid, CmbItemSlot[playerid][0], true);
+	PlayerTextDrawBoxColor(playerid, CmbItemSlot[playerid][0], 0);
+	PlayerTextDrawSetShadow(playerid, CmbItemSlot[playerid][0], 0);
+	PlayerTextDrawSetOutline(playerid, CmbItemSlot[playerid][0], 0);
+	PlayerTextDrawBackgroundColor(playerid, CmbItemSlot[playerid][0], -1378294017);
+	PlayerTextDrawFont(playerid, CmbItemSlot[playerid][0], 5);
+	PlayerTextDrawSetSelectable(playerid, CmbItemSlot[playerid][0], true);
+	PlayerTextDrawSetPreviewModel(playerid, CmbItemSlot[playerid][0], -1);
+	PlayerTextDrawSetPreviewRot(playerid, CmbItemSlot[playerid][0], 0.000000, 0.000000, 90.000000, 1.000000);
+
+	CmbItemSlot[playerid][1] = CreatePlayerTextDraw(playerid, 270.000000, 210.000000, "item2");
+	PlayerTextDrawLetterSize(playerid, CmbItemSlot[playerid][1], 0.000000, 0.000000);
+	PlayerTextDrawTextSize(playerid, CmbItemSlot[playerid][1], 20.000000, 20.000000);
+	PlayerTextDrawAlignment(playerid, CmbItemSlot[playerid][1], 1);
+	PlayerTextDrawColor(playerid, CmbItemSlot[playerid][1], -1);
+	PlayerTextDrawUseBox(playerid, CmbItemSlot[playerid][1], true);
+	PlayerTextDrawBoxColor(playerid, CmbItemSlot[playerid][1], 0);
+	PlayerTextDrawSetShadow(playerid, CmbItemSlot[playerid][1], 0);
+	PlayerTextDrawSetOutline(playerid, CmbItemSlot[playerid][1], 0);
+	PlayerTextDrawBackgroundColor(playerid, CmbItemSlot[playerid][1], -1378294017);
+	PlayerTextDrawFont(playerid, CmbItemSlot[playerid][1], 5);
+	PlayerTextDrawSetSelectable(playerid, CmbItemSlot[playerid][1], true);
+	PlayerTextDrawSetPreviewModel(playerid, CmbItemSlot[playerid][1], -1);
+	PlayerTextDrawSetPreviewRot(playerid, CmbItemSlot[playerid][1], 0.000000, 0.000000, 90.000000, 1.000000);
+
+	CmbItemSlot[playerid][2] = CreatePlayerTextDraw(playerid, 348.000000, 210.000000, "item3");
+	PlayerTextDrawLetterSize(playerid, CmbItemSlot[playerid][2], 0.000000, 0.000000);
+	PlayerTextDrawTextSize(playerid, CmbItemSlot[playerid][2], 20.000000, 20.000000);
+	PlayerTextDrawAlignment(playerid, CmbItemSlot[playerid][2], 1);
+	PlayerTextDrawColor(playerid, CmbItemSlot[playerid][2], -1);
+	PlayerTextDrawUseBox(playerid, CmbItemSlot[playerid][2], true);
+	PlayerTextDrawBoxColor(playerid, CmbItemSlot[playerid][2], 0);
+	PlayerTextDrawSetShadow(playerid, CmbItemSlot[playerid][2], 0);
+	PlayerTextDrawSetOutline(playerid, CmbItemSlot[playerid][2], 0);
+	PlayerTextDrawBackgroundColor(playerid, CmbItemSlot[playerid][2], -1378294017);
+	PlayerTextDrawFont(playerid, CmbItemSlot[playerid][2], 5);
+	PlayerTextDrawSetSelectable(playerid, CmbItemSlot[playerid][2], true);
+	PlayerTextDrawSetPreviewModel(playerid, CmbItemSlot[playerid][2], -1);
+	PlayerTextDrawSetPreviewRot(playerid, CmbItemSlot[playerid][2], 0.000000, 0.000000, 90.000000, 1.000000);
+
+	CmbItemSlotCount[playerid][0] = CreatePlayerTextDraw(playerid, 329.066284, 188.035690, "99");
+	PlayerTextDrawLetterSize(playerid, CmbItemSlotCount[playerid][0], 0.205666, 0.811851);
+	PlayerTextDrawAlignment(playerid, CmbItemSlotCount[playerid][0], 3);
+	PlayerTextDrawColor(playerid, CmbItemSlotCount[playerid][0], 255);
+	PlayerTextDrawSetShadow(playerid, CmbItemSlotCount[playerid][0], 0);
+	PlayerTextDrawSetOutline(playerid, CmbItemSlotCount[playerid][0], 0);
+	PlayerTextDrawBackgroundColor(playerid, CmbItemSlotCount[playerid][0], 51);
+	PlayerTextDrawFont(playerid, CmbItemSlotCount[playerid][0], 1);
+	PlayerTextDrawSetProportional(playerid, CmbItemSlotCount[playerid][0], 1);
+	PlayerTextDrawSetPreviewModel(playerid, CmbItemSlotCount[playerid][0], 18656);
+	PlayerTextDrawSetPreviewRot(playerid, CmbItemSlotCount[playerid][0], 0.000000, 0.000000, 0.000000, 1.000000);
+
+	CmbItemSlotCount[playerid][1] = CreatePlayerTextDraw(playerid, 290.033050, 222.843261, "99");
+	PlayerTextDrawLetterSize(playerid, CmbItemSlotCount[playerid][1], 0.205666, 0.811851);
+	PlayerTextDrawAlignment(playerid, CmbItemSlotCount[playerid][1], 3);
+	PlayerTextDrawColor(playerid, CmbItemSlotCount[playerid][1], 255);
+	PlayerTextDrawSetShadow(playerid, CmbItemSlotCount[playerid][1], 0);
+	PlayerTextDrawSetOutline(playerid, CmbItemSlotCount[playerid][1], 0);
+	PlayerTextDrawBackgroundColor(playerid, CmbItemSlotCount[playerid][1], 51);
+	PlayerTextDrawFont(playerid, CmbItemSlotCount[playerid][1], 1);
+	PlayerTextDrawSetProportional(playerid, CmbItemSlotCount[playerid][1], 1);
+	PlayerTextDrawSetPreviewModel(playerid, CmbItemSlotCount[playerid][1], 18656);
+	PlayerTextDrawSetPreviewRot(playerid, CmbItemSlotCount[playerid][1], 0.000000, 0.000000, 0.000000, 1.000000);
+
+	CmbItemSlotCount[playerid][2] = CreatePlayerTextDraw(playerid, 368.066253, 223.055007, "99");
+	PlayerTextDrawLetterSize(playerid, CmbItemSlotCount[playerid][2], 0.205666, 0.811851);
+	PlayerTextDrawAlignment(playerid, CmbItemSlotCount[playerid][2], 3);
+	PlayerTextDrawColor(playerid, CmbItemSlotCount[playerid][2], 255);
+	PlayerTextDrawSetShadow(playerid, CmbItemSlotCount[playerid][2], 0);
+	PlayerTextDrawSetOutline(playerid, CmbItemSlotCount[playerid][2], 0);
+	PlayerTextDrawBackgroundColor(playerid, CmbItemSlotCount[playerid][2], 51);
+	PlayerTextDrawFont(playerid, CmbItemSlotCount[playerid][2], 1);
+	PlayerTextDrawSetProportional(playerid, CmbItemSlotCount[playerid][2], 1);
+	PlayerTextDrawSetPreviewModel(playerid, CmbItemSlotCount[playerid][2], 18656);
+	PlayerTextDrawSetPreviewRot(playerid, CmbItemSlotCount[playerid][2], 0.000000, 0.000000, 0.000000, 1.000000);
+
+	CmbTxt2[playerid] = CreatePlayerTextDraw(playerid, 319.766418, 196.705307, "Предмет 1");
+	PlayerTextDrawLetterSize(playerid, CmbTxt2[playerid], 0.142999, 0.699852);
+	PlayerTextDrawAlignment(playerid, CmbTxt2[playerid], 2);
+	PlayerTextDrawColor(playerid, CmbTxt2[playerid], -1);
+	PlayerTextDrawSetShadow(playerid, CmbTxt2[playerid], 0);
+	PlayerTextDrawSetOutline(playerid, CmbTxt2[playerid], 0);
+	PlayerTextDrawBackgroundColor(playerid, CmbTxt2[playerid], 51);
+	PlayerTextDrawFont(playerid, CmbTxt2[playerid], 1);
+	PlayerTextDrawSetProportional(playerid, CmbTxt2[playerid], 1);
+
+	CmbTxt3[playerid] = CreatePlayerTextDraw(playerid, 280.732910, 230.724548, "Предмет 2");
+	PlayerTextDrawLetterSize(playerid, CmbTxt3[playerid], 0.142999, 0.699852);
+	PlayerTextDrawAlignment(playerid, CmbTxt3[playerid], 2);
+	PlayerTextDrawColor(playerid, CmbTxt3[playerid], -1);
+	PlayerTextDrawSetShadow(playerid, CmbTxt3[playerid], 0);
+	PlayerTextDrawSetOutline(playerid, CmbTxt3[playerid], 0);
+	PlayerTextDrawBackgroundColor(playerid, CmbTxt3[playerid], 51);
+	PlayerTextDrawFont(playerid, CmbTxt3[playerid], 1);
+	PlayerTextDrawSetProportional(playerid, CmbTxt3[playerid], 1);
+
+	CmbTxt4[playerid] = CreatePlayerTextDraw(playerid, 359.299499, 230.853332, "Предмет 3");
+	PlayerTextDrawLetterSize(playerid, CmbTxt4[playerid], 0.142999, 0.699852);
+	PlayerTextDrawAlignment(playerid, CmbTxt4[playerid], 2);
+	PlayerTextDrawColor(playerid, CmbTxt4[playerid], -1);
+	PlayerTextDrawSetShadow(playerid, CmbTxt4[playerid], 0);
+	PlayerTextDrawSetOutline(playerid, CmbTxt4[playerid], 0);
+	PlayerTextDrawBackgroundColor(playerid, CmbTxt4[playerid], 51);
+	PlayerTextDrawFont(playerid, CmbTxt4[playerid], 1);
+	PlayerTextDrawSetProportional(playerid, CmbTxt4[playerid], 1);
+
+	CmbBtnBox[playerid] = CreatePlayerTextDraw(playerid, 377.666656, 240.433349, "btn_box");
+	PlayerTextDrawLetterSize(playerid, CmbBtnBox[playerid], 0.000000, 0.835595);
+	PlayerTextDrawTextSize(playerid, CmbBtnBox[playerid], 259.666656, 0.000000);
+	PlayerTextDrawAlignment(playerid, CmbBtnBox[playerid], 1);
+	PlayerTextDrawColor(playerid, CmbBtnBox[playerid], 16711935);
+	PlayerTextDrawUseBox(playerid, CmbBtnBox[playerid], true);
+	PlayerTextDrawBoxColor(playerid, CmbBtnBox[playerid], 16711935);
+	PlayerTextDrawSetShadow(playerid, CmbBtnBox[playerid], 0);
+	PlayerTextDrawSetOutline(playerid, CmbBtnBox[playerid], 0);
+	PlayerTextDrawFont(playerid, CmbBtnBox[playerid], 0);
+
+	CmbBtn[playerid] = CreatePlayerTextDraw(playerid, 319.033325, 237.730407, "Комбинировать");
+	PlayerTextDrawLetterSize(playerid, CmbBtn[playerid], 0.270666, 1.293036);
+	PlayerTextDrawTextSize(playerid, CmbBtn[playerid], 7.333358, 113.659248);
+	PlayerTextDrawAlignment(playerid, CmbBtn[playerid], 2);
+	PlayerTextDrawColor(playerid, CmbBtn[playerid], 255);
+	PlayerTextDrawUseBox(playerid, CmbBtn[playerid], true);
+	PlayerTextDrawBoxColor(playerid, CmbBtn[playerid], 0);
+	PlayerTextDrawSetShadow(playerid, CmbBtn[playerid], 0);
+	PlayerTextDrawSetOutline(playerid, CmbBtn[playerid], 0);
+	PlayerTextDrawBackgroundColor(playerid, CmbBtn[playerid], 51);
+	PlayerTextDrawFont(playerid, CmbBtn[playerid], 1);
+	PlayerTextDrawSetProportional(playerid, CmbBtn[playerid], 1);
+	PlayerTextDrawSetSelectable(playerid, CmbBtn[playerid], true);
+
+	MpBox[playerid] = CreatePlayerTextDraw(playerid, 360.733398, 174.062957, "mp_box");
+	PlayerTextDrawLetterSize(playerid, MpBox[playerid], 0.000000, 9.138888);
+	PlayerTextDrawTextSize(playerid, MpBox[playerid], 274.666656, 0.000000);
+	PlayerTextDrawAlignment(playerid, MpBox[playerid], 1);
+	PlayerTextDrawColor(playerid, MpBox[playerid], 0);
+	PlayerTextDrawUseBox(playerid, MpBox[playerid], true);
+	PlayerTextDrawBoxColor(playerid, MpBox[playerid], 102);
+	PlayerTextDrawSetShadow(playerid, MpBox[playerid], 0);
+	PlayerTextDrawSetOutline(playerid, MpBox[playerid], 0);
+	PlayerTextDrawFont(playerid, MpBox[playerid], 0);
+
+	MpDelim1[playerid] = CreatePlayerTextDraw(playerid, 276.333343, 182.933334, "mp_delim1");
+	PlayerTextDrawLetterSize(playerid, MpDelim1[playerid], 0.000000, 0.000000);
+	PlayerTextDrawTextSize(playerid, MpDelim1[playerid], 82.666656, 1.659255);
+	PlayerTextDrawAlignment(playerid, MpDelim1[playerid], 1);
+	PlayerTextDrawColor(playerid, MpDelim1[playerid], 16711935);
+	PlayerTextDrawUseBox(playerid, MpDelim1[playerid], true);
+	PlayerTextDrawBoxColor(playerid, MpDelim1[playerid], 0);
+	PlayerTextDrawSetShadow(playerid, MpDelim1[playerid], 0);
+	PlayerTextDrawSetOutline(playerid, MpDelim1[playerid], 0);
+	PlayerTextDrawFont(playerid, MpDelim1[playerid], 5);
+	PlayerTextDrawSetPreviewModel(playerid, MpDelim1[playerid], 18656);
+	PlayerTextDrawSetPreviewRot(playerid, MpDelim1[playerid], 0.000000, 0.000000, 0.000000, 1.000000);
+
+	MpClose[playerid] = CreatePlayerTextDraw(playerid, 354.099884, 173.019180, "X");
+	PlayerTextDrawLetterSize(playerid, MpClose[playerid], 0.358333, 1.048296);
+	PlayerTextDrawTextSize(playerid, MpClose[playerid], 6.266666, 5.807407);
+	PlayerTextDrawAlignment(playerid, MpClose[playerid], 2);
+	PlayerTextDrawColor(playerid, MpClose[playerid], -2147483393);
+	PlayerTextDrawUseBox(playerid, MpClose[playerid], true);
+	PlayerTextDrawBoxColor(playerid, MpClose[playerid], 0);
+	PlayerTextDrawSetShadow(playerid, MpClose[playerid], 0);
+	PlayerTextDrawSetOutline(playerid, MpClose[playerid], 1);
+	PlayerTextDrawBackgroundColor(playerid, MpClose[playerid], 51);
+	PlayerTextDrawFont(playerid, MpClose[playerid], 1);
+	PlayerTextDrawSetProportional(playerid, MpClose[playerid], 1);
+	PlayerTextDrawSetSelectable(playerid, MpClose[playerid], true);
+	PlayerTextDrawSetPreviewModel(playerid, MpClose[playerid], 18656);
+	PlayerTextDrawSetPreviewRot(playerid, MpClose[playerid], 0.000000, 0.000000, 0.000000, 1.000000);
+
+	MpTxt1[playerid] = CreatePlayerTextDraw(playerid, 319.333343, 173.102203, "Рынок");
+	PlayerTextDrawLetterSize(playerid, MpTxt1[playerid], 0.267666, 0.952889);
+	PlayerTextDrawAlignment(playerid, MpTxt1[playerid], 2);
+	PlayerTextDrawColor(playerid, MpTxt1[playerid], -1);
+	PlayerTextDrawSetShadow(playerid, MpTxt1[playerid], 0);
+	PlayerTextDrawSetOutline(playerid, MpTxt1[playerid], 1);
+	PlayerTextDrawBackgroundColor(playerid, MpTxt1[playerid], 51);
+	PlayerTextDrawFont(playerid, MpTxt1[playerid], 1);
+	PlayerTextDrawSetProportional(playerid, MpTxt1[playerid], 1);
+	PlayerTextDrawSetPreviewModel(playerid, MpTxt1[playerid], 18656);
+	PlayerTextDrawSetPreviewRot(playerid, MpTxt1[playerid], 0.000000, 0.000000, 0.000000, 1.000000);
+
+	MpItem[playerid] = CreatePlayerTextDraw(playerid, 307.899932, 188.616241, "mp_item");
+	PlayerTextDrawLetterSize(playerid, MpItem[playerid], 0.000000, 0.000000);
+	PlayerTextDrawTextSize(playerid, MpItem[playerid], 20.000000, 20.000000);
+	PlayerTextDrawAlignment(playerid, MpItem[playerid], 1);
+	PlayerTextDrawColor(playerid, MpItem[playerid], -1);
+	PlayerTextDrawUseBox(playerid, MpItem[playerid], true);
+	PlayerTextDrawBoxColor(playerid, MpItem[playerid], 0);
+	PlayerTextDrawSetShadow(playerid, MpItem[playerid], 0);
+	PlayerTextDrawSetOutline(playerid, MpItem[playerid], 0);
+	PlayerTextDrawBackgroundColor(playerid, MpItem[playerid], -1378294017);
+	PlayerTextDrawFont(playerid, MpItem[playerid], 5);
+	PlayerTextDrawSetSelectable(playerid, MpItem[playerid], true);
+	PlayerTextDrawSetPreviewModel(playerid, MpItem[playerid], -1);
+	PlayerTextDrawSetPreviewRot(playerid, MpItem[playerid], 0.000000, 0.000000, 90.000000, 1.000000);
+
+	MpItemCount[playerid] = CreatePlayerTextDraw(playerid, 327.999847, 202.139282, "99");
+	PlayerTextDrawLetterSize(playerid, MpItemCount[playerid], 0.200999, 0.786963);
+	PlayerTextDrawAlignment(playerid, MpItemCount[playerid], 3);
+	PlayerTextDrawColor(playerid, MpItemCount[playerid], 255);
+	PlayerTextDrawSetShadow(playerid, MpItemCount[playerid], 0);
+	PlayerTextDrawSetOutline(playerid, MpItemCount[playerid], 0);
+	PlayerTextDrawBackgroundColor(playerid, MpItemCount[playerid], 51);
+	PlayerTextDrawFont(playerid, MpItemCount[playerid], 1);
+	PlayerTextDrawSetProportional(playerid, MpItemCount[playerid], 1);
+	PlayerTextDrawSetPreviewModel(playerid, MpItemCount[playerid], -1);
+	PlayerTextDrawSetPreviewRot(playerid, MpItemCount[playerid], 0.000000, 0.000000, 90.000000, 1.000000);
+
+	MpTxt2[playerid] = CreatePlayerTextDraw(playerid, 319.599914, 211.555633, "Поместите предмет сюда");
+	PlayerTextDrawLetterSize(playerid, MpTxt2[playerid], 0.198999, 0.757925);
+	PlayerTextDrawAlignment(playerid, MpTxt2[playerid], 2);
+	PlayerTextDrawColor(playerid, MpTxt2[playerid], -1);
+	PlayerTextDrawSetShadow(playerid, MpTxt2[playerid], 0);
+	PlayerTextDrawSetOutline(playerid, MpTxt2[playerid], 0);
+	PlayerTextDrawBackgroundColor(playerid, MpTxt2[playerid], 51);
+	PlayerTextDrawFont(playerid, MpTxt2[playerid], 1);
+	PlayerTextDrawSetProportional(playerid, MpTxt2[playerid], 1);
+	PlayerTextDrawSetPreviewModel(playerid, MpTxt2[playerid], -1);
+	PlayerTextDrawSetPreviewRot(playerid, MpTxt2[playerid], 0.000000, 0.000000, 90.000000, 1.000000);
+
+	MpDelim2[playerid] = CreatePlayerTextDraw(playerid, 276.733245, 219.648941, "mp_delim2");
+	PlayerTextDrawLetterSize(playerid, MpDelim2[playerid], 0.000000, 0.000000);
+	PlayerTextDrawTextSize(playerid, MpDelim2[playerid], 82.066635, 1.659255);
+	PlayerTextDrawAlignment(playerid, MpDelim2[playerid], 1);
+	PlayerTextDrawColor(playerid, MpDelim2[playerid], 16711935);
+	PlayerTextDrawUseBox(playerid, MpDelim2[playerid], true);
+	PlayerTextDrawBoxColor(playerid, MpDelim2[playerid], 0);
+	PlayerTextDrawSetShadow(playerid, MpDelim2[playerid], 0);
+	PlayerTextDrawSetOutline(playerid, MpDelim2[playerid], 0);
+	PlayerTextDrawFont(playerid, MpDelim2[playerid], 5);
+	PlayerTextDrawSetPreviewModel(playerid, MpDelim2[playerid], 18656);
+	PlayerTextDrawSetPreviewRot(playerid, MpDelim2[playerid], 0.000000, 0.000000, 0.000000, 1.000000);
+
+	MpTxtPrice[playerid] = CreatePlayerTextDraw(playerid, 279.166687, 223.751083, "Price: 99999999$");
+	PlayerTextDrawLetterSize(playerid, MpTxtPrice[playerid], 0.172666, 0.811851);
+	PlayerTextDrawAlignment(playerid, MpTxtPrice[playerid], 1);
+	PlayerTextDrawColor(playerid, MpTxtPrice[playerid], -1);
+	PlayerTextDrawSetShadow(playerid, MpTxtPrice[playerid], 0);
+	PlayerTextDrawSetOutline(playerid, MpTxtPrice[playerid], 0);
+	PlayerTextDrawBackgroundColor(playerid, MpTxtPrice[playerid], 51);
+	PlayerTextDrawFont(playerid, MpTxtPrice[playerid], 1);
+	PlayerTextDrawSetProportional(playerid, MpTxtPrice[playerid], 1);
+	PlayerTextDrawSetPreviewModel(playerid, MpTxtPrice[playerid], 18656);
+	PlayerTextDrawSetPreviewRot(playerid, MpTxtPrice[playerid], 0.000000, 0.000000, 0.000000, 1.000000);
+
+	MpTxtCount[playerid] = CreatePlayerTextDraw(playerid, 279.066833, 234.250686, "Count: 999");
+	PlayerTextDrawLetterSize(playerid, MpTxtCount[playerid], 0.172666, 0.811851);
+	PlayerTextDrawAlignment(playerid, MpTxtCount[playerid], 1);
+	PlayerTextDrawColor(playerid, MpTxtCount[playerid], -1);
+	PlayerTextDrawSetShadow(playerid, MpTxtCount[playerid], 0);
+	PlayerTextDrawSetOutline(playerid, MpTxtCount[playerid], 0);
+	PlayerTextDrawBackgroundColor(playerid, MpTxtCount[playerid], 51);
+	PlayerTextDrawFont(playerid, MpTxtCount[playerid], 1);
+	PlayerTextDrawSetProportional(playerid, MpTxtCount[playerid], 1);
+	PlayerTextDrawSetPreviewModel(playerid, MpTxtCount[playerid], 18656);
+	PlayerTextDrawSetPreviewRot(playerid, MpTxtCount[playerid], 0.000000, 0.000000, 0.000000, 1.000000);
+
+	MpBtn1Box[playerid] = CreatePlayerTextDraw(playerid, 359.100067, 225.002212, "btn1_box");
+	PlayerTextDrawLetterSize(playerid, MpBtn1Box[playerid], 0.000000, 0.651233);
+	PlayerTextDrawTextSize(playerid, MpBtn1Box[playerid], 326.766723, 0.000000);
+	PlayerTextDrawAlignment(playerid, MpBtn1Box[playerid], 1);
+	PlayerTextDrawColor(playerid, MpBtn1Box[playerid], 0);
+	PlayerTextDrawUseBox(playerid, MpBtn1Box[playerid], true);
+	PlayerTextDrawBoxColor(playerid, MpBtn1Box[playerid], 16711935);
+	PlayerTextDrawSetShadow(playerid, MpBtn1Box[playerid], 0);
+	PlayerTextDrawSetOutline(playerid, MpBtn1Box[playerid], 0);
+	PlayerTextDrawFont(playerid, MpBtn1Box[playerid], 0);
+
+	MpBtn2Box[playerid] = CreatePlayerTextDraw(playerid, 359.200164, 235.584411, "btn2_box");
+	PlayerTextDrawLetterSize(playerid, MpBtn2Box[playerid], 0.000000, 0.654567);
+	PlayerTextDrawTextSize(playerid, MpBtn2Box[playerid], 326.633422, 0.000000);
+	PlayerTextDrawAlignment(playerid, MpBtn2Box[playerid], 1);
+	PlayerTextDrawColor(playerid, MpBtn2Box[playerid], 0);
+	PlayerTextDrawUseBox(playerid, MpBtn2Box[playerid], true);
+	PlayerTextDrawBoxColor(playerid, MpBtn2Box[playerid], 16711935);
+	PlayerTextDrawSetShadow(playerid, MpBtn2Box[playerid], 0);
+	PlayerTextDrawSetOutline(playerid, MpBtn2Box[playerid], 0);
+	PlayerTextDrawFont(playerid, MpBtn2Box[playerid], 0);
+
+	MpBtn1[playerid] = CreatePlayerTextDraw(playerid, 343.266662, 223.751190, "Изменить");
+	PlayerTextDrawLetterSize(playerid, MpBtn1[playerid], 0.170200, 0.834666);
+	PlayerTextDrawTextSize(playerid, MpBtn1[playerid], 3.866662, 27.377767);
+	PlayerTextDrawAlignment(playerid, MpBtn1[playerid], 2);
+	PlayerTextDrawColor(playerid, MpBtn1[playerid], 255);
+	PlayerTextDrawUseBox(playerid, MpBtn1[playerid], true);
+	PlayerTextDrawBoxColor(playerid, MpBtn1[playerid], 0);
+	PlayerTextDrawSetShadow(playerid, MpBtn1[playerid], 0);
+	PlayerTextDrawSetOutline(playerid, MpBtn1[playerid], 0);
+	PlayerTextDrawBackgroundColor(playerid, MpBtn1[playerid], 51);
+	PlayerTextDrawFont(playerid, MpBtn1[playerid], 1);
+	PlayerTextDrawSetProportional(playerid, MpBtn1[playerid], 1);
+	PlayerTextDrawSetSelectable(playerid, MpBtn1[playerid], true);
+
+	MpBtn2[playerid] = CreatePlayerTextDraw(playerid, 343.333374, 234.167495, "Изменить");
+	PlayerTextDrawLetterSize(playerid, MpBtn2[playerid], 0.170200, 0.834666);
+	PlayerTextDrawTextSize(playerid, MpBtn2[playerid], 3.866662, 27.377767);
+	PlayerTextDrawAlignment(playerid, MpBtn2[playerid], 2);
+	PlayerTextDrawColor(playerid, MpBtn2[playerid], 255);
+	PlayerTextDrawUseBox(playerid, MpBtn2[playerid], true);
+	PlayerTextDrawBoxColor(playerid, MpBtn2[playerid], 0);
+	PlayerTextDrawSetShadow(playerid, MpBtn2[playerid], 0);
+	PlayerTextDrawSetOutline(playerid, MpBtn2[playerid], 0);
+	PlayerTextDrawBackgroundColor(playerid, MpBtn2[playerid], 51);
+	PlayerTextDrawFont(playerid, MpBtn2[playerid], 1);
+	PlayerTextDrawSetProportional(playerid, MpBtn2[playerid], 1);
+	PlayerTextDrawSetSelectable(playerid, MpBtn2[playerid], true);
+
+	MpBtnBox[playerid] = CreatePlayerTextDraw(playerid, 359.266723, 246.406494, "btn3_box");
+	PlayerTextDrawLetterSize(playerid, MpBtnBox[playerid], 0.000000, 0.782840);
+	PlayerTextDrawTextSize(playerid, MpBtnBox[playerid], 276.266662, 0.000000);
+	PlayerTextDrawAlignment(playerid, MpBtnBox[playerid], 1);
+	PlayerTextDrawColor(playerid, MpBtnBox[playerid], 0);
+	PlayerTextDrawUseBox(playerid, MpBtnBox[playerid], true);
+	PlayerTextDrawBoxColor(playerid, MpBtnBox[playerid], 16711935);
+	PlayerTextDrawSetShadow(playerid, MpBtnBox[playerid], 0);
+	PlayerTextDrawSetOutline(playerid, MpBtnBox[playerid], 0);
+	PlayerTextDrawFont(playerid, MpBtnBox[playerid], 0);
+
+	MpBtn[playerid] = CreatePlayerTextDraw(playerid, 317.866638, 244.874221, "Зарегистрировать");
+	PlayerTextDrawLetterSize(playerid, MpBtn[playerid], 0.213533, 0.988148);
+	PlayerTextDrawTextSize(playerid, MpBtn[playerid], 7.833320, 77.985191);
+	PlayerTextDrawAlignment(playerid, MpBtn[playerid], 2);
+	PlayerTextDrawColor(playerid, MpBtn[playerid], 255);
+	PlayerTextDrawUseBox(playerid, MpBtn[playerid], true);
+	PlayerTextDrawBoxColor(playerid, MpBtn[playerid], 0);
+	PlayerTextDrawSetShadow(playerid, MpBtn[playerid], 0);
+	PlayerTextDrawSetOutline(playerid, MpBtn[playerid], 0);
+	PlayerTextDrawBackgroundColor(playerid, MpBtn[playerid], 51);
+	PlayerTextDrawFont(playerid, MpBtn[playerid], 1);
+	PlayerTextDrawSetProportional(playerid, MpBtn[playerid], 1);
+	PlayerTextDrawSetSelectable(playerid, MpBtn[playerid], true);
 }
 
 stock ShowTextDraws(playerid)
