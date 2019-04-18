@@ -148,15 +148,15 @@
 
 //Delays
 #define DEFAULT_SHOOT_DELAY 200
-#define COLT_SHOOT_DELAY 170
-#define DEAGLE_SHOOT_DELAY 410
-#define MP5_SHOOT_DELAY 130
-#define TEC_SHOOT_DELAY 120
-#define AK_SHOOT_DELAY 165
-#define M4_SHOOT_DELAY 160
-#define SHOTGUN_SHOOT_DELAY 430
-#define SAWNOFF_SHOOT_DELAY 350
-#define COMBAT_SHOOT_DELAY 270
+#define COLT_SHOOT_DELAY 140
+#define DEAGLE_SHOOT_DELAY 370
+#define MP5_SHOOT_DELAY 90
+#define TEC_SHOOT_DELAY 80
+#define AK_SHOOT_DELAY 125
+#define M4_SHOOT_DELAY 120
+#define SHOTGUN_SHOOT_DELAY 380
+#define SAWNOFF_SHOOT_DELAY 330
+#define COMBAT_SHOOT_DELAY 250
 
 /* Forwards */
 forward Time();
@@ -877,13 +877,13 @@ public OnTourEnd(finished)
 	for(new i = 0; i < MAX_DEATH_MESSAGES; i++)
 		SendDeathMessage(-1, MAX_PLAYERS + 1, 0);
 
+	IsTourStarted = false;
 	if(finished == 1)
 	{
 		GiveTourRates(Tournament[Tour]);
 		UpdateTournamentTable();
 	}
 
-	IsTourStarted = false;
 	for(new i = 0; i < MAX_PLAYERS; i++)
 	{
 		if(FCNPC_IsValid(i))
@@ -1023,7 +1023,7 @@ public FCNPC_OnGiveDamage(npcid, damagedid, Float:amount, weaponid, bodypart)
 
 public OnPlayerGiveDamage(playerid, damagedid, Float:amount, weaponid, bodypart)
 {
-	if(GetPlayerTourTeam(damagedid) != NO_TEAM && GetPlayerTourTeam(playerid) == GetPlayerTourTeam(damagedid))
+	if(!IsBoss[damagedid] && GetPlayerTourTeam(damagedid) != NO_TEAM && GetPlayerTourTeam(playerid) == GetPlayerTourTeam(damagedid))
 	{
 		if(FCNPC_IsValid(damagedid))
 			FCNPC_GiveHealth(damagedid, amount);
@@ -1055,9 +1055,9 @@ public OnPlayerGiveDamage(playerid, damagedid, Float:amount, weaponid, bodypart)
 	damage = floatround(floatmul(damage, defense_mul));
 
 	new real_damage;
-	if((floatround(floatadd(amount, GetPlayerHP(damagedid))) - damage) <= 0)
+	if(floatsub(GetPlayerHP(damagedid), damage) < 0)
 	{
-		real_damage = floatround(floatadd(amount, GetPlayerHP(damagedid)));
+		real_damage = floatround(GetPlayerHP(damagedid)) + 1;
 		if(real_damage < 0)
 			real_damage = 0;
 	}
@@ -1192,7 +1192,7 @@ public OnPlayerDeath(playerid, killerid, reason)
 		}
 
 		new lastkill = GetPVarInt(_killerid, "LastKill");
-		if(lastkill != -1) 
+		if(lastkill == playerid) 
 		{
 			SetPVarInt(_killerid, "LastKill", -1);
 			return 1;
@@ -2326,7 +2326,7 @@ public FCNPC_OnUpdate(npcid)
 	new Float:hp;
 	hp = GetPVarFloat(npcid, "HP");
 	SetPlayerHP(npcid, hp);
-
+	
 	if(npcid == BossNPC && !IsTourStarted)
 	{
 		BossBehaviour(npcid);
@@ -4046,22 +4046,21 @@ stock ShowMarketMyLotList(playerid)
 
 stock GiveTourRates(tour)
 {
-	new first_mid = 0;
-	new second_mid = 0;
-	for(new i = 0; i < TourParticipantsCount / 2; i++)
-		first_mid += PvpInfo[i][Score];
-	for(new i = TourParticipantsCount / 2; i < TourParticipantsCount; i++)
-		second_mid += PvpInfo[i][Score];
-	
-	first_mid /= TourParticipantsCount / 2;
-	second_mid /= TourParticipantsCount / 2;
-
-	for(new i = 0; i < MAX_PARTICIPANTS; i++)
+	for(new i = 0; i < TourParticipantsCount; i++)
 	{
 		new id = PvpInfo[i][ID];
 		if(id == -1) break;
 
-		new rate = GetRateDifference(id, PvpInfo[i][Score], first_mid, second_mid, tour);
+		new mid_rate = 0;
+		for(new j = i + 1; j < TourParticipantsCount; j++)
+			mid_rate += PlayerInfo[PvpInfo[j][ID]][Rate];
+		
+		new divider = TourParticipantsCount - i - 1;
+		if(divider <= 0)
+			divider = 1;
+		mid_rate /= divider;
+
+		new rate = GetRateDifference(id, tour, i+1, mid_rate);
 		PvpInfo[i][RateDiff] = rate;
 
 		if(IsPlayerConnected(id) && !FCNPC_IsValid(id))
@@ -4400,78 +4399,106 @@ stock IsAnyPlayersInRangeOfPoint(max_count, Float:range, Float:x, Float:y, Float
 	return false;
 }
 
-stock Float:GetUpRankCoefficient(rank)
-{
-	switch(rank)
-	{
-		case 1: return 0.08;
-		case 2: return 0.06;
-		case 3: return 0.05;
-		case 4: return 0.05;
-		case 5: return 0.05;
-		case 6: return 0.04;
-		case 7: return 0.03;
-		case 8: return 0.02;
-		case 9: return 0.01;
-	}
-	return 0.0;
-}
-
-stock Float:GetDownRankCoefficient(rank)
-{
-	switch(rank)
-	{
-		case 1: return 0.05;
-		case 2: return 0.05;
-		case 3: return 0.05;
-		case 4: return 0.06;
-		case 5: return 0.06;
-		case 6: return 0.06;
-		case 7: return 0.07;
-		case 8: return 0.07;
-		case 9: return 0.08;
-	}
-	return 0.0;
-}
-
-stock Float:GetUpTourCoefficient(tour)
-{
-	switch(tour)
-	{
-		case 1: return 1.0;
-		case 2: return 1.2;
-		case 3: return 1.4;
-		case 4: return 1.7;
-		case 5: return 2.0;
-	}
-	return 0.0;
-}
-
-stock Float:GetDownTourCoefficient(tour)
-{
-	switch(tour)
-	{
-		case 1: return 1.2;
-		case 2: return 1.0;
-		case 3: return 0.7;
-		case 4: return 0.4;
-	}
-	return 0.0;
-}
-
-stock GetRateDifference(playerid, score, first_mid, second_mid, tour)
+stock GetRateDifference(playerid, tour, pos, mid_rate)
 {
 	new rate = 0;
-	new score_diff = 0;
-	if(PlayerInfo[playerid][GlobalTopPosition] <= MAX_PARTICIPANTS / 2)
-		score_diff = score - first_mid;
-	else
-		score_diff = score - second_mid;
-	
-	if(score_diff > 0)
-		rate = floatround(floatmul(floatmul(score_diff, GetUpRankCoefficient(PlayerInfo[playerid][Rank])), GetUpTourCoefficient(tour)));
-	else
-		rate = floatround(floatmul(floatmul(score_diff, GetDownRankCoefficient(PlayerInfo[playerid][Rank])), GetDownTourCoefficient(tour)));
+	switch(tour)
+	{
+		case 1:
+		{
+			switch(pos)
+			{
+				case 1: rate = 30;
+				case 2: rate = 27;
+				case 3: rate = 24;
+				case 4: rate = 21;
+				case 5: rate = 16;
+				case 6: rate = 13;
+				case 7: rate = 10;
+				case 8: rate = 7;
+				case 9: rate = 5;
+				case 10: rate = 2;
+				case 11: rate = -2;
+				case 12: rate = -5;
+				case 13: rate = -7;
+				case 14: rate = -10;
+				case 15: rate = -13;
+				case 16: rate = -16;
+				case 17: rate = -21;
+				case 18: rate = -24;
+				case 19: rate = -27;
+				case 20: rate = -30;
+			}
+		}
+		case 2:
+		{
+			switch(pos)
+			{
+				case 1: rate = 36;
+				case 2: rate = 32;
+				case 3: rate = 28;
+				case 4: rate = 25;
+				case 5: rate = 22;
+				case 6: rate = 18;
+				case 7: rate = 12;
+				case 8: rate = 6;
+				case 9: rate = -2;
+				case 10: rate = -4;
+				case 11: rate = -6;
+				case 12: rate = -9;
+				case 13: rate = -12;
+				case 14: rate = -15;
+				case 15: rate = -18;
+				case 16: rate = -22;
+			}
+		}
+		case 3:
+		{
+			switch(pos)
+			{
+				case 1: rate = 43;
+				case 2: rate = 40;
+				case 3: rate = 36;
+				case 4: rate = 30;
+				case 5: rate = 24;
+				case 6: rate = 16;
+				case 7: rate = 7;
+				case 8: rate = -3;
+				case 9: rate = -5;
+				case 10: rate = -8;
+				case 11: rate = -12;
+				case 12: rate = -16;
+			}
+		}
+		case 4:
+		{
+			switch(pos)
+			{
+				case 1: rate = 51;
+				case 2: rate = 46;
+				case 3: rate = 40;
+				case 4: rate = 32;
+				case 5: rate = 20;
+				case 6: rate = 8;
+				case 7: rate = -4;
+				case 8: rate = -10;
+			}
+		}
+		case 5:
+		{
+			switch(pos)
+			{
+				case 1: rate = 65;
+				case 2: rate = 45;
+				case 3: rate = 25;
+				case 4: rate = 0;
+			}
+		}
+	}
+
+	new rate_diff = mid_rate - PlayerInfo[playerid][Rate];
+	if(rate_diff > 0)
+		rate += rate_diff / 25;
 
 	if(rate > 75) rate = 75;
 	if(rate < -75) rate = -75;
@@ -5133,9 +5160,12 @@ stock GetRealKillerId(playerid, lastshotterid)
 	new max_damage = 0;
 	for(new i = 0; i < MAX_PARTICIPANTS; i++)
 	{
+		if(GetPlayerTourTeam(PvpInfo[i][ID]) == GetPlayerTourTeam(playerid))
+			continue;
+
 		new damage = DmgInfo[playerid][i];
 		if(PvpInfo[i][ID] == lastshotterid)
-			damage += MaxHP[playerid] / 2;
+			damage += MaxHP[playerid] / 3;
 		if(damage > max_damage)
 		{
 			max_damage = damage;
@@ -5150,12 +5180,6 @@ stock GiveKillScore(playerid, killerid)
 	new base_score = GetScoreDiff(PlayerInfo[playerid][Rate], PlayerInfo[killerid][Rate], true);
 	new killer_idx = GetPvpIndex(killerid);
 	PvpInfo[killer_idx][Score] += base_score;
-
-	new str[255];
-	new name[255];
-	GetPlayerName(playerid, name, sizeof(name));
-	format(str, sizeof(str), "Убит игрок [%s].", name);
-	print(str);
 
 	new damagers_ids[MAX_PARTICIPANTS];
 	for(new i = 0; i < MAX_PARTICIPANTS; i++)
@@ -5179,27 +5203,17 @@ stock GiveKillScore(playerid, killerid)
         }
     }
 
-	GetPlayerName(killerid, name, sizeof(name));
-	format(str, sizeof(str), "Убийца - [%s]. Получено очков - %d. Нанесено урона - %d.", name, base_score, DmgInfo[playerid][0]);
-	print(str);
-
 	for(new i = 1; i < MAX_PARTICIPANTS; i++)
 	{
 		if(DmgInfo[playerid][i] <= 0)
 			break;
 		new part_id = PvpInfo[damagers_ids[i]][ID];
-		if(damagers_ids[i] == -1 || part_id == -1 || part_id == killerid || part_id == playerid || part_id == INVALID_PLAYER_ID || GetPlayerTourTeam(playerid) == GetPlayerTourTeam(part_id))
+		if(part_id == -1 || part_id == killerid || part_id == playerid || part_id == INVALID_PLAYER_ID || GetPlayerTourTeam(playerid) == GetPlayerTourTeam(part_id))
 			continue;
 		
 		base_score = floatround(floatmul(base_score, 0.75));
 		PvpInfo[damagers_ids[i]][Score] += base_score;
-
-		GetPlayerName(PvpInfo[damagers_ids[i]][ID], name, sizeof(name));
-		format(str, sizeof(str), "[%s]. Получено очков - %d. Нанесено урона - %d.", name, base_score, DmgInfo[playerid][i]);
-		print(str);
 	}
-
-	print(" ");
 }
 
 stock ResetLoot()
