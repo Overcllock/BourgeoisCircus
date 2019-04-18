@@ -1,4 +1,4 @@
-//Bourgeois Circus 0.97
+//Bourgeois Circus 0.98
 
 #include <a_samp>
 #include <a_mail>
@@ -18,7 +18,7 @@
 
 #pragma dynamic 31294
 
-#define VERSION 0.971
+#define VERSION 0.981
 
 //Mysql settings
 
@@ -116,6 +116,7 @@
 #define GRADE_N 1
 #define GRADE_B 2
 #define GRADE_C 3
+#define GRADE_D 4
 
 //Props
 #define PROPERTY_NONE 0
@@ -1391,7 +1392,7 @@ public OnPlayerKeyStateChange(playerid, newkeys, oldkeys)
 		else if(IsPlayerInRangeOfPoint(playerid,1.8,-2166.7527,646.0400,1052.3750))
 		{
 			new listitems[2048];
-			listitems = GetMaterialsSellerItemsList();
+			listitems = GetMaterialsSellerItemsList(playerid);
 			ShowPlayerDialog(playerid, 700, DIALOG_STYLE_TABLIST_HEADERS, "Торговец расходниками", listitems, "Купить", "Закрыть");
 		}
 		//боссы
@@ -2025,7 +2026,8 @@ public OnDialogResponse(playerid, dialogid, response, listitem, inputtext[])
 					return 0;
 				}
 
-				if(PlayerInfo[playerid][Cash] < item[Price] * count)
+				if((itemid != 186 && PlayerInfo[playerid][Cash] < item[Price] * count) || 
+				   (itemid == 186 && PlayerInfo[playerid][Cash] < (item[Price] + 1000 * PlayerInfo[playerid][Rank] * PlayerInfo[playerid][Rank]) * count))
 				{
 					ShowPlayerDialog(playerid, 1, DIALOG_STYLE_MSGBOX, "Ошибка", "Недостаточно денег.", "Закрыть", "");
 					return 0;
@@ -2052,8 +2054,16 @@ public OnDialogResponse(playerid, dialogid, response, listitem, inputtext[])
 				new count = GetPVarInt(playerid, "BuyedItemCount");
 				new item[BaseItem];
 				item = GetItem(itemid);
-				PlayerInfo[playerid][Cash] -= item[Price] * count;
-				GivePlayerMoney(playerid, -(item[Price] * count));
+
+				new price = 0;
+				if(itemid == 186)
+					price = (item[Price] + 1000 * PlayerInfo[playerid][Rank] * PlayerInfo[playerid][Rank]) * count;
+				else
+					price = item[Price] * count;
+
+				PlayerInfo[playerid][Cash] -= price;
+				GivePlayerMoney(playerid, -price);
+
 				AddItem(playerid, itemid, count);
 				ShowPlayerDialog(playerid, 1, DIALOG_STYLE_MSGBOX, "Покупка", "{66CC00}Предмет куплен.", "Закрыть", "");
 			}
@@ -3534,14 +3544,18 @@ stock UpdateMarketItems()
 			new itemid = -1;
 			new count = 0;
 			new owner[255];
+			new mod[MAX_MOD];
+			new string[255];
 
 			cache_get_value_name_int(i, "ItemID", itemid);
 			cache_get_value_name_int(i, "ItemCount", count);
 			cache_get_value_name(i, "Owner", owner);
+			cache_get_value_name(i, "ItemMod", string);
+			sscanf(string, "a<i>[7]", mod);
 
 			cache_unset_active();
 
-			PendingItem(owner, itemid, MOD_CLEAR, count);
+			PendingItem(owner, itemid, mod, count);
 			new playerid = GetPlayerID(owner);
 			if(playerid != -1 && IsPlayerConnected(playerid))
 				UpdatePlayerPost(playerid);
@@ -3692,7 +3706,7 @@ stock MarketItemExist(id)
 stock GetMarketLotsCountByCategory(category)
 {
 	new query[255];
-	format(query, sizeof(query), "SELECT * FROM `marketplace` WHERE `Category` = '%d'", category);
+	format(query, sizeof(query), "SELECT * FROM `marketplace` WHERE `Category` = '%d' ORDER BY `Price` LIMIT %d", category, MAX_MARKET_ITEMS);
 	new Cache:q_result = mysql_query(sql_handle, query);
 
 	new count = 0;
@@ -5022,7 +5036,7 @@ stock SetBossCooldown(bossid)
 	cache_delete(q_result);
 }
 
-stock GetMaterialsSellerItemsList()
+stock GetMaterialsSellerItemsList(playerid)
 {
 	new listitems[2048] = "Предмет\tЦена";
 	new query[255] = "SELECT * FROM `materials_seller`";
@@ -5051,7 +5065,10 @@ stock GetMaterialsSellerItemsList()
 		if(itemid == -1) continue;
 		new item[BaseItem];
 		item = GetItem(itemid);
-		format(iteminfo, sizeof(iteminfo), "\n{%s}%s\t{66CC00}%d$", GetGradeColor(item[Grade]), item[Name], item[Price]);
+		if(itemid == 186)
+			format(iteminfo, sizeof(iteminfo), "\n{%s}%s\t{66CC00}%d$", GetGradeColor(item[Grade]), item[Name], item[Price] + 1000 * PlayerInfo[playerid][Rank] * PlayerInfo[playerid][Rank]);
+		else
+			format(iteminfo, sizeof(iteminfo), "\n{%s}%s\t{66CC00}%d$", GetGradeColor(item[Grade]), item[Name], item[Price]);
 		strcat(listitems, iteminfo);
 	}
 
@@ -5271,9 +5288,9 @@ stock RollBossLootItem(bossid)
 		{
 			switch(chance)
 			{
-				case 0..199: itemid = GetRandomEquip(1, 1);
-				case 200..499: itemid = GetRandomAccessory(0);
-				case 500..4999: itemid = 195;
+				case 0..499: itemid = GetRandomEquip(1, 2);
+				case 500..799: itemid = GetRandomAccessory(0);
+				case 800..4999: itemid = 195;
 				default: itemid = GetRandomBooster();
 			}
 		}
@@ -5281,10 +5298,10 @@ stock RollBossLootItem(bossid)
 		{
 			switch(chance)
 			{
-				case 0..199: itemid = GetRandomEquip(2, 3);
-				case 200..599: itemid = GetRandomAccessory(0);
-				case 600..999: itemid = 191;
-				case 1000..5499: { itemid = 195; count = 2; }
+				case 0..499: itemid = GetRandomEquip(2, 3);
+				case 500..899: itemid = GetRandomAccessory(0);
+				case 900..1299: itemid = 191;
+				case 1300..5499: { itemid = 195; count = 2; }
 				default: { itemid = GetRandomBooster(); count = 2; }
 			}
 		}
@@ -5292,11 +5309,11 @@ stock RollBossLootItem(bossid)
 		{
 			switch(chance)
 			{
-				case 0..199: itemid = GetRandomEquip(4, 6);
-				case 200..499: itemid = GetRandomAccessory(1);
-				case 500..1099: itemid = 191;
-				case 1100..1299: itemid = 192;
-				case 1300..5499: { itemid = GetRandomBooster(); count = 4; }
+				case 0..499: itemid = GetRandomEquip(4, 6);
+				case 500..799: itemid = GetRandomAccessory(1);
+				case 800..1399: itemid = 191;
+				case 1400..1599: itemid = 192;
+				case 1600..5499: { itemid = GetRandomBooster(); count = 4; }
 				default: { itemid = 195; count = 4; }
 			}
 		}
@@ -5304,13 +5321,13 @@ stock RollBossLootItem(bossid)
 		{
 			switch(chance)
 			{
-				case 0..299: itemid = GetRandomEquip(7, 8);
-				case 300..399: itemid = 202;
-				case 400..599: itemid = 192;
-				case 600..669: itemid = GetRandomAccessory(2);
-				case 670..699: itemid = 193;
-				case 700..999: { itemid = 191; count = 2; }
-				case 1000..5499: { itemid = GetRandomBooster(); count = 7; }
+				case 0..499: itemid = GetRandomEquip(7, 8);
+				case 500..599: itemid = 202;
+				case 600..759: itemid = 192;
+				case 800..869: itemid = GetRandomAccessory(2);
+				case 870..899: itemid = 193;
+				case 900..1199: { itemid = 191; count = 2; }
+				case 1200..5299: { itemid = GetRandomBooster(); count = 7; }
 				default: { itemid = 195; count = 7; }
 			}
 		}
@@ -5318,14 +5335,14 @@ stock RollBossLootItem(bossid)
 		{
 			switch(chance)
 			{
-				case 0..299: itemid = GetRandomEquip(9, 9);
-				case 300..399: itemid = 203;
-				case 400..419: itemid = GetRandomAccessory(3);
-				case 420..479: itemid = 193;
-				case 480: itemid = 194;
-				case 481..699: { itemid = 192; count = 2; }
-				case 700..999: { itemid = 191; count = 3; }
-				case 1000..5499: { itemid = GetRandomBooster(); count = 14; }
+				case 0..499: itemid = GetRandomEquip(9, 9);
+				case 500..599: itemid = 203;
+				case 600..619: itemid = GetRandomAccessory(3);
+				case 620..679: itemid = 193;
+				case 680: itemid = 194;
+				case 681..899: { itemid = 192; count = 2; }
+				case 900..1199: { itemid = 191; count = 3; }
+				case 1200..5299: { itemid = GetRandomBooster(); count = 14; }
 				default: { itemid = 195; count = 14; }
 			}
 		}
@@ -5342,6 +5359,9 @@ stock GetRandomEquip(minrank, maxrank, eq_type = RND_EQUIP_TYPE_RANDOM, grade = 
 	new rank = minrank + random(maxrank-minrank+1) - 1;
 	new type = eq_type == RND_EQUIP_TYPE_RANDOM ? random(2) : eq_type;
 	new baseid = type == 0 ? 1 : 82;
+
+	if(type == 0 && CheckChance(30))
+		return 242 + rank - 1;
 
 	if(type == 0 && rank == 5)
 	{
@@ -7093,6 +7113,8 @@ stock UpgradeItem(playerid, itemslot, stoneid, potionid = -1)
 stock GetModChances(level, grade, potionid = -1)
 {
 	new chances[4];
+	if(grade > GRADE_C)
+		grade = GRADE_C;
 
 	new query[255];
 	format(query, sizeof(query), "SELECT * FROM `mod_chances` WHERE `Level` = '%d' AND `Grade` = '%d' AND `Potion` = '%d' LIMIT 1", level, grade, potionid);
@@ -7136,23 +7158,23 @@ stock GetWeaponBaseDamage(weaponid)
 		case 1: { damage[0] = 19; damage[1] = 24; }
 		case 2..8: { damage[0] = 25; damage[1] = 31; }
 		case 9: { damage[0] = 61; damage[1] = 89; }
-		case 10..16: { damage[0] = 79; damage[1] = 116; }
+		case 10..16, 242: { damage[0] = 79; damage[1] = 116; }
 		case 17: { damage[0] = 9; damage[1] = 18; }
-		case 18..24: { damage[0] = 12; damage[1] = 24; }
+		case 18..24, 243: { damage[0] = 12; damage[1] = 24; }
 		case 25: { damage[0] = 14; damage[1] = 31; }
-		case 26..32: { damage[0] = 19; damage[1] = 42; }
+		case 26..32, 244: { damage[0] = 19; damage[1] = 42; }
 		case 33: { damage[0] = 20; damage[1] = 47; }
-		case 34..40: { damage[0] = 27; damage[1] = 63; }
+		case 34..40, 245: { damage[0] = 27; damage[1] = 63; }
 		case 41: { damage[0] = 41; damage[1] = 53; }
-		case 42..48: { damage[0] = 55; damage[1] = 72; }
+		case 42..48, 246: { damage[0] = 55; damage[1] = 72; }
 		case 49: { damage[0] = 38; damage[1] = 66; }
 		case 50..56: { damage[0] = 51; damage[1] = 89; }
 		case 57: { damage[0] = 281; damage[1] = 429; }
-		case 58..64: { damage[0] = 379; damage[1] = 579; }
+		case 58..64, 247: { damage[0] = 379; damage[1] = 579; }
 		case 65: { damage[0] = 146; damage[1] = 312; }
-		case 66..72: { damage[0] = 197; damage[1] = 421; }
+		case 66..72, 248: { damage[0] = 197; damage[1] = 421; }
 		case 73: { damage[0] = 319; damage[1] = 534; }
-		case 74..80: { damage[0] = 431; damage[1] = 721; }
+		case 74..80, 249: { damage[0] = 431; damage[1] = 721; }
 		default: { damage[0] = 13; damage[1] = 15; }
 	}
 	return damage;
@@ -9693,6 +9715,52 @@ stock DeletePlayerTextDraws(playerid)
 	PlayerTextDrawDestroy(playerid, UpgModInfo[playerid]);
 	PlayerTextDrawDestroy(playerid, UpgDelim1[playerid]);
 	PlayerTextDrawDestroy(playerid, UpgBox[playerid]);
+
+	PlayerTextDrawDestroy(playerid, CmbBox[playerid]);
+	PlayerTextDrawDestroy(playerid, CmbTxt1[playerid]);
+	PlayerTextDrawDestroy(playerid, CmbDelim1[playerid]);
+	PlayerTextDrawDestroy(playerid, CmbTxt2[playerid]);
+	PlayerTextDrawDestroy(playerid, CmbTxt3[playerid]);
+	PlayerTextDrawDestroy(playerid, CmbTxt4[playerid]);
+	PlayerTextDrawDestroy(playerid, CmbBtn[playerid]);
+	PlayerTextDrawDestroy(playerid, CmbBtnBox[playerid]);
+	PlayerTextDrawDestroy(playerid, CmbClose[playerid]);
+
+	for(new i = 0; i < MAX_CMB_ITEMS; i++)
+	{
+		PlayerTextDrawDestroy(playerid, CmbItemSlot[playerid][i]);
+		PlayerTextDrawDestroy(playerid, CmbItemSlotCount[playerid][i]);
+	}
+
+	PlayerTextDrawDestroy(playerid, MpBox[playerid]);
+	PlayerTextDrawDestroy(playerid, MpDelim1[playerid]);
+	PlayerTextDrawDestroy(playerid, MpClose[playerid]);
+	PlayerTextDrawDestroy(playerid, MpTxt1[playerid]);
+	PlayerTextDrawDestroy(playerid, MpItem[playerid]);
+	PlayerTextDrawDestroy(playerid, MpItemCount[playerid]);
+	PlayerTextDrawDestroy(playerid, MpTxt2[playerid]);
+	PlayerTextDrawDestroy(playerid, MpDelim2[playerid]);
+	PlayerTextDrawDestroy(playerid, MpTxtPrice[playerid]);
+	PlayerTextDrawDestroy(playerid, MpTxtCount[playerid]);
+	PlayerTextDrawDestroy(playerid, MpBtn1Box[playerid]);
+	PlayerTextDrawDestroy(playerid, MpBtn2Box[playerid]);
+	PlayerTextDrawDestroy(playerid, MpBtn1[playerid]);
+	PlayerTextDrawDestroy(playerid, MpBtn2[playerid]);
+	PlayerTextDrawDestroy(playerid, MpBtnBox[playerid]);
+	PlayerTextDrawDestroy(playerid, MpBtn[playerid]);
+
+	PlayerTextDrawDestroy(playerid, PvpPanelBox[playerid]);
+	PlayerTextDrawDestroy(playerid, PvpPanelHeader[playerid]);
+	PlayerTextDrawDestroy(playerid, PvpPanelTimer[playerid]);
+	PlayerTextDrawDestroy(playerid, PvpPanelDelim[playerid]);
+	PlayerTextDrawDestroy(playerid, PvpPanelMyName[playerid]);
+	PlayerTextDrawDestroy(playerid, PvpPanelMyScore[playerid]);
+
+	for(new i = 0; i < MAX_PVP_PANEL_ITEMS; i++)
+	{
+		PlayerTextDrawDestroy(playerid, PvpPanelNameLabels[playerid][i]);
+		PlayerTextDrawDestroy(playerid, PvpPanelScoreLabels[playerid][i]);
+	}
 }
 
 stock CreatePickups()
