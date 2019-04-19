@@ -149,7 +149,7 @@
 
 //Delays
 #define DEFAULT_SHOOT_DELAY 200
-#define COLT_SHOOT_DELAY 140
+#define COLT_SHOOT_DELAY 150
 #define DEAGLE_SHOOT_DELAY 370
 #define MP5_SHOOT_DELAY 90
 #define TEC_SHOOT_DELAY 80
@@ -3294,11 +3294,14 @@ stock ParticipantBehaviour(id)
 		FCNPC_AimAtPlayer(id, target, false);
 
 	//If there are targets with less HP beside player - change target
-	new potential_target = FindPlayerTarget(id, true);
-	if(potential_target != -1 && potential_target != target)
+	if(GetPlayerHPPercent(target) >= 20)
 	{
-		if(GetPlayerHPPercent(potential_target) < 20)
-			SetPlayerTarget(id, potential_target);
+		new potential_target = FindPlayerTarget(id, true);
+		if(potential_target != -1 && potential_target != target)
+		{
+			if(GetPlayerHPPercent(potential_target) < 20)
+				SetPlayerTarget(id, potential_target);
+		}
 	}
 	
 	return 1;
