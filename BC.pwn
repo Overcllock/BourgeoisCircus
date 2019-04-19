@@ -71,9 +71,9 @@
 #define MAX_MOD 7
 #define MAX_PROPERTIES 2
 #define MAX_DESCRIPTION_SIZE 45
-#define MAX_GRADES 3
+#define MAX_GRADES 4
 #define MAX_BOSSES 5
-#define MAX_ITEM_ID 204
+#define MAX_ITEM_ID 250
 #define MAX_LOOT 20
 #define MAX_PVP_PANEL_ITEMS 5
 #define MAX_RELIABLE_TARGETS 5
@@ -451,7 +451,8 @@ new HexRateColors[MAX_RANK][1] = {
 new HexGradeColors[MAX_GRADES][1] = {
 	{0xCCCCCCFF},
 	{0xFFCC00FF},
-	{0xCC6600FF}
+	{0xCC6600FF},
+	{0x9966FFFF}
 };
 new HexTeamColors[MAX_TEAMCOLORS][1] = {
 	{0x339999FF},
@@ -1031,9 +1032,9 @@ public OnPlayerGiveDamage(playerid, damagedid, Float:amount, weaponid, bodypart)
 		return 0;
 	}
 
-	if(FCNPC_IsValid(playerid) && FCNPC_IsValid(damagedid))
+	if(FCNPC_IsValid(damagedid))
 		FCNPC_GiveHealth(damagedid, amount);
-	else if(!FCNPC_IsValid(damagedid))
+	else
 	{
 		new Float:c_hp;
 		GetPlayerHealth(damagedid, c_hp);
@@ -2763,7 +2764,7 @@ public TeleportToHome(playerid)
 	ResetWorldBounds(playerid);
 	SetPlayerPos(playerid, 224.0761,-1839.8217,3.6037);
 	SetPlayerInterior(playerid, 0);
-	//SetPlayerTeam(playerid, NO_TEAM);
+	SetPlayerTourTeam(playerid, NO_TEAM);
 }
 
 public CancelBossAttack()
@@ -3273,9 +3274,10 @@ stock ParticipantBehaviour(id)
 	}
 
 	//If current target's HP > 20%, trying to find common target
-	if(GetPlayerHPPercent(target) > 20 && GetAimingPlayersCount(target) < 2)
+	if(GetPlayerHPPercent(target) > 20 && GetAimingPlayersCount(target) < 3)
 		TryFindCommonTarget(id, target);
 
+	target = FCNPC_GetAimingPlayer(id);
 	new Float:dist = GetDistanceBetweenPlayers(id, target);
 	if(!FCNPC_IsMovingAtPlayer(id, target) && dist > 10.0)
 		FCNPC_GoToPlayer(id, target);
@@ -3293,11 +3295,9 @@ stock ParticipantBehaviour(id)
 
 	//If there are targets with less HP beside player - change target
 	new potential_target = FindPlayerTarget(id, true);
-	if(potential_target != -1)
+	if(potential_target != -1 && potential_target != target)
 	{
-		new Float:t_hp = FCNPC_GetHealth(target);
-		new Float:pt_hp = FCNPC_GetHealth(potential_target);
-		if(floatsub(t_hp, pt_hp) >= 35)
+		if(GetPlayerHPPercent(potential_target) < 20)
 			SetPlayerTarget(id, potential_target);
 	}
 	
@@ -5360,8 +5360,8 @@ stock GetRandomEquip(minrank, maxrank, eq_type = RND_EQUIP_TYPE_RANDOM, grade = 
 	new type = eq_type == RND_EQUIP_TYPE_RANDOM ? random(2) : eq_type;
 	new baseid = type == 0 ? 1 : 82;
 
-	if(type == 0 && CheckChance(30))
-		return 242 + rank - 1;
+	if(type == 0 && grade == RND_EQUIP_GRADE_RANDOM && CheckChance(30))
+		return 242 + rank;
 
 	if(type == 0 && rank == 5)
 	{
@@ -5476,15 +5476,15 @@ stock UpdatePlayerWeapon(playerid)
 	new weaponid;
 	switch(PlayerInfo[playerid][WeaponSlotID])
 	{
-		case 9..16: weaponid = 24;
-		case 17..24: weaponid = 28;
-		case 25..32: weaponid = 32;
-		case 33..40: weaponid = 29;
-		case 41..48: weaponid = 30;
+		case 9..16,242: weaponid = 24;
+		case 17..24,243: weaponid = 28;
+		case 25..32,244: weaponid = 32;
+		case 33..40,245: weaponid = 29;
+		case 41..48,246: weaponid = 30;
 		case 49..56: weaponid = 31;
-		case 57..64: weaponid = 25;
-		case 65..72: weaponid = 27;
-		case 73..80: weaponid = 26;
+		case 57..64,247: weaponid = 25;
+		case 65..72,248: weaponid = 27;
+		case 73..80,249: weaponid = 26;
 		default: weaponid = 22;
 	}
 
@@ -7415,8 +7415,9 @@ stock GetGradeColor(grade)
 	new color[16];
 	switch(grade)
 	{
-	    case 2: color = "FFCC00";
-	    case 3: color = "CC6600";
+	    case GRADE_B: color = "FFCC00";
+	    case GRADE_C: color = "CC6600";
+		case GRADE_D: color = "9966FF";
 	    default: color = "CCCCCC";
 	}
 	return color;
