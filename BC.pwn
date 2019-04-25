@@ -111,6 +111,7 @@
 #define ITEMTYPE_PASSIVE 4
 #define ITEMTYPE_MATERIAL 5
 #define ITEMTYPE_BOX 6
+#define ITEMTYPE_MODIFIER 7
 
 //Item grades
 #define GRADE_N 1
@@ -6945,8 +6946,38 @@ stock UpdateCmbWindow(playerid)
 	}
 }
 
+stock GetAvailableModLevelsByModifierID(id)
+{
+
+}
+
+stock CombineWithModifier(playerid)
+{
+	new price = 1000;
+	if(PlayerInfo[playerid][Cash] < price)
+	{
+		ShowPlayerDialog(playerid, 1, DIALOG_STYLE_MSGBOX, "Комбинирование", "Недостаточно средств.", "Закрыть", "");
+		return;
+	}
+
+	new available_mod_levels[2];
+	available_mod_levels = GetAvailableModLevelsByModifierID(CmbItem[playerid][1]);
+	
+}
+
 stock CombineItems(playerid)
 {
+	if(IsModifiableEquip(CmbItem[playerid][0]))
+	{
+		new s_item[BaseItem];
+		s_item = GetItem(CmbItem[playerid][1]);
+		if(s_item[Type] == ITEMTYPE_MODIFIER && CmbItemCount[playerid][1] == 1 && CmbItem[playerid][2] == -1)
+		{
+			CombineWithModifier(playerid);
+			return;
+		}
+	}
+
 	new query[255];
 	format(query, sizeof(query), "SELECT * FROM `combinations` WHERE \
 	`Item1_ID` = '%d' AND \
