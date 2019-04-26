@@ -1,4 +1,4 @@
-//Bourgeois Circus 0.98
+//Bourgeois Circus 1.0
 
 #include <a_samp>
 #include <a_mail>
@@ -18,7 +18,7 @@
 
 #pragma dynamic 31294
 
-#define VERSION 0.981
+#define VERSION 1.001
 
 //Mysql settings
 
@@ -73,7 +73,7 @@
 #define MAX_DESCRIPTION_SIZE 45
 #define MAX_GRADES 4
 #define MAX_BOSSES 5
-#define MAX_ITEM_ID 250
+#define MAX_ITEM_ID 315
 #define MAX_LOOT 20
 #define MAX_PVP_PANEL_ITEMS 5
 #define MAX_RELIABLE_TARGETS 5
@@ -118,6 +118,7 @@
 #define GRADE_B 2
 #define GRADE_C 3
 #define GRADE_D 4
+#define GRADE_R 5
 
 //Props
 #define PROPERTY_NONE 0
@@ -1329,14 +1330,24 @@ public OnPlayerPickUpPickup(playerid, pickupid)
 			SafeDestroyPickup(BossLootPickups[i]);
 			if(BossLootItems[i][ItemID] == -1) continue;
 
+			new string[255];
+			new item[BaseItem];
+			item = GetItem(BossLootItems[i][ItemID]);
+
 			if(IsEquip(BossLootItems[i][ItemID]))
+			{
 				AddEquip(playerid, BossLootItems[i][ItemID], MOD_CLEAR);
+				if(item[Grade] >= GRADE_C)
+				{
+					format(string, sizeof(string), "{%s}%s {ffffff}приобрел {%s}[%s]{ffffff}.", 
+						GetColorByRate(PlayerInfo[playerid][Rate]), PlayerInfo[playerid][Name], GetGradeColor(item[Grade]), item[Name]
+					);
+					SendClientMessageToAll(0xFFFFFFFF, string);
+				}
+			}
 			else
 				AddItem(playerid, BossLootItems[i][ItemID], BossLootItems[i][Count]);
 			
-			new item[BaseItem];
-			item = GetItem(BossLootItems[i][ItemID]);
-			new string[255];
 			format(string, sizeof(string), "Подобрано: {%s}[%s] {ffffff}x%d.", 
 				GetGradeColor(item[Grade]), item[Name], BossLootItems[i][Count]
 			);
@@ -4608,6 +4619,47 @@ stock OpenLockbox(playerid, lockboxid)
 				default: { itemid = 192; count = 1; }
 			}
 		}
+		case 310:
+		{
+			count = 1;
+			switch(chance)
+			{
+				case 0..3999: itemid = 250 + 6 * random(4);
+				case 4000..6999: itemid = 251 + 6 * random(4);
+				case 7000..8299: itemid = 252 + 6 * random(4);
+				case 8300..8999: itemid = 253 + 6 * random(4);
+				case 9000..9599: itemid = 254 + 6 * random(4);
+				default: itemid = 255 + 6 * random(4);
+			}
+		}
+		case 311:
+		{
+			count = 1;
+			switch(chance)
+			{
+				case 0..3999: itemid = 274 + 5 * random(4);
+				case 4000..6999: itemid = 275 + 5 * random(4);
+				case 7000..8299: itemid = 276 + 5 * random(4);
+				case 8300..9199: itemid = 277 + 5 * random(4);
+				default: itemid = 278 + 5 * random(4);
+			}
+		}
+		case 312:
+		{
+			count = 1;
+			switch(chance)
+			{
+				case 0..5999: itemid = 294 + 4 * random(4);
+				case 6000..9499: itemid = 295 + 4 * random(4);
+				case 9500..9899: itemid = 296 + 4 * random(4);
+				default: itemid = 297 + 4 * random(4);
+			}
+		}
+		case 313:
+		{
+			count = 1;
+			itemid = 205 + random(4) * 9;
+		}
 	}
 	if(itemid == -1) return;
 
@@ -7254,7 +7306,21 @@ stock CombineItems(playerid)
 	{
 		ShowPlayerDialog(playerid, 1, DIALOG_STYLE_MSGBOX, "Комбинирование", "{33CC00}Успешная комбинация.", "Закрыть", "");
 		if(IsEquip(result_id))
+		{
+			new eq_item[BaseItem];
+			eq_item = GetItem(result_id);
+
 			AddEquip(playerid, result_id, MOD_CLEAR);
+
+			if(eq_item[Grade] >= GRADE_C)
+			{
+				new string[255];
+				format(string, sizeof(string), "{%s}%s {ffffff}приобрел {%s}[%s]{ffffff}.", 
+					GetColorByRate(PlayerInfo[playerid][Rate]), PlayerInfo[playerid][Name], GetGradeColor(eq_item[Grade]), eq_item[Name]
+				);
+				SendClientMessageToAll(0xFFFFFFFF, string);
+			}
+		}
 		else
 			AddItem(playerid, result_id, result_count);
 	}
