@@ -6948,7 +6948,177 @@ stock UpdateCmbWindow(playerid)
 
 stock GetAvailableModLevelsByModifierID(id)
 {
+	new levels[2];
 
+	switch(id)
+	{
+		case 250, 256, 262, 268: { levels[0] = 1; levels[1] = 2; }
+		case 251, 257, 263, 269: { levels[0] = 1; levels[1] = 3; }
+		case 252, 258, 264, 270: { levels[0] = 2; levels[1] = 3; }
+		case 253, 259, 265, 271: { levels[0] = 2; levels[1] = 4; }
+		case 254, 260, 266, 272: { levels[0] = 2; levels[1] = 5; }
+		case 255, 261, 267, 273: { levels[0] = 2; levels[1] = 6; }
+
+		case 274, 279, 284, 289: { levels[0] = 3; levels[1] = 4; }
+		case 275, 280, 285, 290: { levels[0] = 3; levels[1] = 5; }
+		case 276, 281, 286, 291: { levels[0] = 3; levels[1] = 6; }
+		case 277, 282, 287, 292: { levels[0] = 4; levels[1] = 5; }
+		case 278, 283, 288, 293: { levels[0] = 4; levels[1] = 6; }
+
+		case 294, 298, 302, 306: { levels[0] = 4; levels[1] = 7; }
+		case 295, 299, 303, 307: { levels[0] = 5; levels[1] = 6; }
+		case 296, 300, 304, 308: { levels[0] = 5; levels[1] = 7; }
+		case 297, 301, 305, 309: { levels[0] = 6; levels[1] = 7; }
+
+		default: { levels[0] = 0; levels[1] = 0; }
+	}
+
+	return levels;
+}
+
+stock GetModifierModLevel(levels[])
+{
+	new level = levels[0];
+	new rnd = random(100);
+
+	switch(levels[0])
+	{
+		case 1:
+		{
+			switch(levels[1])
+			{
+				case 2:
+				{
+					if(rnd < 60) level = 1;
+					else level = 2;
+				}
+				case 3:
+				{
+					if(rnd < 50) level = 1;
+					else if(rnd < 85) level = 2;
+					else level = 3;
+				}
+			}
+		}
+		case 2:
+		{
+			switch(levels[1])
+			{
+				case 3:
+				{
+					if(rnd < 60) level = 2;
+					else level = 3;
+				}
+				case 4:
+				{
+					if(rnd < 50) level = 2;
+					else if(rnd < 85) level = 3;
+					else level = 4;
+				}
+				case 5:
+				{
+					if(rnd < 40) level = 2;
+					else if(rnd < 60) level = 3;
+					else if(rnd < 90) level = 4;
+					else level = 5;
+				}
+				case 6:
+				{
+					if(rnd < 35) level = 2;
+					else if(rnd < 55) level = 3;
+					else if(rnd < 85) level = 4;
+					else if(rnd < 95) level = 5;
+					else level = 6;
+				}
+			}
+		}
+		case 3:
+		{
+			switch(levels[1])
+			{
+				case 4:
+				{
+					if(rnd < 60) level = 3;
+					else level = 4;
+				}
+				case 5:
+				{
+					if(rnd < 50) level = 3;
+					else if(rnd < 85) level = 4;
+					else level = 5;
+				}
+				case 6:
+				{
+					if(rnd < 50) level = 3;
+					else if(rnd < 77) level = 4;
+					else if(rnd < 93) level = 5;
+					else level = 6;
+				}
+			}
+		}
+		case 4:
+		{
+			switch(levels[1])
+			{
+				case 5:
+				{
+					if(rnd < 60) level = 4;
+					else level = 5;
+				}
+				case 6:
+				{
+					if(rnd < 70) level = 4;
+					else if(rnd < 92) level = 5;
+					else level = 6;
+				}
+				case 7:
+				{
+					if(rnd < 60) level = 4;
+					else if(rnd < 90) level = 5;
+					else if(rnd < 97) level = 6;
+					else level = 7;
+				}
+			}
+		}
+		case 5:
+		{
+			switch(levels[1])
+			{
+				case 6:
+				{
+					if(rnd < 80) level = 5;
+					else level = 6;
+				}
+				case 7:
+				{
+					if(rnd < 80) level = 5;
+					else if(rnd < 95) level = 6;
+					else level = 7;
+				}
+			}
+		}
+		case 6:
+		{
+			switch(levels[1])
+			{
+				case 7:
+				{
+					if(rnd < 85) level = 6;
+					else level = 7;
+				}
+			}
+		}
+	}
+
+	return level;
+}
+
+stock SetModLevel(playerid, slotid, stoneid, level)
+{
+	for(new i = 0; i < MAX_MOD; i++)
+		PlayerInventory[playerid][slotid][Mod][i] = 0;
+	for(new i = 0; i < level; i++)
+		PlayerInventory[playerid][slotid][Mod][i] = GetModifierByStone(stoneid);
 }
 
 stock CombineWithModifier(playerid)
@@ -6959,10 +7129,43 @@ stock CombineWithModifier(playerid)
 		ShowPlayerDialog(playerid, 1, DIALOG_STYLE_MSGBOX, "Комбинирование", "Недостаточно средств.", "Закрыть", "");
 		return;
 	}
+	
+	new equip[BaseItem];
+	new itemid = CmbItem[playerid][2];
+	equip = GetItem(CmbItemCount[playerid][0]);
+	if( ((itemid == 187 || itemid == 189) && equip[Type] != ITEMTYPE_WEAPON) ||
+		((itemid == 188 || itemid == 190) && equip[Type] != ITEMTYPE_ARMOR) )
+	{
+		ShowPlayerDialog(playerid, 1, DIALOG_STYLE_MSGBOX, "Комбинирование", "Нельзя использовать этот камень.", "Закрыть", "");
+		return;
+	}
+
+	new modifierid = CmbItem[playerid][1];
+	new mdf[BaseItem];
+	mdf = GetItem(modifierid);
+	if(mdf[Grade] != equip[Grade])
+	{
+		ShowPlayerDialog(playerid, 1, DIALOG_STYLE_MSGBOX, "Комбинирование", "Данную экипировку нельзя комбинировать с этим модификатором.", "Закрыть", "");
+		return;
+	}
 
 	new available_mod_levels[2];
 	available_mod_levels = GetAvailableModLevelsByModifierID(CmbItem[playerid][1]);
-	
+	new mod_level = GetModifierModLevel(available_mod_levels);
+	SetModLevel(playerid, CmbItemSlot[playerid][0], CmbItemSlot[playerid][2], mod_level);
+	DeleteItem(playerid, CmbItemInvSlot[playerid][2], 1);
+
+	if(mod_level >= 5)
+	{
+		new cng_string[255];
+		new name[255];
+		GetPlayerName(playerid, name, sizeof(name));
+		format(cng_string, sizeof(cng_string), "{%s}%s{FF6347} успешно модернизирован %d на стадии {%s}%s.", 
+			GetColorByRate(PlayerInfo[playerid][Rate]), name, mod_level, GetGradeColor(equip[Grade]), equip[Name]
+		);
+		SendClientMessageToAll(COLOR_LIGHTRED, cng_string);
+	}
+	ShowPlayerDialog(playerid, 1, DIALOG_STYLE_MSGBOX, "Комбинирование", "{33CC00}Успешная комбинация.", "Закрыть", "");
 }
 
 stock CombineItems(playerid)
@@ -6971,7 +7174,7 @@ stock CombineItems(playerid)
 	{
 		new s_item[BaseItem];
 		s_item = GetItem(CmbItem[playerid][1]);
-		if(s_item[Type] == ITEMTYPE_MODIFIER && CmbItemCount[playerid][1] == 1 && CmbItem[playerid][2] == -1)
+		if(s_item[Type] == ITEMTYPE_MODIFIER && CmbItemCount[playerid][1] == 1 && IsModStone(CmbItem[playerid][2]) && CmbItemCount[playerid][2] == 1)
 		{
 			CombineWithModifier(playerid);
 			return;
