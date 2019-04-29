@@ -2452,7 +2452,7 @@ public OnPlayerClickPlayerTextDraw(playerid, PlayerText:playertextid)
 		new item[BaseItem];
 		item = GetItem(itemid);
 
-		if(item[Type] == ITEMTYPE_BOX || item[Type] == ITEMTYPE_PASSIVE)
+		if(item[Type] == ITEMTYPE_BOX || item[Type] == ITEMTYPE_PASSIVE || item[Type] == ITEMTYPE_MODIFIER)
 		{
 			ShowPlayerDialog(playerid, 1, DIALOG_STYLE_MSGBOX, "Ошибка", "Этот предмет нельзя продать.", "Закрыть", "");
 			return 0;
@@ -2463,7 +2463,7 @@ public OnPlayerClickPlayerTextDraw(playerid, PlayerText:playertextid)
 			MarketSellingItem[playerid][Mod][i] = PlayerInventory[playerid][SelectedSlot[playerid]][Mod][i];
 		MarketSellingItem[playerid][Count] = 1;
 		MarketSellingItem[playerid][Price] = item[Price] / 2;
-		MarketSellingItem[playerid][rTime] = 2;
+		MarketSellingItem[playerid][rTime] = 3;
 		sscanf(PlayerInfo[playerid][Name], "s[255]", MarketSellingItem[playerid][Owner]);
 		MarketSellingItem[playerid][LotID] = GetMarketNextLotID();
 		SetPVarInt(playerid, "MarketSellingItemInvSlot", SelectedSlot[playerid]);
@@ -3394,49 +3394,49 @@ stock GiveTournamentRewards()
 			{
 				reward[ItemID] = 203;
 				reward[ItemsCount] = 15;
-				money = 1000;
+				money = 4000;
 			}
 			case 2:
 			{
 				reward[ItemID] = 203;
 				reward[ItemsCount] = 13;
-				money = 800;
+				money = 3800;
 			}
 			case 3:
 			{
 				reward[ItemID] = 203;
 				reward[ItemsCount] = 11;
-				money = 500;
+				money = 3500;
 			}
 			case 4..5:
 			{
 				reward[ItemID] = 203;
 				reward[ItemsCount] = 7;
-				money = 350;
+				money = 2750;
 			}
 			case 6..8:
 			{
 				reward[ItemID] = 202;
 				reward[ItemsCount] = 10;
-				money = 200;
+				money = 2200;
 			}
 			case 9..12:
 			{
 				reward[ItemID] = 202;
 				reward[ItemsCount] = 8;
-				money = 100;
+				money = 1600;
 			}
 			case 13..16:
 			{
 				reward[ItemID] = 202;
 				reward[ItemsCount] = 6;
-				money = 50;
+				money = 1350;
 			}
 			default:
 			{
 				reward[ItemID] = 202;
 				reward[ItemsCount] = 4;
-				money = 10;
+				money = 1000;
 			}
 		}
 
@@ -3847,6 +3847,10 @@ stock BuyItem(playerid, lotid, count = 1)
 	{
 		PlayerInfo[owner_id][Cash] += amount;
 		GivePlayerMoney(owner_id, amount);
+
+		new string[255];
+		format(string, sizeof(string), "Предмет [{%s}%s{ffffff}] продан.", GetGradeColor(item[Grade]), item[Name]);
+		SendClientMessage(owner_id, 0xFFFFFFFF, string);
 	}
 	else
 		GivePlayerMoneyOffline(item[Owner], amount);
@@ -4128,14 +4132,14 @@ stock GetTourReward(tour, place, name[])
 	new rank = GetPlayerRankOffline(name);
 	switch(place)
 	{
-		case 1: money = 100;
-		case 2: money = 80; 
-		case 3: money = 60;
-		case 4..5: money = 35;
-		case 6..8: money = 30;
-		case 9..12: money = 20;
-		case 13..16: money = 10;
-		case 17..20: money = 5;
+		case 1: money = 200;
+		case 2: money = 160; 
+		case 3: money = 120;
+		case 4..5: money = 70;
+		case 6..8: money = 60;
+		case 9..12: money = 40;
+		case 13..16: money = 20;
+		case 17..20: money = 10;
 	}
 	money = money * floatround(floatpower(rank + tour, 2));
 	reward[Money] = money;
@@ -5346,8 +5350,8 @@ stock RollBossLootItem(bossid)
 			{
 				case 0..499: itemid = GetRandomEquip(1, 2);
 				case 500..799: itemid = GetRandomAccessory(0);
-				case 800..4999: itemid = 195;
-				default: itemid = GetRandomBooster();
+				case 800..4999: { itemid = 195; count = 2; }
+				default: { itemid = GetRandomBooster(); count = 2; }
 			}
 		}
 		case 1:
@@ -5357,8 +5361,8 @@ stock RollBossLootItem(bossid)
 				case 0..499: itemid = GetRandomEquip(2, 3);
 				case 500..899: itemid = GetRandomAccessory(0);
 				case 900..1299: itemid = 191;
-				case 1300..5499: { itemid = 195; count = 2; }
-				default: { itemid = GetRandomBooster(); count = 2; }
+				case 1300..5499: { itemid = 195; count = 4; }
+				default: { itemid = GetRandomBooster(); count = 4; }
 			}
 		}
 		case 2:
@@ -5369,8 +5373,8 @@ stock RollBossLootItem(bossid)
 				case 500..799: itemid = GetRandomAccessory(1);
 				case 800..1399: itemid = 191;
 				case 1400..1599: itemid = 192;
-				case 1600..5499: { itemid = GetRandomBooster(); count = 4; }
-				default: { itemid = 195; count = 4; }
+				case 1600..5499: { itemid = GetRandomBooster(); count = 8; }
+				default: { itemid = 195; count = 8; }
 			}
 		}
 		case 3:
@@ -5383,8 +5387,8 @@ stock RollBossLootItem(bossid)
 				case 800..869: itemid = GetRandomAccessory(2);
 				case 870..899: itemid = 193;
 				case 900..1199: { itemid = 191; count = 2; }
-				case 1200..5299: { itemid = GetRandomBooster(); count = 7; }
-				default: { itemid = 195; count = 7; }
+				case 1200..5299: { itemid = GetRandomBooster(); count = 14; }
+				default: { itemid = 195; count = 14; }
 			}
 		}
 		case 4:
@@ -5398,8 +5402,8 @@ stock RollBossLootItem(bossid)
 				case 680: itemid = 194;
 				case 681..899: { itemid = 192; count = 2; }
 				case 900..1199: { itemid = 191; count = 3; }
-				case 1200..5299: { itemid = GetRandomBooster(); count = 14; }
-				default: { itemid = 195; count = 14; }
+				case 1200..5299: { itemid = GetRandomBooster(); count = 28; }
+				default: { itemid = 195; count = 28; }
 			}
 		}
 	}
@@ -7167,10 +7171,12 @@ stock GetModifierModLevel(levels[])
 
 stock SetModLevel(playerid, slotid, stoneid, level)
 {
+	new modifier = GetModifierByStone(stoneid);
+
 	for(new i = 0; i < MAX_MOD; i++)
 		PlayerInventory[playerid][slotid][Mod][i] = 0;
 	for(new i = 0; i < level; i++)
-		PlayerInventory[playerid][slotid][Mod][i] = GetModifierByStone(stoneid);
+		PlayerInventory[playerid][slotid][Mod][i] = modifier;
 }
 
 stock CombineWithModifier(playerid)
@@ -7460,12 +7466,12 @@ stock GetWeaponBaseDamage(weaponid)
 	{
 		case 1: { damage[0] = 19; damage[1] = 24; }
 		case 2..8: { damage[0] = 25; damage[1] = 31; }
-		case 9: { damage[0] = 61; damage[1] = 89; }
-		case 10..16, 242: { damage[0] = 79; damage[1] = 116; }
+		case 9: { damage[0] = 65; damage[1] = 94; }
+		case 10..16, 242: { damage[0] = 85; damage[1] = 122; }
 		case 17: { damage[0] = 9; damage[1] = 18; }
 		case 18..24, 243: { damage[0] = 12; damage[1] = 24; }
-		case 25: { damage[0] = 14; damage[1] = 31; }
-		case 26..32, 244: { damage[0] = 19; damage[1] = 42; }
+		case 25: { damage[0] = 12; damage[1] = 26; }
+		case 26..32, 244: { damage[0] = 16; damage[1] = 34; }
 		case 33: { damage[0] = 20; damage[1] = 47; }
 		case 34..40, 245: { damage[0] = 27; damage[1] = 63; }
 		case 41: { damage[0] = 41; damage[1] = 53; }
