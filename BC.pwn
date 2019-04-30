@@ -86,6 +86,7 @@
 #define MAX_MARKET_CATEGORIES 4
 #define MAX_MARKET_ITEMS 20
 #define MAX_TOUR_TIME 180
+#define MAX_WALKERS 20
 
 //Market
 #define MARKET_CATEGORY_WEAPON 0
@@ -166,6 +167,7 @@ forward Time();
 forward OnPlayerLogin(playerid);
 forward OnTourEnd(finished);
 forward OnTournamentEnd();
+forward OnPhaseChanged(oldphase, newphase);
 forward Float:GetDistanceBetweenPlayers(p1, p2);
 forward Float:GetPlayerMaxHP(playerid);
 forward Float:GetPlayerHP(playerid);
@@ -186,6 +188,7 @@ forward bool:CheckChance(chance);
 forward RegeneratePlayerHP(playerid);
 forward UpdatePvpTable();
 forward CheckDead(npcid);
+forward RespawnWalker(walkerid);
 
 /* Variables */
 
@@ -316,6 +319,22 @@ enum pInfo
 	WeaponMod[MAX_MOD],
 	ArmorMod[MAX_MOD]
 };
+enum wInfo
+{
+	ID,
+	DynamicText3D:LabelID,
+	Name[255],
+	Rank,
+	Skin,
+	MaxHP,
+	DamageMin,
+	DamageMax,
+	Defense,
+	Dodge,
+	Accuracy,
+	Crit,
+	WeaponID
+};
 
 //Global
 new WorldTime_Timer = -1;
@@ -326,6 +345,7 @@ new Actors[MAX_ACTORS];
 new ReadyIDs[MAX_OWNERS] = -1;
 new MySQL:sql_handle;
 new arena_area;
+new walkers_area;
 new Tournament[tInfo];
 new TourParticipantsCount = 0;
 new TournamentTab[MAX_PARTICIPANTS][TopItem];
@@ -362,6 +382,8 @@ new Windows[MAX_PLAYERS][TWindow];
 
 new TourTeam[MAX_PLAYERS] = NO_TEAM;
 
+new Walkers[MAX_WALKERS][wInfo];
+
 //Pickups
 new home_enter = 0;
 new home_quit = 0;
@@ -378,6 +400,7 @@ new bool:IsInventoryOpen[MAX_PLAYERS] = false;
 new bool:IsDeath[MAX_PLAYERS] = false;
 new bool:IsSpawned[MAX_PLAYERS] = false;
 new bool:IsParticipant[MAX_PLAYERS] = false;
+new bool:IsWalker[MAX_PLAYERS] = false;
 new bool:IsEasyMod[MAX_PLAYERS] = false;
 new SelectedSlot[MAX_PLAYERS] = -1;
 
@@ -769,6 +792,9 @@ public OnGameModeInit()
 	mysql_set_charset("cp1251");
 
 	LoadTournamentInfo();
+	if(Tournament[Phase] == PHASE_PEACE)
+		InitWalkers();
+
 	UpdateGlobalRatingTop();
 
 	return 1;
@@ -788,6 +814,15 @@ public OnGameModeExit()
 
 public OnPlayerLeaveDynamicArea(playerid, areaid)
 {
+	if(FCNPC_IsValid(playerid) && !FCNPC_IsDead(playerid) && IsWalker[playerid] && areaid == walkers_area)
+	{
+		FCNPC_Stop(playerid);
+		FCNPC_StopAim(playerid);
+		SetPVarFloat(playerid, "HP", MaxHP[playerid]);
+		SetWalkerDestPoint(playerid);
+		return 1;
+	}
+
 	if(FCNPC_IsValid(playerid)) return 0;
 
 	if(IsTourStarted && !IsDeath[playerid] && areaid == arena_area && IsPlayerParticipant(playerid))
@@ -936,6 +971,14 @@ public OnTourEnd(finished)
 		SendClientMessageToAll(COLOR_LIGHTRED, "Тур прерван.");
 }
 
+public OnPhaseChanged(oldphase, newphase)
+{
+	if(newphase == PHASE_PEACE)
+		InitWalkers();
+	else
+		DestroyWalkers();
+}
+
 public OnTournamentEnd()
 {
 	new string[255];
@@ -946,6 +989,7 @@ public OnTournamentEnd()
 	Tournament[Tour] = 1;
 	Tournament[Number]++;
 	Tournament[Phase] = PHASE_PEACE;
+	OnPhaseChanged(PHASE_WAR, PHASE_PEACE);
 
 	GiveTournamentRewards();
 	UpdateTourParticipants();
@@ -1018,6 +1062,13 @@ public UpdatePvpTable()
 
 		PlayerTextDrawSetStringRus(InitID, PvpPanelTimer[InitID], string);
 	}
+}
+
+public FCNPC_OnReachDestination(npcid)
+{
+	if(IsWalker[npcid] && !FCNPC_IsAiming(npcid))
+		SetWalkerDestPoint(walkerid);
+	return 1;
 }
 
 public FCNPC_OnGiveDamage(npcid, damagedid, Float:amount, weaponid, bodypart)
@@ -1185,6 +1236,12 @@ public OnPlayerDeath(playerid, killerid, reason)
 			FinishBossAttack();
 		return 1;
 	}
+	if(IsWalker[playerid])
+	{
+		RollWalkerLoot(playerid, killerid);
+		WalkerRespawnTimer = SetTimerEx("RespawnWalker", 5000, false, "i", playerid);
+		return 1;
+	}
 	if(IsTourStarted)
 	{
 		new _killerid = GetRealKillerId(playerid, killerid);
@@ -1280,6 +1337,11 @@ public CheckDead(npcid)
 		KillTimer(DeadCheckTimer[npcid]);
     if(FCNPC_IsDead(npcid))
 		FCNPC_Respawn(npcid);
+}
+
+public RespawnWalker(walkerid)
+{
+	//TODO:
 }
 
 public OnPlayerText(playerid, text[])
@@ -1631,6 +1693,7 @@ public OnDialogResponse(playerid, dialogid, response, listitem, inputtext[])
 							if(ReadyIDs[i] == -1) return 1;
 						SendClientMessageToAll(COLOR_LIGHTRED, "Начинается фаза войны!");
 						Tournament[Phase] = PHASE_WAR;
+						OnPhaseChanged(PHASE_PEACE, PHASE_WAR);
 						SaveTournamentInfo();
 						for(new i = 0; i < MAX_OWNERS; i++)
 							ReadyIDs[i] = -1;
@@ -2353,6 +2416,12 @@ public FCNPC_OnUpdate(npcid)
 	if(npcid == BossNPC && !IsTourStarted)
 	{
 		BossBehaviour(npcid);
+		return 1;
+	}
+
+	if(IsWalker[npcid] && !IsTourStarted)
+	{
+		WalkerBehaviour(npcid);
 		return 1;
 	}
 
@@ -3317,6 +3386,14 @@ stock ParticipantBehaviour(id)
 	}
 	
 	return 1;
+}
+
+stock WalkerBehaviour(id)
+{
+	if(id == -1 || id == INVALID_PLAYER_ID) return;
+	if(!FCNPC_IsValid(id) || !IsWalker[id]) return;
+
+	//TODO:
 }
 
 stock BossBehaviour(id)
@@ -5305,6 +5382,11 @@ stock ResetLoot()
 		BossLootItems[i][ItemID] = -1;
 		BossLootItems[i][Count] = 0;
 	}
+}
+
+stock RollWalkerLoot(walkerid, killerid)
+{
+	//TODO:
 }
 
 stock RollBossLoot()
@@ -8416,6 +8498,41 @@ stock GetPlayer(id)
 	return player;
 }
 
+stock GetWalker(rank)
+{
+	new walker[wInfo];
+
+	new query[255];
+	format(query, sizeof(query), "SELECT * FROM `walkers` WHERE `Rank` = '%d' LIMIT 1", rank);
+	new Cache:q_result = mysql_query(sql_handle, query);
+	new row_count;
+	cache_get_row_count(row_count);
+	if(row_count <= 0)
+	{
+		print("GetWalker() error.");
+		return player;
+	}
+
+	walker[Rank] = rank;
+
+	cache_get_value_name_int(0, "Skin", walker[Skin]);
+	cache_get_value_name_int(0, "MaxHP", walker[MaxHP]);
+	cache_get_value_name_int(0, "DamageMin", walker[DamageMin]);
+	cache_get_value_name_int(0, "DamageMax", walker[DamageMax]);
+	cache_get_value_name_int(0, "Defense", walker[Defense]);
+	cache_get_value_name_int(0, "Dodge", walker[Dodge]);
+	cache_get_value_name_int(0, "Accuracy", walker[Accuracy]);
+	cache_get_value_name_int(0, "Crit", walker[Crit]);
+	cache_get_value_name_int(0, "WeaponID", walker[WeaponSlotID]);
+
+	new name[255];
+	cache_get_value_name(0, "Name", name);
+	format(walker[Name], 255, "%s", name);
+
+	cache_delete(q_result);
+	return walker;
+}
+
 stock GetPlayerID(name[])
 {
 	new p_name[255];
@@ -8429,6 +8546,58 @@ stock GetPlayerID(name[])
 	}
 
 	return -1;
+}
+
+stock SetWalkerDestPoint(walkerid)
+{
+	//TODO:
+}
+
+stock SetRandomWalkerPos(walkerid)
+{
+	//TODO:
+}
+
+stock InitWalkers()
+{
+	for(new i = 0; i < MAX_WALKERS; i++)
+	{
+		new rank = random(MAX_RANK) + 1;
+		new walker[wInfo];
+		Walkers[i] = GetWalker(rank);
+
+		new npc_name[255];
+		format(npc_name, sizeof(npc_name), "Walker_%d", i);
+		Walkers[i][ID] = FCNPC_Create(npc_name);
+
+		IsWalker[Walkers[i][ID]] = true;
+		PlayerInfo[Walkers[i][ID]][DamageMin] = Walkers[i][DamageMin];
+		PlayerInfo[Walkers[i][ID]][DamageMax] = Walkers[i][DamageMax];
+		PlayerInfo[Walkers[i][ID]][Defense] = Walkers[i][Defense];
+		PlayerInfo[Walkers[i][ID]][Dodge] = Walkers[i][Dodge];
+		PlayerInfo[Walkers[i][ID]][Accuracy] = Walkers[i][Accuracy];
+		PlayerInfo[Walkers[i][ID]][Crit] = Walkers[i][Crit];
+		PlayerInfo[Walkers[i][ID]][Sex] = 0;
+		PlayerInfo[Walkers[i][ID]][Skin] = Walkers[i][Skin];
+		PlayerInfo[Walkers[i][ID]][WeaponSlotID] = Walkers[i][WeaponID];
+
+		FCNPC_Spawn(Walkers[i][ID], Walkers[i][Skin], 0, 0, 0);
+		SetRandomWalkerPos(Walkers[i][ID]);
+		SetPlayerWeapons(Walkers[i][ID]);
+
+		new name[255];
+		format(name, sizeof(name), "[LV%d] %s", Walkers[i][Rank], Walkers[i][Name]);
+		Walkers[i][LabelID] = CreateDynamic3DTextLabel(name, HexRateColors[Walkers[i][Rank]][0], 0, 0, 0.2, 30, Walkers[i][ID]);
+	}
+}
+
+stock DestroyWalkers()
+{
+	for(new i = 0; i < MAX_WALKERS; i++)
+	{
+		DestroyDynamic3DTextLabel(Walkers[i][LabelID]);
+		FCNPC_Destroy(Walkers[i][ID]);
+	}
 }
 
 stock InitTextDraws()
