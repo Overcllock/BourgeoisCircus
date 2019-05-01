@@ -3586,7 +3586,7 @@ stock GetMarketItem(id, category)
 {
 	new item[MarketItem];
 	new query[255];
-	format(query, sizeof(query), "SELECT * FROM `marketplace` WHERE `Category` = '%d'", category);
+	format(query, sizeof(query), "SELECT * FROM `marketplace` WHERE `Category` = '%d' ORDER BY `Price` LIMIT %d", category, MAX_MARKET_ITEMS);
 	new Cache:q_result = mysql_query(sql_handle, query);
 	new row_count = 0;
 	cache_get_row_count(row_count);
@@ -3896,7 +3896,7 @@ stock ShowMarketMenu(playerid)
 
 stock ShowMarketSellingItems(playerid, category, content[])
 {
-	new listitems[1024];
+	new listitems[2048];
 	if(category == MARKET_CATEGORY_MATERIAL)
 		listitems = "Предмет\tЦена за 1 шт\tВладелец\tВремя регистрации";
 	else
@@ -3907,7 +3907,7 @@ stock ShowMarketSellingItems(playerid, category, content[])
 
 stock ShowMarketMyItems(playerid, content[])
 {
-	new listitems[1024] = "Предмет\tЦена за 1 шт\tВремя регистрации";
+	new listitems[2048] = "Предмет\tЦена за 1 шт\tВремя регистрации";
 	strcat(listitems, content);
 	ShowPlayerDialog(playerid, 1102, DIALOG_STYLE_TABLIST_HEADERS, "Рынок", listitems, "Снять", "Назад");
 }
@@ -3917,10 +3917,10 @@ stock GetColorByStoneModifier(value)
 	new color[32] = "ffffff";
 	switch(value)
 	{
-		case 1: color = "FFCC00";
-		case 2: color = "CC0000";
-		case 3: color = "3366FF";
-		case 4: color = "00CC00";
+		case MOD_DAMAGE: color = "FFCC00";
+		case MOD_DEFENSE: color = "CC0000";
+		case MOD_ACCURACY: color = "3366FF";
+		case MOD_DODGE: color = "00CC00";
 	}
 	return color;
 }
@@ -3965,7 +3965,7 @@ stock ShowMarketBuyList(playerid, category)
 		return;
 	}
 
-	new content[1024] = "";
+	new content[2048] = "";
 	new buf[255];
 	for(new i = 0; i < row_count; i++)
 	{
@@ -4027,7 +4027,7 @@ stock ShowMarketMyLotList(playerid)
 		return;
 	}
 
-	new content[1024] = "";
+	new content[2048] = "";
 	new buf[255];
 	for(new i = 0; i < row_count; i++)
 	{
@@ -4041,7 +4041,7 @@ stock ShowMarketMyLotList(playerid)
 
 		if(m_id == -1)
 		{
-			print("MySql error in ShowMarketBuyList().");
+			print("MySql error in ShowMarketMyLotList().");
 			SendClientMessage(playerid, COLOR_LIGHTRED, "Произошла ошибка, возврат в меню.");
 			ShowMarketMenu(playerid);
 			return;
