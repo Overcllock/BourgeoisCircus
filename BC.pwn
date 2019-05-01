@@ -1,4 +1,4 @@
-//Bourgeois Circus 0.98
+//Bourgeois Circus 1.0
 
 #include <a_samp>
 #include <a_mail>
@@ -18,7 +18,7 @@
 
 #pragma dynamic 31294
 
-#define VERSION 0.981
+#define VERSION 1.001
 
 //Mysql settings
 
@@ -73,7 +73,7 @@
 #define MAX_DESCRIPTION_SIZE 45
 #define MAX_GRADES 4
 #define MAX_BOSSES 5
-#define MAX_ITEM_ID 250
+#define MAX_ITEM_ID 315
 #define MAX_LOOT 20
 #define MAX_PVP_PANEL_ITEMS 5
 #define MAX_RELIABLE_TARGETS 5
@@ -86,6 +86,7 @@
 #define MAX_MARKET_CATEGORIES 4
 #define MAX_MARKET_ITEMS 20
 #define MAX_TOUR_TIME 180
+#define MAX_WALKERS 20
 
 //Market
 #define MARKET_CATEGORY_WEAPON 0
@@ -111,12 +112,14 @@
 #define ITEMTYPE_PASSIVE 4
 #define ITEMTYPE_MATERIAL 5
 #define ITEMTYPE_BOX 6
+#define ITEMTYPE_MODIFIER 7
 
 //Item grades
 #define GRADE_N 1
 #define GRADE_B 2
 #define GRADE_C 3
 #define GRADE_D 4
+#define GRADE_R 5
 
 //Props
 #define PROPERTY_NONE 0
@@ -164,6 +167,7 @@ forward Time();
 forward OnPlayerLogin(playerid);
 forward OnTourEnd(finished);
 forward OnTournamentEnd();
+forward OnPhaseChanged(oldphase, newphase);
 forward Float:GetDistanceBetweenPlayers(p1, p2);
 forward Float:GetPlayerMaxHP(playerid);
 forward Float:GetPlayerHP(playerid);
@@ -184,6 +188,7 @@ forward bool:CheckChance(chance);
 forward RegeneratePlayerHP(playerid);
 forward UpdatePvpTable();
 forward CheckDead(npcid);
+forward RespawnWalker(walkerid);
 
 /* Variables */
 
@@ -314,6 +319,22 @@ enum pInfo
 	WeaponMod[MAX_MOD],
 	ArmorMod[MAX_MOD]
 };
+enum wInfo
+{
+	ID,
+	DynamicText3D:LabelID,
+	Name[255],
+	Rank,
+	Skin,
+	MaxHP,
+	DamageMin,
+	DamageMax,
+	Defense,
+	Dodge,
+	Accuracy,
+	Crit,
+	WeaponID
+};
 
 //Global
 new WorldTime_Timer = -1;
@@ -324,6 +345,7 @@ new Actors[MAX_ACTORS];
 new ReadyIDs[MAX_OWNERS] = -1;
 new MySQL:sql_handle;
 new arena_area;
+new walkers_area;
 new Tournament[tInfo];
 new TourParticipantsCount = 0;
 new TournamentTab[MAX_PARTICIPANTS][TopItem];
@@ -360,6 +382,8 @@ new Windows[MAX_PLAYERS][TWindow];
 
 new TourTeam[MAX_PLAYERS] = NO_TEAM;
 
+new Walkers[MAX_WALKERS][wInfo];
+
 //Pickups
 new home_enter = 0;
 new home_quit = 0;
@@ -376,6 +400,7 @@ new bool:IsInventoryOpen[MAX_PLAYERS] = false;
 new bool:IsDeath[MAX_PLAYERS] = false;
 new bool:IsSpawned[MAX_PLAYERS] = false;
 new bool:IsParticipant[MAX_PLAYERS] = false;
+new bool:IsWalker[MAX_PLAYERS] = false;
 new bool:IsEasyMod[MAX_PLAYERS] = false;
 new SelectedSlot[MAX_PLAYERS] = -1;
 
@@ -767,6 +792,9 @@ public OnGameModeInit()
 	mysql_set_charset("cp1251");
 
 	LoadTournamentInfo();
+	if(Tournament[Phase] == PHASE_PEACE)
+		InitWalkers();
+
 	UpdateGlobalRatingTop();
 
 	return 1;
@@ -786,6 +814,15 @@ public OnGameModeExit()
 
 public OnPlayerLeaveDynamicArea(playerid, areaid)
 {
+	if(FCNPC_IsValid(playerid) && !FCNPC_IsDead(playerid) && IsWalker[playerid] && areaid == walkers_area)
+	{
+		FCNPC_Stop(playerid);
+		FCNPC_StopAim(playerid);
+		SetPVarFloat(playerid, "HP", MaxHP[playerid]);
+		SetWalkerDestPoint(playerid);
+		return 1;
+	}
+
 	if(FCNPC_IsValid(playerid)) return 0;
 
 	if(IsTourStarted && !IsDeath[playerid] && areaid == arena_area && IsPlayerParticipant(playerid))
@@ -934,6 +971,14 @@ public OnTourEnd(finished)
 		SendClientMessageToAll(COLOR_LIGHTRED, "Тур прерван.");
 }
 
+public OnPhaseChanged(oldphase, newphase)
+{
+	if(newphase == PHASE_PEACE)
+		InitWalkers();
+	else
+		DestroyWalkers();
+}
+
 public OnTournamentEnd()
 {
 	new string[255];
@@ -944,6 +989,7 @@ public OnTournamentEnd()
 	Tournament[Tour] = 1;
 	Tournament[Number]++;
 	Tournament[Phase] = PHASE_PEACE;
+	OnPhaseChanged(PHASE_WAR, PHASE_PEACE);
 
 	GiveTournamentRewards();
 	UpdateTourParticipants();
@@ -1016,6 +1062,13 @@ public UpdatePvpTable()
 
 		PlayerTextDrawSetStringRus(InitID, PvpPanelTimer[InitID], string);
 	}
+}
+
+public FCNPC_OnReachDestination(npcid)
+{
+	if(IsWalker[npcid] && !FCNPC_IsAiming(npcid))
+		SetWalkerDestPoint(walkerid);
+	return 1;
 }
 
 public FCNPC_OnGiveDamage(npcid, damagedid, Float:amount, weaponid, bodypart)
@@ -1183,6 +1236,12 @@ public OnPlayerDeath(playerid, killerid, reason)
 			FinishBossAttack();
 		return 1;
 	}
+	if(IsWalker[playerid])
+	{
+		RollWalkerLoot(playerid, killerid);
+		WalkerRespawnTimer = SetTimerEx("RespawnWalker", 5000, false, "i", playerid);
+		return 1;
+	}
 	if(IsTourStarted)
 	{
 		new _killerid = GetRealKillerId(playerid, killerid);
@@ -1280,6 +1339,11 @@ public CheckDead(npcid)
 		FCNPC_Respawn(npcid);
 }
 
+public RespawnWalker(walkerid)
+{
+	//TODO:
+}
+
 public OnPlayerText(playerid, text[])
 {
 	new name[64];
@@ -1328,14 +1392,24 @@ public OnPlayerPickUpPickup(playerid, pickupid)
 			SafeDestroyPickup(BossLootPickups[i]);
 			if(BossLootItems[i][ItemID] == -1) continue;
 
+			new string[255];
+			new item[BaseItem];
+			item = GetItem(BossLootItems[i][ItemID]);
+
 			if(IsEquip(BossLootItems[i][ItemID]))
+			{
 				AddEquip(playerid, BossLootItems[i][ItemID], MOD_CLEAR);
+				if(item[Grade] >= GRADE_C)
+				{
+					format(string, sizeof(string), "{%s}%s {ffffff}приобрел {%s}[%s]{ffffff}.", 
+						GetColorByRate(PlayerInfo[playerid][Rate]), PlayerInfo[playerid][Name], GetGradeColor(item[Grade]), item[Name]
+					);
+					SendClientMessageToAll(0xFFFFFFFF, string);
+				}
+			}
 			else
 				AddItem(playerid, BossLootItems[i][ItemID], BossLootItems[i][Count]);
 			
-			new item[BaseItem];
-			item = GetItem(BossLootItems[i][ItemID]);
-			new string[255];
 			format(string, sizeof(string), "Подобрано: {%s}[%s] {ffffff}x%d.", 
 				GetGradeColor(item[Grade]), item[Name], BossLootItems[i][Count]
 			);
@@ -1619,6 +1693,7 @@ public OnDialogResponse(playerid, dialogid, response, listitem, inputtext[])
 							if(ReadyIDs[i] == -1) return 1;
 						SendClientMessageToAll(COLOR_LIGHTRED, "Начинается фаза войны!");
 						Tournament[Phase] = PHASE_WAR;
+						OnPhaseChanged(PHASE_PEACE, PHASE_WAR);
 						SaveTournamentInfo();
 						for(new i = 0; i < MAX_OWNERS; i++)
 							ReadyIDs[i] = -1;
@@ -2344,6 +2419,12 @@ public FCNPC_OnUpdate(npcid)
 		return 1;
 	}
 
+	if(IsWalker[npcid] && !IsTourStarted)
+	{
+		WalkerBehaviour(npcid);
+		return 1;
+	}
+
 	if(!IsTourStarted) return 1;
 
 	new lastkill = GetPVarInt(npcid, "LastKill");
@@ -2440,7 +2521,7 @@ public OnPlayerClickPlayerTextDraw(playerid, PlayerText:playertextid)
 		new item[BaseItem];
 		item = GetItem(itemid);
 
-		if(item[Type] == ITEMTYPE_BOX || item[Type] == ITEMTYPE_PASSIVE)
+		if(item[Type] == ITEMTYPE_BOX || item[Type] == ITEMTYPE_PASSIVE || item[Type] == ITEMTYPE_MODIFIER)
 		{
 			ShowPlayerDialog(playerid, 1, DIALOG_STYLE_MSGBOX, "Ошибка", "Этот предмет нельзя продать.", "Закрыть", "");
 			return 0;
@@ -2451,7 +2532,7 @@ public OnPlayerClickPlayerTextDraw(playerid, PlayerText:playertextid)
 			MarketSellingItem[playerid][Mod][i] = PlayerInventory[playerid][SelectedSlot[playerid]][Mod][i];
 		MarketSellingItem[playerid][Count] = 1;
 		MarketSellingItem[playerid][Price] = item[Price] / 2;
-		MarketSellingItem[playerid][rTime] = 2;
+		MarketSellingItem[playerid][rTime] = 3;
 		sscanf(PlayerInfo[playerid][Name], "s[255]", MarketSellingItem[playerid][Owner]);
 		MarketSellingItem[playerid][LotID] = GetMarketNextLotID();
 		SetPVarInt(playerid, "MarketSellingItemInvSlot", SelectedSlot[playerid]);
@@ -3307,6 +3388,14 @@ stock ParticipantBehaviour(id)
 	return 1;
 }
 
+stock WalkerBehaviour(id)
+{
+	if(id == -1 || id == INVALID_PLAYER_ID) return;
+	if(!FCNPC_IsValid(id) || !IsWalker[id]) return;
+
+	//TODO:
+}
+
 stock BossBehaviour(id)
 {
 	if(id == -1 || id == INVALID_PLAYER_ID) return;
@@ -3382,49 +3471,49 @@ stock GiveTournamentRewards()
 			{
 				reward[ItemID] = 203;
 				reward[ItemsCount] = 15;
-				money = 1000;
+				money = 4000;
 			}
 			case 2:
 			{
 				reward[ItemID] = 203;
 				reward[ItemsCount] = 13;
-				money = 800;
+				money = 3800;
 			}
 			case 3:
 			{
 				reward[ItemID] = 203;
 				reward[ItemsCount] = 11;
-				money = 500;
+				money = 3500;
 			}
 			case 4..5:
 			{
 				reward[ItemID] = 203;
 				reward[ItemsCount] = 7;
-				money = 350;
+				money = 2750;
 			}
 			case 6..8:
 			{
 				reward[ItemID] = 202;
 				reward[ItemsCount] = 10;
-				money = 200;
+				money = 2200;
 			}
 			case 9..12:
 			{
 				reward[ItemID] = 202;
 				reward[ItemsCount] = 8;
-				money = 100;
+				money = 1600;
 			}
 			case 13..16:
 			{
 				reward[ItemID] = 202;
 				reward[ItemsCount] = 6;
-				money = 50;
+				money = 1350;
 			}
 			default:
 			{
 				reward[ItemID] = 202;
 				reward[ItemsCount] = 4;
-				money = 10;
+				money = 1000;
 			}
 		}
 
@@ -3835,6 +3924,10 @@ stock BuyItem(playerid, lotid, count = 1)
 	{
 		PlayerInfo[owner_id][Cash] += amount;
 		GivePlayerMoney(owner_id, amount);
+
+		new string[255];
+		format(string, sizeof(string), "Предмет [{%s}%s{ffffff}] продан.", GetGradeColor(item[Grade]), item[Name]);
+		SendClientMessage(owner_id, 0xFFFFFFFF, string);
 	}
 	else
 		GivePlayerMoneyOffline(item[Owner], amount);
@@ -4116,14 +4209,14 @@ stock GetTourReward(tour, place, name[])
 	new rank = GetPlayerRankOffline(name);
 	switch(place)
 	{
-		case 1: money = 100;
-		case 2: money = 80; 
-		case 3: money = 60;
-		case 4..5: money = 35;
-		case 6..8: money = 30;
-		case 9..12: money = 20;
-		case 13..16: money = 10;
-		case 17..20: money = 5;
+		case 1: money = 200;
+		case 2: money = 160; 
+		case 3: money = 120;
+		case 4..5: money = 70;
+		case 6..8: money = 60;
+		case 9..12: money = 40;
+		case 13..16: money = 20;
+		case 17..20: money = 10;
 	}
 	money = money * floatround(floatpower(rank + tour, 2));
 	reward[Money] = money;
@@ -4606,6 +4699,47 @@ stock OpenLockbox(playerid, lockboxid)
 				case 9929: { itemid = 194; count = 1; }
 				default: { itemid = 192; count = 1; }
 			}
+		}
+		case 310:
+		{
+			count = 1;
+			switch(chance)
+			{
+				case 0..3999: itemid = 250 + 6 * random(4);
+				case 4000..6999: itemid = 251 + 6 * random(4);
+				case 7000..8299: itemid = 252 + 6 * random(4);
+				case 8300..8999: itemid = 253 + 6 * random(4);
+				case 9000..9599: itemid = 254 + 6 * random(4);
+				default: itemid = 255 + 6 * random(4);
+			}
+		}
+		case 311:
+		{
+			count = 1;
+			switch(chance)
+			{
+				case 0..3999: itemid = 274 + 5 * random(4);
+				case 4000..6999: itemid = 275 + 5 * random(4);
+				case 7000..8299: itemid = 276 + 5 * random(4);
+				case 8300..9199: itemid = 277 + 5 * random(4);
+				default: itemid = 278 + 5 * random(4);
+			}
+		}
+		case 312:
+		{
+			count = 1;
+			switch(chance)
+			{
+				case 0..5999: itemid = 294 + 4 * random(4);
+				case 6000..9499: itemid = 295 + 4 * random(4);
+				case 9500..9899: itemid = 296 + 4 * random(4);
+				default: itemid = 297 + 4 * random(4);
+			}
+		}
+		case 313:
+		{
+			count = 1;
+			itemid = 205 + random(4) * 9;
 		}
 	}
 	if(itemid == -1) return;
@@ -5250,6 +5384,11 @@ stock ResetLoot()
 	}
 }
 
+stock RollWalkerLoot(walkerid, killerid)
+{
+	//TODO:
+}
+
 stock RollBossLoot()
 {
 	if(AttackedBoss == -1 || !FCNPC_IsValid(BossNPC)) return;
@@ -5293,8 +5432,8 @@ stock RollBossLootItem(bossid)
 			{
 				case 0..499: itemid = GetRandomEquip(1, 2);
 				case 500..799: itemid = GetRandomAccessory(0);
-				case 800..4999: itemid = 195;
-				default: itemid = GetRandomBooster();
+				case 800..4999: { itemid = 195; count = 2; }
+				default: { itemid = GetRandomBooster(); count = 2; }
 			}
 		}
 		case 1:
@@ -5304,8 +5443,8 @@ stock RollBossLootItem(bossid)
 				case 0..499: itemid = GetRandomEquip(2, 3);
 				case 500..899: itemid = GetRandomAccessory(0);
 				case 900..1299: itemid = 191;
-				case 1300..5499: { itemid = 195; count = 2; }
-				default: { itemid = GetRandomBooster(); count = 2; }
+				case 1300..5499: { itemid = 195; count = 4; }
+				default: { itemid = GetRandomBooster(); count = 4; }
 			}
 		}
 		case 2:
@@ -5316,8 +5455,8 @@ stock RollBossLootItem(bossid)
 				case 500..799: itemid = GetRandomAccessory(1);
 				case 800..1399: itemid = 191;
 				case 1400..1599: itemid = 192;
-				case 1600..5499: { itemid = GetRandomBooster(); count = 4; }
-				default: { itemid = 195; count = 4; }
+				case 1600..5499: { itemid = GetRandomBooster(); count = 8; }
+				default: { itemid = 195; count = 8; }
 			}
 		}
 		case 3:
@@ -5330,8 +5469,8 @@ stock RollBossLootItem(bossid)
 				case 800..869: itemid = GetRandomAccessory(2);
 				case 870..899: itemid = 193;
 				case 900..1199: { itemid = 191; count = 2; }
-				case 1200..5299: { itemid = GetRandomBooster(); count = 7; }
-				default: { itemid = 195; count = 7; }
+				case 1200..5299: { itemid = GetRandomBooster(); count = 14; }
+				default: { itemid = 195; count = 14; }
 			}
 		}
 		case 4:
@@ -5345,8 +5484,8 @@ stock RollBossLootItem(bossid)
 				case 680: itemid = 194;
 				case 681..899: { itemid = 192; count = 2; }
 				case 900..1199: { itemid = 191; count = 3; }
-				case 1200..5299: { itemid = GetRandomBooster(); count = 14; }
-				default: { itemid = 195; count = 14; }
+				case 1200..5299: { itemid = GetRandomBooster(); count = 28; }
+				default: { itemid = 195; count = 28; }
 			}
 		}
 	}
@@ -6945,8 +7084,243 @@ stock UpdateCmbWindow(playerid)
 	}
 }
 
+stock GetAvailableModLevelsByModifierID(id)
+{
+	new levels[2];
+
+	switch(id)
+	{
+		case 250, 256, 262, 268: { levels[0] = 1; levels[1] = 2; }
+		case 251, 257, 263, 269: { levels[0] = 1; levels[1] = 3; }
+		case 252, 258, 264, 270: { levels[0] = 2; levels[1] = 3; }
+		case 253, 259, 265, 271: { levels[0] = 2; levels[1] = 4; }
+		case 254, 260, 266, 272: { levels[0] = 2; levels[1] = 5; }
+		case 255, 261, 267, 273: { levels[0] = 2; levels[1] = 6; }
+
+		case 274, 279, 284, 289: { levels[0] = 3; levels[1] = 4; }
+		case 275, 280, 285, 290: { levels[0] = 3; levels[1] = 5; }
+		case 276, 281, 286, 291: { levels[0] = 3; levels[1] = 6; }
+		case 277, 282, 287, 292: { levels[0] = 4; levels[1] = 5; }
+		case 278, 283, 288, 293: { levels[0] = 4; levels[1] = 6; }
+
+		case 294, 298, 302, 306: { levels[0] = 4; levels[1] = 7; }
+		case 295, 299, 303, 307: { levels[0] = 5; levels[1] = 6; }
+		case 296, 300, 304, 308: { levels[0] = 5; levels[1] = 7; }
+		case 297, 301, 305, 309: { levels[0] = 6; levels[1] = 7; }
+
+		default: { levels[0] = 0; levels[1] = 0; }
+	}
+
+	return levels;
+}
+
+stock GetModifierModLevel(levels[])
+{
+	new level = levels[0];
+	new rnd = random(100);
+
+	switch(levels[0])
+	{
+		case 1:
+		{
+			switch(levels[1])
+			{
+				case 2:
+				{
+					if(rnd < 60) level = 1;
+					else level = 2;
+				}
+				case 3:
+				{
+					if(rnd < 50) level = 1;
+					else if(rnd < 85) level = 2;
+					else level = 3;
+				}
+			}
+		}
+		case 2:
+		{
+			switch(levels[1])
+			{
+				case 3:
+				{
+					if(rnd < 60) level = 2;
+					else level = 3;
+				}
+				case 4:
+				{
+					if(rnd < 50) level = 2;
+					else if(rnd < 85) level = 3;
+					else level = 4;
+				}
+				case 5:
+				{
+					if(rnd < 40) level = 2;
+					else if(rnd < 60) level = 3;
+					else if(rnd < 90) level = 4;
+					else level = 5;
+				}
+				case 6:
+				{
+					if(rnd < 35) level = 2;
+					else if(rnd < 55) level = 3;
+					else if(rnd < 85) level = 4;
+					else if(rnd < 95) level = 5;
+					else level = 6;
+				}
+			}
+		}
+		case 3:
+		{
+			switch(levels[1])
+			{
+				case 4:
+				{
+					if(rnd < 60) level = 3;
+					else level = 4;
+				}
+				case 5:
+				{
+					if(rnd < 50) level = 3;
+					else if(rnd < 85) level = 4;
+					else level = 5;
+				}
+				case 6:
+				{
+					if(rnd < 50) level = 3;
+					else if(rnd < 77) level = 4;
+					else if(rnd < 93) level = 5;
+					else level = 6;
+				}
+			}
+		}
+		case 4:
+		{
+			switch(levels[1])
+			{
+				case 5:
+				{
+					if(rnd < 60) level = 4;
+					else level = 5;
+				}
+				case 6:
+				{
+					if(rnd < 70) level = 4;
+					else if(rnd < 92) level = 5;
+					else level = 6;
+				}
+				case 7:
+				{
+					if(rnd < 60) level = 4;
+					else if(rnd < 90) level = 5;
+					else if(rnd < 97) level = 6;
+					else level = 7;
+				}
+			}
+		}
+		case 5:
+		{
+			switch(levels[1])
+			{
+				case 6:
+				{
+					if(rnd < 80) level = 5;
+					else level = 6;
+				}
+				case 7:
+				{
+					if(rnd < 80) level = 5;
+					else if(rnd < 95) level = 6;
+					else level = 7;
+				}
+			}
+		}
+		case 6:
+		{
+			switch(levels[1])
+			{
+				case 7:
+				{
+					if(rnd < 85) level = 6;
+					else level = 7;
+				}
+			}
+		}
+	}
+
+	return level;
+}
+
+stock SetModLevel(playerid, slotid, stoneid, level)
+{
+	new modifier = GetModifierByStone(stoneid);
+
+	for(new i = 0; i < MAX_MOD; i++)
+		PlayerInventory[playerid][slotid][Mod][i] = 0;
+	for(new i = 0; i < level; i++)
+		PlayerInventory[playerid][slotid][Mod][i] = modifier;
+}
+
+stock CombineWithModifier(playerid)
+{
+	new price = 1000;
+	if(PlayerInfo[playerid][Cash] < price)
+	{
+		ShowPlayerDialog(playerid, 1, DIALOG_STYLE_MSGBOX, "Комбинирование", "Недостаточно средств.", "Закрыть", "");
+		return;
+	}
+	
+	new equip[BaseItem];
+	new itemid = CmbItem[playerid][2];
+	equip = GetItem(CmbItemCount[playerid][0]);
+	if( ((itemid == 187 || itemid == 189) && equip[Type] != ITEMTYPE_WEAPON) ||
+		((itemid == 188 || itemid == 190) && equip[Type] != ITEMTYPE_ARMOR) )
+	{
+		ShowPlayerDialog(playerid, 1, DIALOG_STYLE_MSGBOX, "Комбинирование", "Нельзя использовать этот камень.", "Закрыть", "");
+		return;
+	}
+
+	new modifierid = CmbItem[playerid][1];
+	new mdf[BaseItem];
+	mdf = GetItem(modifierid);
+	if(mdf[Grade] != equip[Grade])
+	{
+		ShowPlayerDialog(playerid, 1, DIALOG_STYLE_MSGBOX, "Комбинирование", "Данную экипировку нельзя комбинировать с этим модификатором.", "Закрыть", "");
+		return;
+	}
+
+	new available_mod_levels[2];
+	available_mod_levels = GetAvailableModLevelsByModifierID(CmbItem[playerid][1]);
+	new mod_level = GetModifierModLevel(available_mod_levels);
+	SetModLevel(playerid, CmbItemSlot[playerid][0], CmbItemSlot[playerid][2], mod_level);
+	DeleteItem(playerid, CmbItemInvSlot[playerid][2], 1);
+
+	if(mod_level >= 5)
+	{
+		new cng_string[255];
+		new name[255];
+		GetPlayerName(playerid, name, sizeof(name));
+		format(cng_string, sizeof(cng_string), "{%s}%s{FF6347} успешно модернизирован %d на стадии {%s}%s.", 
+			GetColorByRate(PlayerInfo[playerid][Rate]), name, mod_level, GetGradeColor(equip[Grade]), equip[Name]
+		);
+		SendClientMessageToAll(COLOR_LIGHTRED, cng_string);
+	}
+	ShowPlayerDialog(playerid, 1, DIALOG_STYLE_MSGBOX, "Комбинирование", "{33CC00}Успешная комбинация.", "Закрыть", "");
+}
+
 stock CombineItems(playerid)
 {
+	if(IsModifiableEquip(CmbItem[playerid][0]))
+	{
+		new s_item[BaseItem];
+		s_item = GetItem(CmbItem[playerid][1]);
+		if(s_item[Type] == ITEMTYPE_MODIFIER && CmbItemCount[playerid][1] == 1 && IsModStone(CmbItem[playerid][2]) && CmbItemCount[playerid][2] == 1)
+		{
+			CombineWithModifier(playerid);
+			return;
+		}
+	}
+
 	new query[255];
 	format(query, sizeof(query), "SELECT * FROM `combinations` WHERE \
 	`Item1_ID` = '%d' AND \
@@ -7020,7 +7394,21 @@ stock CombineItems(playerid)
 	{
 		ShowPlayerDialog(playerid, 1, DIALOG_STYLE_MSGBOX, "Комбинирование", "{33CC00}Успешная комбинация.", "Закрыть", "");
 		if(IsEquip(result_id))
+		{
+			new eq_item[BaseItem];
+			eq_item = GetItem(result_id);
+
 			AddEquip(playerid, result_id, MOD_CLEAR);
+
+			if(eq_item[Grade] >= GRADE_C)
+			{
+				new string[255];
+				format(string, sizeof(string), "{%s}%s {ffffff}приобрел {%s}[%s]{ffffff}.", 
+					GetColorByRate(PlayerInfo[playerid][Rate]), PlayerInfo[playerid][Name], GetGradeColor(eq_item[Grade]), eq_item[Name]
+				);
+				SendClientMessageToAll(0xFFFFFFFF, string);
+			}
+		}
 		else
 			AddItem(playerid, result_id, result_count);
 	}
@@ -7160,12 +7548,12 @@ stock GetWeaponBaseDamage(weaponid)
 	{
 		case 1: { damage[0] = 19; damage[1] = 24; }
 		case 2..8: { damage[0] = 25; damage[1] = 31; }
-		case 9: { damage[0] = 61; damage[1] = 89; }
-		case 10..16, 242: { damage[0] = 79; damage[1] = 116; }
+		case 9: { damage[0] = 65; damage[1] = 94; }
+		case 10..16, 242: { damage[0] = 85; damage[1] = 122; }
 		case 17: { damage[0] = 9; damage[1] = 18; }
 		case 18..24, 243: { damage[0] = 12; damage[1] = 24; }
-		case 25: { damage[0] = 14; damage[1] = 31; }
-		case 26..32, 244: { damage[0] = 19; damage[1] = 42; }
+		case 25: { damage[0] = 12; damage[1] = 26; }
+		case 26..32, 244: { damage[0] = 16; damage[1] = 34; }
 		case 33: { damage[0] = 20; damage[1] = 47; }
 		case 34..40, 245: { damage[0] = 27; damage[1] = 63; }
 		case 41: { damage[0] = 41; damage[1] = 53; }
@@ -8110,6 +8498,41 @@ stock GetPlayer(id)
 	return player;
 }
 
+stock GetWalker(rank)
+{
+	new walker[wInfo];
+
+	new query[255];
+	format(query, sizeof(query), "SELECT * FROM `walkers` WHERE `Rank` = '%d' LIMIT 1", rank);
+	new Cache:q_result = mysql_query(sql_handle, query);
+	new row_count;
+	cache_get_row_count(row_count);
+	if(row_count <= 0)
+	{
+		print("GetWalker() error.");
+		return player;
+	}
+
+	walker[Rank] = rank;
+
+	cache_get_value_name_int(0, "Skin", walker[Skin]);
+	cache_get_value_name_int(0, "MaxHP", walker[MaxHP]);
+	cache_get_value_name_int(0, "DamageMin", walker[DamageMin]);
+	cache_get_value_name_int(0, "DamageMax", walker[DamageMax]);
+	cache_get_value_name_int(0, "Defense", walker[Defense]);
+	cache_get_value_name_int(0, "Dodge", walker[Dodge]);
+	cache_get_value_name_int(0, "Accuracy", walker[Accuracy]);
+	cache_get_value_name_int(0, "Crit", walker[Crit]);
+	cache_get_value_name_int(0, "WeaponID", walker[WeaponSlotID]);
+
+	new name[255];
+	cache_get_value_name(0, "Name", name);
+	format(walker[Name], 255, "%s", name);
+
+	cache_delete(q_result);
+	return walker;
+}
+
 stock GetPlayerID(name[])
 {
 	new p_name[255];
@@ -8123,6 +8546,58 @@ stock GetPlayerID(name[])
 	}
 
 	return -1;
+}
+
+stock SetWalkerDestPoint(walkerid)
+{
+	//TODO:
+}
+
+stock SetRandomWalkerPos(walkerid)
+{
+	//TODO:
+}
+
+stock InitWalkers()
+{
+	for(new i = 0; i < MAX_WALKERS; i++)
+	{
+		new rank = random(MAX_RANK) + 1;
+		new walker[wInfo];
+		Walkers[i] = GetWalker(rank);
+
+		new npc_name[255];
+		format(npc_name, sizeof(npc_name), "Walker_%d", i);
+		Walkers[i][ID] = FCNPC_Create(npc_name);
+
+		IsWalker[Walkers[i][ID]] = true;
+		PlayerInfo[Walkers[i][ID]][DamageMin] = Walkers[i][DamageMin];
+		PlayerInfo[Walkers[i][ID]][DamageMax] = Walkers[i][DamageMax];
+		PlayerInfo[Walkers[i][ID]][Defense] = Walkers[i][Defense];
+		PlayerInfo[Walkers[i][ID]][Dodge] = Walkers[i][Dodge];
+		PlayerInfo[Walkers[i][ID]][Accuracy] = Walkers[i][Accuracy];
+		PlayerInfo[Walkers[i][ID]][Crit] = Walkers[i][Crit];
+		PlayerInfo[Walkers[i][ID]][Sex] = 0;
+		PlayerInfo[Walkers[i][ID]][Skin] = Walkers[i][Skin];
+		PlayerInfo[Walkers[i][ID]][WeaponSlotID] = Walkers[i][WeaponID];
+
+		FCNPC_Spawn(Walkers[i][ID], Walkers[i][Skin], 0, 0, 0);
+		SetRandomWalkerPos(Walkers[i][ID]);
+		SetPlayerWeapons(Walkers[i][ID]);
+
+		new name[255];
+		format(name, sizeof(name), "[LV%d] %s", Walkers[i][Rank], Walkers[i][Name]);
+		Walkers[i][LabelID] = CreateDynamic3DTextLabel(name, HexRateColors[Walkers[i][Rank]][0], 0, 0, 0.2, 30, Walkers[i][ID]);
+	}
+}
+
+stock DestroyWalkers()
+{
+	for(new i = 0; i < MAX_WALKERS; i++)
+	{
+		DestroyDynamic3DTextLabel(Walkers[i][LabelID]);
+		FCNPC_Destroy(Walkers[i][ID]);
+	}
 }
 
 stock InitTextDraws()
