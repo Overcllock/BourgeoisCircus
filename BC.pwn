@@ -22,14 +22,14 @@
 
 //Mysql settings
 
-/*#define SQL_HOST "127.0.0.1"
+#define SQL_HOST "127.0.0.1"
 #define SQL_USER "tsar"
 #define SQL_DB "bcircus"
-#define SQL_PASS "2151"*/
-#define SQL_HOST "212.22.93.45"
+#define SQL_PASS "2151"
+/*#define SQL_HOST "212.22.93.45"
 #define SQL_USER "gsvtqhss"
 #define SQL_DB "gsvtqhss_21809"
-#define SQL_PASS "21510055"
+#define SQL_PASS "21510055"*/
 
 //Data types
 #define TYPE_INT 0x01
@@ -63,7 +63,7 @@
 
 //Limits
 #define MAX_PARTICIPANTS 20
-#define MAX_OWNERS 2
+#define MAX_OWNERS 1
 #define MAX_SLOTS 25
 #define MAX_SLOTS_X 5
 #define MAX_SLOTS_Y 5
@@ -71,7 +71,7 @@
 #define MAX_MOD 7
 #define MAX_PROPERTIES 2
 #define MAX_DESCRIPTION_SIZE 45
-#define MAX_GRADES 4
+#define MAX_GRADES 5
 #define MAX_BOSSES 5
 #define MAX_ITEM_ID 315
 #define MAX_LOOT 20
@@ -152,6 +152,7 @@
 
 //Delays
 #define DEFAULT_SHOOT_DELAY 200
+#define WALKER_SHOOT_DELAY 260
 #define COLT_SHOOT_DELAY 150
 #define DEAGLE_SHOOT_DELAY 370
 #define MP5_SHOOT_DELAY 90
@@ -341,7 +342,7 @@ new WorldTime_Timer = -1;
 new PrepareBossAttackTimer = -1;
 new BossAttackTimer = -1;
 new TeleportTimer = -1;
-new WalkerRespawnTimer = -1;
+new WalkerRespawnTimer[MAX_PLAYERS] = -1;
 new Actors[MAX_ACTORS];
 new ReadyIDs[MAX_OWNERS] = -1;
 new MySQL:sql_handle;
@@ -384,6 +385,7 @@ new Windows[MAX_PLAYERS][TWindow];
 new TourTeam[MAX_PLAYERS] = NO_TEAM;
 
 new Walkers[MAX_WALKERS][wInfo];
+new WalkersDamagers[MAX_WALKERS][MAX_PLAYERS];
 
 //Pickups
 new home_enter = 0;
@@ -478,7 +480,8 @@ new HexGradeColors[MAX_GRADES][1] = {
 	{0xCCCCCCFF},
 	{0xFFCC00FF},
 	{0xCC6600FF},
-	{0x9966FFFF}
+	{0x9966FFFF},
+	{0x3399FFFF}
 };
 new HexTeamColors[MAX_TEAMCOLORS][1] = {
 	{0x339999FF},
@@ -778,6 +781,7 @@ public OnGameModeInit()
 
 	WorldTime_Timer = SetTimer("Time", 1000, true);
 	arena_area = CreateDynamicRectangle(-2390.5017, -1669.8492, -2313.0295, -1593.6758, 0, 0, -1);
+	walkers_area = CreateDynamicRectangle(183.5849, -1867.2853, 298.7423, -1842.1835, 0, 0, -1);
 
 	for(new i = 0; i < MAX_OWNERS; i++)
 		ReadyIDs[i] = -1;
@@ -809,21 +813,13 @@ public OnGameModeExit()
 	KillTimer(WorldTime_Timer);
 	for (new i = 0; i < MAX_ACTORS; i++)
 		DestroyActor(Actors[i]);
+	DestroyWalkers();
 	DestroyAllDynamicAreas();
 	return 1;
 }
 
 public OnPlayerLeaveDynamicArea(playerid, areaid)
 {
-	if(FCNPC_IsValid(playerid) && !FCNPC_IsDead(playerid) && IsWalker[playerid] && areaid == walkers_area)
-	{
-		FCNPC_Stop(playerid);
-		FCNPC_StopAim(playerid);
-		SetPVarFloat(playerid, "HP", MaxHP[playerid]);
-		SetWalkerDestPoint(playerid);
-		return 1;
-	}
-
 	if(FCNPC_IsValid(playerid)) return 0;
 
 	if(IsTourStarted && !IsDeath[playerid] && areaid == arena_area && IsPlayerParticipant(playerid))
@@ -1065,13 +1061,6 @@ public UpdatePvpTable()
 	}
 }
 
-public FCNPC_OnReachDestination(npcid)
-{
-	if(IsWalker[npcid] && !FCNPC_IsAiming(npcid))
-		SetWalkerDestPoint(npcid);
-	return 1;
-}
-
 public FCNPC_OnGiveDamage(npcid, damagedid, Float:amount, weaponid, bodypart)
 {
 	return OnPlayerGiveDamage(npcid, damagedid, amount, weaponid, bodypart);
@@ -1079,10 +1068,16 @@ public FCNPC_OnGiveDamage(npcid, damagedid, Float:amount, weaponid, bodypart)
 
 public OnPlayerGiveDamage(playerid, damagedid, Float:amount, weaponid, bodypart)
 {
-	if(!IsBoss[damagedid] && GetPlayerTourTeam(damagedid) != NO_TEAM && GetPlayerTourTeam(playerid) == GetPlayerTourTeam(damagedid))
+	if(!IsBoss[damagedid] && !IsWalker[damagedid] && GetPlayerTourTeam(damagedid) != NO_TEAM && GetPlayerTourTeam(playerid) == GetPlayerTourTeam(damagedid))
 	{
 		if(FCNPC_IsValid(damagedid))
 			FCNPC_GiveHealth(damagedid, amount);
+		return 0;
+	}
+
+	if(IsWalker[playerid] && IsWalker[damagedid])
+	{
+		FCNPC_GiveHealth(damagedid, amount);
 		return 0;
 	}
 
@@ -1094,6 +1089,9 @@ public OnPlayerGiveDamage(playerid, damagedid, Float:amount, weaponid, bodypart)
 		GetPlayerHealth(damagedid, c_hp);
 		SetPlayerHealth(damagedid, floatadd(amount, c_hp));
 	}
+
+	if(IsWalker[damagedid] && FCNPC_GetAimingPlayer(damagedid) == INVALID_PLAYER_ID)
+		SetPlayerTarget(damagedid, playerid);
 
 	new dodge = (PlayerInfo[damagedid][Dodge] - PlayerInfo[playerid][Accuracy]) / 2;
 	if(dodge < 0) dodge = 0;
@@ -1120,9 +1118,19 @@ public OnPlayerGiveDamage(playerid, damagedid, Float:amount, weaponid, bodypart)
 	else
 		real_damage = damage;
 
-	new damagerid = GetPvpIndex(playerid);
-	if(damagerid != -1 && damagerid < MAX_PARTICIPANTS)
-		DmgInfo[damagedid][damagerid] += real_damage;
+	if(IsTourStarted)
+	{
+		new damagerid = GetPvpIndex(playerid);
+		if(damagerid != -1 && damagerid < MAX_PARTICIPANTS)
+			DmgInfo[damagedid][damagerid] += real_damage;
+	}
+
+	if(IsWalker[damagedid])
+	{
+		new d_idx = GetWalkerIdx(damagedid);
+		if(d_idx != -1)
+			WalkersDamagers[d_idx][playerid] += real_damage;
+	}
 
 	if(dodged)
 		SetPlayerChatBubble(damagedid, "Уклонение", 0x66CCCCFF, 80.0, 1200);
@@ -1151,10 +1159,11 @@ public OnPlayerDisconnect(playerid, reason)
 		if(BossAttackersCount <= 0)
 			FinishBossAttack();
 	}
-	if(IsPlayerParticipant(playerid) || PlayerInfo[playerid][Admin] > 0)
+	if(!IsWalker[playerid] && (IsPlayerParticipant(playerid) || PlayerInfo[playerid][Admin] > 0))
 		SavePlayer(playerid, !FCNPC_IsValid(playerid));
 
-	DeletePlayerTextDraws(playerid);
+	if(!FCNPC_IsValid(playerid))
+		DeletePlayerTextDraws(playerid);
 
 	if(IsValidTimer(RegenerateTimer[playerid]))
 		KillTimer(RegenerateTimer[playerid]);
@@ -1168,6 +1177,7 @@ public OnPlayerDisconnect(playerid, reason)
 	IsBoss[playerid] = false;
 	IsDeath[playerid] = false;
 	IsSpawned[playerid] = false;
+	IsWalker[playerid] = false;
 
 	for (new i = 0; i < 10; i++)
 	    if (IsPlayerAttachedObjectSlotUsed(playerid, i))
@@ -1229,20 +1239,6 @@ public OnPlayerDeath(playerid, killerid, reason)
 	IsDeath[playerid] = true; 
 	IsSpawned[playerid] = false;
 
-	if(IsBossAttacker[playerid])
-	{
-		IsBossAttacker[playerid] = false;
-		BossAttackersCount--;
-		if(BossAttackersCount <= 0)
-			FinishBossAttack();
-		return 1;
-	}
-	if(IsWalker[playerid])
-	{
-		RollWalkerLoot(playerid, killerid);
-		WalkerRespawnTimer = SetTimerEx("RespawnWalker", 5000, false, "i", playerid);
-		return 1;
-	}
 	if(IsTourStarted)
 	{
 		new _killerid = GetRealKillerId(playerid, killerid);
@@ -1289,6 +1285,31 @@ public OnPlayerDeath(playerid, killerid, reason)
 			PvpInfo[player_idx][Score] -= GetScoreDiff(PlayerInfo[playerid][Rate], PlayerInfo[_killerid][Rate], false);
 			if(PvpInfo[player_idx][Score] < 0)
 				PvpInfo[player_idx][Score] = 0;
+		}
+	}
+	else
+	{
+		if(IsBossAttacker[playerid])
+		{
+			IsBossAttacker[playerid] = false;
+			BossAttackersCount--;
+			if(BossAttackersCount <= 0)
+				FinishBossAttack();
+			return 1;
+		}
+		if(IsWalker[playerid])
+		{
+			RollWalkerLoot(playerid, killerid);
+			new idx = GetWalkerIdx(playerid);
+			if(idx != -1)
+				DestroyDynamic3DTextLabel(Walkers[idx][LabelID]);
+			WalkerRespawnTimer[playerid] = SetTimerEx("RespawnWalker", GetWalkerRespawnTime(PlayerInfo[playerid][Rank]), false, "i", playerid);
+			return 1;
+		}
+		if(IsWalker[killerid])
+		{
+			new rate = random(16) + 5;
+			GivePlayerRate(playerid, -rate);
 		}
 	}
 	return 1;
@@ -1342,7 +1363,39 @@ public CheckDead(npcid)
 
 public RespawnWalker(walkerid)
 {
-	//TODO:
+	if(IsValidTimer(WalkerRespawnTimer[walkerid]))
+		KillTimer(WalkerRespawnTimer[walkerid]);
+
+	new i = GetWalkerIdx(walkerid);
+	if(i == -1) return;
+
+	new rank = random(MAX_RANK) + 1;
+	Walkers[i] = GetWalker(rank);
+	Walkers[i][ID] = walkerid;
+
+	ResetWalkerDamagersInfo(walkerid);
+
+	MaxHP[Walkers[i][ID]] = Walkers[i][HP];
+	SetPlayerMaxHP(Walkers[i][ID], Walkers[i][HP], false);
+
+	PlayerInfo[walkerid][DamageMin] = Walkers[i][DamageMin];
+	PlayerInfo[walkerid][DamageMax] = Walkers[i][DamageMax];
+	PlayerInfo[walkerid][Defense] = Walkers[i][Defense];
+	PlayerInfo[walkerid][Dodge] = Walkers[i][Dodge];
+	PlayerInfo[walkerid][Accuracy] = Walkers[i][Accuracy];
+	PlayerInfo[walkerid][Crit] = Walkers[i][Crit];
+	PlayerInfo[walkerid][Sex] = 0;
+	PlayerInfo[walkerid][Skin] = Walkers[i][Skin];
+	PlayerInfo[walkerid][WeaponSlotID] = Walkers[i][WeaponID];
+
+	new name[255];
+	format(name, sizeof(name), "[LV%d] %s", Walkers[i][Rank], Walkers[i][Name]);
+	Walkers[i][LabelID] = CreateDynamic3DTextLabel(name, HexRateColors[Walkers[i][Rank]-1][0], 0, 0, 0.15, 40, Walkers[i][ID]);
+
+	FCNPC_Respawn(walkerid);
+	FCNPC_SetSkin(walkerid, Walkers[i][Skin]);
+	SetRandomWalkerPos(walkerid);
+	FCNPC_StopAim(walkerid);
 }
 
 public OnPlayerText(playerid, text[])
@@ -1801,7 +1854,7 @@ public OnDialogResponse(playerid, dialogid, response, listitem, inputtext[])
 				else
 				{
 					new string[255];
-					format(string, sizeof(string), "Сколько предметов продать?\nВ наличии - %d.", PlayerInventory[playerid][SelectedSlot[playerid]][Count]);
+					format(string, sizeof(string), "Сколько предметов продать?\nВ наличии - %d.\nОставьте поле пустым, чтобы продать всё.", PlayerInventory[playerid][SelectedSlot[playerid]][Count]);
 					ShowPlayerDialog(playerid, 403, DIALOG_STYLE_INPUT, "Инвентарь", string, "Продать", "Отменить");
 				}
 			}
@@ -1851,7 +1904,9 @@ public OnDialogResponse(playerid, dialogid, response, listitem, inputtext[])
 				new item[BaseItem];
 				item = GetItem(itemid);
 				new count = strval(inputtext);
-				if(count <= 0 || count > PlayerInventory[playerid][SelectedSlot[playerid]][Count])
+				if(count == 0)
+					count = PlayerInventory[playerid][SelectedSlot[playerid]][Count];
+				if(count < 0 || count > PlayerInventory[playerid][SelectedSlot[playerid]][Count])
 				{
 					ShowPlayerDialog(playerid, 1, DIALOG_STYLE_MSGBOX, "Ошибка", "Неверное количество.", "Закрыть", "");
 					return 0;
@@ -3389,12 +3444,142 @@ stock ParticipantBehaviour(id)
 	return 1;
 }
 
+stock GetWalkerIdx(walkerid)
+{
+	for(new i = 0; i < MAX_WALKERS; i++)
+	{
+		if(Walkers[i][ID] == walkerid)
+			return i;
+	}
+	return -1;
+}
+
+stock GetWalkerTopDamager(walkerid)
+{
+	new idx = GetWalkerIdx(walkerid);
+	if(idx == -1) return -1;
+
+	new max_damage = 0;
+	new damagerid = -1;
+	for(new i = 0; i < MAX_PLAYERS; i++)
+	{
+		if(i == walkerid || !IsPlayerConnected(i))
+			continue;
+		if(WalkersDamagers[idx][i] > max_damage)
+		{
+			max_damage = WalkersDamagers[idx][i];
+			damagerid = i;
+		}
+	}
+
+	return damagerid;
+}
+
+stock GetWalkerAvailableTarget(walkerid, oldtarget)
+{
+	new target = -1;
+	new idx = GetWalkerIdx(walkerid);
+	if(idx == -1) return target;
+
+	new max_damage = 0;
+	for(new i = 0; i < MAX_PLAYERS; i++)
+	{
+		if(i == oldtarget || i == walkerid || !IsPlayerConnected(i) || FCNPC_IsValid(i)) continue;
+		if(WalkersDamagers[idx][i] > 0 && !IsDeath[i] && IsPlayerInDynamicArea(i, walkers_area))
+		{
+			if(WalkersDamagers[idx][i] > max_damage)
+			{
+				max_damage = WalkersDamagers[idx][i];
+				target = i;
+			}
+		}
+	}
+
+	return target;
+}
+
+stock ResetWalkerTarget(id)
+{
+	ResetWalkerDamagersInfo(id);
+	if(FCNPC_IsMoving(id))
+		FCNPC_Stop(id);
+	if(FCNPC_IsAiming(id))
+		FCNPC_StopAim(id);
+	SetPVarFloat(id, "HP", MaxHP[id]);
+	SetWalkerDestPoint(id);
+}
+
 stock WalkerBehaviour(id)
 {
 	if(id == -1 || id == INVALID_PLAYER_ID) return;
 	if(!FCNPC_IsValid(id) || !IsWalker[id]) return;
 
-	//TODO:
+	new target = FCNPC_GetAimingPlayer(id);
+
+	new Float:x, Float:y, Float:z;
+	FCNPC_GetPosition(id, x, y, z);
+	if(!IsPointInDynamicArea(walkers_area, x, y, z))
+	{
+		if(FCNPC_IsMoving(id) && (target == -1 || target == INVALID_PLAYER_ID))
+			return;
+
+		ResetWalkerTarget(id);
+		return;
+	}
+
+	if(target == -1 || target == INVALID_PLAYER_ID)
+	{
+		if(FCNPC_IsAiming(id))
+			FCNPC_StopAim(id);
+		if(!FCNPC_IsMoving(id))
+			SetWalkerDestPoint(id);
+		return;
+	}
+
+	if(IsDeath[target])
+	{
+		if(FCNPC_IsAiming(id))
+			FCNPC_StopAim(id);
+		if(FCNPC_IsMoving(id))
+			FCNPC_Stop(id);
+		new new_target = GetWalkerAvailableTarget(id, target);
+		if(new_target != -1)
+			SetPlayerTarget(id, new_target);
+		else
+		{
+			ResetWalkerDamagersInfo(id);
+			SetPVarFloat(id, "HP", MaxHP[id]);
+			SetWalkerDestPoint(id);
+		}
+		return;
+	}
+
+	new another_target = GetWalkerTopDamager(id);
+	if(another_target != target && another_target != -1)
+	{
+		SetPlayerTarget(id, another_target);
+		return;
+	}
+
+	new Float:dist = GetDistanceBetweenPlayers(id, target);
+	if(dist > 30)
+	{
+		ResetWalkerTarget(id);
+		return;
+	}
+	if(!FCNPC_IsMovingAtPlayer(id, target) && dist > 10.0)
+		FCNPC_GoToPlayer(id, target);
+
+	//If walker so close to target - attack it
+	if(dist <= 10)
+	{
+		if(FCNPC_IsMoving(id))
+			FCNPC_Stop(id);
+		if(!FCNPC_IsShooting(id))
+			FCNPC_AimAtPlayer(id, target, true, WALKER_SHOOT_DELAY);
+	}
+	else
+		FCNPC_AimAtPlayer(id, target, false);
 }
 
 stock BossBehaviour(id)
@@ -5587,7 +5772,7 @@ stock UpdatePlayerRank(playerid)
 
 stock UpdatePlayerSkin(playerid)
 {
-	if(IsBoss[playerid])
+	if(IsBoss[playerid] || IsWalker[playerid])
 	{
 		SetPlayerSkin(playerid, PlayerInfo[playerid][Skin]);
 		return;
@@ -5612,7 +5797,7 @@ stock UpdatePlayerSkin(playerid)
 
 stock UpdatePlayerWeapon(playerid)
 {
-	if(IsBoss[playerid])
+	if(IsBoss[playerid] || IsWalker[playerid])
 	{
 		FCNPC_SetWeapon(playerid, PlayerInfo[playerid][WeaponSlotID]);
 		FCNPC_SetAmmo(playerid, 10000);
@@ -5622,13 +5807,13 @@ stock UpdatePlayerWeapon(playerid)
 	new weaponid;
 	switch(PlayerInfo[playerid][WeaponSlotID])
 	{
-		case 9..16,242: weaponid = 24;
+		case 9..16,242,205..213: weaponid = 24;
 		case 17..24,243: weaponid = 28;
 		case 25..32,244: weaponid = 32;
-		case 33..40,245: weaponid = 29;
+		case 33..40,245,214..222: weaponid = 29;
 		case 41..48,246: weaponid = 30;
-		case 49..56: weaponid = 31;
-		case 57..64,247: weaponid = 25;
+		case 49..56,223..231: weaponid = 31;
+		case 57..64,247,232..240: weaponid = 25;
 		case 65..72,248: weaponid = 27;
 		case 73..80,249: weaponid = 26;
 		default: weaponid = 22;
@@ -7276,7 +7461,7 @@ stock CombineWithModifier(playerid)
 	
 	new equip[BaseItem];
 	new itemid = CmbItem[playerid][2];
-	equip = GetItem(CmbItemCount[playerid][0]);
+	equip = GetItem(CmbItem[playerid][0]);
 	if( ((itemid == 187 || itemid == 189) && equip[Type] != ITEMTYPE_WEAPON) ||
 		((itemid == 188 || itemid == 190) && equip[Type] != ITEMTYPE_ARMOR) )
 	{
@@ -7296,8 +7481,17 @@ stock CombineWithModifier(playerid)
 	new available_mod_levels[2];
 	available_mod_levels = GetAvModLvlByModifierID(CmbItem[playerid][1]);
 	new mod_level = GetModifierModLevel(available_mod_levels);
-	SetModLevel(playerid, CmbItem[playerid][0], CmbItem[playerid][2], mod_level);
-	DeleteItem(playerid, CmbItemInvSlot[playerid][2], 1);
+	SetModLevel(playerid, CmbItemInvSlot[playerid][0], CmbItem[playerid][2], mod_level);
+	DeleteItem(playerid, CmbItemInvSlot[playerid][1], 1);
+
+	for(new i = 0; i < MAX_CMB_ITEMS; i++)
+	{
+		CmbItem[playerid][i] = -1;
+		CmbItemCount[playerid][i] = 0;
+		CmbItemInvSlot[playerid][i] = -1;
+	}
+
+	UpdateCmbWindow(playerid);
 
 	if(mod_level >= 5)
 	{
@@ -7508,6 +7702,16 @@ stock UpgradeItem(playerid, itemslot, stoneid, potionid = -1)
 stock GetModChances(level, grade, potionid = -1)
 {
 	new chances[4];
+
+	if(grade == GRADE_R)
+	{
+		chances[0] = 0;
+		chances[1] = 10000;
+		chances[2] = 0;
+		chances[3] = 0;
+		return chances;
+	}
+
 	if(grade > GRADE_C)
 		grade = GRADE_C;
 
@@ -7570,6 +7774,47 @@ stock GetWeaponBaseDamage(weaponid)
 		case 66..72, 248: { damage[0] = 197; damage[1] = 421; }
 		case 73: { damage[0] = 319; damage[1] = 534; }
 		case 74..80, 249: { damage[0] = 431; damage[1] = 721; }
+
+		case 205: { damage[0] = 79; damage[1] = 118; }
+		case 206: { damage[0] = 103; damage[1] = 153; }
+		case 207: { damage[0] = 134; damage[1] = 199; }
+		case 208: { damage[0] = 174; damage[1] = 258; }
+		case 209: { damage[0] = 226; damage[1] = 336; }
+		case 210: { damage[0] = 294; damage[1] = 437; }
+		case 211: { damage[0] = 382; damage[1] = 568; }
+		case 212: { damage[0] = 497; damage[1] = 648; }
+		case 213: { damage[0] = 646; damage[1] = 739; }
+
+		case 214: { damage[0] = 34; damage[1] = 51; }
+		case 215: { damage[0] = 44; damage[1] = 66; }
+		case 216: { damage[0] = 58; damage[1] = 86; }
+		case 217: { damage[0] = 75; damage[1] = 112; }
+		case 218: { damage[0] = 97; damage[1] = 146; }
+		case 219: { damage[0] = 126; damage[1] = 189; }
+		case 220: { damage[0] = 164; damage[1] = 246; }
+		case 221: { damage[0] = 213; damage[1] = 320; }
+		case 222: { damage[0] = 277; damage[1] = 416; }
+
+		case 223: { damage[0] = 63; damage[1] = 87; }
+		case 224: { damage[0] = 82; damage[1] = 113; }
+		case 225: { damage[0] = 107; damage[1] = 147; }
+		case 226: { damage[0] = 138; damage[1] = 191; }
+		case 227: { damage[0] = 180; damage[1] = 248; }
+		case 228: { damage[0] = 234; damage[1] = 323; }
+		case 229: { damage[0] = 304; damage[1] = 420; }
+		case 230: { damage[0] = 395; damage[1] = 546; }
+		case 231: { damage[0] = 514; damage[1] = 710; }
+
+		case 232: { damage[0] = 289; damage[1] = 438; }
+		case 233: { damage[0] = 376; damage[1] = 569; }
+		case 234: { damage[0] = 488; damage[1] = 740; }
+		case 235: { damage[0] = 634; damage[1] = 962; }
+		case 236: { damage[0] = 825; damage[1] = 1251; }
+		case 237: { damage[0] = 1073; damage[1] = 1626; }
+		case 238: { damage[0] = 1395; damage[1] = 2114; }
+		case 239: { damage[0] = 1813; damage[1] = 2748; }
+		case 240: { damage[0] = 2357; damage[1] = 3572; }
+
 		default: { damage[0] = 13; damage[1] = 15; }
 	}
 	return damage;
@@ -7813,6 +8058,7 @@ stock GetGradeColor(grade)
 	    case GRADE_B: color = "FFCC00";
 	    case GRADE_C: color = "CC6600";
 		case GRADE_D: color = "9966FF";
+		case GRADE_R: color = "3399FF";
 	    default: color = "CCCCCC";
 	}
 	return color;
@@ -8552,14 +8798,53 @@ stock GetPlayerID(name[])
 	return -1;
 }
 
+stock GetWalkerRespawnTime(rank)
+{
+	new time = 30000;
+	switch(rank)
+	{
+		case 1: time = 15000;
+		case 2:	time = 30000;
+		case 3:	time = 45000;
+		case 4:	time = 80000;
+		case 5:	time = 120000;
+		case 6:	time = 150000;
+		case 7:	time = 225000;
+		case 8:	time = 300000;
+		case 9:	time = 400000;
+	}
+
+	return time;
+}
+
 stock SetWalkerDestPoint(walkerid)
 {
-	//TODO:
+	new Float:x, Float:y, Float:z;
+	FCNPC_GetPosition(walkerid, x, y, z);
+
+	x = 184 + random(115);
+	y = -1868 + random(27);
+
+	FCNPC_GoTo(walkerid, x, y, z, FCNPC_MOVE_TYPE_WALK, FCNPC_MOVE_SPEED_WALK);
 }
 
 stock SetRandomWalkerPos(walkerid)
 {
-	//TODO:
+	new Float:x, Float:y, Float:z;
+	x = 184 + random(115);
+	y = -1868 + random(27);
+	z = 3.2866;
+
+	FCNPC_SetPosition(walkerid, x, y, z);
+}
+
+stock ResetWalkerDamagersInfo(walkerid)
+{
+	new idx = GetWalkerIdx(walkerid);
+	if(idx == -1) return;
+
+	for(new i = 0; i < MAX_PLAYERS; i++)
+		WalkersDamagers[idx][i] = 0;
 }
 
 stock InitWalkers()
@@ -8567,7 +8852,6 @@ stock InitWalkers()
 	for(new i = 0; i < MAX_WALKERS; i++)
 	{
 		new rank = random(MAX_RANK) + 1;
-		new walker[wInfo];
 		Walkers[i] = GetWalker(rank);
 
 		new npc_name[255];
@@ -8575,7 +8859,11 @@ stock InitWalkers()
 		Walkers[i][ID] = FCNPC_Create(npc_name);
 
 		IsWalker[Walkers[i][ID]] = true;
+		ResetWalkerDamagersInfo(Walkers[i][ID]);
+
 		MaxHP[Walkers[i][ID]] = Walkers[i][HP];
+		SetPlayerMaxHP(Walkers[i][ID], Walkers[i][HP], false);
+
 		PlayerInfo[Walkers[i][ID]][DamageMin] = Walkers[i][DamageMin];
 		PlayerInfo[Walkers[i][ID]][DamageMax] = Walkers[i][DamageMax];
 		PlayerInfo[Walkers[i][ID]][Defense] = Walkers[i][Defense];
@@ -8588,11 +8876,15 @@ stock InitWalkers()
 
 		FCNPC_Spawn(Walkers[i][ID], Walkers[i][Skin], 0, 0, 0);
 		SetRandomWalkerPos(Walkers[i][ID]);
+		FCNPC_SetInvulnerable(Walkers[i][ID], false);
+		FCNPC_SetInterior(Walkers[i][ID], 0);
 		UpdatePlayerWeapon(Walkers[i][ID]);
 
 		new name[255];
 		format(name, sizeof(name), "[LV%d] %s", Walkers[i][Rank], Walkers[i][Name]);
-		Walkers[i][LabelID] = CreateDynamic3DTextLabel(name, HexRateColors[Walkers[i][Rank]-1][0], 0, 0, 0.2, 30, Walkers[i][ID]);
+		Walkers[i][LabelID] = CreateDynamic3DTextLabel(name, HexRateColors[Walkers[i][Rank]-1][0], 0, 0, 0.15, 40, Walkers[i][ID]);
+
+		SetWalkerDestPoint(Walkers[i][ID]);
 	}
 }
 
@@ -8602,6 +8894,7 @@ stock DestroyWalkers()
 	{
 		DestroyDynamic3DTextLabel(Walkers[i][LabelID]);
 		FCNPC_Destroy(Walkers[i][ID]);
+		IsWalker[Walkers[i][ID]] = false;
 	}
 }
 
