@@ -322,11 +322,11 @@ enum pInfo
 enum wInfo
 {
 	ID,
-	DynamicText3D:LabelID,
+	Text3D:LabelID,
 	Name[255],
 	Rank,
 	Skin,
-	MaxHP,
+	HP,
 	DamageMin,
 	DamageMax,
 	Defense,
@@ -341,6 +341,7 @@ new WorldTime_Timer = -1;
 new PrepareBossAttackTimer = -1;
 new BossAttackTimer = -1;
 new TeleportTimer = -1;
+new WalkerRespawnTimer = -1;
 new Actors[MAX_ACTORS];
 new ReadyIDs[MAX_OWNERS] = -1;
 new MySQL:sql_handle;
@@ -1067,7 +1068,7 @@ public UpdatePvpTable()
 public FCNPC_OnReachDestination(npcid)
 {
 	if(IsWalker[npcid] && !FCNPC_IsAiming(npcid))
-		SetWalkerDestPoint(walkerid);
+		SetWalkerDestPoint(npcid);
 	return 1;
 }
 
@@ -3924,9 +3925,12 @@ stock BuyItem(playerid, lotid, count = 1)
 	{
 		PlayerInfo[owner_id][Cash] += amount;
 		GivePlayerMoney(owner_id, amount);
+		
+		new b_item[BaseItem];
+		b_item = GetItem(item[ID]);
 
 		new string[255];
-		format(string, sizeof(string), "Предмет [{%s}%s{ffffff}] продан.", GetGradeColor(item[Grade]), item[Name]);
+		format(string, sizeof(string), "Предмет [{%s}%s{ffffff}] продан.", GetGradeColor(b_item[Grade]), b_item[Name]);
 		SendClientMessage(owner_id, 0xFFFFFFFF, string);
 	}
 	else
@@ -7084,7 +7088,7 @@ stock UpdateCmbWindow(playerid)
 	}
 }
 
-stock GetAvailableModLevelsByModifierID(id)
+stock GetAvModLvlByModifierID(id)
 {
 	new levels[2];
 
@@ -7290,9 +7294,9 @@ stock CombineWithModifier(playerid)
 	}
 
 	new available_mod_levels[2];
-	available_mod_levels = GetAvailableModLevelsByModifierID(CmbItem[playerid][1]);
+	available_mod_levels = GetAvModLvlByModifierID(CmbItem[playerid][1]);
 	new mod_level = GetModifierModLevel(available_mod_levels);
-	SetModLevel(playerid, CmbItemSlot[playerid][0], CmbItemSlot[playerid][2], mod_level);
+	SetModLevel(playerid, CmbItem[playerid][0], CmbItem[playerid][2], mod_level);
 	DeleteItem(playerid, CmbItemInvSlot[playerid][2], 1);
 
 	if(mod_level >= 5)
@@ -8510,20 +8514,20 @@ stock GetWalker(rank)
 	if(row_count <= 0)
 	{
 		print("GetWalker() error.");
-		return player;
+		return walker;
 	}
 
 	walker[Rank] = rank;
 
 	cache_get_value_name_int(0, "Skin", walker[Skin]);
-	cache_get_value_name_int(0, "MaxHP", walker[MaxHP]);
+	cache_get_value_name_int(0, "MaxHP", walker[HP]);
 	cache_get_value_name_int(0, "DamageMin", walker[DamageMin]);
 	cache_get_value_name_int(0, "DamageMax", walker[DamageMax]);
 	cache_get_value_name_int(0, "Defense", walker[Defense]);
 	cache_get_value_name_int(0, "Dodge", walker[Dodge]);
 	cache_get_value_name_int(0, "Accuracy", walker[Accuracy]);
 	cache_get_value_name_int(0, "Crit", walker[Crit]);
-	cache_get_value_name_int(0, "WeaponID", walker[WeaponSlotID]);
+	cache_get_value_name_int(0, "WeaponID", walker[WeaponID]);
 
 	new name[255];
 	cache_get_value_name(0, "Name", name);
@@ -8571,6 +8575,7 @@ stock InitWalkers()
 		Walkers[i][ID] = FCNPC_Create(npc_name);
 
 		IsWalker[Walkers[i][ID]] = true;
+		MaxHP[Walkers[i][ID]] = Walkers[i][HP];
 		PlayerInfo[Walkers[i][ID]][DamageMin] = Walkers[i][DamageMin];
 		PlayerInfo[Walkers[i][ID]][DamageMax] = Walkers[i][DamageMax];
 		PlayerInfo[Walkers[i][ID]][Defense] = Walkers[i][Defense];
@@ -8583,11 +8588,11 @@ stock InitWalkers()
 
 		FCNPC_Spawn(Walkers[i][ID], Walkers[i][Skin], 0, 0, 0);
 		SetRandomWalkerPos(Walkers[i][ID]);
-		SetPlayerWeapons(Walkers[i][ID]);
+		UpdatePlayerWeapon(Walkers[i][ID]);
 
 		new name[255];
 		format(name, sizeof(name), "[LV%d] %s", Walkers[i][Rank], Walkers[i][Name]);
-		Walkers[i][LabelID] = CreateDynamic3DTextLabel(name, HexRateColors[Walkers[i][Rank]][0], 0, 0, 0.2, 30, Walkers[i][ID]);
+		Walkers[i][LabelID] = CreateDynamic3DTextLabel(name, HexRateColors[Walkers[i][Rank]-1][0], 0, 0, 0.2, 30, Walkers[i][ID]);
 	}
 }
 
