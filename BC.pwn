@@ -22,14 +22,14 @@
 
 //Mysql settings
 
-#define SQL_HOST "127.0.0.1"
+/*#define SQL_HOST "127.0.0.1"
 #define SQL_USER "tsar"
 #define SQL_DB "bcircus"
-#define SQL_PASS "2151"
-/*#define SQL_HOST "212.22.93.45"
+#define SQL_PASS "2151"*/
+#define SQL_HOST "212.22.93.45"
 #define SQL_USER "gsvtqhss"
 #define SQL_DB "gsvtqhss_21809"
-#define SQL_PASS "21510055"*/
+#define SQL_PASS "21510055"
 
 //Data types
 #define TYPE_INT 0x01
@@ -63,7 +63,7 @@
 
 //Limits
 #define MAX_PARTICIPANTS 20
-#define MAX_OWNERS 1
+#define MAX_OWNERS 2
 #define MAX_SLOTS 25
 #define MAX_SLOTS_X 5
 #define MAX_SLOTS_Y 5
@@ -75,6 +75,7 @@
 #define MAX_BOSSES 5
 #define MAX_ITEM_ID 315
 #define MAX_LOOT 20
+#define MAX_WALKER_LOOT 12
 #define MAX_PVP_PANEL_ITEMS 5
 #define MAX_RELIABLE_TARGETS 5
 #define MAX_TEAMCOLORS 2
@@ -190,6 +191,7 @@ forward RegeneratePlayerHP(playerid);
 forward UpdatePvpTable();
 forward CheckDead(npcid);
 forward RespawnWalker(walkerid);
+forward TickMinute();
 
 /* Variables */
 
@@ -237,7 +239,8 @@ enum BossInfo
 enum LootInfo
 {
 	ItemID,
-	Count
+	Count,
+	OwnerID
 };
 enum RewardInfo
 {
@@ -338,6 +341,7 @@ enum wInfo
 };
 
 //Global
+new MinuteTimer = -1;
 new WorldTime_Timer = -1;
 new PrepareBossAttackTimer = -1;
 new BossAttackTimer = -1;
@@ -359,6 +363,9 @@ new BossNPC = -1;
 new bool:IsBoss[MAX_PLAYERS] = false;
 new BossLootPickups[MAX_LOOT];
 new BossLootItems[MAX_LOOT][LootInfo];
+
+new WalkerLootPickups[MAX_PLAYERS][MAX_WALKER_LOOT];
+new WalkerLootItems[MAX_PLAYERS][MAX_WALKER_LOOT][LootInfo];
 
 new ModItemSlot[MAX_PLAYERS] = -1;
 new ModStone[MAX_PLAYERS] = -1;
@@ -780,6 +787,7 @@ public OnGameModeInit()
 	InitTextDraws();
 
 	WorldTime_Timer = SetTimer("Time", 1000, true);
+	MinuteTimer = SetTimer("TickMinute", 60000, true);
 	arena_area = CreateDynamicRectangle(-2390.5017, -1669.8492, -2313.0295, -1593.6758, 0, 0, -1);
 	walkers_area = CreateDynamicRectangle(183.5849, -1867.2853, 298.7423, -1842.1835, 0, 0, -1);
 
@@ -811,6 +819,7 @@ public OnGameModeExit()
 	DeleteTextDraws();
 	ResetLoot();
 	KillTimer(WorldTime_Timer);
+	KillTimer(MinuteTimer);
 	for (new i = 0; i < MAX_ACTORS; i++)
 		DestroyActor(Actors[i]);
 	DestroyWalkers();
@@ -990,7 +999,6 @@ public OnTournamentEnd()
 
 	GiveTournamentRewards();
 	UpdateTourParticipants();
-	UpdateBossesCooldowns();
 	UpdateMarketItems();
 	UpdateTempItems();
 }
@@ -1308,7 +1316,7 @@ public OnPlayerDeath(playerid, killerid, reason)
 		}
 		if(IsWalker[killerid])
 		{
-			new rate = random(16) + 5;
+			new rate = random(5) + 1;
 			GivePlayerRate(playerid, -rate);
 		}
 	}
@@ -1365,6 +1373,8 @@ public RespawnWalker(walkerid)
 {
 	if(IsValidTimer(WalkerRespawnTimer[walkerid]))
 		KillTimer(WalkerRespawnTimer[walkerid]);
+	if(!IsWalker[walkerid])
+		return;
 
 	new i = GetWalkerIdx(walkerid);
 	if(i == -1) return;
@@ -1374,10 +1384,12 @@ public RespawnWalker(walkerid)
 	Walkers[i][ID] = walkerid;
 
 	ResetWalkerDamagersInfo(walkerid);
+	ResetWalkerLoot(walkerid);
 
 	MaxHP[Walkers[i][ID]] = Walkers[i][HP];
 	SetPlayerMaxHP(Walkers[i][ID], Walkers[i][HP], false);
 
+	PlayerInfo[walkerid][Rank] = rank;
 	PlayerInfo[walkerid][DamageMin] = Walkers[i][DamageMin];
 	PlayerInfo[walkerid][DamageMax] = Walkers[i][DamageMax];
 	PlayerInfo[walkerid][Defense] = Walkers[i][Defense];
@@ -1468,6 +1480,57 @@ public OnPlayerPickUpPickup(playerid, pickupid)
 				GetGradeColor(item[Grade]), item[Name], BossLootItems[i][Count]
 			);
 			SendClientMessage(playerid, 0xFFFFFFFF, string);
+		}
+	}
+	for(new j = 0; j < MAX_PLAYERS; j++)
+	{
+		if(!IsPlayerConnected(j) || !IsWalker[j]) continue;
+		for(new i = 0; i < MAX_WALKER_LOOT; i++)
+		{
+			if(pickupid != WalkerLootPickups[j][i]) continue;
+			if(WalkerLootItems[j][i][OwnerID] == -1 || WalkerLootItems[j][i][OwnerID] == playerid)
+			{
+				if(IsInventoryFull(playerid))
+				{
+					SendClientMessage(playerid, COLOR_GREY, "Инвентарь полон.");
+					continue;
+				}
+				SafeDestroyPickup(WalkerLootPickups[j][i]);
+				if(WalkerLootItems[j][i][ItemID] == -1) continue;
+
+				new string[255];
+				new item[BaseItem];
+				item = GetItem(WalkerLootItems[j][i][ItemID]);
+
+				if(IsEquip(WalkerLootItems[j][i][ItemID]))
+				{
+					AddEquip(playerid, WalkerLootItems[j][i][ItemID], MOD_CLEAR);
+					if(item[Grade] >= GRADE_C)
+					{
+						format(string, sizeof(string), "{%s}%s {ffffff}приобрел {%s}[%s]{ffffff}.", 
+							GetColorByRate(PlayerInfo[playerid][Rate]), PlayerInfo[playerid][Name], GetGradeColor(item[Grade]), item[Name]
+						);
+						SendClientMessageToAll(0xFFFFFFFF, string);
+					}
+				}
+				else
+					AddItem(playerid, WalkerLootItems[j][i][ItemID], WalkerLootItems[j][i][Count]);
+				
+				format(string, sizeof(string), "Подобрано: {%s}[%s] {ffffff}x%d.", 
+					GetGradeColor(item[Grade]), item[Name], WalkerLootItems[j][i][Count]
+				);
+				SendClientMessage(playerid, 0xFFFFFFFF, string);
+
+				WalkerLootItems[j][i][ItemID] = -1;
+				WalkerLootItems[j][i][Count] = 0;
+				WalkerLootItems[j][i][OwnerID] = -1;
+				WalkerLootPickups[j][i] = 0;
+			}
+			else
+			{
+				SendClientMessage(playerid, COLOR_GREY, "Вы не имеете прав на этот предмет.");
+				break;
+			}
 		}
 	}
 	return 1;
@@ -2894,6 +2957,11 @@ public bool:CheckChance(chance)
 {
 	new rnd = random(100);
 	return rnd < chance;
+}
+
+public TickMinute()
+{
+	UpdateBossesCooldowns();
 }
 
 public TeleportToHome(playerid)
@@ -5336,7 +5404,7 @@ stock GetBossesList()
 		else if(resp_time == 0)
 			format(bossinfo, sizeof(bossinfo), "\n{%s}%s\t{66CC00}Можно атаковать", GetGradeColor(boss[Grade]), boss[Name]);
 		else
-			format(bossinfo, sizeof(bossinfo), "\n{%s}%s\t{CC3333}Ждать турниров: %d", GetGradeColor(boss[Grade]), boss[Name], resp_time);
+			format(bossinfo, sizeof(bossinfo), "\n{%s}%s\t{CC3333}Ждать минут: %d", GetGradeColor(boss[Grade]), boss[Name], resp_time);
 		strcat(listitems, bossinfo);
 	}
 
@@ -5350,10 +5418,11 @@ stock SetBossCooldown(bossid)
 	new resp_time;
 	switch(bossid)
 	{
-		case 2: resp_time = 2;
-		case 3: resp_time = 3;
-		case 4: resp_time = 4;
-		default: resp_time = 1;
+		case 1: resp_time = 30;
+		case 2: resp_time = 60;
+		case 3: resp_time = 120;
+		case 4: resp_time = 240;
+		default: resp_time = 15;
 	}
 
 	new query[255];
@@ -5570,12 +5639,48 @@ stock ResetLoot()
 		}
 		BossLootItems[i][ItemID] = -1;
 		BossLootItems[i][Count] = 0;
+		BossLootItems[i][OwnerID] = -1;
+	}
+}
+
+stock ResetWalkerLoot(walkerid)
+{
+	for(new i = 0; i < MAX_WALKER_LOOT; i++)
+	{
+		if(WalkerLootPickups[walkerid][i] > 0)
+		{
+			SafeDestroyPickup(WalkerLootPickups[walkerid][i]);
+			WalkerLootPickups[walkerid][i] = 0;
+		}
+		WalkerLootItems[walkerid][i][ItemID] = -1;
+		WalkerLootItems[walkerid][i][Count] = 0;
+		WalkerLootItems[walkerid][i][OwnerID] = -1;
 	}
 }
 
 stock RollWalkerLoot(walkerid, killerid)
 {
-	//TODO:
+	if(killerid == -1 || killerid == INVALID_PLAYER_ID) return;
+
+	new loot_mult = 4;
+	if(HasItem(killerid, 185, 1))
+		loot_mult /= 2;
+
+	new iterations = random(MAX_WALKER_LOOT / loot_mult) + MAX_WALKER_LOOT / loot_mult + 1;
+	for(new i = 0; i < iterations; i++)
+	{
+		new loot[LootInfo];
+		loot = RollWalkerLootItem(PlayerInfo[walkerid][Rank], killerid);
+		if(loot[ItemID] == -1) continue;
+
+		WalkerLootItems[walkerid][i][ItemID] = loot[ItemID];
+		WalkerLootItems[walkerid][i][Count] = loot[Count];
+		WalkerLootItems[walkerid][i][OwnerID] = loot[OwnerID];
+
+		new Float:x, Float:y, Float:z;
+		FCNPC_GetPosition(walkerid, x, y, z);
+		WalkerLootPickups[walkerid][i] = CreatePickup(19055, 1, x + random(6), y + random(6), z, 0);
+	}
 }
 
 stock RollBossLoot()
@@ -5606,6 +5711,122 @@ stock RollBossLoot()
 		FCNPC_GetPosition(BossNPC, x, y, z);
 		BossLootPickups[i] = CreatePickup(19055, 4, x + random(10), y + random(10), z, 0);
 	}
+}
+
+stock RollWalkerLootItem(rank, ownerid)
+{
+	new chance = random(10001);
+	new itemid = -1;
+	new count = 1;
+	switch(rank)
+	{
+		case 1:
+		{
+			switch(chance)
+			{
+				case 0..48: itemid = GetRandomEquip(1, 1);
+				case 49: itemid = 313;
+				case 50..999: itemid = GetRandomStone();
+				default: { itemid = 241; count = rank * 5; }
+			}
+		}
+		case 2:
+		{
+			switch(chance)
+			{
+				case 0..48: itemid = GetRandomEquip(1, 2);
+				case 49: itemid = 313;
+				case 50..999: { itemid = GetRandomStone(); count = 2; }
+				default: { itemid = 241; count = rank * 5; }
+			}
+		}
+		case 3:
+		{
+			switch(chance)
+			{
+				case 0..48: itemid = GetRandomEquip(2, 3);
+				case 49: itemid = 313;
+				case 50..999: { itemid = GetRandomStone(); count = 4; }
+				case 1000..1099: itemid = 310;
+				default: { itemid = 241; count = rank * 5; }
+			}
+		}
+		case 4:
+		{
+			switch(chance)
+			{
+				case 0..48: itemid = GetRandomEquip(3, 4);
+				case 49: itemid = 313;
+				case 50..999: { itemid = GetRandomStone(); count = 6; }
+				case 1000..1199: itemid = 310;
+				default: { itemid = 241; count = rank * 5; }
+			}
+		}
+		case 5:
+		{
+			switch(chance)
+			{
+				case 0..48: itemid = GetRandomEquip(4, 5);
+				case 49: itemid = 313;
+				case 50..999: { itemid = GetRandomBooster(); count = 4; }
+				case 1000..1299: itemid = 310;
+				default: { itemid = 241; count = rank * 5; }
+			}
+		}
+		case 6:
+		{
+			switch(chance)
+			{
+				case 0..48: itemid = GetRandomEquip(5, 6);
+				case 49: itemid = 313;
+				case 50..999: { itemid = GetRandomBooster(); count = 6; }
+				case 1000..1099: itemid = 311;
+				default: { itemid = 241; count = rank * 5; }
+			}
+		}
+		case 7:
+		{
+			switch(chance)
+			{
+				case 0..48: itemid = GetRandomEquip(6, 7);
+				case 49: itemid = 313;
+				case 50..999: { itemid = GetRandomBooster(); count = 8; }
+				case 1000..1149: itemid = 311;
+				case 1150..1199: { itemid = 191; count = 3; }
+				default: { itemid = 241; count = rank * 5; }
+			}
+		}
+		case 8:
+		{
+			switch(chance)
+			{
+				case 0..48: itemid = GetRandomEquip(7, 8);
+				case 49: itemid = 313;
+				case 50..1149: { itemid = GetRandomBooster(); count = 10; }
+				case 1150..1159: itemid = 312;
+				case 1160..1299: { itemid = 192; count = 3; }
+				default: { itemid = 241; count = rank * 5; }
+			}
+		}
+		case 9:
+		{
+			switch(chance)
+			{
+				case 0..48: itemid = GetRandomEquip(8, 9);
+				case 49: itemid = 313;
+				case 50..1449: { itemid = GetRandomBooster(); count = 12; }
+				case 1450..1474: itemid = 312;
+				case 1475..1799: { itemid = 192; count = 5; }
+				default: { itemid = 241; count = rank * 5; }
+			}
+		}
+	}
+
+	new loot[LootInfo];
+	loot[ItemID] = itemid;
+	loot[Count] = count;
+	loot[OwnerID] = ownerid;
+	return loot;
 }
 
 stock RollBossLootItem(bossid)
@@ -5682,6 +5903,7 @@ stock RollBossLootItem(bossid)
 	new loot[LootInfo];
 	loot[ItemID] = itemid;
 	loot[Count] = count;
+	loot[OwnerID] = -1;
 	return loot;
 }
 
@@ -5712,6 +5934,11 @@ stock GetRandomAccessory(type)
 stock GetRandomBooster()
 {
 	return 196 + random(6);
+}
+
+stock GetRandomStone()
+{
+	return 187 + random(4);
 }
 
 stock DebugLogInt(msg[], variable)
@@ -8803,15 +9030,15 @@ stock GetWalkerRespawnTime(rank)
 	new time = 30000;
 	switch(rank)
 	{
-		case 1: time = 15000;
-		case 2:	time = 30000;
-		case 3:	time = 45000;
-		case 4:	time = 80000;
-		case 5:	time = 120000;
-		case 6:	time = 150000;
-		case 7:	time = 225000;
-		case 8:	time = 300000;
-		case 9:	time = 400000;
+		case 1: time = 10000;
+		case 2:	time = 25000;
+		case 3:	time = 20000;
+		case 4:	time = 25000;
+		case 5:	time = 30000;
+		case 6:	time = 35000;
+		case 7:	time = 40000;
+		case 8:	time = 45000;
+		case 9:	time = 50000;
 	}
 
 	return time;
@@ -8864,6 +9091,7 @@ stock InitWalkers()
 		MaxHP[Walkers[i][ID]] = Walkers[i][HP];
 		SetPlayerMaxHP(Walkers[i][ID], Walkers[i][HP], false);
 
+		PlayerInfo[Walkers[i][ID]][Rank] = rank;
 		PlayerInfo[Walkers[i][ID]][DamageMin] = Walkers[i][DamageMin];
 		PlayerInfo[Walkers[i][ID]][DamageMax] = Walkers[i][DamageMax];
 		PlayerInfo[Walkers[i][ID]][Defense] = Walkers[i][Defense];
@@ -8893,6 +9121,8 @@ stock DestroyWalkers()
 	for(new i = 0; i < MAX_WALKERS; i++)
 	{
 		DestroyDynamic3DTextLabel(Walkers[i][LabelID]);
+		if(IsValidTimer(WalkerRespawnTimer[Walkers[i][ID]]))
+			KillTimer(WalkerRespawnTimer[Walkers[i][ID]]);
 		FCNPC_Destroy(Walkers[i][ID]);
 		IsWalker[Walkers[i][ID]] = false;
 	}
