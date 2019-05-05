@@ -192,6 +192,7 @@ forward UpdatePvpTable();
 forward CheckDead(npcid);
 forward RespawnWalker(walkerid);
 forward TickMinute();
+forward RefreshWalkers();
 
 /* Variables */
 
@@ -342,6 +343,7 @@ enum wInfo
 
 //Global
 new MinuteTimer = -1;
+new WalkersRefreshTimer = -1;
 new WorldTime_Timer = -1;
 new PrepareBossAttackTimer = -1;
 new BossAttackTimer = -1;
@@ -624,6 +626,33 @@ main()
 
 /* Commands */
 //GM commands
+cmd:balance(playerid, params[])
+{
+	if(PlayerInfo[playerid][Admin] == 0)
+		return 0;
+
+	new query[255] = "SELECT * FROM `players` WHERE `Owner` = 'Dimak'";
+	new Cache:q_result = mysql_query(sql_handle, query);
+
+	new rows;
+	cache_get_row_count(rows);
+	q_result = cache_save();
+	cache_unset_active();
+
+	for(new i = 0; i < rows; i++)
+	{
+		cache_set_active(q_result);
+		new name[255];
+		cache_get_value_name(i, "Name", name);
+		cache_unset_active();
+		GivePlayerMoneyOffline(name, 50000);
+		PendingItem(name, 203, MOD_CLEAR, 10);
+		PendingItem(name, 311, MOD_CLEAR, 1);
+	}
+
+	cache_delete(q_result);
+	return SendClientMessage(playerid, COLOR_GREY, "Done.");
+}
 cmd:setrate(playerid, params[])
 {
 	if(PlayerInfo[playerid][Admin] == 0)
@@ -788,6 +817,8 @@ public OnGameModeInit()
 
 	WorldTime_Timer = SetTimer("Time", 1000, true);
 	MinuteTimer = SetTimer("TickMinute", 60000, true);
+	WalkersRefreshTimer = SetTimer("RefreshWalkers", 600000, true);
+
 	arena_area = CreateDynamicRectangle(-2390.5017, -1669.8492, -2313.0295, -1593.6758, 0, 0, -1);
 	walkers_area = CreateDynamicRectangle(183.5849, -1867.2853, 298.7423, -1842.1835, 0, 0, -1);
 
@@ -820,6 +851,7 @@ public OnGameModeExit()
 	ResetLoot();
 	KillTimer(WorldTime_Timer);
 	KillTimer(MinuteTimer);
+	KillTimer(WalkersRefreshTimer);
 	for (new i = 0; i < MAX_ACTORS; i++)
 		DestroyActor(Actors[i]);
 	DestroyWalkers();
@@ -2962,6 +2994,24 @@ public bool:CheckChance(chance)
 public TickMinute()
 {
 	UpdateBossesCooldowns();
+}
+
+public RefreshWalkers()
+{
+	if(Tournament[Phase] == PHASE_WAR) return 0;
+	for(new i = 0; i < MAX_WALKERS; i++)
+	{
+		if(FCNPC_GetAimingPlayer(Walkers[i][ID]) != INVALID_PLAYER_ID)
+			return 0;
+		for(new j = 0; i < MAX_WALKER_LOOT; i++)
+		{
+			if(WalkerLootItems[Walkers[i][ID]][j][ItemID] != -1)
+				return 0;
+		}
+	}
+	DestroyWalkers();
+	InitWalkers();
+	return 1;
 }
 
 public TeleportToHome(playerid)
