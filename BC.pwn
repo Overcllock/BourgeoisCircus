@@ -809,7 +809,7 @@ public OnGameModeInit()
 	FCNPC_UseCrashLog(true);
 	ShowPlayerMarkers(PLAYER_MARKERS_MODE_GLOBAL);
 	DisableNameTagLOS();
-	SetNameTagDrawDistance(9999.0);
+	SetNameTagDrawDistance(300.0);
 
 	CreateMap();
 	CreatePickups();
@@ -908,7 +908,9 @@ public OnPlayerConnect(playerid)
 {
 	IsDeath[playerid] = false;
 	IsSpawned[playerid] = false;
-    ShowTextDraws(playerid);
+
+	if(!FCNPC_IsValid(playerid))
+    	ShowTextDraws(playerid);
 	return 1;
 }
 
@@ -916,6 +918,7 @@ public OnPlayerLogin(playerid)
 {
 	SetPlayerTeam(playerid, 10);
 	SetPlayerTourTeam(playerid, NO_TEAM);
+
 	if(!FCNPC_IsValid(playerid))
 	{
 		InitPlayerTextDraws(playerid);
@@ -925,22 +928,27 @@ public OnPlayerLogin(playerid)
 		GivePlayerMoney(playerid, PlayerInfo[playerid][Cash]);
 		UpdatePlayerPost(playerid);
 	}
+
 	PlayerConnect[playerid] = true;
 	IsInventoryOpen[playerid] = false;
 	SelectedSlot[playerid] = -1;
 	SetPVarInt(playerid, "LastKill", -1);
+
 	UpdatePlayerMaxHP(playerid);
 	SetPlayerSkills(playerid);
 	SetPVarFloat(playerid, "HP", MaxHP[playerid]);
 	SetPlayerHP(playerid, MaxHP[playerid]);
+
 	if(!FCNPC_IsValid(playerid))
 		SpawnPlayer(playerid);
 	else
 		FCNPC_Spawn(playerid, PlayerInfo[playerid][Skin], PlayerInfo[playerid][PosX], PlayerInfo[playerid][PosY], PlayerInfo[playerid][PosZ]);
+
 	UpdatePlayerStats(playerid);
 	if(!FCNPC_IsValid(playerid))
 		UpdateLocalRatingTop(playerid);
 	UpdatePlayerSkin(playerid);
+	
 	RegenerateTimer[playerid] = SetTimerEx("RegeneratePlayerHP", 1000, true, "i", playerid);
 }
 
@@ -1603,14 +1611,16 @@ public OnPlayerKeyStateChange(playerid, newkeys, oldkeys)
 		//оружейник
 		else if(IsPlayerInRangeOfPoint(playerid,1.8,189.2644,-1825.4902,4.1411))
 		{
-			new listitems[] = "Купить оружие\nКомбинирование";
-			ShowPlayerDialog(playerid, 500, DIALOG_STYLE_TABLIST, "Оружейник", listitems, "Далее", "Закрыть");
+			new listitems[2048];
+			listitems = GetWeaponSellerItemsList();
+			ShowPlayerDialog(playerid, 500, DIALOG_STYLE_TABLIST_HEADERS, "Оружейник", listitems, "Купить", "Закрыть");
 		}
 		//портной
 		else if(IsPlayerInRangeOfPoint(playerid,1.8,262.6658,-1825.2792,3.9126))
 		{
-			new listitems[] = "Купить одежду\nКомбинирование";
-			ShowPlayerDialog(playerid, 600, DIALOG_STYLE_TABLIST, "Портной", listitems, "Далее", "Закрыть");
+			new listitems[2048];
+			listitems = GetArmorSellerItemsList();
+			ShowPlayerDialog(playerid, 600, DIALOG_STYLE_TABLIST_HEADERS, "Портной", listitems, "Купить", "Закрыть");
 		}
 		//расходники
 		else if(IsPlayerInRangeOfPoint(playerid,1.8,-2166.7527,646.0400,1052.3750))
@@ -2022,26 +2032,6 @@ public OnDialogResponse(playerid, dialogid, response, listitem, inputtext[])
 		{
 			if(response)
 			{
-				switch(listitem)
-				{
-					case 0:
-					{
-						new listitems[2048];
-						listitems = GetWeaponSellerItemsList();
-						ShowPlayerDialog(playerid, 501, DIALOG_STYLE_TABLIST_HEADERS, "Оружейник", listitems, "Купить", "Закрыть");
-					}
-					case 1:
-					{
-						ShowPlayerDialog(playerid, 1, DIALOG_STYLE_MSGBOX, "Комбинирование", "Комбинации будут доступны в версии 1.0", "Закрыть", "");
-					}
-				}
-			}
-			return 1;
-		}
-		case 501:
-		{
-			if(response)
-			{
 				new itemid = -1;
 
 				new query[255];
@@ -2078,11 +2068,11 @@ public OnDialogResponse(playerid, dialogid, response, listitem, inputtext[])
 
 				new text[255];
 				format(text, sizeof(text), "{ffffff}[{%s}%s{ffffff}] - купить?", GetGradeColor(item[Grade]), item[Name]);
-				ShowPlayerDialog(playerid, 502, DIALOG_STYLE_MSGBOX, "Подтверждение", text, "ОК", "Отмена");
+				ShowPlayerDialog(playerid, 501, DIALOG_STYLE_MSGBOX, "Подтверждение", text, "ОК", "Отмена");
 			}	
 			return 1;
 		}
-		case 502:
+		case 501:
 		{
 			if(response)
 			{
@@ -2103,26 +2093,6 @@ public OnDialogResponse(playerid, dialogid, response, listitem, inputtext[])
 		}
 		//портной
 		case 600:
-		{
-			if(response)
-			{
-				switch(listitem)
-				{
-					case 0:
-					{
-						new listitems[2048];
-						listitems = GetArmorSellerItemsList();
-						ShowPlayerDialog(playerid, 601, DIALOG_STYLE_TABLIST_HEADERS, "Портной", listitems, "Купить", "Закрыть");
-					}
-					case 1:
-					{
-						ShowPlayerDialog(playerid, 1, DIALOG_STYLE_MSGBOX, "Комбинирование", "Комбинации будут доступны в версии 1.0", "Закрыть", "");
-					}
-				}
-			}
-			return 1;
-		}
-		case 601:
 		{
 			if(response)
 			{
@@ -2162,11 +2132,11 @@ public OnDialogResponse(playerid, dialogid, response, listitem, inputtext[])
 
 				new text[255];
 				format(text, sizeof(text), "{ffffff}[{%s}%s{ffffff}] - купить?", GetGradeColor(item[Grade]), item[Name]);
-				ShowPlayerDialog(playerid, 602, DIALOG_STYLE_MSGBOX, "Подтверждение", text, "ОК", "Отмена");
+				ShowPlayerDialog(playerid, 601, DIALOG_STYLE_MSGBOX, "Подтверждение", text, "ОК", "Отмена");
 			}	
 			return 1;
 		}
-		case 602:
+		case 601:
 		{
 			if(response)
 			{
@@ -4365,7 +4335,7 @@ stock ShowMarketBuyList(playerid, category)
 		return;
 	}
 
-	new content[2048] = "";
+	new content[4096] = "";
 	new buf[255];
 	for(new i = 0; i < row_count; i++)
 	{
