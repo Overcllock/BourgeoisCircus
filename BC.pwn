@@ -5886,7 +5886,7 @@ stock RollWalkerLootItem(rank, ownerid)
 				case 0..48: itemid = GetRandomEquip(1, 1);
 				case 49: itemid = 313;
 				case 50..999: itemid = GetRandomStone();
-				default: { itemid = 241; count = rank * 5; }
+				default: { itemid = 241; count = (rank * 5 - rank) + random(rank * 3); }
 			}
 		}
 		case 2:
@@ -5896,7 +5896,7 @@ stock RollWalkerLootItem(rank, ownerid)
 				case 0..48: itemid = GetRandomEquip(1, 2);
 				case 49: itemid = 313;
 				case 50..999: { itemid = GetRandomStone(); count = 2; }
-				default: { itemid = 241; count = rank * 5; }
+				default: { itemid = 241; count = (rank * 5 - rank) + random(rank * 3); }
 			}
 		}
 		case 3:
@@ -5907,7 +5907,7 @@ stock RollWalkerLootItem(rank, ownerid)
 				case 49: itemid = 313;
 				case 50..999: { itemid = GetRandomStone(); count = 4; }
 				case 1000..1099: itemid = 310;
-				default: { itemid = 241; count = rank * 5; }
+				default: { itemid = 241; count = (rank * 5 - rank) + random(rank * 3); }
 			}
 		}
 		case 4:
@@ -5918,7 +5918,7 @@ stock RollWalkerLootItem(rank, ownerid)
 				case 49: itemid = 313;
 				case 50..999: { itemid = GetRandomStone(); count = 6; }
 				case 1000..1199: itemid = 310;
-				default: { itemid = 241; count = rank * 5; }
+				default: { itemid = 241; count = (rank * 5 - rank) + random(rank * 3); }
 			}
 		}
 		case 5:
@@ -5929,7 +5929,7 @@ stock RollWalkerLootItem(rank, ownerid)
 				case 49: itemid = 313;
 				case 50..999: { itemid = GetRandomBooster(); count = 4; }
 				case 1000..1299: itemid = 310;
-				default: { itemid = 241; count = rank * 5; }
+				default: { itemid = 241; count = (rank * 5 - rank) + random(rank * 3); }
 			}
 		}
 		case 6:
@@ -5940,7 +5940,7 @@ stock RollWalkerLootItem(rank, ownerid)
 				case 49: itemid = 313;
 				case 50..999: { itemid = GetRandomBooster(); count = 6; }
 				case 1000..1099: itemid = 311;
-				default: { itemid = 241; count = rank * 5; }
+				default: { itemid = 241; count = (rank * 5 - rank) + random(rank * 3); }
 			}
 		}
 		case 7:
@@ -5952,7 +5952,7 @@ stock RollWalkerLootItem(rank, ownerid)
 				case 50..999: { itemid = GetRandomBooster(); count = 8; }
 				case 1000..1149: itemid = 311;
 				case 1150..1199: { itemid = 191; count = 3; }
-				default: { itemid = 241; count = rank * 5; }
+				default: { itemid = 241; count = (rank * 5 - rank) + random(rank * 3); }
 			}
 		}
 		case 8:
@@ -5964,7 +5964,7 @@ stock RollWalkerLootItem(rank, ownerid)
 				case 50..1149: { itemid = GetRandomBooster(); count = 10; }
 				case 1150..1159: itemid = 312;
 				case 1160..1299: { itemid = 192; count = 3; }
-				default: { itemid = 241; count = rank * 5; }
+				default: { itemid = 241; count = (rank * 5 - rank) + random(rank * 3); }
 			}
 		}
 		case 9:
@@ -5976,7 +5976,7 @@ stock RollWalkerLootItem(rank, ownerid)
 				case 50..1449: { itemid = GetRandomBooster(); count = 12; }
 				case 1450..1474: itemid = 312;
 				case 1475..1799: { itemid = 192; count = 5; }
-				default: { itemid = 241; count = rank * 5; }
+				default: { itemid = 241; count = (rank * 5 - rank) + random(rank * 3); }
 			}
 		}
 	}
