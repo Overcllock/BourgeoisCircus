@@ -150,6 +150,8 @@
 #define RND_EQUIP_TYPE_ARMOR 1
 #define RND_EQUIP_TYPE_RANDOM 2
 #define RND_EQUIP_GRADE_RANDOM 11
+#define TOUR_INVULNEARABLE_TIME 5
+#define COOPERATE_COOLDOWN 5
 
 //Delays
 #define DEFAULT_SHOOT_DELAY 200
@@ -193,6 +195,8 @@ forward CheckDead(npcid);
 forward RespawnWalker(walkerid);
 forward TickMinute();
 forward RefreshWalkers();
+forward ResetPlayerInvulnearable(playerid);
+forward TickSecond(playerid);
 
 /* Variables */
 
@@ -348,7 +352,6 @@ new WorldTime_Timer = -1;
 new PrepareBossAttackTimer = -1;
 new BossAttackTimer = -1;
 new TeleportTimer = -1;
-new WalkerRespawnTimer[MAX_PLAYERS] = -1;
 new Actors[MAX_ACTORS];
 new ReadyIDs[MAX_OWNERS] = -1;
 new MySQL:sql_handle;
@@ -421,6 +424,9 @@ new ParticipantsCount[MAX_PLAYERS];
 new Participants[MAX_PLAYERS][MAX_PARTICIPANTS][128];
 
 new RegenerateTimer[MAX_PLAYERS] = -1;
+new WalkerRespawnTimer[MAX_PLAYERS] = -1;
+new InvulnearableTimer[MAX_PLAYERS] = -1;
+new SecondTimer[MAX_PLAYERS] = -1;
 
 //Arrays
 new EmptyInvItem[iInfo] = {
@@ -950,6 +956,7 @@ public OnPlayerLogin(playerid)
 	UpdatePlayerSkin(playerid);
 	
 	RegenerateTimer[playerid] = SetTimerEx("RegeneratePlayerHP", 1000, true, "i", playerid);
+	SecondTimer[playerid] = SetTimerEx("TickSecond", 1000, true, "i", playerid);
 }
 
 public OnTourEnd(finished)
@@ -1141,12 +1148,13 @@ public OnPlayerGiveDamage(playerid, damagedid, Float:amount, weaponid, bodypart)
 	if(IsWalker[damagedid] && FCNPC_GetAimingPlayer(damagedid) == INVALID_PLAYER_ID)
 		SetPlayerTarget(damagedid, playerid);
 
+	new is_invulnearable = GetPVarInt(damagedid, "Invulnearable");
 	new dodge = (PlayerInfo[damagedid][Dodge] - PlayerInfo[playerid][Accuracy]) / 2;
 	if(dodge < 0) dodge = 0;
 	new bool:dodged = CheckChance(dodge);
 	new bool:is_crit = CheckChance(PlayerInfo[playerid][Crit]);
 	new damage;
-	if(dodged || weaponid == 0)
+	if(dodged || is_invulnearable == 1 || weaponid == 0)
 		damage = 0;
 	else if(is_crit)
 		damage = PlayerInfo[playerid][DamageMax];
@@ -1182,6 +1190,8 @@ public OnPlayerGiveDamage(playerid, damagedid, Float:amount, weaponid, bodypart)
 
 	if(dodged)
 		SetPlayerChatBubble(damagedid, "Уклонение", 0x66CCCCFF, 80.0, 1200);
+	else if(is_invulnearable == 1)
+		SetPlayerChatBubble(damagedid, "Неуязвимость", 0x9933FFFF, 80.0, 1200);
 	else
 	{
 		new dmginf[32];
@@ -1212,10 +1222,16 @@ public OnPlayerDisconnect(playerid, reason)
 
 	if(!FCNPC_IsValid(playerid))
 		DeletePlayerTextDraws(playerid);
-
+	
+	if(IsValidTimer(InvulnearableTimer[playerid]))
+		KillTimer(InvulnearableTimer[playerid]);
 	if(IsValidTimer(RegenerateTimer[playerid]))
 		KillTimer(RegenerateTimer[playerid]);
+	if(IsValidTimer(SecondTimer[playerid]))
+		KillTimer(SecondTimer[playerid]);
 	RegenerateTimer[playerid] = -1;
+	InvulnearableTimer[playerid] = -1;
+	SecondTimer[playerid] = -1;
 
 	IsInventoryOpen[playerid] = false;
 	SelectedSlot[playerid] = -1;
@@ -1240,6 +1256,7 @@ public OnPlayerSpawn(playerid)
 	SetPlayerTeam(playerid, 10);
 	SetPVarFloat(playerid, "HP", MaxHP[playerid]);
 	SetPlayerHP(playerid, MaxHP[playerid]);
+	SetPVarInt(playerid, "Invulnearable", 0);
 
 	if(IsDeath[playerid]) 
 	{
@@ -1265,6 +1282,9 @@ public OnPlayerSpawn(playerid)
 		SetPlayerFacingAngle(playerid, PlayerInfo[playerid][FacingAngle]);
 	}
 
+	if(IsTourStarted && IsTourParticipant(playerid))
+		SetPlayerInvulnearable(playerid, TOUR_INVULNEARABLE_TIME);
+
 	UpdatePlayerVisual(playerid);
 	IsSpawned[playerid] = true;
 	return 1;
@@ -1286,6 +1306,12 @@ public OnPlayerDeath(playerid, killerid, reason)
 
 	IsDeath[playerid] = true; 
 	IsSpawned[playerid] = false;
+
+	if(IsValidTimer(InvulnearableTimer[playerid]))
+	{
+		KillTimer(InvulnearableTimer[playerid]);
+		InvulnearableTimer[playerid] = -1;
+	}
 
 	if(IsTourStarted)
 	{
@@ -1367,8 +1393,7 @@ public FCNPC_OnSpawn(npcid)
 {
 	if(IsBoss[npcid])
 		return 0;
-	SetPVarInt(npcid, "MovingTicks", 0);
-	SetPVarInt(npcid, "IdleTicks", 0);
+	SetPVarInt(npcid, "Invulnearable", 0);
 	SetPVarFloat(npcid, "HP", MaxHP[npcid]);
 	if(PlayerInfo[npcid][TeamColor] != -1 && IsTourStarted)
 		SetPlayerColor(npcid, HexTeamColors[PlayerInfo[npcid][TeamColor]][0]);
@@ -1377,8 +1402,12 @@ public FCNPC_OnSpawn(npcid)
 	UpdatePlayerSkin(npcid);
 	if(IsTourStarted && IsTourParticipant(PlayerInfo[npcid][ID]))
 	{
+		SetPVarInt(npcid, "MovingTicks", 0);
+		SetPVarInt(npcid, "IdleTicks", 0);
+		SetPVarInt(npcid, "FixTargetID", -1);
 		ResetDamagersInfo(npcid);
 		TeleportToRandomArenaPos(npcid);
+		SetPlayerInvulnearable(npcid, TOUR_INVULNEARABLE_TIME);
 	}
 	return 1;
 }
@@ -1579,6 +1608,21 @@ public OnPlayerPickUpPickup(playerid, pickupid)
 public OnPlayerKeyStateChange(playerid, newkeys, oldkeys)
 {
 	if(newkeys & 1024) SelectTextDraw(playerid,0xCCCCFF65);
+	else if(newkeys & 65536)
+	{
+		if(IsTourStarted && IsTourParticipant(playerid))
+		{
+			new cooldown = GetPVarInt(playerid, "CooperateCooldown");
+			if(cooldown <= 0)
+				CooperateTeammatesWithPlayer(playerid);
+			else
+			{
+				new str[64];
+				format(str, sizeof(str), "Повторите попытку через %d сек.", cooldown);
+				SendClientMessage(playerid, COLOR_GREY, str);
+			}
+		}
+	}
 	else if(newkeys & 16)
 	{
 		//буржуа
@@ -2955,6 +2999,16 @@ public Time()
 	TextDrawSetString(WorldTime, string);
 }
 
+public TickSecond(playerid)
+{
+	new coop_cooldown = GetPVarInt(playerid, "CooperateCooldown");
+	if(coop_cooldown > 0)
+	{
+		coop_cooldown--;
+		SetPVarInt(playerid, "CooperateCooldown", coop_cooldown);
+	}
+}
+
 public bool:CheckChance(chance)
 {
 	new rnd = random(100);
@@ -2982,6 +3036,11 @@ public RefreshWalkers()
 	DestroyWalkers();
 	InitWalkers();
 	return 1;
+}
+
+public ResetPlayerInvulnearable(playerid)
+{
+	SetPVarInt(playerid, "Invulnearable", 0);
 }
 
 public TeleportToHome(playerid)
@@ -3330,14 +3389,11 @@ stock StartTour()
 stock GetScoreDiff(rate1, rate2, bool:is_killer)
 {
 	new diff = rate1 - rate2;
-	if(diff > 0)
-		diff = floatround(floatmul(diff, 0.15));
-	else
-		diff = floatround(floatabs(floatmul(3001 - floatabs(diff), 0.007)));
+	diff = floatround(floatmul(floatabs(diff), 0.2));
 	if(is_killer)
 		diff += 50;
 	else
-		diff = floatround(floatmul(diff, 0.75));
+		diff = floatround(floatmul(diff, 0.6));
 	return diff;
 }
 
@@ -3418,6 +3474,43 @@ stock GetPlayerHPPercent(playerid)
 	return floatround(percent);
 }
 
+stock SetPlayerInvulnearable(playerid, time)
+{
+	SetPVarInt(playerid, "Invulnearable", 1);
+
+	if(IsValidTimer(InvulnearableTimer[playerid]))
+		KillTimer(InvulnearableTimer[playerid]);
+
+	InvulnearableTimer[playerid] = SetTimerEx("ResetPlayerInvulnearable", time * 1000, false, "i", playerid);
+}
+
+stock CooperateTeammatesWithPlayer(playerid)
+{
+	new target = GetPlayerTargetPlayer(playerid);
+	if(target == INVALID_PLAYER_ID || target == -1)
+		return SendClientMessage(playerid, COLOR_GREY, "Не соблюдены условия использования.");
+	
+	for(new i = 0; i < MAX_PARTICIPANTS; i++)
+	{
+		new part_id = PvpInfo[i][ID];
+		if(part_id == -1 || part_id == playerid || GetPlayerTourTeam(playerid) != GetPlayerTourTeam(part_id))
+			continue;
+		
+		if(GetDistanceBetweenPlayers(playerid, part_id) > 20.0) continue;
+		if(!FCNPC_IsValid(part_id)) continue;
+		
+		new part_target = FCNPC_GetAimingPlayer(part_id);
+		if(part_target != INVALID_PLAYER_ID && part_target != -1 && GetPlayerHPPercent(part_target) <= 5)
+			continue;
+		
+		SetPVarInt(part_id, "FixTargetID", target);
+		SetPlayerTarget(part_id, target);
+	}
+
+	SetPVarInt(player, "CooperateCooldown", COOPERATE_COOLDOWN);
+	return SendClientMessage(playerid, COLOR_YELLOW, "В атаку, клоуны!");
+}
+
 stock ParticipantBehaviour(id)
 {
 	if(id == -1 || id == INVALID_PLAYER_ID) return 1;
@@ -3425,6 +3518,8 @@ stock ParticipantBehaviour(id)
 
 	new moving_ticks = GetPVarInt(id, "MovingTicks");
 	new idle_ticks = GetPVarInt(id, "IdleTicks");
+	new fix_target = GetPVarInt(id, "FixTargetID");
+
 	if(FCNPC_IsMoving(id))
 	{
 		moving_ticks++;
@@ -3443,7 +3538,7 @@ stock ParticipantBehaviour(id)
 	SetPVarInt(id, "IdleTicks", idle_ticks);
 
 	//If NPC is moving too long - try to find new target.
-	if(FCNPC_IsMoving(id) && moving_ticks > MAX_NPC_MOVING_TICKS)
+	if(fix_target == -1 && FCNPC_IsMoving(id) && moving_ticks > MAX_NPC_MOVING_TICKS)
 	{
 		FCNPC_Stop(id);
 		SetPVarInt(id, "MovingTicks", 0);
@@ -3475,7 +3570,7 @@ stock ParticipantBehaviour(id)
 	}
 
 	//If NPC's HP is low, but target's HP is not critical - run away
-	if(GetPlayerHPPercent(id) < 10 && !FCNPC_IsMoving(id))
+	if(fix_target == -1 && GetPlayerHPPercent(id) < 10 && !FCNPC_IsMoving(id))
 	{
 		MoveAround(id, true);
 		return 1;
@@ -3483,13 +3578,17 @@ stock ParticipantBehaviour(id)
 
 	//Checking available target
 	if(!FCNPC_IsAiming(id) && !FCNPC_IsDead(id))
-		SetPlayerTarget(id);
+	{
+		if(fix_target == -1) SetPlayerTarget(id);
+		else SetPlayerTarget(id, fix_target);
+	}
 
 	//If current target is dead or invalid, set new
 	target = FCNPC_GetAimingPlayer(id);
 	if(target == -1 || target == INVALID_PLAYER_ID)
 	{
-		SetPlayerTarget(id);
+		if(fix_target == -1) SetPlayerTarget(id);
+		else SetPlayerTarget(id, fix_target);
 		return 1;
 	}
 	if(FCNPC_IsDead(target) || (!FCNPC_IsValid(target) && (!IsPlayerInDynamicArea(target, arena_area) || IsDeath[target])))
@@ -3499,7 +3598,7 @@ stock ParticipantBehaviour(id)
 	}
 
 	//If current target's HP > 20%, trying to find common target
-	if(GetPlayerHPPercent(target) > 20 && GetAimingPlayersCount(target) < 3)
+	if(fix_target == -1 && GetPlayerHPPercent(target) > 20 && GetAimingPlayersCount(target) < 3)
 		TryFindCommonTarget(id, target);
 
 	target = FCNPC_GetAimingPlayer(id);
@@ -3519,7 +3618,7 @@ stock ParticipantBehaviour(id)
 		FCNPC_AimAtPlayer(id, target, false);
 
 	//If there are targets with less HP beside player - change target
-	if(GetPlayerHPPercent(target) >= 20)
+	if(fix_target == -1 && GetPlayerHPPercent(target) >= 20)
 	{
 		new potential_target = FindPlayerTarget(id, true);
 		if(potential_target != -1 && potential_target != target)
@@ -5252,7 +5351,10 @@ stock SetPlayerTarget(playerid, target = -1)
 		FCNPC_StopAim(playerid);
 	new targetid;
 	if(target == -1)
+	{
+		SetPVarInt(playerid, "FixTargetID", -1);
 		targetid = FindPlayerTarget(playerid, true);
+	}
 	else
 		targetid = target;
 
@@ -5611,6 +5713,10 @@ stock GiveKillScore(playerid, killerid)
 {
 	new base_score = GetScoreDiff(PlayerInfo[playerid][Rate], PlayerInfo[killerid][Rate], true);
 	new killer_idx = GetPvpIndex(killerid);
+
+	new kills_diff = PvpInfo[killer_idx][Kills] - PvpInfo[killer_idx][Deaths];
+	if(kills_diff > 1)
+		base_score = floatround(floatmul(base_score, floatpower(0.95, kills_diff)));
 	PvpInfo[killer_idx][Score] += base_score;
 
 	new damagers_ids[MAX_PARTICIPANTS];
