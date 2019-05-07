@@ -83,6 +83,7 @@
 #define MAX_DEATH_MESSAGES 5
 #define MAX_NPC_MOVING_TICKS 60
 #define MAX_NPC_IDLE_TICKS 30
+#define MAX_NPC_SHOT_TICKS 30
 #define MAX_CMB_ITEMS 3
 #define MAX_MARKET_CATEGORIES 4
 #define MAX_MARKET_ITEMS 20
@@ -151,7 +152,7 @@
 #define RND_EQUIP_TYPE_RANDOM 2
 #define RND_EQUIP_GRADE_RANDOM 11
 #define TOUR_INVULNEARABLE_TIME 5
-#define COOPERATE_COOLDOWN 5
+#define COOPERATE_COOLDOWN 10
 
 //Delays
 #define DEFAULT_SHOOT_DELAY 200
@@ -3519,6 +3520,13 @@ stock ParticipantBehaviour(id)
 	new moving_ticks = GetPVarInt(id, "MovingTicks");
 	new idle_ticks = GetPVarInt(id, "IdleTicks");
 	new fix_target = GetPVarInt(id, "FixTargetID");
+	new shotting_ticks = GetPVarInt(id, "ShotTicks");
+
+	if(FCNPC_IsShooting(id))
+		shotting_ticks++;
+	else
+		shotting_ticks = 0;
+	SetPVarInt(id, "ShotTicks", shotting_ticks);
 
 	if(FCNPC_IsMoving(id))
 	{
@@ -3602,9 +3610,13 @@ stock ParticipantBehaviour(id)
 		TryFindCommonTarget(id, target);
 
 	target = FCNPC_GetAimingPlayer(id);
+
 	new Float:dist = GetDistanceBetweenPlayers(id, target);
-	if(!FCNPC_IsMovingAtPlayer(id, target) && dist > 10.0)
-		FCNPC_GoToPlayer(id, target);
+	if(!FCNPC_IsMovingAtPlayer(id, target) && dist > 15.0)
+	{
+		if(!FCNPC_IsShooting(id) || shotting_ticks > MAX_NPC_SHOT_TICKS)
+			FCNPC_GoToPlayer(id, target);
+	}
 
 	//If player so close to target - attack it
 	if(dist <= 10)
@@ -3701,6 +3713,13 @@ stock WalkerBehaviour(id)
 	if(id == -1 || id == INVALID_PLAYER_ID) return;
 	if(!FCNPC_IsValid(id) || !IsWalker[id]) return;
 
+	new shotting_ticks = GetPVarInt(id, "ShotTicks");
+	if(FCNPC_IsShooting(id))
+		shotting_ticks++;
+	else
+		shotting_ticks = 0;
+	SetPVarInt(id, "ShotTicks", shotting_ticks);
+
 	new target = FCNPC_GetAimingPlayer(id);
 
 	new Float:x, Float:y, Float:z;
@@ -3754,8 +3773,12 @@ stock WalkerBehaviour(id)
 		ResetWalkerTarget(id);
 		return;
 	}
-	if(!FCNPC_IsMovingAtPlayer(id, target) && dist > 10.0)
-		FCNPC_GoToPlayer(id, target);
+
+	if(!FCNPC_IsMovingAtPlayer(id, target) && dist > 15.0)
+	{
+		if(!FCNPC_IsShooting(id) || shotting_ticks > MAX_NPC_SHOT_TICKS)
+			FCNPC_GoToPlayer(id, target);
+	}
 
 	//If walker so close to target - attack it
 	if(dist <= 10)
@@ -3772,6 +3795,13 @@ stock WalkerBehaviour(id)
 stock BossBehaviour(id)
 {
 	if(id == -1 || id == INVALID_PLAYER_ID) return;
+
+	new shotting_ticks = GetPVarInt(id, "ShotTicks");
+	if(FCNPC_IsShooting(id))
+		shotting_ticks++;
+	else
+		shotting_ticks = 0;
+	SetPVarInt(id, "ShotTicks", shotting_ticks);
 
 	//If NPC bumped any obstacle - move him
 	if(FCNPC_IsMoving(id) && FCNPC_GetSpeed(id) < 0.1)
@@ -3793,8 +3823,11 @@ stock BossBehaviour(id)
 	}
 
 	new Float:dist = GetDistanceBetweenPlayers(id, target);
-	if(!FCNPC_IsMovingAtPlayer(id, target) && dist > 10.0)
-		FCNPC_GoToPlayer(id, target);
+	if(!FCNPC_IsMovingAtPlayer(id, target) && dist > 15.0)
+	{
+		if(!FCNPC_IsShooting(id) || shotting_ticks > MAX_NPC_SHOT_TICKS)
+			FCNPC_GoToPlayer(id, target);
+	}
 
 	//If player so close to target - attack it
 	if(dist <= 10)
