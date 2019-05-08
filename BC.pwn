@@ -89,6 +89,7 @@
 #define MAX_MARKET_ITEMS 20
 #define MAX_TOUR_TIME 180
 #define MAX_WALKERS 20
+#define MAX_COOPERATE_MSGS 10
 
 //Market
 #define MARKET_CATEGORY_WEAPON 0
@@ -465,6 +466,18 @@ new BossesWeapons[MAX_BOSSES][1] = {
 	{30},
 	{25},
 	{26}
+};
+new CooperateMessages[MAX_COOPERATE_MSGS][64] = {
+	{"Есть!"},
+	{"Так точно!"},
+	{"Вижу цель."},
+	{"Будет сделано."},
+	{"Да!"},
+	{"За цирк!"},
+	{"Выполняю."},
+	{"Клоун будет уничтожен!"},
+	{"Информация принята."},
+	{"АРРРР!"}
 };
 
 new GlobalRatingTop[MAX_PARTICIPANTS][TopItem];
@@ -3485,12 +3498,20 @@ stock SetPlayerInvulnearable(playerid, time)
 	InvulnearableTimer[playerid] = SetTimerEx("ResetPlayerInvulnearable", time * 1000, false, "i", playerid);
 }
 
+stock GetRandomCooperateMessage()
+{
+	new idx = random(MAX_COOPERATE_MSGS);
+	return CooperateMessages[idx];
+}
+
 stock CooperateTeammatesWithPlayer(playerid)
 {
 	new target = GetPlayerTargetPlayer(playerid);
-	if(target == INVALID_PLAYER_ID || target == -1)
+	if(target == INVALID_PLAYER_ID || target == -1 || target == playerid || GetPlayerTourTeam(playerid) == GetPlayerTourTeam(target))
 		return SendClientMessage(playerid, COLOR_GREY, "Не соблюдены условия использования.");
 	
+	new targets_count = 0;
+	new string[255];
 	for(new i = 0; i < MAX_PARTICIPANTS; i++)
 	{
 		new part_id = PvpInfo[i][ID];
@@ -3506,10 +3527,25 @@ stock CooperateTeammatesWithPlayer(playerid)
 		
 		SetPVarInt(part_id, "FixTargetID", target);
 		SetPlayerTarget(part_id, target);
+		targets_count++;
+
+		if(targets_count == 1)
+		{
+			format(string, sizeof(string), "[%s]: В атаку на %s, клоуны!", PlayerInfo[playerid][Name], PlayerInfo[target][Name]);
+			SendClientMessageToAll(COLOR_YELLOW, string);
+		}
+
+		format(string, sizeof(string), "[%s]: %s", PlayerInfo[part_id][Name], GetRandomCooperateMessage());
+		SendClientMessageToAll(0x0099FFFF, string);
 	}
 
-	SetPVarInt(player, "CooperateCooldown", COOPERATE_COOLDOWN);
-	return SendClientMessage(playerid, COLOR_YELLOW, "В атаку, клоуны!");
+	if(targets_count > 0)
+	{
+		SetPVarInt(player, "CooperateCooldown", COOPERATE_COOLDOWN);
+		return 1;
+	}
+
+	return SendClientMessage(playerid, COLOR_GREY, "Поблизости нет союзников.");
 }
 
 stock ParticipantBehaviour(id)
