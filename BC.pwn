@@ -83,7 +83,7 @@
 #define MAX_DEATH_MESSAGES 5
 #define MAX_NPC_MOVING_TICKS 60
 #define MAX_NPC_IDLE_TICKS 30
-#define MAX_NPC_SHOT_TICKS 30
+#define MAX_NPC_SHOT_TICKS 60
 #define MAX_CMB_ITEMS 3
 #define MAX_MARKET_CATEGORIES 4
 #define MAX_MARKET_ITEMS 20
@@ -1266,6 +1266,7 @@ public OnPlayerSpawn(playerid)
 		{
 			ResetDamagersInfo(playerid);
 			TeleportToRandomArenaPos(playerid);
+			SetPlayerInvulnearable(playerid, TOUR_INVULNEARABLE_TIME);
 		}
 		else
 		{
@@ -1282,9 +1283,6 @@ public OnPlayerSpawn(playerid)
 		SetPlayerPos(playerid, PlayerInfo[playerid][PosX], PlayerInfo[playerid][PosY], PlayerInfo[playerid][PosZ]);
 		SetPlayerFacingAngle(playerid, PlayerInfo[playerid][FacingAngle]);
 	}
-
-	if(IsTourStarted && IsTourParticipant(playerid))
-		SetPlayerInvulnearable(playerid, TOUR_INVULNEARABLE_TIME);
 
 	UpdatePlayerVisual(playerid);
 	IsSpawned[playerid] = true;
@@ -1611,7 +1609,7 @@ public OnPlayerKeyStateChange(playerid, newkeys, oldkeys)
 	if(newkeys & 1024) SelectTextDraw(playerid,0xCCCCFF65);
 	else if(newkeys & 65536)
 	{
-		if(IsTourStarted && IsTourParticipant(playerid))
+		if(IsTourStarted && IsTourParticipant(PlayerInfo[playerid][ID]))
 		{
 			new cooldown = GetPVarInt(playerid, "CooperateCooldown");
 			if(cooldown <= 0)
@@ -3390,11 +3388,14 @@ stock StartTour()
 stock GetScoreDiff(rate1, rate2, bool:is_killer)
 {
 	new diff = rate1 - rate2;
-	diff = floatround(floatmul(floatabs(diff), 0.2));
+	if(diff > 0)
+		diff = floatround(floatmul(diff, 0.16));
+	else
+		diff = floatround(floatabs(floatmul(3001 - floatabs(diff), 0.007)));
 	if(is_killer)
 		diff += 50;
 	else
-		diff = floatround(floatmul(diff, 0.6));
+		diff = floatround(floatmul(diff, 0.3));
 	return diff;
 }
 
@@ -3494,11 +3495,11 @@ stock CooperateTeammatesWithPlayer(playerid)
 	for(new i = 0; i < MAX_PARTICIPANTS; i++)
 	{
 		new part_id = PvpInfo[i][ID];
-		if(part_id == -1 || part_id == playerid || GetPlayerTourTeam(playerid) != GetPlayerTourTeam(part_id))
+		if(!FCNPC_IsValid(part_id) || part_id == -1 || part_id == playerid || GetPlayerTourTeam(playerid) != GetPlayerTourTeam(part_id))
 			continue;
 		
-		if(GetDistanceBetweenPlayers(playerid, part_id) > 20.0) continue;
-		if(!FCNPC_IsValid(part_id)) continue;
+		if(GetDistanceBetweenPlayers(playerid, part_id) > 30.0)
+			continue;
 		
 		new part_target = FCNPC_GetAimingPlayer(part_id);
 		if(part_target != INVALID_PLAYER_ID && part_target != -1 && GetPlayerHPPercent(part_target) <= 5)
@@ -3508,7 +3509,7 @@ stock CooperateTeammatesWithPlayer(playerid)
 		SetPlayerTarget(part_id, target);
 	}
 
-	SetPVarInt(player, "CooperateCooldown", COOPERATE_COOLDOWN);
+	SetPVarInt(playerid, "CooperateCooldown", COOPERATE_COOLDOWN);
 	return SendClientMessage(playerid, COLOR_YELLOW, "Â àòàêó, êëîóíû!");
 }
 
@@ -3612,7 +3613,7 @@ stock ParticipantBehaviour(id)
 	target = FCNPC_GetAimingPlayer(id);
 
 	new Float:dist = GetDistanceBetweenPlayers(id, target);
-	if(!FCNPC_IsMovingAtPlayer(id, target) && dist > 15.0)
+	if(!FCNPC_IsMovingAtPlayer(id, target) && dist > 10.0)
 	{
 		if(!FCNPC_IsShooting(id) || shotting_ticks > MAX_NPC_SHOT_TICKS)
 			FCNPC_GoToPlayer(id, target);
@@ -3626,7 +3627,7 @@ stock ParticipantBehaviour(id)
 		if(!FCNPC_IsShooting(id))
 			FCNPC_AimAtPlayer(id, target, true, GetWeaponDelay(FCNPC_GetWeapon(id)));
 	}
-	else
+	else if(shotting_ticks > MAX_NPC_SHOT_TICKS)
 		FCNPC_AimAtPlayer(id, target, false);
 
 	//If there are targets with less HP beside player - change target
@@ -3774,7 +3775,7 @@ stock WalkerBehaviour(id)
 		return;
 	}
 
-	if(!FCNPC_IsMovingAtPlayer(id, target) && dist > 15.0)
+	if(!FCNPC_IsMovingAtPlayer(id, target) && dist > 10.0)
 	{
 		if(!FCNPC_IsShooting(id) || shotting_ticks > MAX_NPC_SHOT_TICKS)
 			FCNPC_GoToPlayer(id, target);
@@ -3788,7 +3789,7 @@ stock WalkerBehaviour(id)
 		if(!FCNPC_IsShooting(id))
 			FCNPC_AimAtPlayer(id, target, true, WALKER_SHOOT_DELAY);
 	}
-	else
+	else if(shotting_ticks > MAX_NPC_SHOT_TICKS)
 		FCNPC_AimAtPlayer(id, target, false);
 }
 
@@ -3823,7 +3824,7 @@ stock BossBehaviour(id)
 	}
 
 	new Float:dist = GetDistanceBetweenPlayers(id, target);
-	if(!FCNPC_IsMovingAtPlayer(id, target) && dist > 15.0)
+	if(!FCNPC_IsMovingAtPlayer(id, target) && dist > 10.0)
 	{
 		if(!FCNPC_IsShooting(id) || shotting_ticks > MAX_NPC_SHOT_TICKS)
 			FCNPC_GoToPlayer(id, target);
@@ -3837,7 +3838,7 @@ stock BossBehaviour(id)
 		if(!FCNPC_IsShooting(id))
 			FCNPC_AimAtPlayer(id, target, true, BOSS_SHOOT_DELAY);
 	}
-	else
+	else if(shotting_ticks > MAX_NPC_SHOT_TICKS)
 		FCNPC_AimAtPlayer(id, target, false);
 }
 
@@ -5256,6 +5257,10 @@ stock FindPlayerNearestTarget(npcid)
 		if(GetPlayerTourTeam(id) != NO_TEAM && GetPlayerTourTeam(npcid) == GetPlayerTourTeam(id))
 			continue;
 		
+		new invulnearable = GetPVarInt(id, "Invulnearable");
+		if(invulnearable == 1)
+			continue;
+		
 		new Float:dist;
 		dist = GetDistanceBetweenPlayers(npcid, id);
 		if(dist < min_dist)
@@ -5299,6 +5304,10 @@ stock FindPlayerTarget(npcid, bool:by_minhp = false)
 		if(GetPlayerTourTeam(PvpInfo[i][ID]) != NO_TEAM && GetPlayerTourTeam(npcid) == GetPlayerTourTeam(PvpInfo[i][ID]))
 			continue;
 		if(!FCNPC_IsValid(PvpInfo[i][ID]) && !IsPlayerInDynamicArea(PvpInfo[i][ID], arena_area))
+			continue;
+
+		new invulnearable = GetPVarInt(PvpInfo[i][ID], "Invulnearable");
+		if(invulnearable == 1)
 			continue;
 		
 		new Float:dist;
@@ -5361,6 +5370,10 @@ stock TryFindCommonTarget(playerid, current_target)
 	{
 		new part_id = PvpInfo[i][ID];
 		if(part_id == -1 || part_id == playerid || GetPlayerTourTeam(playerid) == GetPlayerTourTeam(part_id))
+			continue;
+
+		new invulnearable = GetPVarInt(part_id, "Invulnearable");
+		if(invulnearable == 1)
 			continue;
 		
 		if(GetDistanceBetweenPlayers(playerid, part_id) > 15.0)
@@ -5749,7 +5762,7 @@ stock GiveKillScore(playerid, killerid)
 
 	new kills_diff = PvpInfo[killer_idx][Kills] - PvpInfo[killer_idx][Deaths];
 	if(kills_diff > 1)
-		base_score = floatround(floatmul(base_score, floatpower(0.95, kills_diff)));
+		base_score = floatround(floatmul(base_score, floatpower(0.97, kills_diff)));
 	PvpInfo[killer_idx][Score] += base_score;
 
 	new damagers_ids[MAX_PARTICIPANTS];
