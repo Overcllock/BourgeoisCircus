@@ -651,7 +651,7 @@ cmd:balance(playerid, params[])
 	if(PlayerInfo[playerid][Admin] == 0)
 		return 0;
 
-	new query[255] = "SELECT * FROM `players` WHERE `Owner` = 'Dimak'";
+	new query[255] = "SELECT * FROM `players` WHERE `Owner` <> 'Admin'";
 	new Cache:q_result = mysql_query(sql_handle, query);
 
 	new rows;
@@ -665,9 +665,12 @@ cmd:balance(playerid, params[])
 		new name[255];
 		cache_get_value_name(i, "Name", name);
 		cache_unset_active();
-		GivePlayerMoneyOffline(name, 50000);
-		PendingItem(name, 203, MOD_CLEAR, 10);
+		GivePlayerMoneyOffline(name, 20000);
+		PendingItem(name, 203, MOD_CLEAR, 20);
+		PendingItem(name, 310, MOD_CLEAR, 2);
 		PendingItem(name, 311, MOD_CLEAR, 1);
+		PendingItem(name, 185, MOD_CLEAR, 1);
+		PendingItem(name, 186, MOD_CLEAR, 1);
 	}
 
 	cache_delete(q_result);
@@ -3542,7 +3545,7 @@ stock CooperateTeammatesWithPlayer(playerid)
 
 	if(targets_count > 0)
 	{
-		SetPVarInt(player, "CooperateCooldown", COOPERATE_COOLDOWN);
+		SetPVarInt(playerid, "CooperateCooldown", COOPERATE_COOLDOWN);
 		return 1;
 	}
 
