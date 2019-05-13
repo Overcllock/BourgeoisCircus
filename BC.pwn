@@ -147,7 +147,6 @@
 
 //Other
 #define DEFENSE_DIVIDER 7000
-#define BOSS_SHOOT_DELAY 300
 #define RND_EQUIP_TYPE_WEAPON 0
 #define RND_EQUIP_TYPE_ARMOR 1
 #define RND_EQUIP_TYPE_RANDOM 2
@@ -157,9 +156,8 @@
 
 //Delays
 #define DEFAULT_SHOOT_DELAY 200
-#define WALKER_SHOOT_DELAY 260
 #define COLT_SHOOT_DELAY 150
-#define DEAGLE_SHOOT_DELAY 370
+#define DEAGLE_SHOOT_DELAY 330
 #define MP5_SHOOT_DELAY 90
 #define TEC_SHOOT_DELAY 80
 #define AK_SHOOT_DELAY 125
@@ -732,7 +730,10 @@ cmd:giveitem(playerid, params[])
 
 cmd:home(playerid, params[])
 {
-	if(IsTourStarted) return 1;
+	if(PlayerInfo[playerid][Admin] == 0)
+		return 0;
+
+	if(IsTourStarted) return 0;
 	TeleportToHome(playerid);
 	return SendClientMessage(playerid, COLOR_GREY, "Done.");
 }
@@ -1464,6 +1465,15 @@ public RespawnWalker(walkerid)
 	if(i == -1) return;
 
 	new rank = random(MAX_RANK) + 1;
+	new w_count = GetWalkersCountByRank(rank);
+	new iterations = 0;
+	while(w_count >= MAX_WALKERS_ONE_RANK && iterations < 30)
+	{
+		rank = random(MAX_RANK) + 1;
+		w_count = GetWalkersCountByRank(rank);
+		iterations++;
+	}
+
 	Walkers[i] = GetWalker(rank);
 	Walkers[i][ID] = walkerid;
 
@@ -1734,8 +1744,7 @@ public OnPlayerKeyStateChange(playerid, newkeys, oldkeys)
 	else if(newkeys & 131072)
 	{
 		if(IsTourStarted) return 1;
-		new listitems[] = "Информация о персонаже\nСменить персонажа";
-		ShowPlayerDialog(playerid, 1000, DIALOG_STYLE_TABLIST, "Bourgeois Circus", listitems, "Далее", "Закрыть");
+		ShowMainMenu(playerid);
 	}
 	return 1;
 }
@@ -2254,7 +2263,10 @@ public OnDialogResponse(playerid, dialogid, response, listitem, inputtext[])
 
 				SetPVarInt(playerid, "BuyedItemID", itemid);
 
-				new available_count = item[Type] == ITEMTYPE_PASSIVE ? 1 : PlayerInfo[playerid][Cash] / item[Price];
+				new available_count = PlayerInfo[playerid][Cash] / item[Price];
+				if(item[Type] == ITEMTYPE_PASSIVE)
+					available_count = available_count >= 1 ? 1 : 0;
+
 				new text[255];
 				format(text, sizeof(text), "Укажите количество.\nВы можете купить: %d", available_count);
 				ShowPlayerDialog(playerid, 701, DIALOG_STYLE_INPUT, "Покупка", text, "Купить", "Отмена");
@@ -2272,10 +2284,16 @@ public OnDialogResponse(playerid, dialogid, response, listitem, inputtext[])
 					return 0;
 				}
 
+				new count = strval(inputtext);
+				if(count <= 0)
+				{
+					ShowPlayerDialog(playerid, 1, DIALOG_STYLE_MSGBOX, "Ошибка", "Неверное количество.", "Закрыть", "");
+					return 0;
+				}
+
 				new item[BaseItem];
 				item = GetItem(itemid);
 
-				new count = strval(inputtext);
 				if(item[Type] == ITEMTYPE_PASSIVE && count > 1)
 				{
 					ShowPlayerDialog(playerid, 1, DIALOG_STYLE_MSGBOX, "Ошибка", "Можно иметь только один предмет.", "Закрыть", "");
@@ -2428,11 +2446,49 @@ public OnDialogResponse(playerid, dialogid, response, listitem, inputtext[])
 					{
 						SwitchPlayer(playerid);
 					}
+					case 2:
+					{
+						new cooldown = GetPVarInt(playerid, "TeleportCooldown");
+						if(cooldown <= 0)
+						{
+							new listitems[] = "Вход в дом\nОружейник\nПортной\nТорговец расходниками\nДоска почета\nГостиная\nБуржуа\nЗаведующий турнирами\nВход на арену\nПроход к боссам";
+							ShowPlayerDialog(playerid, 1001, DIALOG_STYLE_TABLIST, "Быстрое перемещение", listitems, "Выбрать", "Назад");
+						}
+						else
+						{
+							new string[255];
+							format(string, sizeof(string), "Повторите попытку через %d сек.", cooldown);
+							SendClientMessage(playerid, COLOR_GREY, string);
+							ShowMainMenu(playerid);
+						}
+					}
 				}
 			}
 			else
 				return 0;
 			return 1;
+		}
+
+		//быстрое перемещение
+		case 1001:
+		{
+			if(response)
+			{
+				switch(listitem)
+				{
+					case 0:
+					{
+						SetPlayerPos(playerid, 224.0981,-1839.8425,3.6037);
+						SetPlayerFacingAngle(playerid, 180);
+						SetPlayerInterior(playerid, 0);
+						SetCameraBehindPlayer(playerid);
+					}
+				}
+				
+				SetPVarInt(playerid, "TeleportCooldown", 60);
+			}
+			else
+				ShowMainMenu(playerid);
 		}
 
 		//рынок
@@ -3022,6 +3078,13 @@ public TickSecond(playerid)
 		coop_cooldown--;
 		SetPVarInt(playerid, "CooperateCooldown", coop_cooldown);
 	}
+
+	new tp_cooldown = GetPVarInt(playerid, "TeleportCooldown");
+	if(tp_cooldown > 0)
+	{
+		tp_cooldown--;
+		SetPVarInt(playerid, "TeleportCooldown", coop_cooldown);
+	}
 }
 
 public bool:CheckChance(chance)
@@ -3326,6 +3389,7 @@ stock StartTour()
 			SetPlayerColor(playerid, HexTeamColors[PlayerInfo[playerid][TeamColor]][0]);
 			SetPVarFloat(playerid, "HP", MaxHP[playerid]);
 			SetPlayerHP(playerid, MaxHP[playerid]);
+			SetPlayerInvulnearable(playerid, TOUR_INVULNEARABLE_TIME);
 			SetPvpTableVisibility(playerid, true);
 			continue;
 		}
@@ -3444,6 +3508,18 @@ stock GetPlayerInGameID(global_id)
 	for(new i = 0; i < MAX_PLAYERS; i++)
 		if(IsPlayerConnected(i) && PlayerInfo[i][ID] == global_id) return i;
 	return -1;
+}
+
+stock GetWalkersCountByRank(rank)
+{
+	new count = 0;
+	for(new i = 0; i < MAX_WALKERS; i++)
+	{
+		if(Walkers[i][Rank] == rank)
+			count++;
+	}
+
+	return count;
 }
 
 stock InitTourNPC(npcid)
@@ -3826,7 +3902,7 @@ stock WalkerBehaviour(id)
 		if(FCNPC_IsMoving(id))
 			FCNPC_Stop(id);
 		if(!FCNPC_IsShooting(id))
-			FCNPC_AimAtPlayer(id, target, true, WALKER_SHOOT_DELAY);
+			FCNPC_AimAtPlayer(id, target, true, GetWeaponDelay(FCNPC_GetWeapon(id)));
 	}
 	else if(shotting_ticks > MAX_NPC_SHOT_TICKS)
 		FCNPC_AimAtPlayer(id, target, false);
@@ -3875,7 +3951,7 @@ stock BossBehaviour(id)
 		if(FCNPC_IsMoving(id))
 			FCNPC_Stop(id);
 		if(!FCNPC_IsShooting(id))
-			FCNPC_AimAtPlayer(id, target, true, BOSS_SHOOT_DELAY);
+			FCNPC_AimAtPlayer(id, target, true, GetWeaponDelay(FCNPC_GetWeapon(id)));
 	}
 	else if(shotting_ticks > MAX_NPC_SHOT_TICKS)
 		FCNPC_AimAtPlayer(id, target, false);
@@ -5938,6 +6014,7 @@ stock RollWalkerLootItem(rank, ownerid)
 				case 0..48: itemid = GetRandomEquip(1, 1);
 				case 49: itemid = 313;
 				case 50..999: itemid = GetRandomStone();
+				case 1000..1099: { itemid = 195; count = rank; }
 				default: { itemid = 241; count = (rank * 5 - rank) + random(rank * 3); }
 			}
 		}
@@ -5948,6 +6025,7 @@ stock RollWalkerLootItem(rank, ownerid)
 				case 0..48: itemid = GetRandomEquip(1, 2);
 				case 49: itemid = 313;
 				case 50..999: { itemid = GetRandomStone(); count = 2; }
+				case 1000..1099: { itemid = 195; count = rank; }
 				default: { itemid = 241; count = (rank * 5 - rank) + random(rank * 3); }
 			}
 		}
@@ -5959,6 +6037,7 @@ stock RollWalkerLootItem(rank, ownerid)
 				case 49: itemid = 313;
 				case 50..999: { itemid = GetRandomStone(); count = 4; }
 				case 1000..1099: itemid = 310;
+				case 1100..1199: { itemid = 195; count = rank; }
 				default: { itemid = 241; count = (rank * 5 - rank) + random(rank * 3); }
 			}
 		}
@@ -5970,6 +6049,7 @@ stock RollWalkerLootItem(rank, ownerid)
 				case 49: itemid = 313;
 				case 50..999: { itemid = GetRandomStone(); count = 6; }
 				case 1000..1199: itemid = 310;
+				case 1200..1299: { itemid = 195; count = rank; }
 				default: { itemid = 241; count = (rank * 5 - rank) + random(rank * 3); }
 			}
 		}
@@ -5981,6 +6061,7 @@ stock RollWalkerLootItem(rank, ownerid)
 				case 49: itemid = 313;
 				case 50..999: { itemid = GetRandomBooster(); count = 4; }
 				case 1000..1299: itemid = 310;
+				case 1300..1399: { itemid = 195; count = rank; }
 				default: { itemid = 241; count = (rank * 5 - rank) + random(rank * 3); }
 			}
 		}
@@ -5992,6 +6073,7 @@ stock RollWalkerLootItem(rank, ownerid)
 				case 49: itemid = 313;
 				case 50..999: { itemid = GetRandomBooster(); count = 6; }
 				case 1000..1099: itemid = 311;
+				case 1100..1199: { itemid = 195; count = rank; }
 				default: { itemid = 241; count = (rank * 5 - rank) + random(rank * 3); }
 			}
 		}
@@ -6004,6 +6086,7 @@ stock RollWalkerLootItem(rank, ownerid)
 				case 50..999: { itemid = GetRandomBooster(); count = 8; }
 				case 1000..1149: itemid = 311;
 				case 1150..1199: { itemid = 191; count = 3; }
+				case 1200..1299: { itemid = 195; count = rank; }
 				default: { itemid = 241; count = (rank * 5 - rank) + random(rank * 3); }
 			}
 		}
@@ -6016,6 +6099,7 @@ stock RollWalkerLootItem(rank, ownerid)
 				case 50..1149: { itemid = GetRandomBooster(); count = 10; }
 				case 1150..1159: itemid = 312;
 				case 1160..1299: { itemid = 192; count = 3; }
+				case 1300..1399: { itemid = 195; count = rank; }
 				default: { itemid = 241; count = (rank * 5 - rank) + random(rank * 3); }
 			}
 		}
@@ -6028,6 +6112,7 @@ stock RollWalkerLootItem(rank, ownerid)
 				case 50..1449: { itemid = GetRandomBooster(); count = 12; }
 				case 1450..1474: itemid = 312;
 				case 1475..1799: { itemid = 192; count = 5; }
+				case 1800..1899: { itemid = 195; count = rank; }
 				default: { itemid = 241; count = (rank * 5 - rank) + random(rank * 3); }
 			}
 		}
@@ -7244,6 +7329,12 @@ stock UpdatePlayerStatsVisual(playerid)
 	PlayerTextDrawSetStringRus(playerid, ChrInfDodge[playerid], string);
 }
 
+stock ShowMainMenu(playerid)
+{
+	new listitems[] = "Информация о персонаже\nСменить персонажа\nБыстрое перемещение";
+	ShowPlayerDialog(playerid, 1000, DIALOG_STYLE_TABLIST, "Bourgeois Circus", listitems, "Далее", "Закрыть");
+}
+
 stock ShowCharInfo(playerid)
 {
 	new string[255];
@@ -8194,8 +8285,8 @@ stock GetWeaponBaseDamage(weaponid)
 	{
 		case 1: { damage[0] = 19; damage[1] = 24; }
 		case 2..8: { damage[0] = 25; damage[1] = 31; }
-		case 9: { damage[0] = 65; damage[1] = 94; }
-		case 10..16, 242: { damage[0] = 85; damage[1] = 122; }
+		case 9: { damage[0] = 70; damage[1] = 101; }
+		case 10..16, 242: { damage[0] = 91; damage[1] = 131; }
 		case 17: { damage[0] = 9; damage[1] = 18; }
 		case 18..24, 243: { damage[0] = 12; damage[1] = 24; }
 		case 25: { damage[0] = 12; damage[1] = 26; }
