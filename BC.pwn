@@ -90,6 +90,7 @@
 #define MAX_TOUR_TIME 180
 #define MAX_WALKERS 20
 #define MAX_COOPERATE_MSGS 10
+#define WALKERS_LIMIT 20
 
 //Market
 #define MARKET_CATEGORY_WEAPON 0
@@ -197,6 +198,7 @@ forward TickMinute();
 forward RefreshWalkers();
 forward ResetPlayerInvulnearable(playerid);
 forward TickSecond(playerid);
+forward TickHour();
 
 /* Variables */
 
@@ -320,6 +322,7 @@ enum pInfo
 	Accuracy,
 	GlobalTopPosition,
 	LocalTopPosition,
+	WalkersLimit,
 	Crit,
 	WeaponSlotID,
 	ArmorSlotID,
@@ -1164,7 +1167,12 @@ public OnPlayerGiveDamage(playerid, damagedid, Float:amount, weaponid, bodypart)
 	}
 
 	if(IsWalker[damagedid] && FCNPC_GetAimingPlayer(damagedid) == INVALID_PLAYER_ID)
-		SetPlayerTarget(damagedid, playerid);
+	{
+		if(PlayerInfo[playerid][WalkersLimit] > 0)
+			SetPlayerTarget(damagedid, playerid);
+		else 
+			return 0;
+	}
 
 	new is_invulnearable = GetPVarInt(damagedid, "Invulnearable");
 	new dodge = (PlayerInfo[damagedid][Dodge] - PlayerInfo[playerid][Accuracy]) / 2;
@@ -1389,17 +1397,24 @@ public OnPlayerDeath(playerid, killerid, reason)
 		}
 		if(IsWalker[playerid])
 		{
-			RollWalkerLoot(playerid, killerid);
+			if(PlayerInfo[killerid][WalkersLimit] > 0)
+				RollWalkerLoot(playerid, killerid);
 			new idx = GetWalkerIdx(playerid);
 			if(idx != -1)
 				DestroyDynamic3DTextLabel(Walkers[idx][LabelID]);
 			WalkerRespawnTimer[playerid] = SetTimerEx("RespawnWalker", GetWalkerRespawnTime(PlayerInfo[playerid][Rank]), false, "i", playerid);
+
+			PlayerInfo[killerid][WalkersLimit]--;
+			if(PlayerInfo[killerid][WalkersLimit] < 0)
+				PlayerInfo[killerid][WalkersLimit] = 0;
+
 			return 1;
 		}
 		if(IsWalker[killerid])
 		{
-			new rate = random(5) + 1;
-			GivePlayerRate(playerid, -rate);
+			PlayerInfo[playerid][WalkersLimit]--;
+			if(PlayerInfo[playerid][WalkersLimit] < 0)
+				PlayerInfo[playerid][WalkersLimit] = 0;
 		}
 	}
 	return 1;
@@ -2483,6 +2498,7 @@ public OnDialogResponse(playerid, dialogid, response, listitem, inputtext[])
 						SetPlayerInterior(playerid, 0);
 						SetCameraBehindPlayer(playerid);
 					}
+					//TODO:
 				}
 				
 				SetPVarInt(playerid, "TeleportCooldown", 60);
@@ -3063,11 +3079,14 @@ public Time()
     new hour, minute, second;
 	new string[25];
 	gettime(hour, minute, second);
-	if (minute <= 9)
+	if(minute <= 9)
 		format(string, 25, "%d:0%d", hour, minute);
 	else
 		format(string, 25, "%d:%d", hour, minute);
 	TextDrawSetString(WorldTime, string);
+
+	if(minute == 0)
+		TickHour();
 }
 
 public TickSecond(playerid)
@@ -3084,6 +3103,20 @@ public TickSecond(playerid)
 	{
 		tp_cooldown--;
 		SetPVarInt(playerid, "TeleportCooldown", coop_cooldown);
+	}
+}
+
+public TickHour()
+{
+	new query[255];
+	format(query, sizeof(query), "UPDATE `players` SET `WalkersLimit` = '%d'", WALKERS_LIMIT);
+	new Cache:result = mysql_query(sql_handle, query);
+	cache_delete(result);
+
+	for(new i = 0; i < MAX_PLAYERS; i++)
+	{
+		if(!IsPlayerConnected(i)) continue;
+		PlayerInfo[i][WalkersLimit] = WALKERS_LIMIT;
 	}
 }
 
@@ -8035,6 +8068,17 @@ stock CombineWithModifier(playerid)
 	ShowPlayerDialog(playerid, 1, DIALOG_STYLE_MSGBOX, "Комбинирование", "{33CC00}Успешная комбинация.", "Закрыть", "");
 }
 
+stock CombineWithAntique(equipid, m_count)
+{
+	if(m_count <= 0)
+	{
+		ShowPlayerDialog(playerid, 1, DIALOG_STYLE_MSGBOX, "Комбинирование", "Комбинация не существует.", "Закрыть", "");
+		return;
+	}
+
+	
+}
+
 stock CombineItems(playerid)
 {
 	if(IsModifiableEquip(CmbItem[playerid][0]))
@@ -8044,6 +8088,14 @@ stock CombineItems(playerid)
 		if(s_item[Type] == ITEMTYPE_MODIFIER && CmbItemCount[playerid][1] == 1 && IsModStone(CmbItem[playerid][2]) && CmbItemCount[playerid][2] == 1)
 		{
 			CombineWithModifier(playerid);
+			return;
+		}
+
+		new eq_item[BaseItem];
+		eq_item = GetItem(CmbItem[playerid][0]);
+		if(eq_item[Grade] == GRADE_R && CmbItem[playerid][1] == 195)
+		{
+			CombineWithAntique(CmbItem[playerid][0], CmbItemCount[playerid][1]);
 			return;
 		}
 	}
@@ -8305,44 +8357,44 @@ stock GetWeaponBaseDamage(weaponid)
 		case 74..80, 249: { damage[0] = 431; damage[1] = 721; }
 
 		case 205: { damage[0] = 79; damage[1] = 118; }
-		case 206: { damage[0] = 103; damage[1] = 153; }
-		case 207: { damage[0] = 134; damage[1] = 199; }
-		case 208: { damage[0] = 174; damage[1] = 258; }
-		case 209: { damage[0] = 226; damage[1] = 336; }
-		case 210: { damage[0] = 294; damage[1] = 437; }
-		case 211: { damage[0] = 382; damage[1] = 568; }
-		case 212: { damage[0] = 497; damage[1] = 648; }
-		case 213: { damage[0] = 646; damage[1] = 739; }
+		case 206: { damage[0] = 87; damage[1] = 130; }
+		case 207: { damage[0] = 96; damage[1] = 143; }
+		case 208: { damage[0] = 105; damage[1] = 157; }
+		case 209: { damage[0] = 116; damage[1] = 173; }
+		case 210: { damage[0] = 127; damage[1] = 190; }
+		case 211: { damage[0] = 140; damage[1] = 209; }
+		case 212: { damage[0] = 154; damage[1] = 230; }
+		case 213: { damage[0] = 169; damage[1] = 253; }
 
 		case 214: { damage[0] = 34; damage[1] = 51; }
-		case 215: { damage[0] = 44; damage[1] = 66; }
-		case 216: { damage[0] = 58; damage[1] = 86; }
-		case 217: { damage[0] = 75; damage[1] = 112; }
-		case 218: { damage[0] = 97; damage[1] = 146; }
-		case 219: { damage[0] = 126; damage[1] = 189; }
-		case 220: { damage[0] = 164; damage[1] = 246; }
-		case 221: { damage[0] = 213; damage[1] = 320; }
-		case 222: { damage[0] = 277; damage[1] = 416; }
+		case 215: { damage[0] = 37; damage[1] = 56; }
+		case 216: { damage[0] = 41; damage[1] = 62; }
+		case 217: { damage[0] = 45; damage[1] = 68; }
+		case 218: { damage[0] = 50; damage[1] = 75; }
+		case 219: { damage[0] = 55; damage[1] = 82; }
+		case 220: { damage[0] = 60; damage[1] = 90; }
+		case 221: { damage[0] = 66; damage[1] = 99; }
+		case 222: { damage[0] = 73; damage[1] = 109; }
 
 		case 223: { damage[0] = 63; damage[1] = 87; }
-		case 224: { damage[0] = 82; damage[1] = 113; }
-		case 225: { damage[0] = 107; damage[1] = 147; }
-		case 226: { damage[0] = 138; damage[1] = 191; }
-		case 227: { damage[0] = 180; damage[1] = 248; }
-		case 228: { damage[0] = 234; damage[1] = 323; }
-		case 229: { damage[0] = 304; damage[1] = 420; }
-		case 230: { damage[0] = 395; damage[1] = 546; }
-		case 231: { damage[0] = 514; damage[1] = 710; }
+		case 224: { damage[0] = 69; damage[1] = 96; }
+		case 225: { damage[0] = 76; damage[1] = 105; }
+		case 226: { damage[0] = 84; damage[1] = 116; }
+		case 227: { damage[0] = 92; damage[1] = 127; }
+		case 228: { damage[0] = 101; damage[1] = 140; }
+		case 229: { damage[0] = 117; damage[1] = 154; }
+		case 230: { damage[0] = 123; damage[1] = 170; }
+		case 231: { damage[0] = 135; damage[1] = 187; }
 
-		case 232: { damage[0] = 289; damage[1] = 438; }
-		case 233: { damage[0] = 376; damage[1] = 569; }
-		case 234: { damage[0] = 488; damage[1] = 740; }
-		case 235: { damage[0] = 634; damage[1] = 962; }
-		case 236: { damage[0] = 825; damage[1] = 1251; }
-		case 237: { damage[0] = 1073; damage[1] = 1626; }
-		case 238: { damage[0] = 1395; damage[1] = 2114; }
-		case 239: { damage[0] = 1813; damage[1] = 2748; }
-		case 240: { damage[0] = 2357; damage[1] = 3572; }
+		case 232: { damage[0] = 389; damage[1] = 538; }
+		case 233: { damage[0] = 428; damage[1] = 592; }
+		case 234: { damage[0] = 471; damage[1] = 651; }
+		case 235: { damage[0] = 518; damage[1] = 716; }
+		case 236: { damage[0] = 570; damage[1] = 788; }
+		case 237: { damage[0] = 626; damage[1] = 866; }
+		case 238: { damage[0] = 689; damage[1] = 953; }
+		case 239: { damage[0] = 758; damage[1] = 1048; }
+		case 240: { damage[0] = 834; damage[1] = 1153; }
 
 		default: { damage[0] = 13; damage[1] = 15; }
 	}
@@ -8780,7 +8832,7 @@ stock SavePlayer(playerid, bool:with_pos = true)
 	strcat(query, tmp);
 	format(tmp, sizeof(tmp), "`Defense` = '%d', `Dodge` = '%d', `Accuracy` = '%d', ", PlayerInfo[playerid][Defense], PlayerInfo[playerid][Dodge], PlayerInfo[playerid][Accuracy]);
 	strcat(query, tmp);
-	format(tmp, sizeof(tmp), "`Crit` = '%d', `GlobalTopPos` = '%d', `LocalTopPos` = '%d', ", PlayerInfo[playerid][Crit], PlayerInfo[playerid][GlobalTopPosition], PlayerInfo[playerid][LocalTopPosition]);
+	format(tmp, sizeof(tmp), "`Crit` = '%d', `GlobalTopPos` = '%d', `LocalTopPos` = '%d', `WalkersLimit` = '%d', ", PlayerInfo[playerid][Crit], PlayerInfo[playerid][GlobalTopPosition], PlayerInfo[playerid][LocalTopPosition], PlayerInfo[playerid][WalkersLimit]);
 	strcat(query, tmp);
 	format(tmp, sizeof(tmp), "`WeaponSlotID` = '%d', `ArmorSlotID` = '%d', `AccSlot1ID` = '%d', `AccSlot2ID` = '%d', ", PlayerInfo[playerid][WeaponSlotID], PlayerInfo[playerid][ArmorSlotID], PlayerInfo[playerid][AccSlot1ID], PlayerInfo[playerid][AccSlot2ID]);
 	strcat(query, tmp);
@@ -8907,6 +8959,7 @@ stock LoadPlayer(playerid)
 	cache_get_value_name_int(0, "Crit", PlayerInfo[playerid][Crit]);
 	cache_get_value_name_int(0, "GlobalTopPos", PlayerInfo[playerid][GlobalTopPosition]);
 	cache_get_value_name_int(0, "LocalTopPos", PlayerInfo[playerid][LocalTopPosition]);
+	cache_get_value_name_int(0, "WalkersLimit", PlayerInfo[playerid][WalkersLimit]);
 	cache_get_value_name_int(0, "WeaponSlotID", PlayerInfo[playerid][WeaponSlotID]);
 	cache_get_value_name_int(0, "ArmorSlotID", PlayerInfo[playerid][ArmorSlotID]);
 	cache_get_value_name_int(0, "AccSlot1ID", PlayerInfo[playerid][AccSlot1ID]);
