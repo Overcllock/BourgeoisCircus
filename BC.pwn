@@ -648,36 +648,6 @@ main()
 
 /* Commands */
 //GM commands
-cmd:balance(playerid, params[])
-{
-	if(PlayerInfo[playerid][Admin] == 0)
-		return 0;
-
-	new query[255] = "SELECT * FROM `players` WHERE `Owner` <> 'Admin'";
-	new Cache:q_result = mysql_query(sql_handle, query);
-
-	new rows;
-	cache_get_row_count(rows);
-	q_result = cache_save();
-	cache_unset_active();
-
-	for(new i = 0; i < rows; i++)
-	{
-		cache_set_active(q_result);
-		new name[255];
-		cache_get_value_name(i, "Name", name);
-		cache_unset_active();
-		GivePlayerMoneyOffline(name, 20000);
-		PendingItem(name, 203, MOD_CLEAR, 20);
-		PendingItem(name, 310, MOD_CLEAR, 2);
-		PendingItem(name, 311, MOD_CLEAR, 1);
-		PendingItem(name, 185, MOD_CLEAR, 1);
-		PendingItem(name, 186, MOD_CLEAR, 1);
-	}
-
-	cache_delete(q_result);
-	return SendClientMessage(playerid, COLOR_GREY, "Done.");
-}
 cmd:setrate(playerid, params[])
 {
 	if(PlayerInfo[playerid][Admin] == 0)
@@ -4025,7 +3995,7 @@ stock GiveBourgeoisRewards()
 		cache_get_value_name(idx, "Name", name);
 		cache_unset_active();
 
-		PendingItem(name, 314, MOD_CLEAR, 2 + random(4));
+		PendingItem(name, 314, MOD_CLEAR, 2 + random(4), "Награда от Буржуа");
 	}
 
 	cache_delete(q_result);
@@ -4120,7 +4090,11 @@ stock GiveTournamentRewards()
 		if(id == -1)
 		{
 			if(reward[ItemID] != -1)
-				PendingItem(name, reward[ItemID], MOD_CLEAR, reward[ItemsCount]);
+			{
+				new string[255];
+				format(string, sizeof(string), "Награда за %d место", place);
+				PendingItem(name, reward[ItemID], MOD_CLEAR, reward[ItemsCount], string);
+			}
 			if(reward[Money] > 0)
 				GivePlayerMoneyOffline(name, reward[Money]);
 		}
@@ -4130,8 +4104,10 @@ stock GiveTournamentRewards()
 			{
 				if(IsInventoryFull(id))
 				{
+					new string[255];
+					format(string, sizeof(string), "Награда за %d место", place);
 					SendClientMessage(id, COLOR_GREY, "Инвентарь полон, награды отправлены на почту.");
-					PendingItem(name, reward[ItemID], MOD_CLEAR, reward[ItemsCount]);
+					PendingItem(name, reward[ItemID], MOD_CLEAR, reward[ItemsCount], string);
 					continue;
 				}
 				if(IsEquip(reward[ItemID]))
@@ -4242,7 +4218,7 @@ stock UpdateMarketItems()
 
 			cache_unset_active();
 
-			PendingItem(owner, itemid, mod, count);
+			PendingItem(owner, itemid, mod, count, "Срок регистрации предмета истек");
 
 			new sub_query[255];
 			format(sub_query, sizeof(sub_query), "DELETE FROM `marketplace` WHERE `ID` = '%d'", id);
@@ -4512,6 +4488,10 @@ stock BuyItem(playerid, lotid, count = 1)
 		AddItem(playerid, item[ID], count);
 	
 	new owner_id = GetPlayerID(item[Owner]);
+
+	new string[255];
+	format(string, sizeof(string), "Предмет [{%s}%s{ffffff}] продан.", GetGradeColor(b_item[Grade]), b_item[Name]);
+
 	if(owner_id != -1)
 	{
 		PlayerInfo[owner_id][Cash] += amount;
@@ -4520,12 +4500,13 @@ stock BuyItem(playerid, lotid, count = 1)
 		new b_item[BaseItem];
 		b_item = GetItem(item[ID]);
 
-		new string[255];
-		format(string, sizeof(string), "Предмет [{%s}%s{ffffff}] продан.", GetGradeColor(b_item[Grade]), b_item[Name]);
 		SendClientMessage(owner_id, 0xFFFFFFFF, string);
 	}
 	else
+	{
+		PendingMessage(item[Owner], string);
 		GivePlayerMoneyOffline(item[Owner], amount);
+	}
 	
 	SendClientMessage(playerid, COLOR_GREEN, "Предмет куплен.");
 	ShowMarketBuyList(playerid, category);
@@ -4569,7 +4550,7 @@ stock CancelItem(playerid, listitem)
 	}
 
 	SendClientMessage(playerid, COLOR_GREEN, "Регистрация отменена. Предметы отправлены на почту.");
-	PendingItem(item[Owner], item[ID], item[Mod], item[Count]);
+	PendingItem(item[Owner], item[ID], item[Mod], item[Count], "Предмет возвращен");
 
 	DeleteItemFromMarket(item[LotID], item[Count]);
 	ShowMarketMenu(playerid);
@@ -4834,7 +4815,7 @@ stock GiveTourRewards(tour)
 				if(IsInventoryFull(id))
 				{
 					SendClientMessage(id, COLOR_GREY, "Инвентарь полон, награды отправлены на почту.");
-					PendingItem(PvpInfo[i][Name], reward[ItemID], MOD_CLEAR, reward[ItemsCount]);
+					PendingItem(PvpInfo[i][Name], reward[ItemID], MOD_CLEAR, reward[ItemsCount], "Награда за тур");
 					continue;
 				}
 				if(IsEquip(reward[ItemID]))
@@ -4848,7 +4829,7 @@ stock GiveTourRewards(tour)
 		else
 		{
 			if(reward[ItemID] != -1 && reward[ItemsCount] > 0)
-				PendingItem(PvpInfo[i][Name], reward[ItemID], MOD_CLEAR, reward[ItemsCount]);
+				PendingItem(PvpInfo[i][Name], reward[ItemID], MOD_CLEAR, reward[ItemsCount], "Награда за тур");
 			if(reward[Money] > 0)
 				GivePlayerMoneyOffline(PvpInfo[i][Name], reward[Money]);
 		}
@@ -4893,19 +4874,30 @@ stock ShowPlayerPost(playerid)
 	q_result = cache_save();
 	cache_unset_active();
 
-	new listitems[2048] = "Предмет\tКоличество";
+	new listitems[2048] = "Сообщение\nВложения\tКоличество";
 	new string[255];
 	for(new i = 0; i < row_count; i++)
 	{
 		cache_set_active(q_result);
 		new reward[RewardInfo];
+		new text[255];
+		cache_get_value_name(i, "Text", text);
 		cache_get_value_name_int(i, "ItemID", reward[ItemID]);
 		cache_get_value_name_int(i, "Count", reward[ItemsCount]);
 		cache_unset_active();
 
-		new item[BaseItem];
-		item = GetItem(reward[ItemID]);
-		format(string, sizeof(string), "\n{%s}%s\t{ffffff}%d", GetGradeColor(item[Grade]), item[Name], reward[ItemsCount]);
+		if(strlen(text) <= 0)
+			format(text, sizeof(text), "-");
+
+		if(reward[ItemID] != -1)
+		{
+			new item[BaseItem];
+			item = GetItem(reward[ItemID]);
+			format(string, sizeof(string), "\n{ffffff}%s\t{%s}%s\t{ffffff}%d", text, GetGradeColor(item[Grade]), item[Name], reward[ItemsCount]);
+		}
+		else
+			format(string, sizeof(string), "\n{ffffff}%s\t{ffffff}-\t-", text);
+
 		strcat(listitems, string);
 	}
 	cache_delete(q_result);
@@ -4918,12 +4910,6 @@ stock ShowPlayerPost(playerid)
 
 stock ClaimMail(playerid, num)
 {
-	if(IsInventoryFull(playerid))
-	{
-		ShowPlayerDialog(playerid, 1, DIALOG_STYLE_MSGBOX, "Почта", "Инвентарь полон.", "Закрыть", "");
-		return;
-	}
-
 	new query[255];
 	format(query, sizeof(query), "SELECT * FROM `pendings` WHERE `PlayerName` = '%s' ORDER BY `PendingID` DESC", PlayerInfo[playerid][Name]);
 	new Cache:q_result = mysql_query(sql_handle, query);
@@ -4949,10 +4935,19 @@ stock ClaimMail(playerid, num)
 
 	cache_delete(q_result);
 
-	if(IsEquip(reward[ItemID]))
-		AddEquip(playerid, reward[ItemID], mod);
-	else
-		AddItem(playerid, reward[ItemID], reward[ItemsCount]);
+	if(reward[ItemID] != -1 && IsInventoryFull(playerid))
+	{
+		ShowPlayerDialog(playerid, 1, DIALOG_STYLE_MSGBOX, "Почта", "Инвентарь полон.", "Закрыть", "");
+		return;
+	}
+
+	if(reward[ItemID] != -1)
+	{
+		if(IsEquip(reward[ItemID]))
+			AddEquip(playerid, reward[ItemID], mod);
+		else
+			AddItem(playerid, reward[ItemID], reward[ItemsCount]);
+	}
 
 	if(p_id == -1) return;
 	new s_query[255];
@@ -4960,7 +4955,7 @@ stock ClaimMail(playerid, num)
 	new Cache:result = mysql_query(sql_handle, s_query);
 	cache_delete(result);
 
-	SendClientMessage(playerid, COLOR_GREEN, "Предметы получены.");
+	SendClientMessage(playerid, COLOR_GREEN, "Письмо прочитано.");
 }
 
 stock UpdateTourParticipants()
@@ -6871,7 +6866,7 @@ stock AddItem(playerid, id, count = 1)
 	return true;
 }
 
-stock PendingItem(name[], id, mod[], count = 1)
+stock PendingMessage(name[], text[])
 {
 	new sub_query[255] = "SELECT MAX(`PendingID`) AS `PendingID` FROM `pendings`";
 	new Cache:sq_result = mysql_query(sql_handle, sub_query);
@@ -6886,8 +6881,34 @@ stock PendingItem(name[], id, mod[], count = 1)
 	p_id++;
 
 	new query[255];
-	format(query, sizeof(query), "INSERT INTO `pendings`(`PendingID`, `PlayerName`, `ItemID`, `Count`, `ItemMod`) VALUES ('%d','%s','%d','%d','%s')",
-		p_id, name, id, count, ArrayToString(mod, MAX_MOD)
+	format(query, sizeof(query), "INSERT INTO `pendings`(`PendingID`, `PlayerName`, `ItemID`, `Count`, `ItemMod`, `Text`) VALUES ('%d','%s','%d','%d','%s','%s')",
+		p_id, name, -1, 0, '0 0 0 0 0 0 0', text
+	);
+	new Cache:q_result = mysql_query(sql_handle, query);
+	cache_delete(q_result);
+
+	new id = GetPlayerID(name);
+	if(id != -1 && IsPlayerConnected(id) && !FCNPC_IsValid(id))
+		UpdatePlayerPost(id);
+}
+
+stock PendingItem(name[], id, mod[], count = 1, text[])
+{
+	new sub_query[255] = "SELECT MAX(`PendingID`) AS `PendingID` FROM `pendings`";
+	new Cache:sq_result = mysql_query(sql_handle, sub_query);
+	new p_id = -1;
+	new row_count = 0;
+	cache_get_row_count(row_count);
+	if(row_count <= 0)
+		p_id = 0;
+	else
+		cache_get_value_name_int(0, "PendingID", p_id);
+	cache_delete(sq_result);
+	p_id++;
+
+	new query[255];
+	format(query, sizeof(query), "INSERT INTO `pendings`(`PendingID`, `PlayerName`, `ItemID`, `Count`, `ItemMod`, `Text`) VALUES ('%d','%s','%d','%d','%s','%s')",
+		p_id, name, id, count, ArrayToString(mod, MAX_MOD), text
 	);
 	new Cache:q_result = mysql_query(sql_handle, query);
 	cache_delete(q_result);
