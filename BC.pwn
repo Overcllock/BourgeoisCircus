@@ -91,6 +91,7 @@
 #define MAX_WALKERS 20
 #define MAX_COOPERATE_MSGS 10
 #define WALKERS_LIMIT 20
+#define MAX_BOURGEOIS_REWARDS 5
 
 //Market
 #define MARKET_CATEGORY_WEAPON 0
@@ -1066,6 +1067,7 @@ public OnTournamentEnd()
 	OnPhaseChanged(PHASE_WAR, PHASE_PEACE);
 
 	GiveTournamentRewards();
+	GiveBourgeoisRewards();
 	UpdateTourParticipants();
 	UpdateMarketItems();
 	UpdateTempItems();
@@ -3755,7 +3757,7 @@ stock ParticipantBehaviour(id)
 	}
 
 	//If current target's HP > 20%, trying to find common target
-	if(fix_target == -1 && GetPlayerHPPercent(target) > 20 && GetAimingPlayersCount(target) < 3)
+	if(fix_target == -1 && GetPlayerHPPercent(target) > 20 && GetAimingPlayersCount(target) < 5)
 		TryFindCommonTarget(id, target);
 
 	target = FCNPC_GetAimingPlayer(id);
@@ -3990,6 +3992,45 @@ stock BossBehaviour(id)
 		FCNPC_AimAtPlayer(id, target, false);
 }
 
+stock GiveBourgeoisRewards()
+{
+	new query[255];
+	format(query, sizeof(query), "SELECT * FROM `players` WHERE `Owner` <> 'Admin' LIMIT %d", MAX_PARTICIPANTS);
+	new Cache:q_result = mysql_query(sql_handle, query);
+	new row_count = 0;
+	cache_get_row_count(row_count);
+	if(row_count <= 0)
+	{
+		print("Cannot give bourgeois rewards.");
+		return;
+	}
+
+	q_result = cache_save();
+	cache_unset_active();
+
+	new idxes[MAX_BOURGEOIS_REWARDS];
+	ArraySetDefaultValue(idxes, MAX_BOURGEOIS_REWARDS, -1);
+	for(new i = 0; i < MAX_BOURGEOIS_REWARDS; i++)
+	{
+		new idx = random(row_count);
+		while(ArrayValueExist(idxes, MAX_BOURGEOIS_REWARDS, idx))
+			idx = random(row_count);
+	}
+
+	for(new i = 0; i < MAX_BOURGEOIS_REWARDS; i++)
+	{
+		new idx = idxes[i];
+		new name[255];
+		cache_set_active(q_result);
+		cache_get_value_name(idx, "Name", name);
+		cache_unset_active();
+
+		PendingItem(name, 314, MOD_CLEAR, 2 + random(4));
+	}
+
+	cache_delete(q_result);
+}
+
 stock GiveTournamentRewards()
 {
 	new query[255];
@@ -4091,7 +4132,6 @@ stock GiveTournamentRewards()
 				{
 					SendClientMessage(id, COLOR_GREY, "Инвентарь полон, награды отправлены на почту.");
 					PendingItem(name, reward[ItemID], MOD_CLEAR, reward[ItemsCount]);
-					UpdatePlayerPost(id);
 					continue;
 				}
 				if(IsEquip(reward[ItemID]))
@@ -4203,9 +4243,6 @@ stock UpdateMarketItems()
 			cache_unset_active();
 
 			PendingItem(owner, itemid, mod, count);
-			new playerid = GetPlayerID(owner);
-			if(playerid != -1 && IsPlayerConnected(playerid))
-				UpdatePlayerPost(playerid);
 
 			new sub_query[255];
 			format(sub_query, sizeof(sub_query), "DELETE FROM `marketplace` WHERE `ID` = '%d'", id);
@@ -4533,7 +4570,6 @@ stock CancelItem(playerid, listitem)
 
 	SendClientMessage(playerid, COLOR_GREEN, "Регистрация отменена. Предметы отправлены на почту.");
 	PendingItem(item[Owner], item[ID], item[Mod], item[Count]);
-	UpdatePlayerPost(playerid);
 
 	DeleteItemFromMarket(item[LotID], item[Count]);
 	ShowMarketMenu(playerid);
@@ -4799,7 +4835,6 @@ stock GiveTourRewards(tour)
 				{
 					SendClientMessage(id, COLOR_GREY, "Инвентарь полон, награды отправлены на почту.");
 					PendingItem(PvpInfo[i][Name], reward[ItemID], MOD_CLEAR, reward[ItemsCount]);
-					UpdatePlayerPost(id);
 					continue;
 				}
 				if(IsEquip(reward[ItemID]))
@@ -5298,6 +5333,38 @@ stock OpenLockbox(playerid, lockboxid)
 		{
 			count = 1;
 			itemid = 205 + random(4) * 9;
+		}
+		case 314:
+		{
+			count = 1;
+			switch(chance)
+			{
+				case 0,1: itemid = 313;
+				case 2,3: itemid = 194;
+				case 4..153: itemid = 310;
+				case 154..253: itemid = 311;
+				case 254..256: itemid = 312;
+				case 257..1256: { itemid = 191; count = 5; }
+				case 1257..1656: { itemid = 192; count = 3; }
+				case 1657..1756: itemid = 193;
+				case 1757..2761: itemid = GetRandomEquip(rank, rank);
+				default: { itemid = 195; count = 10; }
+			}
+		}
+		case 315:
+		{
+			count = 1;
+			itemid = 154 + random(7);
+		}
+		case 316:
+		{
+			count = 1;
+			itemid = 161 + random(7);
+		}
+		case 317:
+		{
+			count = 1;
+			itemid = 168 + random(14);
 		}
 	}
 	if(itemid == -1) return;
@@ -6059,6 +6126,7 @@ stock RollWalkerLootItem(rank, ownerid)
 				case 49: itemid = 313;
 				case 50..999: { itemid = GetRandomStone(); count = 2; }
 				case 1000..1099: { itemid = 195; count = rank; }
+				case 1100..1124: itemid = 315;
 				default: { itemid = 241; count = (rank * 5 - rank) + random(rank * 3); }
 			}
 		}
@@ -6071,6 +6139,7 @@ stock RollWalkerLootItem(rank, ownerid)
 				case 50..999: { itemid = GetRandomStone(); count = 4; }
 				case 1000..1099: itemid = 310;
 				case 1100..1199: { itemid = 195; count = rank; }
+				case 1200..1224: itemid = 315;
 				default: { itemid = 241; count = (rank * 5 - rank) + random(rank * 3); }
 			}
 		}
@@ -6083,6 +6152,7 @@ stock RollWalkerLootItem(rank, ownerid)
 				case 50..999: { itemid = GetRandomStone(); count = 6; }
 				case 1000..1199: itemid = 310;
 				case 1200..1299: { itemid = 195; count = rank; }
+				case 1300..1324: itemid = 316;
 				default: { itemid = 241; count = (rank * 5 - rank) + random(rank * 3); }
 			}
 		}
@@ -6095,6 +6165,7 @@ stock RollWalkerLootItem(rank, ownerid)
 				case 50..999: { itemid = GetRandomBooster(); count = 4; }
 				case 1000..1299: itemid = 310;
 				case 1300..1399: { itemid = 195; count = rank; }
+				case 1400..1424: itemid = 316;
 				default: { itemid = 241; count = (rank * 5 - rank) + random(rank * 3); }
 			}
 		}
@@ -6107,6 +6178,7 @@ stock RollWalkerLootItem(rank, ownerid)
 				case 50..999: { itemid = GetRandomBooster(); count = 6; }
 				case 1000..1099: itemid = 311;
 				case 1100..1199: { itemid = 195; count = rank; }
+				case 1200..1224: itemid = 316;
 				default: { itemid = 241; count = (rank * 5 - rank) + random(rank * 3); }
 			}
 		}
@@ -6120,6 +6192,7 @@ stock RollWalkerLootItem(rank, ownerid)
 				case 1000..1149: itemid = 311;
 				case 1150..1199: { itemid = 191; count = 3; }
 				case 1200..1299: { itemid = 195; count = rank; }
+				case 1300..1324: itemid = 316;
 				default: { itemid = 241; count = (rank * 5 - rank) + random(rank * 3); }
 			}
 		}
@@ -6133,6 +6206,7 @@ stock RollWalkerLootItem(rank, ownerid)
 				case 1150..1159: itemid = 312;
 				case 1160..1299: { itemid = 192; count = 3; }
 				case 1300..1399: { itemid = 195; count = rank; }
+				case 1400..1424: itemid = 317;
 				default: { itemid = 241; count = (rank * 5 - rank) + random(rank * 3); }
 			}
 		}
@@ -6146,6 +6220,7 @@ stock RollWalkerLootItem(rank, ownerid)
 				case 1450..1474: itemid = 312;
 				case 1475..1799: { itemid = 192; count = 5; }
 				case 1800..1899: { itemid = 195; count = rank; }
+				case 1900..1924: itemid = 317;
 				default: { itemid = 241; count = (rank * 5 - rank) + random(rank * 3); }
 			}
 		}
@@ -6205,10 +6280,10 @@ stock RollBossLootItem(bossid)
 				case 0..499: itemid = GetRandomEquip(7, 8);
 				case 500..599: itemid = 202;
 				case 600..759: itemid = 192;
-				case 800..869: itemid = GetRandomAccessory(2);
-				case 870..899: itemid = 193;
-				case 900..1199: { itemid = 191; count = 2; }
-				case 1200..5299: { itemid = GetRandomBooster(); count = 14; }
+				case 800..1069: itemid = GetRandomAccessory(2);
+				case 1070..1099: itemid = 193;
+				case 1100..1399: { itemid = 191; count = 2; }
+				case 1400..5499: { itemid = GetRandomBooster(); count = 14; }
 				default: { itemid = 195; count = 14; }
 			}
 		}
@@ -6218,12 +6293,12 @@ stock RollBossLootItem(bossid)
 			{
 				case 0..499: itemid = GetRandomEquip(9, 9);
 				case 500..599: itemid = 203;
-				case 600..619: itemid = GetRandomAccessory(3);
-				case 620..679: itemid = 193;
-				case 680: itemid = 194;
-				case 681..899: { itemid = 192; count = 2; }
-				case 900..1199: { itemid = 191; count = 3; }
-				case 1200..5299: { itemid = GetRandomBooster(); count = 28; }
+				case 600..819: itemid = GetRandomAccessory(3);
+				case 820..879: itemid = 193;
+				case 880: itemid = 194;
+				case 881..1099: { itemid = 192; count = 2; }
+				case 1100..1399: { itemid = 191; count = 3; }
+				case 1400..5499: { itemid = GetRandomBooster(); count = 28; }
 				default: { itemid = 195; count = 28; }
 			}
 		}
@@ -6816,6 +6891,10 @@ stock PendingItem(name[], id, mod[], count = 1)
 	);
 	new Cache:q_result = mysql_query(sql_handle, query);
 	cache_delete(q_result);
+
+	new id = GetPlayerID(name);
+	if(id != -1 && IsPlayerConnected(id) && !FCNPC_IsValid(id))
+		UpdatePlayerPost(id);
 }
 
 stock AddEquip(playerid, id, mod[])
@@ -8002,14 +8081,25 @@ stock GetModifierModLevel(levels[])
 	return level;
 }
 
-stock SetModLevel(playerid, slotid, stoneid, level)
+stock SetModLevel(playerid, slotid, stoneid, level, reset_mod = true)
 {
 	new modifier = GetModifierByStone(stoneid);
 
-	for(new i = 0; i < MAX_MOD; i++)
-		PlayerInventory[playerid][slotid][Mod][i] = 0;
-	for(new i = 0; i < level; i++)
-		PlayerInventory[playerid][slotid][Mod][i] = modifier;
+	if(reset_mod)
+	{
+		for(new i = 0; i < MAX_MOD; i++)
+			PlayerInventory[playerid][slotid][Mod][i] = 0;
+		for(new i = 0; i < level; i++)
+			PlayerInventory[playerid][slotid][Mod][i] = modifier;
+	}
+	else
+	{
+		for(new i = 0; i < level; i++)
+		{
+			if(PlayerInventory[playerid][slotid][Mod][i] != 0) continue;
+			PlayerInventory[playerid][slotid][Mod][i] = modifier;
+		}
+	}
 }
 
 stock CombineWithModifier(playerid)
@@ -8068,7 +8158,7 @@ stock CombineWithModifier(playerid)
 	ShowPlayerDialog(playerid, 1, DIALOG_STYLE_MSGBOX, "Комбинирование", "{33CC00}Успешная комбинация.", "Закрыть", "");
 }
 
-stock CombineWithAntique(equipid, m_count)
+stock CombineWithAntique(equipid, m_count, mod_level)
 {
 	if(m_count <= 0)
 	{
@@ -8076,7 +8166,67 @@ stock CombineWithAntique(equipid, m_count)
 		return;
 	}
 
-	
+	new equip[BaseItem];
+	new itemid = CmbItem[playerid][2];
+	equip = GetItem(CmbItem[playerid][0]);
+	if( ((itemid == 187 || itemid == 189) && equip[Type] != ITEMTYPE_WEAPON) ||
+		((itemid == 188 || itemid == 190) && equip[Type] != ITEMTYPE_ARMOR) )
+	{
+		ShowPlayerDialog(playerid, 1, DIALOG_STYLE_MSGBOX, "Комбинирование", "Нельзя использовать этот камень.", "Закрыть", "");
+		return;
+	}
+
+	new rnd = random(10001);
+	new rq_count = 0;
+	new need_chance = 0;
+	switch(mod_level)
+	{
+		case 0: { rq_count = 10; need_chance = 2000; }
+		case 1: { rq_count = 15; need_chance = 1000; }
+		case 2: { rq_count = 25; need_chance = 700; }
+		case 3: { rq_count = 50; need_chance = 500; }
+		case 4: { rq_count = 80; need_chance = 200; }
+		case 5: { rq_count = 110; need_chance = 60; }
+		case 6: { rq_count = 135; need_chance = 10; }
+	}
+
+	if(rq_count == 0 || m_count != rq_count)
+	{
+		ShowPlayerDialog(playerid, 1, DIALOG_STYLE_MSGBOX, "Комбинирование", "Комбинация не существует.", "Закрыть", "");
+		return;
+	}
+
+	DeleteItem(playerid, CmbItemInvSlot[playerid][1], m_count);
+	DeleteItem(playerid, CmbItemInvSlot[playerid][2], 1);
+
+	if(rnd >= chance)
+	{
+		ShowPlayerDialog(playerid, 1, DIALOG_STYLE_MSGBOX, "Комбинирование", "{CC3300}Кобминация неудачна.", "Закрыть", "");
+		return;
+	}
+
+	SetModLevel(playerid, CmbItemInvSlot[playerid][0], CmbItem[playerid][2], mod_level + 1, false);
+
+	for(new i = 0; i < MAX_CMB_ITEMS; i++)
+	{
+		CmbItem[playerid][i] = -1;
+		CmbItemCount[playerid][i] = 0;
+		CmbItemInvSlot[playerid][i] = -1;
+	}
+
+	UpdateCmbWindow(playerid);
+
+	if(mod_level + 1 >= 5)
+	{
+		new cng_string[255];
+		new name[255];
+		GetPlayerName(playerid, name, sizeof(name));
+		format(cng_string, sizeof(cng_string), "{%s}%s{FF6347} успешно модернизирован %d на стадии {%s}%s.", 
+			GetColorByRate(PlayerInfo[playerid][Rate]), name, mod_level + 1, GetGradeColor(equip[Grade]), equip[Name]
+		);
+		SendClientMessageToAll(COLOR_LIGHTRED, cng_string);
+	}
+	ShowPlayerDialog(playerid, 1, DIALOG_STYLE_MSGBOX, "Комбинирование", "{33CC00}Успешная комбинация.", "Закрыть", "");
 }
 
 stock CombineItems(playerid)
@@ -8093,9 +8243,10 @@ stock CombineItems(playerid)
 
 		new eq_item[BaseItem];
 		eq_item = GetItem(CmbItem[playerid][0]);
-		if(eq_item[Grade] == GRADE_R && CmbItem[playerid][1] == 195)
+		if(eq_item[Grade] == GRADE_R && CmbItem[playerid][1] == 195 && IsModStone(CmbItem[playerid][2]) && CmbItemCount[playerid][2] == 1)
 		{
-			CombineWithAntique(CmbItem[playerid][0], CmbItemCount[playerid][1]);
+			new mod_level = GetModLevel(PlayerInventory[playerid][CmbItemSlot[playerid][0]][Mod]);
+			CombineWithAntique(CmbItem[playerid][0], CmbItemCount[playerid][1], mod_level);
 			return;
 		}
 	}
@@ -8570,9 +8721,15 @@ stock GetModifiersCount(modfs[])
 	return count;
 }
 
+stock ArraySetDefaultValue(arr[], size, value)
+{
+	for(new i = 0; i < size; i++)
+		arr[i] = value;
+}
+
 stock ArrayValueExist(arr[], size, value)
 {
-	for (new i = 0; i < size; i++)
+	for(new i = 0; i < size; i++)
 	{
 		if(arr[i] == value)
 			return true;
