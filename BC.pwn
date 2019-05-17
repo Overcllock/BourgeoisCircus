@@ -6245,7 +6245,7 @@ stock UpdatePlayerWeapon(playerid)
 	new weaponid;
 	switch(PlayerInfo[playerid][WeaponSlotID])
 	{
-		case 9..16,242,205..213: weaponid = 24;
+		case 9..16,242: weaponid = 24;
 		case 17..24,243: weaponid = 28;
 		case 25..32,244: weaponid = 32;
 		case 33..40,245,214..222: weaponid = 29;
