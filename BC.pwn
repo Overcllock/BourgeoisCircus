@@ -1,4 +1,4 @@
-//Bourgeois Circus 1.0
+//Bourgeois Circus 1.01
 
 #include <a_samp>
 #include <a_mail>
@@ -18,18 +18,18 @@
 
 #pragma dynamic 31294
 
-#define VERSION 1.101
+#define VERSION 1.011
 
 //Mysql settings
 
-#define SQL_HOST "127.0.0.1"
+/*#define SQL_HOST "127.0.0.1"
 #define SQL_USER "tsar"
 #define SQL_DB "bcircus"
-#define SQL_PASS "2151"
-/*#define SQL_HOST "212.22.93.45"
+#define SQL_PASS "2151"*/
+#define SQL_HOST "212.22.93.45"
 #define SQL_USER "gsvtqhss"
 #define SQL_DB "gsvtqhss_21809"
-#define SQL_PASS "21510055"*/
+#define SQL_PASS "21510055"
 
 //Data types
 #define TYPE_INT 0x01
@@ -73,7 +73,7 @@
 #define MAX_DESCRIPTION_SIZE 45
 #define MAX_GRADES 5
 #define MAX_BOSSES 5
-#define MAX_ITEM_ID 315
+#define MAX_ITEM_ID 400
 #define MAX_LOOT 20
 #define MAX_WALKER_LOOT 12
 #define MAX_PVP_PANEL_ITEMS 5
@@ -92,6 +92,7 @@
 #define MAX_COOPERATE_MSGS 10
 #define WALKERS_LIMIT 20
 #define MAX_BOURGEOIS_REWARDS 5
+#define MAX_WALKERS_ONE_RANK 3
 
 //Market
 #define MARKET_CATEGORY_WEAPON 0
@@ -408,6 +409,7 @@ new home_enter = 0;
 new home_quit = 0;
 new boss_tp = 0;
 new arena_tp = 0;
+new health_pickup = 0;
 
 //Player
 new PlayerInventory[MAX_PLAYERS][MAX_SLOTS][iInfo];
@@ -648,6 +650,15 @@ main()
 
 /* Commands */
 //GM commands
+cmd:tests(playerid, params[])
+{
+	if(PlayerInfo[playerid][Admin] == 0)
+		return 0;
+	
+	GiveBourgeoisRewards();
+	TickHour();
+	return SendClientMessage(playerid, COLOR_GREY, "Done.");
+}
 cmd:setrate(playerid, params[])
 {
 	if(PlayerInfo[playerid][Admin] == 0)
@@ -684,7 +695,7 @@ cmd:giveitem(playerid, params[])
 	new count;
 	if(sscanf(params, "ii", itemid, count))
 		return SendClientMessage(playerid, COLOR_GREY, "USAGE: /giveitem [id][count]");
-	if(itemid <= 0 || itemid == 81 || itemid > MAX_ITEM_ID)
+	if(itemid <= 0 || itemid == 81 || itemid > MAX_ITEM_ID || !DbItemExists(itemid))
 		return SendClientMessage(playerid, COLOR_GREY, "Invalid item id.");
 	if(count <= 0)
 		return SendClientMessage(playerid, COLOR_GREY, "Invalid count.");
@@ -1369,24 +1380,34 @@ public OnPlayerDeath(playerid, killerid, reason)
 		}
 		if(IsWalker[playerid])
 		{
-			if(PlayerInfo[killerid][WalkersLimit] > 0)
-				RollWalkerLoot(playerid, killerid);
 			new idx = GetWalkerIdx(playerid);
 			if(idx != -1)
 				DestroyDynamic3DTextLabel(Walkers[idx][LabelID]);
 			WalkerRespawnTimer[playerid] = SetTimerEx("RespawnWalker", GetWalkerRespawnTime(PlayerInfo[playerid][Rank]), false, "i", playerid);
 
-			PlayerInfo[killerid][WalkersLimit]--;
-			if(PlayerInfo[killerid][WalkersLimit] < 0)
-				PlayerInfo[killerid][WalkersLimit] = 0;
+			if(killerid != -1 && killerid != INVALID_PLAYER_ID)
+			{
+				if(PlayerInfo[killerid][WalkersLimit] > 0)
+					RollWalkerLoot(playerid, killerid);
+
+				PlayerInfo[killerid][WalkersLimit]--;
+				if(PlayerInfo[killerid][WalkersLimit] <= 0)
+				{
+					PlayerInfo[killerid][WalkersLimit] = 0;
+					SendClientMessage(killerid, COLOR_LIGHTRED, "Достигнут лимит прохожих.");
+				}
+			}
 
 			return 1;
 		}
-		if(IsWalker[killerid])
+		if(killerid != -1 && killerid != INVALID_PLAYER_ID)
 		{
-			PlayerInfo[playerid][WalkersLimit]--;
-			if(PlayerInfo[playerid][WalkersLimit] < 0)
-				PlayerInfo[playerid][WalkersLimit] = 0;
+			if(IsWalker[killerid])
+			{
+				PlayerInfo[playerid][WalkersLimit]--;
+				if(PlayerInfo[playerid][WalkersLimit] < 0)
+					PlayerInfo[playerid][WalkersLimit] = 0;
+			}
 		}
 	}
 	return 1;
@@ -1526,6 +1547,11 @@ public OnPlayerPickUpPickup(playerid, pickupid)
 	    SetPlayerInterior(playerid, 0);
 	    SetCameraBehindPlayer(playerid);
 		return 1;
+	}
+	else if(pickupid == health_pickup)
+	{
+		SetPlayerHP(playerid, MaxHP[playerid]);
+		SetPVarFloat(playerid, "HP", MaxHP[playerid]);
 	}
 	for(new i = 0; i < MAX_LOOT; i++)
 	{
@@ -2435,6 +2461,12 @@ public OnDialogResponse(playerid, dialogid, response, listitem, inputtext[])
 					}
 					case 2:
 					{
+						if(IsTourStarted || IsBossAttacker[playerid])
+						{
+							SendClientMessage(playerid, COLOR_GREY, "Быстрое перемещение сейчас недоступно.");
+							return 0;
+						}
+
 						new cooldown = GetPVarInt(playerid, "TeleportCooldown");
 						if(cooldown <= 0)
 						{
@@ -2462,17 +2494,68 @@ public OnDialogResponse(playerid, dialogid, response, listitem, inputtext[])
 			if(response)
 			{
 				switch(listitem)
-				{
+				{			
 					case 0:
 					{
-						SetPlayerPos(playerid, 224.0981,-1839.8425,3.6037);
-						SetPlayerFacingAngle(playerid, 180);
-						SetPlayerInterior(playerid, 0);
-						SetCameraBehindPlayer(playerid);
+						TeleportToHome(playerid);
 					}
-					//TODO:
+					case 1:
+					{
+						SetPlayerPos(playerid, 189.3021,-1826.8640,4.1014);
+						SetPlayerFacingAngle(playerid, 2);
+						SetPlayerInterior(playerid, 0);
+					}
+					case 2:
+					{
+						SetPlayerPos(playerid, 262.7971,-1826.9108,3.8658);
+						SetPlayerFacingAngle(playerid, 3);
+						SetPlayerInterior(playerid, 0);
+					}
+					case 3:
+					{
+						SetPlayerPos(playerid, -2166.6460,644.8119,1052.3750);
+						SetPlayerFacingAngle(playerid, 5);
+						SetPlayerInterior(playerid, 1);
+					}
+					case 4:
+					{
+						SetPlayerPos(playerid, -2170.8745,645.5780,1052.3750);
+						SetPlayerFacingAngle(playerid, 92);
+						SetPlayerInterior(playerid, 1);
+					}
+					case 5:
+					{
+						SetPlayerPos(playerid, -2166.5366,642.6519,1057.5938);
+						SetPlayerFacingAngle(playerid, 270);
+						SetPlayerInterior(playerid, 1);
+					}
+					case 6:
+					{
+						SetPlayerPos(playerid, 221.1456,-1839.6755,3.5815);
+						SetPlayerFacingAngle(playerid, 2);
+						SetPlayerInterior(playerid, 0);
+					}
+					case 7:
+					{
+						SetPlayerPos(playerid, 226.8728,-1839.7069,3.5527);
+						SetPlayerFacingAngle(playerid, 2);
+						SetPlayerInterior(playerid, 0);
+					}
+					case 8:
+					{
+						SetPlayerPos(playerid, 204.8678,-1833.2555,3.8560);
+						SetPlayerFacingAngle(playerid, 2);
+						SetPlayerInterior(playerid, 0);
+					}
+					case 9:
+					{
+						SetPlayerPos(playerid, 243.1952,-1832.9827,3.6996);
+						SetPlayerFacingAngle(playerid, 0);
+						SetPlayerInterior(playerid, 0);
+					}
 				}
 				
+				SetCameraBehindPlayer(playerid);
 				SetPVarInt(playerid, "TeleportCooldown", 60);
 			}
 			else
@@ -3057,7 +3140,7 @@ public Time()
 		format(string, 25, "%d:%d", hour, minute);
 	TextDrawSetString(WorldTime, string);
 
-	if(minute == 0)
+	if(minute == 0 && second == 0)
 		TickHour();
 }
 
@@ -3074,7 +3157,7 @@ public TickSecond(playerid)
 	if(tp_cooldown > 0)
 	{
 		tp_cooldown--;
-		SetPVarInt(playerid, "TeleportCooldown", coop_cooldown);
+		SetPVarInt(playerid, "TeleportCooldown", tp_cooldown);
 	}
 }
 
@@ -3090,6 +3173,8 @@ public TickHour()
 		if(!IsPlayerConnected(i)) continue;
 		PlayerInfo[i][WalkersLimit] = WALKERS_LIMIT;
 	}
+
+	SendClientMessageToAll(COLOR_LIGHTRED, "Лимиты сброшены.");
 }
 
 public bool:CheckChance(chance)
@@ -3863,7 +3948,7 @@ stock WalkerBehaviour(id)
 		return;
 	}
 
-	if(IsDeath[target])
+	if(IsDeath[target] || PlayerInfo[target][WalkersLimit] <= 0)
 	{
 		if(FCNPC_IsAiming(id))
 			FCNPC_StopAim(id);
@@ -3985,6 +4070,7 @@ stock GiveBourgeoisRewards()
 		new idx = random(row_count);
 		while(ArrayValueExist(idxes, MAX_BOURGEOIS_REWARDS, idx))
 			idx = random(row_count);
+		idxes[i] = idx;
 	}
 
 	for(new i = 0; i < MAX_BOURGEOIS_REWARDS; i++)
@@ -4489,6 +4575,9 @@ stock BuyItem(playerid, lotid, count = 1)
 	
 	new owner_id = GetPlayerID(item[Owner]);
 
+	new b_item[BaseItem];
+	b_item = GetItem(item[ID]);
+
 	new string[255];
 	format(string, sizeof(string), "Предмет [{%s}%s{ffffff}] продан.", GetGradeColor(b_item[Grade]), b_item[Name]);
 
@@ -4496,10 +4585,6 @@ stock BuyItem(playerid, lotid, count = 1)
 	{
 		PlayerInfo[owner_id][Cash] += amount;
 		GivePlayerMoney(owner_id, amount);
-		
-		new b_item[BaseItem];
-		b_item = GetItem(item[ID]);
-
 		SendClientMessage(owner_id, 0xFFFFFFFF, string);
 	}
 	else
@@ -4874,7 +4959,7 @@ stock ShowPlayerPost(playerid)
 	q_result = cache_save();
 	cache_unset_active();
 
-	new listitems[2048] = "Сообщение\nВложения\tКоличество";
+	new listitems[2048] = "Сообщение\tВложения\tКоличество";
 	new string[255];
 	for(new i = 0; i < row_count; i++)
 	{
@@ -5616,7 +5701,8 @@ stock SetPlayerTarget(playerid, target = -1)
 
 	if(targetid == -1)
 	{
-		MoveAround(playerid);
+		if(!FCNPC_IsMoving(playerid))
+			MoveAround(playerid);
 		return 0;
 	}
 
@@ -5933,7 +6019,8 @@ stock SafeDestroyPickup(pickupid)
 		pickupid == home_enter ||
 		pickupid == home_quit ||
 		pickupid == boss_tp ||
-		pickupid == arena_tp)
+		pickupid == arena_tp ||
+		pickupid == health_pickup)
 		return;
 	DestroyPickup(pickupid);
 }
@@ -6313,7 +6400,11 @@ stock GetRandomEquip(minrank, maxrank, eq_type = RND_EQUIP_TYPE_RANDOM, grade = 
 	new baseid = type == 0 ? 1 : 82;
 
 	if(type == 0 && grade == RND_EQUIP_GRADE_RANDOM && CheckChance(30))
+	{
+		if(rank == MAX_RANK)
+			return 242 + rank - 1;
 		return 242 + rank;
+	}
 
 	if(type == 0 && rank == 5)
 	{
@@ -6882,7 +6973,7 @@ stock PendingMessage(name[], text[])
 
 	new query[255];
 	format(query, sizeof(query), "INSERT INTO `pendings`(`PendingID`, `PlayerName`, `ItemID`, `Count`, `ItemMod`, `Text`) VALUES ('%d','%s','%d','%d','%s','%s')",
-		p_id, name, -1, 0, '0 0 0 0 0 0 0', text
+		p_id, name, -1, 0, "0 0 0 0 0 0 0", text
 	);
 	new Cache:q_result = mysql_query(sql_handle, query);
 	cache_delete(q_result);
@@ -6913,9 +7004,9 @@ stock PendingItem(name[], id, mod[], count = 1, text[])
 	new Cache:q_result = mysql_query(sql_handle, query);
 	cache_delete(q_result);
 
-	new id = GetPlayerID(name);
-	if(id != -1 && IsPlayerConnected(id) && !FCNPC_IsValid(id))
-		UpdatePlayerPost(id);
+	new playerid = GetPlayerID(name);
+	if(playerid != -1 && IsPlayerConnected(playerid) && !FCNPC_IsValid(playerid))
+		UpdatePlayerPost(playerid);
 }
 
 stock AddEquip(playerid, id, mod[])
@@ -7070,6 +7161,21 @@ stock GetBoss(id)
 
 	cache_delete(q_result);
 	return boss;
+}
+
+stock DbItemExists(id)
+{
+	new query[255];
+	format(query, sizeof(query), "SELECT * FROM `items` WHERE `ID` = '%d' LIMIT 1", id);
+	new Cache:q_result = mysql_query(sql_handle, query);
+
+	new count;
+	cache_get_row_count(count);
+	cache_delete(q_result);
+
+	if(count <= 0)
+		return false;
+	return true;
 }
 
 stock GetItem(id)
@@ -8179,7 +8285,7 @@ stock CombineWithModifier(playerid)
 	ShowPlayerDialog(playerid, 1, DIALOG_STYLE_MSGBOX, "Комбинирование", "{33CC00}Успешная комбинация.", "Закрыть", "");
 }
 
-stock CombineWithAntique(equipid, m_count, mod_level)
+stock CombineWithAntique(playerid, m_count, mod_level)
 {
 	if(m_count <= 0)
 	{
@@ -8220,13 +8326,10 @@ stock CombineWithAntique(equipid, m_count, mod_level)
 	DeleteItem(playerid, CmbItemInvSlot[playerid][1], m_count);
 	DeleteItem(playerid, CmbItemInvSlot[playerid][2], 1);
 
-	if(rnd >= chance)
-	{
+	if(rnd < need_chance)
+		SetModLevel(playerid, CmbItemInvSlot[playerid][0], CmbItem[playerid][2], mod_level + 1, false);
+	else
 		ShowPlayerDialog(playerid, 1, DIALOG_STYLE_MSGBOX, "Комбинирование", "{CC3300}Кобминация неудачна.", "Закрыть", "");
-		return;
-	}
-
-	SetModLevel(playerid, CmbItemInvSlot[playerid][0], CmbItem[playerid][2], mod_level + 1, false);
 
 	for(new i = 0; i < MAX_CMB_ITEMS; i++)
 	{
@@ -8236,6 +8339,9 @@ stock CombineWithAntique(equipid, m_count, mod_level)
 	}
 
 	UpdateCmbWindow(playerid);
+
+	if(rnd >= need_chance) 
+		return;
 
 	if(mod_level + 1 >= 5)
 	{
@@ -8266,8 +8372,8 @@ stock CombineItems(playerid)
 		eq_item = GetItem(CmbItem[playerid][0]);
 		if(eq_item[Grade] == GRADE_R && CmbItem[playerid][1] == 195 && IsModStone(CmbItem[playerid][2]) && CmbItemCount[playerid][2] == 1)
 		{
-			new mod_level = GetModLevel(PlayerInventory[playerid][CmbItemSlot[playerid][0]][Mod]);
-			CombineWithAntique(CmbItem[playerid][0], CmbItemCount[playerid][1], mod_level);
+			new mod_level = GetModLevel(PlayerInventory[playerid][CmbItemInvSlot[playerid][0]][Mod]);
+			CombineWithAntique(playerid, CmbItemCount[playerid][1], mod_level);
 			return;
 		}
 	}
@@ -11307,8 +11413,9 @@ stock CreatePickups()
 {
     home_enter = CreatePickup(1318,23,224.0201,-1837.3518,4.2787);
     home_quit = CreatePickup(1318,23,-2158.6240,642.8425,1052.3750);
-    boss_tp = CreatePickup(19605,23,243.1539,-1831.6542,3.3772); //tp1
-    arena_tp = CreatePickup(19607,23,204.7617,-1831.6539,3.3772); //tp2
+    boss_tp = CreatePickup(19605,23,243.1539,-1831.6542,3.3772);
+    arena_tp = CreatePickup(19607,23,204.7617,-1831.6539,3.3772);
+	health_pickup = CreatePickup(1240,2,-2160.0583,638.8598,1057.5861);
     
     Create3DTextLabel("Дом клоунов",0xf2622bFF,224.0201,-1837.3518,4.2787,70.0,0,1);
     Create3DTextLabel("К боссам",0xeaeaeaFF,243.1539,-1831.6542,3.9772,70.0,0,1);
