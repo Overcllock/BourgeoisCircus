@@ -1,4 +1,4 @@
-//Bourgeois Circus 1.01
+//Bourgeois Circus 1.02
 
 #include <a_samp>
 #include <a_mail>
@@ -18,7 +18,7 @@
 
 #pragma dynamic 31294
 
-#define VERSION 1.011
+#define VERSION 1.021
 
 //Mysql settings
 
@@ -73,7 +73,7 @@
 #define MAX_DESCRIPTION_SIZE 45
 #define MAX_GRADES 5
 #define MAX_BOSSES 5
-#define MAX_ITEM_ID 400
+#define MAX_ITEM_ID 500
 #define MAX_LOOT 20
 #define MAX_WALKER_LOOT 12
 #define MAX_PVP_PANEL_ITEMS 5
@@ -86,11 +86,11 @@
 #define MAX_NPC_SHOT_TICKS 60
 #define MAX_CMB_ITEMS 3
 #define MAX_MARKET_CATEGORIES 4
-#define MAX_MARKET_ITEMS 20
+#define MAX_MARKET_ITEMS 15
 #define MAX_TOUR_TIME 180
 #define MAX_WALKERS 20
 #define MAX_COOPERATE_MSGS 10
-#define WALKERS_LIMIT 20
+#define WALKERS_LIMIT 30
 #define MAX_BOURGEOIS_REWARDS 5
 #define MAX_WALKERS_ONE_RANK 3
 
@@ -159,15 +159,15 @@
 
 //Delays
 #define DEFAULT_SHOOT_DELAY 200
-#define COLT_SHOOT_DELAY 150
-#define DEAGLE_SHOOT_DELAY 330
-#define MP5_SHOOT_DELAY 90
-#define TEC_SHOOT_DELAY 80
-#define AK_SHOOT_DELAY 125
-#define M4_SHOOT_DELAY 120
-#define SHOTGUN_SHOOT_DELAY 380
-#define SAWNOFF_SHOOT_DELAY 330
-#define COMBAT_SHOOT_DELAY 250
+#define COLT_SHOOT_DELAY 200
+#define DEAGLE_SHOOT_DELAY 290
+#define MP5_SHOOT_DELAY 140
+#define TEC_SHOOT_DELAY 115
+#define AK_SHOOT_DELAY 185
+#define M4_SHOOT_DELAY 175
+#define SHOTGUN_SHOOT_DELAY 520
+#define SAWNOFF_SHOOT_DELAY 430
+#define COMBAT_SHOOT_DELAY 360
 
 /* Forwards */
 forward Time();
@@ -351,7 +351,6 @@ enum wInfo
 };
 
 //Global
-new MinuteTimer = -1;
 new WalkersRefreshTimer = -1;
 new WorldTime_Timer = -1;
 new PrepareBossAttackTimer = -1;
@@ -429,7 +428,6 @@ new AccountLogin[MAX_PLAYERS][128];
 new ParticipantsCount[MAX_PLAYERS];
 new Participants[MAX_PLAYERS][MAX_PARTICIPANTS][128];
 
-new RegenerateTimer[MAX_PLAYERS] = -1;
 new WalkerRespawnTimer[MAX_PLAYERS] = -1;
 new InvulnearableTimer[MAX_PLAYERS] = -1;
 new SecondTimer[MAX_PLAYERS] = -1;
@@ -825,7 +823,6 @@ public OnGameModeInit()
 	InitTextDraws();
 
 	WorldTime_Timer = SetTimer("Time", 1000, true);
-	MinuteTimer = SetTimer("TickMinute", 60000, true);
 	WalkersRefreshTimer = SetTimer("RefreshWalkers", 600000, true);
 
 	arena_area = CreateDynamicRectangle(-2390.5017, -1669.8492, -2313.0295, -1593.6758, 0, 0, -1);
@@ -859,7 +856,6 @@ public OnGameModeExit()
 	DeleteTextDraws();
 	ResetLoot();
 	KillTimer(WorldTime_Timer);
-	KillTimer(MinuteTimer);
 	KillTimer(WalkersRefreshTimer);
 	for (new i = 0; i < MAX_ACTORS; i++)
 		DestroyActor(Actors[i]);
@@ -958,7 +954,6 @@ public OnPlayerLogin(playerid)
 		UpdateLocalRatingTop(playerid);
 	UpdatePlayerSkin(playerid);
 	
-	RegenerateTimer[playerid] = SetTimerEx("RegeneratePlayerHP", 1000, true, "i", playerid);
 	SecondTimer[playerid] = SetTimerEx("TickSecond", 1000, true, "i", playerid);
 }
 
@@ -979,7 +974,7 @@ public OnTourEnd(finished)
 		UpdateTournamentTable();
 	}
 
-	for(new i = 0; i < MAX_PLAYERS; i++)
+	for(new i = 0; i < GetPlayerPoolSize(); i++)
 	{
 		if(FCNPC_IsValid(i))
 		{
@@ -1134,6 +1129,14 @@ public OnPlayerGiveDamage(playerid, damagedid, Float:amount, weaponid, bodypart)
 		return 0;
 	}
 
+	if(IsBossAttacker[playerid] && IsBossAttacker[damagedid])
+	{
+		new Float:c_hp;
+		GetPlayerHealth(damagedid, c_hp);
+		SetPlayerHealth(damagedid, floatadd(amount, c_hp));
+		return 0;
+	}
+
 	if(IsWalker[playerid] && IsWalker[damagedid])
 	{
 		FCNPC_GiveHealth(damagedid, amount);
@@ -1234,8 +1237,6 @@ public OnPlayerDisconnect(playerid, reason)
 	
 	if(IsValidTimer(InvulnearableTimer[playerid]))
 		KillTimer(InvulnearableTimer[playerid]);
-	if(IsValidTimer(RegenerateTimer[playerid]))
-		KillTimer(RegenerateTimer[playerid]);
 	if(IsValidTimer(SecondTimer[playerid]))
 		KillTimer(SecondTimer[playerid]);
 	RegenerateTimer[playerid] = -1;
@@ -1589,7 +1590,7 @@ public OnPlayerPickUpPickup(playerid, pickupid)
 			SendClientMessage(playerid, 0xFFFFFFFF, string);
 		}
 	}
-	for(new j = 0; j < MAX_PLAYERS; j++)
+	for(new j = 0; j < GetPlayerPoolSize(); j++)
 	{
 		if(!IsPlayerConnected(j) || !IsWalker[j]) continue;
 		for(new i = 0; i < MAX_WALKER_LOOT; i++)
@@ -2061,6 +2062,8 @@ public OnDialogResponse(playerid, dialogid, response, listitem, inputtext[])
 				new item[BaseItem];
 				item = GetItem(itemid);
 				new count = strval(inputtext);
+				if(count == 0)
+					count = PlayerInventory[playerid][SelectedSlot[playerid]][Count];
 				if(count <= 0 || count > PlayerInventory[playerid][SelectedSlot[playerid]][Count])
 				{
 					ShowPlayerDialog(playerid, 1, DIALOG_STYLE_MSGBOX, "Ошибка", "Неверное количество.", "Закрыть", "");
@@ -2752,6 +2755,11 @@ public OnPlayerUpdate(playerid)
 {
 	if(FCNPC_IsValid(playerid)) return 0;
 	if(!IsSpawned[playerid]) return 0;
+	if(GetPlayerPing(playerid) > 300)
+	{
+		SendClientMessage(playerid, COLOR_LIGHTRED, "[SERVER] Non-stable ping detected: unable to execute player update function.");
+		return 0;
+	}
 
 	new Float:hp;
 	hp = GetPVarFloat(playerid, "HP");
@@ -3142,10 +3150,14 @@ public Time()
 
 	if(minute == 0 && second == 0)
 		TickHour();
+	if(second == 0)
+		TickMinute();
 }
 
 public TickSecond(playerid)
 {
+	RegeneratePlayerHP(playerid);
+
 	new coop_cooldown = GetPVarInt(playerid, "CooperateCooldown");
 	if(coop_cooldown > 0)
 	{
@@ -3168,7 +3180,7 @@ public TickHour()
 	new Cache:result = mysql_query(sql_handle, query);
 	cache_delete(result);
 
-	for(new i = 0; i < MAX_PLAYERS; i++)
+	for(new i = 0; i < GetPlayerPoolSize(); i++)
 	{
 		if(!IsPlayerConnected(i)) continue;
 		PlayerInfo[i][WalkersLimit] = WALKERS_LIMIT;
@@ -3225,7 +3237,7 @@ public CancelBossAttack()
 		KillTimer(PrepareBossAttackTimer);
 	PrepareBossAttackTimer = -1;
 	AttackedBoss = -1;
-	for(new i = 0; i < MAX_PLAYERS; i++)
+	for(new i = 0; i < GetPlayerPoolSize(); i++)
 		IsBossAttacker[i] = false;
 	BossAttackersCount = 0;
 	SendClientMessageToAll(0x990099FF, "Атака на босса отменена.");
@@ -3259,7 +3271,7 @@ public TeleportBossAttackersToHome()
 		KillTimer(TeleportTimer);
 
 	TeleportTimer = -1;
-	for(new i = 0; i < MAX_PLAYERS; i++)
+	for(new i = 0; i < GetPlayerPoolSize(); i++)
 		if(IsBossAttacker[i] && !IsDeath[i]) 
 			TeleportToHome(i);
 
@@ -3595,7 +3607,7 @@ stock GetPvpIndex(playerid)
 
 stock GetPlayerInGameID(global_id)
 {
-	for(new i = 0; i < MAX_PLAYERS; i++)
+	for(new i = 0; i < GetPlayerPoolSize(); i++)
 		if(IsPlayerConnected(i) && PlayerInfo[i][ID] == global_id) return i;
 	return -1;
 }
@@ -3866,7 +3878,7 @@ stock GetWalkerTopDamager(walkerid)
 
 	new max_damage = 0;
 	new damagerid = -1;
-	for(new i = 0; i < MAX_PLAYERS; i++)
+	for(new i = 0; i < GetPlayerPoolSize(); i++)
 	{
 		if(i == walkerid || !IsPlayerConnected(i))
 			continue;
@@ -3887,7 +3899,7 @@ stock GetWalkerAvailableTarget(walkerid, oldtarget)
 	if(idx == -1) return target;
 
 	new max_damage = 0;
-	for(new i = 0; i < MAX_PLAYERS; i++)
+	for(new i = 0; i < GetPlayerPoolSize(); i++)
 	{
 		if(i == oldtarget || i == walkerid || !IsPlayerConnected(i) || FCNPC_IsValid(i)) continue;
 		if(WalkersDamagers[idx][i] > 0 && !IsDeath[i] && IsPlayerInDynamicArea(i, walkers_area))
@@ -4249,7 +4261,7 @@ stock UpdateTempItems()
 	new Cache:q_result = mysql_query(sql_handle, query);
 	cache_delete(q_result);
 
-	for(new i = 0; i < MAX_PLAYERS; i++)
+	for(new i = 0; i < GetPlayerPoolSize(); i++)
 	{
 		if(!IsPlayerConnected(i)) continue;
 		for(new j = 0; j < MAX_SLOTS; j++)
@@ -5156,7 +5168,7 @@ stock UpdateTournamentTable()
 stock FillTourPlayers()
 {
 	new i, j;
-	for(i = 0, j = 0; i < MAX_PLAYERS && j < MAX_OWNERS; i++)
+	for(i = 0, j = 0; i < GetPlayerPoolSize() && j < MAX_OWNERS; i++)
 	{
 		if(IsPlayerInRangeOfPoint(i,3.0,204.7617,-1831.6539,4.1772) && IsTourParticipant(PlayerInfo[i][ID]))
 		{
@@ -5172,7 +5184,7 @@ stock FillTourPlayers()
 stock IsAnyPlayersInRangeOfPoint(max_count, Float:range, Float:x, Float:y, Float:z)
 {
 	new count = 0;
-	for(new i = 0; i < MAX_PLAYERS && count < max_count; i++)
+	for(new i = 0; i < GetPlayerPoolSize() && count < max_count; i++)
 	{
 		if(!IsPlayerConnected(i)) continue;
 		if(IsPlayerInRangeOfPoint(i, range, x, y, z)) count++;
@@ -5714,7 +5726,7 @@ stock FindBossTarget(npcid)
 {
 	new targetid = -1;
 	new Float:min_dist = 9999;
-    for (new i = 0; i < MAX_PLAYERS; i++) 
+    for (new i = 0; i < GetPlayerPoolSize(); i++) 
 	{
 		if(i == npcid) continue;
 		if(IsDeath[i]) continue;
@@ -5825,7 +5837,7 @@ stock DestroyBoss()
 	FCNPC_Destroy(BossNPC);
 	BossNPC = -1;
 
-	for(new i = 0; i < MAX_PLAYERS; i++)
+	for(new i = 0; i < GetPlayerPoolSize(); i++)
 		IsBossAttacker[i] = false;
 	BossAttackersCount = 0;
 	AttackedBoss = -1;
@@ -6156,7 +6168,7 @@ stock RollBossLoot()
 {
 	if(AttackedBoss == -1 || !FCNPC_IsValid(BossNPC)) return;
 	new loot_mult = 4;
-	for(new i = 0; i < MAX_PLAYERS; i++)
+	for(new i = 0; i < GetPlayerPoolSize(); i++)
 	{
 		if(!IsBossAttacker[i]) continue;
 		if(HasItem(i, 185, 1))
@@ -7313,13 +7325,14 @@ stock StartBossAttack()
 	SetPlayerColor(BossNPC, 0x990099FF);
 	ShowNPCInTabList(BossNPC); 
 	FCNPC_SetInvulnerable(BossNPC, false);
-	for(new i = 0; i < MAX_PLAYERS; i++)
+	for(new i = 0; i < GetPlayerPoolSize(); i++)
 	{
 		if(IsBossAttacker[i])
 		{
 			SetPVarFloat(i, "HP", MaxHP[i]);
 			SetPlayerHP(i, MaxHP[i]);
 			TeleportToRandomArenaPos(i);
+			SetPlayerInvulnearable(i, TOUR_INVULNEARABLE_TIME);
 			SendClientMessage(i, COLOR_GREEN, "У вас есть 2 минуты, чтобы уничтожить босса.");
 		}
 	}
@@ -9653,7 +9666,7 @@ stock GetPlayerID(name[])
 {
 	new p_name[255];
 
-	for(new i = 0; i < MAX_PLAYERS; i++)
+	for(new i = 0; i < GetPlayerPoolSize(); i++)
 	{
 		if(!IsPlayerConnected(i)) continue;
 		GetPlayerName(i, p_name, sizeof(p_name));
