@@ -8451,15 +8451,6 @@ stock CombineItems(playerid)
 		DeleteItem(playerid, CmbItemInvSlot[playerid][i], CmbItemCount[playerid][i]);
 	}
 
-	for(new i = 0; i < MAX_CMB_ITEMS; i++)
-	{
-		CmbItem[playerid][i] = -1;
-		CmbItemCount[playerid][i] = 0;
-		CmbItemInvSlot[playerid][i] = -1;
-	}
-
-	UpdateCmbWindow(playerid);
-
 	if(success)
 	{
 		ShowPlayerDialog(playerid, 1, DIALOG_STYLE_MSGBOX, "Комбинирование", "{33CC00}Успешная комбинация.", "Закрыть", "");
@@ -8484,6 +8475,28 @@ stock CombineItems(playerid)
 	}
 	else
 		ShowPlayerDialog(playerid, 1, DIALOG_STYLE_MSGBOX, "Комбинирование", "{CC3300}Кобминация неудачна.", "Закрыть", "");
+
+	new bool:items_exists = true;
+	for(new i = 0; i < MAX_CMB_ITEMS; i++)
+	{
+		if(!HasItem(playerid, CmbItem[playerid][i], CmbItemCount[playerid][i]))
+		{
+			items_exists = false;
+			break;
+		}
+	}
+
+	if(success || (!success && !items_exists))
+	{
+		for(new i = 0; i < MAX_CMB_ITEMS; i++)
+		{
+			CmbItem[playerid][i] = -1;
+			CmbItemCount[playerid][i] = 0;
+			CmbItemInvSlot[playerid][i] = -1;
+		}
+	}
+
+	UpdateCmbWindow(playerid);
 }
 
 stock UpgradeItem(playerid, itemslot, stoneid, potionid = -1)
