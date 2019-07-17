@@ -1239,7 +1239,6 @@ public OnPlayerDisconnect(playerid, reason)
 		KillTimer(InvulnearableTimer[playerid]);
 	if(IsValidTimer(SecondTimer[playerid]))
 		KillTimer(SecondTimer[playerid]);
-	RegenerateTimer[playerid] = -1;
 	InvulnearableTimer[playerid] = -1;
 	SecondTimer[playerid] = -1;
 
@@ -8339,16 +8338,32 @@ stock CombineWithAntique(playerid, m_count, mod_level)
 	DeleteItem(playerid, CmbItemInvSlot[playerid][1], m_count);
 	DeleteItem(playerid, CmbItemInvSlot[playerid][2], 1);
 
-	if(rnd < need_chance)
+	new bool:success = rnd < need_chance;
+	if(success)
 		SetModLevel(playerid, CmbItemInvSlot[playerid][0], CmbItem[playerid][2], mod_level + 1, false);
 	else
-		ShowPlayerDialog(playerid, 1, DIALOG_STYLE_MSGBOX, "Комбинирование", "{CC3300}Кобминация неудачна.", "Закрыть", "");
+		ShowPlayerDialog(playerid, 1, DIALOG_STYLE_MSGBOX, "Комбинирование", "{CC3300}Комбинация неудачна.", "Закрыть", "");
 
+	new bool:items_exists = true;
 	for(new i = 0; i < MAX_CMB_ITEMS; i++)
 	{
-		CmbItem[playerid][i] = -1;
-		CmbItemCount[playerid][i] = 0;
-		CmbItemInvSlot[playerid][i] = -1;
+		if(CmbItem[playerid][i] == -1)
+			continue;
+		if(!HasItem(playerid, CmbItem[playerid][i], CmbItemCount[playerid][i]))
+		{
+			items_exists = false;
+			break;
+		}
+	}
+
+	if(success || (!success && !items_exists))
+	{
+		for(new i = 0; i < MAX_CMB_ITEMS; i++)
+		{
+			CmbItem[playerid][i] = -1;
+			CmbItemCount[playerid][i] = 0;
+			CmbItemInvSlot[playerid][i] = -1;
+		}
 	}
 
 	UpdateCmbWindow(playerid);
@@ -8474,11 +8489,13 @@ stock CombineItems(playerid)
 			AddItem(playerid, result_id, result_count);
 	}
 	else
-		ShowPlayerDialog(playerid, 1, DIALOG_STYLE_MSGBOX, "Комбинирование", "{CC3300}Кобминация неудачна.", "Закрыть", "");
+		ShowPlayerDialog(playerid, 1, DIALOG_STYLE_MSGBOX, "Комбинирование", "{CC3300}Комбинация неудачна.", "Закрыть", "");
 
 	new bool:items_exists = true;
 	for(new i = 0; i < MAX_CMB_ITEMS; i++)
 	{
+		if(CmbItem[playerid][i] == -1)
+			continue;
 		if(!HasItem(playerid, CmbItem[playerid][i], CmbItemCount[playerid][i]))
 		{
 			items_exists = false;
