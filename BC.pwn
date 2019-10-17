@@ -22,14 +22,14 @@
 
 //Mysql settings
 
-/*#define SQL_HOST "127.0.0.1"
+#define SQL_HOST "127.0.0.1"
 #define SQL_USER "tsar"
 #define SQL_DB "bcircus"
-#define SQL_PASS "2151"*/
-#define SQL_HOST "212.22.93.45"
+#define SQL_PASS "2151"
+/*#define SQL_HOST "212.22.93.45"
 #define SQL_USER "gsvtqhss"
 #define SQL_DB "gsvtqhss_21809"
-#define SQL_PASS "21510055"
+#define SQL_PASS "21510055"*/
 
 //Data types
 #define TYPE_INT 0x01
@@ -974,7 +974,7 @@ public OnTourEnd(finished)
 		UpdateTournamentTable();
 	}
 
-	for(new i = 0; i < GetPlayerPoolSize(); i++)
+	for(new i = 0; i < MAX_PLAYERS; i++)
 	{
 		if(FCNPC_IsValid(i))
 		{
@@ -1589,7 +1589,7 @@ public OnPlayerPickUpPickup(playerid, pickupid)
 			SendClientMessage(playerid, 0xFFFFFFFF, string);
 		}
 	}
-	for(new j = 0; j < GetPlayerPoolSize(); j++)
+	for(new j = 0; j < MAX_PLAYERS; j++)
 	{
 		if(!IsPlayerConnected(j) || !IsWalker[j]) continue;
 		for(new i = 0; i < MAX_WALKER_LOOT; i++)
@@ -3179,7 +3179,7 @@ public TickHour()
 	new Cache:result = mysql_query(sql_handle, query);
 	cache_delete(result);
 
-	for(new i = 0; i < GetPlayerPoolSize(); i++)
+	for(new i = 0; i < MAX_PLAYERS; i++)
 	{
 		if(!IsPlayerConnected(i)) continue;
 		PlayerInfo[i][WalkersLimit] = WALKERS_LIMIT;
@@ -3236,7 +3236,7 @@ public CancelBossAttack()
 		KillTimer(PrepareBossAttackTimer);
 	PrepareBossAttackTimer = -1;
 	AttackedBoss = -1;
-	for(new i = 0; i < GetPlayerPoolSize(); i++)
+	for(new i = 0; i < MAX_PLAYERS; i++)
 		IsBossAttacker[i] = false;
 	BossAttackersCount = 0;
 	SendClientMessageToAll(0x990099FF, "Атака на босса отменена.");
@@ -3270,7 +3270,7 @@ public TeleportBossAttackersToHome()
 		KillTimer(TeleportTimer);
 
 	TeleportTimer = -1;
-	for(new i = 0; i < GetPlayerPoolSize(); i++)
+	for(new i = 0; i < MAX_PLAYERS; i++)
 		if(IsBossAttacker[i] && !IsDeath[i]) 
 			TeleportToHome(i);
 
@@ -3606,7 +3606,7 @@ stock GetPvpIndex(playerid)
 
 stock GetPlayerInGameID(global_id)
 {
-	for(new i = 0; i < GetPlayerPoolSize(); i++)
+	for(new i = 0; i < MAX_PLAYERS; i++)
 		if(IsPlayerConnected(i) && PlayerInfo[i][ID] == global_id) return i;
 	return -1;
 }
@@ -3877,7 +3877,7 @@ stock GetWalkerTopDamager(walkerid)
 
 	new max_damage = 0;
 	new damagerid = -1;
-	for(new i = 0; i < GetPlayerPoolSize(); i++)
+	for(new i = 0; i < MAX_PLAYERS; i++)
 	{
 		if(i == walkerid || !IsPlayerConnected(i))
 			continue;
@@ -3898,7 +3898,7 @@ stock GetWalkerAvailableTarget(walkerid, oldtarget)
 	if(idx == -1) return target;
 
 	new max_damage = 0;
-	for(new i = 0; i < GetPlayerPoolSize(); i++)
+	for(new i = 0; i < MAX_PLAYERS; i++)
 	{
 		if(i == oldtarget || i == walkerid || !IsPlayerConnected(i) || FCNPC_IsValid(i)) continue;
 		if(WalkersDamagers[idx][i] > 0 && !IsDeath[i] && IsPlayerInDynamicArea(i, walkers_area))
@@ -4260,7 +4260,7 @@ stock UpdateTempItems()
 	new Cache:q_result = mysql_query(sql_handle, query);
 	cache_delete(q_result);
 
-	for(new i = 0; i < GetPlayerPoolSize(); i++)
+	for(new i = 0; i < MAX_PLAYERS; i++)
 	{
 		if(!IsPlayerConnected(i)) continue;
 		for(new j = 0; j < MAX_SLOTS; j++)
@@ -5167,7 +5167,7 @@ stock UpdateTournamentTable()
 stock FillTourPlayers()
 {
 	new i, j;
-	for(i = 0, j = 0; i < GetPlayerPoolSize() && j < MAX_OWNERS; i++)
+	for(i = 0, j = 0; i < MAX_PLAYERS && j < MAX_OWNERS; i++)
 	{
 		if(IsPlayerInRangeOfPoint(i,3.0,204.7617,-1831.6539,4.1772) && IsTourParticipant(PlayerInfo[i][ID]))
 		{
@@ -5183,7 +5183,7 @@ stock FillTourPlayers()
 stock IsAnyPlayersInRangeOfPoint(max_count, Float:range, Float:x, Float:y, Float:z)
 {
 	new count = 0;
-	for(new i = 0; i < GetPlayerPoolSize() && count < max_count; i++)
+	for(new i = 0; i < MAX_PLAYERS && count < max_count; i++)
 	{
 		if(!IsPlayerConnected(i)) continue;
 		if(IsPlayerInRangeOfPoint(i, range, x, y, z)) count++;
@@ -5725,7 +5725,7 @@ stock FindBossTarget(npcid)
 {
 	new targetid = -1;
 	new Float:min_dist = 9999;
-    for (new i = 0; i < GetPlayerPoolSize(); i++) 
+    for (new i = 0; i < MAX_PLAYERS; i++) 
 	{
 		if(i == npcid) continue;
 		if(IsDeath[i]) continue;
@@ -5836,7 +5836,7 @@ stock DestroyBoss()
 	FCNPC_Destroy(BossNPC);
 	BossNPC = -1;
 
-	for(new i = 0; i < GetPlayerPoolSize(); i++)
+	for(new i = 0; i < MAX_PLAYERS; i++)
 		IsBossAttacker[i] = false;
 	BossAttackersCount = 0;
 	AttackedBoss = -1;
@@ -6167,7 +6167,7 @@ stock RollBossLoot()
 {
 	if(AttackedBoss == -1 || !FCNPC_IsValid(BossNPC)) return;
 	new loot_mult = 4;
-	for(new i = 0; i < GetPlayerPoolSize(); i++)
+	for(new i = 0; i < MAX_PLAYERS; i++)
 	{
 		if(!IsBossAttacker[i]) continue;
 		if(HasItem(i, 185, 1))
@@ -7324,7 +7324,7 @@ stock StartBossAttack()
 	SetPlayerColor(BossNPC, 0x990099FF);
 	ShowNPCInTabList(BossNPC); 
 	FCNPC_SetInvulnerable(BossNPC, false);
-	for(new i = 0; i < GetPlayerPoolSize(); i++)
+	for(new i = 0; i < MAX_PLAYERS; i++)
 	{
 		if(IsBossAttacker[i])
 		{
@@ -9696,7 +9696,7 @@ stock GetPlayerID(name[])
 {
 	new p_name[255];
 
-	for(new i = 0; i < GetPlayerPoolSize(); i++)
+	for(new i = 0; i < MAX_PLAYERS; i++)
 	{
 		if(!IsPlayerConnected(i)) continue;
 		GetPlayerName(i, p_name, sizeof(p_name));
