@@ -1,4 +1,4 @@
-//Bourgeois Circus 1.02
+//Bourgeois Circus 1.1
 
 #include <a_samp>
 #include <a_mail>
@@ -18,7 +18,7 @@
 
 #pragma dynamic 31294
 
-#define VERSION 1.021
+#define VERSION 1.101
 
 //Mysql settings
 
@@ -57,21 +57,26 @@
 #define DEFAULT_CRIT 5
 #define DEFAULT_DODGE 0
 #define DEFAULT_ACCURACY 5
+#define DEFAULT_ATTACK_RATE 5
+#define DEFAULT_DEFENSE_RATE 5
+#define DEFAULT_CRIT_MULT 1.2
+#define DEFAULT_CRIT_MULT_REDUCTION 0.0
+#define DEFAULT_CRIT_REDUCTION 0
 #define DEFAULT_POS_X -2170.3948
 #define DEFAULT_POS_Y 645.6729
 #define DEFAULT_POS_Z 1057.5938
 
 //Limits
 #define MAX_PARTICIPANTS 20
-#define MAX_OWNERS 2
+#define MAX_OWNERS 1
 #define MAX_SLOTS 25
 #define MAX_SLOTS_X 5
 #define MAX_SLOTS_Y 5
 #define MAX_RANK 9
-#define MAX_MOD 7
-#define MAX_PROPERTIES 2
+#define MAX_MOD 13
+#define MAX_PROPERTIES 7
 #define MAX_DESCRIPTION_SIZE 45
-#define MAX_GRADES 5
+#define MAX_GRADES 6
 #define MAX_BOSSES 5
 #define MAX_ITEM_ID 500
 #define MAX_LOOT 28
@@ -91,7 +96,6 @@
 #define MAX_WALKERS 30
 #define MAX_COOPERATE_MSGS 10
 #define WALKERS_LIMIT 35
-#define MAX_BOURGEOIS_REWARDS 5
 #define MAX_WALKERS_ONE_RANK 4
 
 //Market
@@ -110,6 +114,11 @@
 #define PARAM_DODGE 3
 #define PARAM_ACCURACY 4
 #define PARAM_CRITICAL_CHANCE 5
+#define PARAM_CRITICAL_MULT 6
+#define PARAM_CRITICAL_REDUCTION 7
+#define PARAM_CRITICAL_MULT_REDUCTION 8
+#define PARAM_ATTACK_RATE 9
+#define PARAM_DEFENSE_RATE 10
 
 //Item types
 #define ITEMTYPE_WEAPON 1
@@ -118,14 +127,14 @@
 #define ITEMTYPE_PASSIVE 4
 #define ITEMTYPE_MATERIAL 5
 #define ITEMTYPE_BOX 6
-#define ITEMTYPE_MODIFIER 7
 
 //Item grades
 #define GRADE_N 1
-#define GRADE_B 2
+#define GRADE_D 2
 #define GRADE_C 3
-#define GRADE_D 4
-#define GRADE_R 5
+#define GRADE_B 4
+#define GRADE_A 5
+#define GRADE_S 6
 
 //Props
 #define PROPERTY_NONE 0
@@ -136,20 +145,21 @@
 #define PROPERTY_HP 5
 #define PROPERTY_CRIT 6
 #define PROPERTY_LOOT 7
-
-//Modifiers variations
-#define MOD_DAMAGE 1
-#define MOD_DEFENSE 2
-#define MOD_DODGE 3
-#define MOD_ACCURACY 4
+#define PROPERTY_DAMAGE_PERCENTAGE 8
+#define PROPERTY_DEFENSE_PERCENTAGE 9
+#define PROPERTY_CRIT_MULT 10
+#define PROPERTY_CRIT_REDUCTION 11
+#define PROPERTY_CRIT_MULT_REDUCTION 12
+#define PROPERTY_DAMAGE_RATE 13
+#define PROPERTY_DEFENSE_RATE 14
+#define PROPERTY_VAMP 15
 
 #define MOD_RESULT_SUCCESS 0
 #define MOD_RESULT_FAIL 1
-#define MOD_RESULT_RESET 2
-#define MOD_RESULT_DESTROY 3
+#define MOD_RESULT_DESTROY 2
 
 //Other
-#define DEFENSE_DIVIDER 7000
+#define DEFENSE_DIVIDER 9000
 #define RND_EQUIP_TYPE_WEAPON 0
 #define RND_EQUIP_TYPE_ARMOR 1
 #define RND_EQUIP_TYPE_RANDOM 2
@@ -223,7 +233,9 @@ enum MarketItem
 	Price,
 	rTime,
 	Owner[255],
-	Mod[MAX_MOD]
+	Mod,
+	Property[MAX_PROPERTIES],
+	PropertyVal[MAX_PROPERTIES]
 };
 enum tInfo
 {
@@ -243,7 +255,9 @@ enum BossInfo
 	Defense,
 	Accuracy,
 	Dodge,
-	HP
+	HP,
+	AttackRate,
+	DefenseRate
 };
 enum LootInfo
 {
@@ -278,7 +292,9 @@ enum TWindow
 enum iInfo 
 {
 	ID,
-	Mod[MAX_MOD],
+	Mod,
+	Property[MAX_PROPERTIES],
+	PropertyVal[MAX_PROPERTIES],
 	Count,
 };
 enum BaseItem 
@@ -290,8 +306,6 @@ enum BaseItem
 	Type,
 	Grade,
 	Price,
-	Property[MAX_PROPERTIES],
-	PropertyVal[MAX_PROPERTIES],
 	Model,
 	ModelRotX,
 	ModelRotY,
@@ -330,8 +344,16 @@ enum pInfo
 	ArmorSlotID,
 	AccSlot1ID,
 	AccSlot2ID,
-	WeaponMod[MAX_MOD],
-	ArmorMod[MAX_MOD]
+	WeaponMod,
+	ArmorMod,
+	WeaponProperty[MAX_PROPERTIES],
+	WeaponPropertyVal[MAX_PROPERTIES],
+	ArmorProperty[MAX_PROPERTIES],
+	ArmorPropertyVal[MAX_PROPERTIES],
+	Acc1Property[MAX_PROPERTIES],
+	Acc1PropertyVal[MAX_PROPERTIES],
+	Acc2Property[MAX_PROPERTIES],
+	Acc2PropertyVal[MAX_PROPERTIES]
 };
 enum wInfo
 {
@@ -347,6 +369,8 @@ enum wInfo
 	Dodge,
 	Accuracy,
 	Crit,
+	AttackRate,
+	DefenseRate,
 	WeaponID
 };
 
@@ -653,7 +677,6 @@ cmd:tests(playerid, params[])
 	if(PlayerInfo[playerid][Admin] == 0)
 		return 0;
 	
-	GiveBourgeoisRewards();
 	TickHour();
 	return SendClientMessage(playerid, COLOR_GREY, "Done.");
 }
@@ -1043,7 +1066,6 @@ public OnTournamentEnd()
 	OnPhaseChanged(PHASE_WAR, PHASE_PEACE);
 
 	GiveTournamentRewards();
-	GiveBourgeoisRewards();
 	UpdateTourParticipants();
 	UpdateMarketItems();
 	UpdateTempItems();
@@ -3069,7 +3091,7 @@ public OnPlayerClickPlayerTextDraw(playerid, PlayerText:playertextid)
 	{
 		if(ModItemSlot[playerid] == -1) return 0;
 		if(ModStone[playerid] == -1) return 0;
-		UpgradeItem(playerid, ModItemSlot[playerid], ModStone[playerid], ModPotion[playerid]);
+		UpgradeItem(playerid, ModItemSlot[playerid], ModPotion[playerid]);
 		UpdateModWindow(playerid);
 	}
 	else if(playertextid == InfClose[playerid])
@@ -4056,46 +4078,6 @@ stock BossBehaviour(id)
 	}
 	else if(shotting_ticks > MAX_NPC_SHOT_TICKS)
 		FCNPC_AimAtPlayer(id, target, false);
-}
-
-stock GiveBourgeoisRewards()
-{
-	new query[255];
-	format(query, sizeof(query), "SELECT * FROM `players` WHERE `Owner` <> 'Admin' LIMIT %d", MAX_PARTICIPANTS);
-	new Cache:q_result = mysql_query(sql_handle, query);
-	new row_count = 0;
-	cache_get_row_count(row_count);
-	if(row_count <= 0)
-	{
-		print("Cannot give bourgeois rewards.");
-		return;
-	}
-
-	q_result = cache_save();
-	cache_unset_active();
-
-	new idxes[MAX_BOURGEOIS_REWARDS];
-	ArraySetDefaultValue(idxes, MAX_BOURGEOIS_REWARDS, -1);
-	for(new i = 0; i < MAX_BOURGEOIS_REWARDS; i++)
-	{
-		new idx = random(row_count);
-		while(ArrayValueExist(idxes, MAX_BOURGEOIS_REWARDS, idx))
-			idx = random(row_count);
-		idxes[i] = idx;
-	}
-
-	for(new i = 0; i < MAX_BOURGEOIS_REWARDS; i++)
-	{
-		new idx = idxes[i];
-		new name[255];
-		cache_set_active(q_result);
-		cache_get_value_name(idx, "Name", name);
-		cache_unset_active();
-
-		PendingItem(name, 314, MOD_CLEAR, 2 + random(4), "Награда от Буржуа");
-	}
-
-	cache_delete(q_result);
 }
 
 stock GiveTournamentRewards()
@@ -5092,7 +5074,7 @@ stock UpdateTourParticipants()
 	}
 	else
 	{
-		new p_count = MAX_PARTICIPANTS - (MAX_OWNERS * 2 * (Tournament[Tour]-1));
+		new p_count = MAX_PARTICIPANTS - (4 * (Tournament[Tour]-1));
 		new query[255] = "SELECT * FROM `accounts` WHERE `admin` = '0'";
 		new Cache:q_result = mysql_query(sql_handle, query);
 
@@ -8053,197 +8035,9 @@ stock UpdateCmbWindow(playerid)
 	}
 }
 
-stock GetAvModLvlByModifierID(id)
-{
-	new levels[2];
-
-	switch(id)
-	{
-		case 250, 256, 262, 268: { levels[0] = 1; levels[1] = 2; }
-		case 251, 257, 263, 269: { levels[0] = 1; levels[1] = 3; }
-		case 252, 258, 264, 270: { levels[0] = 2; levels[1] = 3; }
-		case 253, 259, 265, 271: { levels[0] = 2; levels[1] = 4; }
-		case 254, 260, 266, 272: { levels[0] = 2; levels[1] = 5; }
-		case 255, 261, 267, 273: { levels[0] = 2; levels[1] = 6; }
-
-		case 274, 279, 284, 289: { levels[0] = 3; levels[1] = 4; }
-		case 275, 280, 285, 290: { levels[0] = 3; levels[1] = 5; }
-		case 276, 281, 286, 291: { levels[0] = 3; levels[1] = 6; }
-		case 277, 282, 287, 292: { levels[0] = 4; levels[1] = 5; }
-		case 278, 283, 288, 293: { levels[0] = 4; levels[1] = 6; }
-
-		case 294, 298, 302, 306: { levels[0] = 4; levels[1] = 7; }
-		case 295, 299, 303, 307: { levels[0] = 5; levels[1] = 6; }
-		case 296, 300, 304, 308: { levels[0] = 5; levels[1] = 7; }
-		case 297, 301, 305, 309: { levels[0] = 6; levels[1] = 7; }
-
-		default: { levels[0] = 0; levels[1] = 0; }
-	}
-
-	return levels;
-}
-
-stock GetModifierModLevel(levels[])
-{
-	new level = levels[0];
-	new rnd = random(100);
-
-	switch(levels[0])
-	{
-		case 1:
-		{
-			switch(levels[1])
-			{
-				case 2:
-				{
-					if(rnd < 60) level = 1;
-					else level = 2;
-				}
-				case 3:
-				{
-					if(rnd < 50) level = 1;
-					else if(rnd < 85) level = 2;
-					else level = 3;
-				}
-			}
-		}
-		case 2:
-		{
-			switch(levels[1])
-			{
-				case 3:
-				{
-					if(rnd < 60) level = 2;
-					else level = 3;
-				}
-				case 4:
-				{
-					if(rnd < 50) level = 2;
-					else if(rnd < 85) level = 3;
-					else level = 4;
-				}
-				case 5:
-				{
-					if(rnd < 40) level = 2;
-					else if(rnd < 60) level = 3;
-					else if(rnd < 90) level = 4;
-					else level = 5;
-				}
-				case 6:
-				{
-					if(rnd < 35) level = 2;
-					else if(rnd < 55) level = 3;
-					else if(rnd < 85) level = 4;
-					else if(rnd < 95) level = 5;
-					else level = 6;
-				}
-			}
-		}
-		case 3:
-		{
-			switch(levels[1])
-			{
-				case 4:
-				{
-					if(rnd < 60) level = 3;
-					else level = 4;
-				}
-				case 5:
-				{
-					if(rnd < 50) level = 3;
-					else if(rnd < 85) level = 4;
-					else level = 5;
-				}
-				case 6:
-				{
-					if(rnd < 50) level = 3;
-					else if(rnd < 77) level = 4;
-					else if(rnd < 93) level = 5;
-					else level = 6;
-				}
-			}
-		}
-		case 4:
-		{
-			switch(levels[1])
-			{
-				case 5:
-				{
-					if(rnd < 60) level = 4;
-					else level = 5;
-				}
-				case 6:
-				{
-					if(rnd < 70) level = 4;
-					else if(rnd < 92) level = 5;
-					else level = 6;
-				}
-				case 7:
-				{
-					if(rnd < 60) level = 4;
-					else if(rnd < 90) level = 5;
-					else if(rnd < 97) level = 6;
-					else level = 7;
-				}
-			}
-		}
-		case 5:
-		{
-			switch(levels[1])
-			{
-				case 6:
-				{
-					if(rnd < 80) level = 5;
-					else level = 6;
-				}
-				case 7:
-				{
-					if(rnd < 80) level = 5;
-					else if(rnd < 95) level = 6;
-					else level = 7;
-				}
-			}
-		}
-		case 6:
-		{
-			switch(levels[1])
-			{
-				case 7:
-				{
-					if(rnd < 85) level = 6;
-					else level = 7;
-				}
-			}
-		}
-	}
-
-	return level;
-}
-
-stock SetModLevel(playerid, slotid, stoneid, level, reset_mod = true)
-{
-	new modifier = GetModifierByStone(stoneid);
-
-	if(reset_mod)
-	{
-		for(new i = 0; i < MAX_MOD; i++)
-			PlayerInventory[playerid][slotid][Mod][i] = 0;
-		for(new i = 0; i < level; i++)
-			PlayerInventory[playerid][slotid][Mod][i] = modifier;
-	}
-	else
-	{
-		for(new i = 0; i < level; i++)
-		{
-			if(PlayerInventory[playerid][slotid][Mod][i] != 0) continue;
-			PlayerInventory[playerid][slotid][Mod][i] = modifier;
-		}
-	}
-}
-
 stock CombineWithModifier(playerid)
 {
-	new price = 1000;
+	/*new price = 1000;
 	if(PlayerInfo[playerid][Cash] < price)
 	{
 		ShowPlayerDialog(playerid, 1, DIALOG_STYLE_MSGBOX, "Комбинирование", "Недостаточно средств.", "Закрыть", "");
@@ -8294,11 +8088,12 @@ stock CombineWithModifier(playerid)
 		);
 		SendClientMessageToAll(COLOR_LIGHTRED, cng_string);
 	}
-	ShowPlayerDialog(playerid, 1, DIALOG_STYLE_MSGBOX, "Комбинирование", "{33CC00}Успешная комбинация.", "Закрыть", "");
+	ShowPlayerDialog(playerid, 1, DIALOG_STYLE_MSGBOX, "Комбинирование", "{33CC00}Успешная комбинация.", "Закрыть", "");*/
 }
 
 stock CombineWithAntique(playerid, m_count, mod_level)
 {
+	/*
 	if(m_count <= 0)
 	{
 		ShowPlayerDialog(playerid, 1, DIALOG_STYLE_MSGBOX, "Комбинирование", "Комбинация не существует.", "Закрыть", "");
@@ -8381,12 +8176,12 @@ stock CombineWithAntique(playerid, m_count, mod_level)
 		);
 		SendClientMessageToAll(COLOR_LIGHTRED, cng_string);
 	}
-	ShowPlayerDialog(playerid, 1, DIALOG_STYLE_MSGBOX, "Комбинирование", "{33CC00}Успешная комбинация.", "Закрыть", "");
+	ShowPlayerDialog(playerid, 1, DIALOG_STYLE_MSGBOX, "Комбинирование", "{33CC00}Успешная комбинация.", "Закрыть", "");*/
 }
 
 stock CombineItems(playerid)
 {
-	if(IsModifiableEquip(CmbItem[playerid][0]))
+	/*if(IsModifiableEquip(CmbItem[playerid][0]))
 	{
 		new s_item[BaseItem];
 		s_item = GetItem(CmbItem[playerid][1]);
@@ -8513,10 +8308,11 @@ stock CombineItems(playerid)
 		}
 	}
 
-	UpdateCmbWindow(playerid);
+	UpdateCmbWindow(playerid);*/
+	ShowPlayerDialog(playerid, 1, DIALOG_STYLE_MSGBOX, "Комбинирование", "Нет доступных комбинаций.", "Закрыть", "");
 }
 
-stock UpgradeItem(playerid, itemslot, stoneid, potionid = -1)
+stock UpgradeItem(playerid, itemslot, is_safe = false, potionid = -1)
 {
 	new itemid = PlayerInventory[playerid][itemslot][ID];
 	new level = GetModLevel(PlayerInventory[playerid][itemslot][Mod]) + 1;
@@ -8530,16 +8326,16 @@ stock UpgradeItem(playerid, itemslot, stoneid, potionid = -1)
 	item = GetItem(itemid);
 
 	new chances[4];
-	chances = GetModChances(level, item[Grade], potionid);
+	chances = GetModChances(level, potionid);
 
-	new stoneslot = FindItem(playerid, stoneid);
-	if(stoneslot == -1)
+	new encslot = FindItem(playerid, 187);
+	if(encslot == -1)
 	{
 		SendClientMessage(playerid, COLOR_LIGHTRED, "Ошибка модификации.");
 		return;
 	}
 
-	DeleteItem(playerid, stoneslot, 1);
+	DeleteItem(playerid, encslot, 1);
 
 	if(potionid != -1)
 	{
@@ -8557,68 +8353,60 @@ stock UpgradeItem(playerid, itemslot, stoneid, potionid = -1)
 	//success
 	if(roll <= chances[0] || IsEasyMod[playerid])
 	{
-		PlayerInventory[playerid][itemslot][Mod][level-1] = GetModifierByStone(stoneid);
+		PlayerInventory[playerid][itemslot][Mod]++;
 		if(level == MAX_MOD)
 		{
 			ModItemSlot[playerid] = -1;
-			ModStone[playerid] = -1;
 			ModPotion[playerid] = -1;
 		}
-		if(level >= 5)
+		if(level >= 10)
 		{
 			new cng_string[255];
 			new name[255];
 			GetPlayerName(playerid, name, sizeof(name));
-			format(cng_string, sizeof(cng_string), "{%s}%s{FF6347} успешно модернизирован %d на стадии {%s}%s.", 
-				GetColorByRate(PlayerInfo[playerid][Rate]), name, level, GetGradeColor(item[Grade]), item[Name]
+			format(cng_string, sizeof(cng_string), "{%s}%s{FF6347} приобрел {%s}[+%d %s]", 
+				GetColorByRate(PlayerInfo[playerid][Rate]), name, GetGradeColor(item[Grade]), level, item[Name]
 			);
 			SendClientMessageToAll(COLOR_LIGHTRED, cng_string);
 		}
-		ShowPlayerDialog(playerid, 1, DIALOG_STYLE_MSGBOX, "Модификация", "{66CC00}Модификация завершена успешно.", "Закрыть", "");
+		ShowModSuccessMessage(item, level);
 	}
 	//fail
 	else if(roll <= chances[0] + chances[1])
 	{
-		ShowPlayerDialog(playerid, 1, DIALOG_STYLE_MSGBOX, "Модификация", "{FFCC00}Модификация предмета неудачна.", "Закрыть", "");
-	}
-	//reset
-	else if(roll <= chances[0] + chances[1] + chances[2])
-	{
-		for(new i = 0; i < MAX_MOD; i++)
-			PlayerInventory[playerid][itemslot][Mod][i] = 0;
-
-		ShowPlayerDialog(playerid, 1, DIALOG_STYLE_MSGBOX, "Модификация", "{CC0000}Модификация неудачна: камни уничтожены.", "Закрыть", "");
+		ShowModFailMessage();
 	}
 	//destroy
 	else
 	{
-		DeleteItem(playerid, itemslot, 1);
-		ModItemSlot[playerid] = -1;
-		ModStone[playerid] = -1;
-		ModPotion[playerid] = -1;
+		if(!is_safe)
+		{
+			DeleteItem(playerid, itemslot, 1);
+			ModItemSlot[playerid] = -1;
+			ModPotion[playerid] = -1;
 
-		ShowPlayerDialog(playerid, 1, DIALOG_STYLE_MSGBOX, "Модификация", "{CC0000}Модификация неудачна: предмет уничтожен.", "Закрыть", "");
+			ShowModDestroyMessage();
+		}
+		else
+		{
+			new def_slot = FindItem(playerid, 188, GetDefCount(level));
+			if(def_slot == -1)
+			{
+				SendClientMessage(playerid, COLOR_LIGHTRED, "Ошибка модификации.");
+				return;
+			}
+
+			DeleteItem(playerid, def_slot, GetDefCount(level));
+			ShowModSafeFailMessage();
+		}
 	}
 }
 
-stock GetModChances(level, grade, potionid = -1)
+stock GetModChances(level, potionid = -1)
 {
-	new chances[4];
-
-	if(grade == GRADE_R)
-	{
-		chances[0] = 0;
-		chances[1] = 10000;
-		chances[2] = 0;
-		chances[3] = 0;
-		return chances;
-	}
-
-	if(grade > GRADE_C)
-		grade = GRADE_C;
-
+	new chances[3];
 	new query[255];
-	format(query, sizeof(query), "SELECT * FROM `mod_chances` WHERE `Level` = '%d' AND `Grade` = '%d' AND `Potion` = '%d' LIMIT 1", level, grade, potionid);
+	format(query, sizeof(query), "SELECT * FROM `mod_chances` WHERE `Level` = '%d' AND `Potion` = '%d' LIMIT 1", level, potionid);
 	new Cache:q_result = mysql_query(sql_handle, query);
 
 	new row_count = 0;
@@ -8633,22 +8421,10 @@ stock GetModChances(level, grade, potionid = -1)
 	new string[255];
 
 	cache_get_value_name(0, "Chances", string);
-	sscanf(string, "a<i>[4]", chances);
+	sscanf(string, "a<i>[3]", chances);
 	cache_delete(q_result);
 
 	return chances;
-}
-
-stock GetModifierByStone(stoneid)
-{
-	switch(stoneid)
-	{
-		case 187: return MOD_DAMAGE;
-		case 188: return MOD_DEFENSE;
-		case 189: return MOD_ACCURACY;
-		case 190: return MOD_DODGE;
-	}
-	return 0;
 }
 
 stock GetWeaponBaseDamage(weaponid)
@@ -8656,78 +8432,52 @@ stock GetWeaponBaseDamage(weaponid)
 	new damage[2];
 	switch(weaponid)
 	{
-		case 1: { damage[0] = 19; damage[1] = 24; }
-		case 2..8: { damage[0] = 25; damage[1] = 31; }
-		case 9: { damage[0] = 70; damage[1] = 101; }
-		case 10..16, 242: { damage[0] = 91; damage[1] = 131; }
-		case 17: { damage[0] = 9; damage[1] = 18; }
-		case 18..24, 243: { damage[0] = 12; damage[1] = 24; }
-		case 25: { damage[0] = 12; damage[1] = 26; }
-		case 26..32, 244: { damage[0] = 16; damage[1] = 34; }
-		case 33: { damage[0] = 20; damage[1] = 47; }
-		case 34..40, 245: { damage[0] = 27; damage[1] = 63; }
-		case 41: { damage[0] = 41; damage[1] = 53; }
-		case 42..48, 246: { damage[0] = 55; damage[1] = 72; }
-		case 49: { damage[0] = 38; damage[1] = 66; }
-		case 50..56: { damage[0] = 51; damage[1] = 89; }
-		case 57: { damage[0] = 281; damage[1] = 429; }
-		case 58..64, 247: { damage[0] = 379; damage[1] = 579; }
-		case 65: { damage[0] = 146; damage[1] = 312; }
-		case 66..72, 248: { damage[0] = 197; damage[1] = 421; }
-		case 73: { damage[0] = 319; damage[1] = 534; }
-		case 74..80, 249: { damage[0] = 431; damage[1] = 721; }
-
-		case 205: { damage[0] = 79; damage[1] = 118; }
-		case 206: { damage[0] = 87; damage[1] = 130; }
-		case 207: { damage[0] = 96; damage[1] = 143; }
-		case 208: { damage[0] = 105; damage[1] = 157; }
-		case 209: { damage[0] = 116; damage[1] = 173; }
-		case 210: { damage[0] = 127; damage[1] = 190; }
-		case 211: { damage[0] = 140; damage[1] = 209; }
-		case 212: { damage[0] = 154; damage[1] = 230; }
-		case 213: { damage[0] = 169; damage[1] = 253; }
-
-		case 214: { damage[0] = 34; damage[1] = 51; }
-		case 215: { damage[0] = 37; damage[1] = 56; }
-		case 216: { damage[0] = 41; damage[1] = 62; }
-		case 217: { damage[0] = 45; damage[1] = 68; }
-		case 218: { damage[0] = 50; damage[1] = 75; }
-		case 219: { damage[0] = 55; damage[1] = 82; }
-		case 220: { damage[0] = 60; damage[1] = 90; }
-		case 221: { damage[0] = 66; damage[1] = 99; }
-		case 222: { damage[0] = 73; damage[1] = 109; }
-
-		case 223: { damage[0] = 63; damage[1] = 87; }
-		case 224: { damage[0] = 69; damage[1] = 96; }
-		case 225: { damage[0] = 76; damage[1] = 105; }
-		case 226: { damage[0] = 84; damage[1] = 116; }
-		case 227: { damage[0] = 92; damage[1] = 127; }
-		case 228: { damage[0] = 101; damage[1] = 140; }
-		case 229: { damage[0] = 117; damage[1] = 154; }
-		case 230: { damage[0] = 123; damage[1] = 170; }
-		case 231: { damage[0] = 135; damage[1] = 187; }
-
-		case 232: { damage[0] = 389; damage[1] = 538; }
-		case 233: { damage[0] = 428; damage[1] = 592; }
-		case 234: { damage[0] = 471; damage[1] = 651; }
-		case 235: { damage[0] = 518; damage[1] = 716; }
-		case 236: { damage[0] = 570; damage[1] = 788; }
-		case 237: { damage[0] = 626; damage[1] = 866; }
-		case 238: { damage[0] = 689; damage[1] = 953; }
-		case 239: { damage[0] = 758; damage[1] = 1048; }
-		case 240: { damage[0] = 834; damage[1] = 1153; }
+		case 1: { damage[0] = 17; damage[1] = 22; }
+		case 2: { damage[0] = 19; damage[1] = 24; }
+		case 3: { damage[0] = 23; damage[1] = 29; }
+		case 4: { damage[0] = 26; damage[1] = 32; }
+		case 5: { damage[0] = 61; damage[1] = 89; }
+		case 6: { damage[0] = 68; damage[1] = 97; }
+		case 7: { damage[0] = 75; damage[1] = 103; }
+		case 8: { damage[0] = 84; damage[1] = 114; }
+		case 9: { damage[0] = 9; damage[1] = 18; }
+		case 10: { damage[0] = 11; damage[1] = 20; }
+		case 11: { damage[0] = 13; damage[1] = 22; }
+		case 12: { damage[0] = 16; damage[1] = 25; }
+		case 13: { damage[0] = 14; damage[1] = 31; }
+		case 14: { damage[0] = 16; damage[1] = 35; }
+		case 15: { damage[0] = 19; damage[1] = 39; }
+		case 16: { damage[0] = 24; damage[1] = 44; }
+		case 17: { damage[0] = 19; damage[1] = 42; }
+		case 18: { damage[0] = 22; damage[1] = 44; }
+		case 19: { damage[0] = 25; damage[1] = 48; }
+		case 20: { damage[0] = 30; damage[1] = 50; }
+		case 21: { damage[0] = 41; damage[1] = 53; }
+		case 22: { damage[0] = 47; damage[1] = 61; }
+		case 23: { damage[0] = 55; damage[1] = 72; }
+		case 24: { damage[0] = 66; damage[1] = 89; }
+		case 25: { damage[0] = 43; damage[1] = 55; }
+		case 26: { damage[0] = 50; damage[1] = 64; }
+		case 27: { damage[0] = 59; damage[1] = 76; }
+		case 28: { damage[0] = 71; damage[1] = 96; }
+		case 29: { damage[0] = 281; damage[1] = 429; }
+		case 30: { damage[0] = 339; damage[1] = 539; }
+		case 31: { damage[0] = 381; damage[1] = 594; }
+		case 32: { damage[0] = 446; damage[1] = 668; }
+		case 33: { damage[0] = 642; damage[1] = 899; }
+		case 34: { damage[0] = 146; damage[1] = 312; }
+		case 35: { damage[0] = 168; damage[1] = 344; }
+		case 36: { damage[0] = 197; damage[1] = 401; }
+		case 37: { damage[0] = 246; damage[1] = 452; }
+		case 38: { damage[0] = 303; damage[1] = 559; }
+		case 39: { damage[0] = 319; damage[1] = 534; }
+		case 40: { damage[0] = 357; damage[1] = 668; }
+		case 41: { damage[0] = 431; damage[1] = 721; }
+		case 42: { damage[0] = 493; damage[1] = 806; }
+		case 43: { damage[0] = 618; damage[1] = 1039; }
 
 		default: { damage[0] = 13; damage[1] = 15; }
 	}
-	return damage;
-}
-
-stock GetWeaponModifiedDamage(base_damage[], level)
-{
-	new damage[2];
-	new multiplicator = GetModifierStatByLevel(MOD_DAMAGE, level);
-	damage[0] = base_damage[0] + (base_damage[0] * multiplicator) / 100;
-	damage[1] = base_damage[1] + (base_damage[1] * multiplicator) / 100;
 	return damage;
 }
 
@@ -8736,159 +8486,64 @@ stock GetArmorBaseDefense(armorid)
 	new defense;
 	switch(armorid)
 	{
-		case 82: defense = 180;
-		case 83..89: defense = 234;
-		case 90: defense = 275;
-		case 91..97: defense = 358;
-		case 98: defense = 330;
-		case 99..105: defense = 429;
-		case 106: defense = 383;
-		case 107..113: defense = 498;
-		case 114: defense = 437;
-		case 115..121: defense = 568;
-		case 122: defense = 502;
-		case 123..129: defense = 653;
-		case 130: defense = 595;
-		case 131..137: defense = 774;
-		case 138: defense = 676;
-		case 139..145: defense = 879;
-		case 146: defense = 841;
-		case 147..153: defense = 1135;
+		case 45: defense = 180;
+		case 46: defense = 234;
+		case 47: defense = 275;
+		case 48: defense = 358;
+		case 49: defense = 439;
+		case 50: defense = 330;
+		case 51: defense = 429;
+		case 52: defense = 516;
+		case 53: defense = 383;
+		case 54: defense = 498;
+		case 55: defense = 607;
+		case 56: defense = 437;
+		case 57: defense = 568;
+		case 58: defense = 689;
+		case 59: defense = 502;
+		case 60: defense = 653;
+		case 61: defense = 816;
+		case 62: defense = 979;
+		case 63: defense = 595;
+		case 64: defense = 774;
+		case 65: defense = 991;
+		case 66: defense = 1166;
+		case 67: defense = 676;
+		case 68: defense = 879;
+		case 69: defense = 1078;
+		case 70: defense = 1242;
+		case 71: defense = 841;
+		case 72: defense = 1135;
+		case 73: defense = 1258;
+		case 74: defense = 1407;
+
 		default: defense = 100;
 	}
 	return defense;
 }
 
-stock GetArmorModifiedDefense(base_defense, level)
+stock GetEquipModifiedValue(base_value, mod_level)
 {
-	new defense;
-	new multiplicator = GetModifierStatByLevel(MOD_DEFENSE, level);
-	defense = base_defense + (base_defense * multiplicator) / 100;
-	return defense;
-}
-
-stock MapModifiersDescs(mod[], modifiers[], count)
-{
-	new descs[4][255];
-	new string[255];
-	for(new i = 0; i < count; i++)
+	new Float:multiplicator;
+	switch(mod_level)
 	{
-		new modifier = modifiers[i];
-		new modifier_level = GetModifierLevel(mod, modifier);
-		if(modifier == MOD_DAMAGE || modifier == MOD_DEFENSE)
-			format(string, sizeof(string), "%s на %d%%", GetModifierName(modifier), GetModifierStatByLevel(modifier, modifier_level));
-		else if(modifier == MOD_DODGE || modifier == MOD_ACCURACY)
-			format(string, sizeof(string), "%s на %d", GetModifierName(modifier), GetModifierStatByLevel(modifier, modifier_level));
-		else
-			string = "";
-		descs[i] = string;
+		case 1: multiplicator = 1.1;
+		case 2: multiplicator = 1.2;
+		case 3: multiplicator = 1.3;
+		case 4: multiplicator = 1.4;
+		case 5: multiplicator = 1.55;
+		case 6: multiplicator = 1.7;
+		case 7: multiplicator = 1.95;
+		case 8: multiplicator = 2.2;
+		case 9: multiplicator = 2.6;
+		case 10: multiplicator = 3.0;
+		case 11: multiplicator = 3.35;
+		case 12: multiplicator = 3.75;
+		case 13: multiplicator = 4.1;
+		default: multiplicator = 1;
 	}
-	return descs;
-}
 
-stock GetModLevel(mod[])
-{
-	new level = 0;
-	for(new i = 0; i < MAX_MOD; i++)
-		if(mod[i] != 0) level++;
-	return level;
-}
-
-stock GetModifierLevel(mod[], modifier)
-{
-	new modifier_level = 0;
-	for(new i = 0; i < MAX_MOD; i++)
-		if(mod[i] == modifier) modifier_level++;
-	return modifier_level;
-}
-
-stock GetModifierName(modifier)
-{
-	new string[255];
-	switch(modifier)
-	{
-		case MOD_DAMAGE: string = "Увеличение атаки";
-		case MOD_DEFENSE: string = "Увеличение защиты";
-		case MOD_ACCURACY: string = "Увеличение точности";
-		case MOD_DODGE: string = "Увеличение уклонения";
-		default: string = "";
-	}
-	return string;
-}
-
-stock GetModifierStatByLevel(modifier, level)
-{
-	switch(modifier)
-	{
-		case MOD_DAMAGE, MOD_DEFENSE:
-		{
-			switch(level)
-			{
-				case 1: return 5;
-				case 2: return 13;
-				case 3: return 25;
-				case 4: return 50;
-				case 5: return 80;
-				case 6: return 135;
-				case 7: return 200;
-			}
-		}
-		case MOD_ACCURACY, MOD_DODGE:
-		{
-			switch(level)
-			{
-				case 1: return 5;
-				case 2: return 10;
-				case 3: return 25;
-				case 4: return 45;
-				case 5: return 60;
-				case 6: return 80;
-				case 7: return 100;
-			}
-		}
-	}
-	return 0;
-}
-
-stock GetModModel(modifier)
-{
-	switch(modifier)
-	{
-		case MOD_DAMAGE: return 3002;
-		case MOD_DEFENSE: return 3101;
-		case MOD_DODGE: return 3104;
-		case MOD_ACCURACY: return 3100;
-	}
-	return 3106;
-}
-
-stock GetModifiers(mod[])
-{
-	new modifiers[4];
-	for (new i = 0; i < MAX_MOD; i++)
-	{
-		if(mod[i] == 0) continue;
-		if(ArrayValueExist(modifiers, 4, mod[i])) continue;
-
-		for (new j = 0; j < 4; j++)
-		{
-			if(modifiers[j] == 0)
-			{
-				modifiers[j] = mod[i];
-				break;
-			}
-		}
-	}
-	return modifiers;
-}
-
-stock GetModifiersCount(modfs[])
-{
-	new count = 0;
-	for (new i = 0; i < 4; i++)
-		if(modfs[i] != 0) count++;
-	
-	return count;
+	return floatround(floatmul(base_value, multiplicator));
 }
 
 stock ArraySetDefaultValue(arr[], size, value)
@@ -8923,6 +8578,27 @@ stock GetItemEffectString(effect, value)
 	}
 
 	return string;
+}
+
+stock GetDefCount(level)
+{
+	new count = 0;
+	switch(level)
+	{
+		case 4: count = 1;
+		case 5: count = 3;
+		case 6: count = 6;
+		case 7: count = 9;
+		case 8: count = 12;
+		case 9: count = 14;
+		case 10: count = 16;
+		case 11: count = 18;
+		case 12: count = 21;
+		case 13: count = 23;
+		default: count = 0;
+	}
+
+	return count;
 }
 
 stock GetItemTypeString(type)
