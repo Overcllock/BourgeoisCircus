@@ -263,7 +263,9 @@ enum LootInfo
 {
 	ItemID,
 	Count,
-	OwnerID
+	OwnerID,
+	Property[MAX_PROPERTIES],
+	PropertyVal[MAX_PROPERTIES]
 };
 enum RewardInfo
 {
@@ -1187,16 +1189,34 @@ public OnPlayerGiveDamage(playerid, damagedid, Float:amount, weaponid, bodypart)
 	if(dodge < 0) dodge = 0;
 	new bool:dodged = CheckChance(dodge);
 	new bool:is_crit = CheckChance(PlayerInfo[playerid][Crit]);
+
+	new miss_chance = PlayerInfo[damagedid][DefenseRate] - PlayerInfo[playerid][AttackRate];
+	if(miss_chance > 0)
+		miss_chance *= 2;
+	new bool:is_miss = CheckChance(miss_chance);
+
 	new damage;
 	if(dodged || is_invulnearable == 1 || weaponid == 0)
 		damage = 0;
-	else if(is_crit)
-		damage = PlayerInfo[playerid][DamageMax];
-	else
-		damage = PlayerInfo[playerid][DamageMin] + random(PlayerInfo[playerid][DamageMax]-PlayerInfo[playerid][DamageMin]+1);
-	
+
+	damage = PlayerInfo[playerid][DamageMin] + random(PlayerInfo[playerid][DamageMax]-PlayerInfo[playerid][DamageMin]+1);
+
 	new Float:defense_mul = floatsub(1.0, floatdiv(PlayerInfo[damagedid][Defense], DEFENSE_DIVIDER));
 	damage = floatround(floatmul(damage, defense_mul));
+
+	if(is_miss)
+		damage /= 3;
+	else if(is_crit)
+	{
+		new Float:mult;
+		mult = floatsub(PlayerInfo[playerid][CritMult], PlayerInfo[damagedid][CritMulRed]);
+		if(mult <= 0)
+			mult = 0.01;
+
+		damage = floatround(floatmul(floatmul(damage, mult), floatsub(1.0, floatdiv(PlayerInfo[damagedid][CritRed], 100))));
+		if(damage <= 0)
+			damage = 1;
+	}
 
 	new real_damage;
 	if(floatsub(GetPlayerHP(damagedid), damage) < 0)
@@ -1229,8 +1249,14 @@ public OnPlayerGiveDamage(playerid, damagedid, Float:amount, weaponid, bodypart)
 	else
 	{
 		new dmginf[32];
+		new color = 0xFFFFFFFF;
+		if(is_miss)
+			color = 0xCCCCCCFF;
+		else if(is_crit)
+			color = 0xFFCC00FF;
+
 		format(dmginf, sizeof(dmginf), "%d", real_damage);
-		SetPlayerChatBubble(damagedid, dmginf, is_crit ? 0xFFCC00FF : 0xFFFFFFFF, 80.0, 1200);
+		SetPlayerChatBubble(damagedid, dmginf, color, 80.0, 1200);
 	}
 
 	new Float:new_hp;
@@ -1321,11 +1347,13 @@ public OnPlayerSpawn(playerid)
 
 stock UpdatePlayerVisual(playerid)
 {
-	SetCameraBehindPlayer(playerid);
 	SetPlayerSkin(playerid, PlayerInfo[playerid][Skin]);
 	SetPlayerColor(playerid, IsTourStarted ? HexTeamColors[PlayerInfo[playerid][TeamColor]][0] : HexRateColors[PlayerInfo[playerid][Rank]-1][0]);
 	if(!FCNPC_IsValid(playerid))
+	{
+		SetCameraBehindPlayer(playerid);
 		UpdatePlayerWeapon(playerid);
+	}
 }
 
 public OnPlayerDeath(playerid, killerid, reason)
