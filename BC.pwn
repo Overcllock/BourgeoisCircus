@@ -3054,8 +3054,13 @@ public OnPlayerClickPlayerTextDraw(playerid, PlayerText:playertextid)
 				ShowModWindow(playerid, SelectedSlot[playerid]);
 				return 1;
 			}
+			else
+			{
+				ShowPlayerDialog(playerid, 1, DIALOG_STYLE_MSGBOX, "Модификация", "Этот предмет нельзя модифицировать.", "Закрыть", "");
+				return 0;
+			}
 		}
-		ShowModWindow(playerid);
+		ShowPlayerDialog(playerid, 1, DIALOG_STYLE_MSGBOX, "Модификация", "Выберите предмет.", "Закрыть", "");
 	}
 	else if(playertextid == UpgItemSlot[playerid])
 	{
@@ -7858,8 +7863,14 @@ stock UpdateMarketSellWindow(playerid)
 	PlayerTextDrawShow(playerid, MpItem[playerid]);
 }
 
-stock ShowModWindow(playerid, itemslot = -1)
+stock ShowModWindow(playerid, itemslot)
 {
+	if(itemslot == -1)
+	{
+		SendClientMessage(playerid, COLOR_LIGHTRED, "Ошибка модификации.");
+		return;
+	}
+
 	Windows[playerid][Mod] = true;
 	IsSlotsBlocked[playerid] = true;
 
@@ -7875,23 +7886,20 @@ stock ShowModWindow(playerid, itemslot = -1)
 	PlayerTextDrawBackgroundColor(playerid, UpgPotionSlot[playerid], -1061109505);
 	PlayerTextDrawBackgroundColor(playerid, UpgItemSlot[playerid], -1061109505);
 
-	if(itemslot != -1)
-	{
-		new item[BaseItem];
-		item = GetItem(PlayerInventory[playerid][itemslot][ID]);
+	new item[BaseItem];
+	item = GetItem(PlayerInventory[playerid][itemslot][ID]);
 
-		PlayerTextDrawSetPreviewModel(playerid, UpgItemSlot[playerid], item[Model]);
-		PlayerTextDrawSetPreviewRot(playerid, UpgItemSlot[playerid], item[ModelRotX], item[ModelRotY], item[ModelRotZ]);
-		PlayerTextDrawBackgroundColor(playerid, UpgItemSlot[playerid], HexGradeColors[item[Grade]-1][0]);
+	PlayerTextDrawSetPreviewModel(playerid, UpgItemSlot[playerid], item[Model]);
+	PlayerTextDrawSetPreviewRot(playerid, UpgItemSlot[playerid], item[ModelRotX], item[ModelRotY], item[ModelRotZ]);
+	PlayerTextDrawBackgroundColor(playerid, UpgItemSlot[playerid], HexGradeColors[item[Grade]-1][0]);
 
-		new mod_level = GetModLevel(PlayerInventory[playerid][itemslot][Mod]);
-		new string[64];
-		format(string, sizeof(string), "%d модификация", mod_level+1);
-		PlayerTextDrawSetStringRus(playerid, UpgModInfo[playerid], string);
-		PlayerTextDrawShow(playerid, UpgModInfo[playerid]);
+	new mod_level = GetModLevel(PlayerInventory[playerid][itemslot][Mod]);
+	new string[64];
+	format(string, sizeof(string), "%d модификация", mod_level+1);
+	PlayerTextDrawSetStringRus(playerid, UpgModInfo[playerid], string);
+	PlayerTextDrawShow(playerid, UpgModInfo[playerid]);
 
-		ModItemSlot[playerid] = itemslot;
-	}
+	ModItemSlot[playerid] = itemslot;
 
 	PlayerTextDrawShow(playerid, UpgBox[playerid]);
 	PlayerTextDrawShow(playerid, UpgTxt1[playerid]);
