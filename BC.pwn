@@ -257,15 +257,17 @@ enum BossInfo
 	Dodge,
 	HP,
 	AttackRate,
-	DefenseRate
+	DefenseRate,
+	CritMult,
+	CritReduction,
+	CritMultReduction,
+	Vamp
 };
 enum LootInfo
 {
 	ItemID,
 	Count,
-	OwnerID,
-	Property[MAX_PROPERTIES],
-	PropertyVal[MAX_PROPERTIES]
+	OwnerID
 };
 enum RewardInfo
 {
@@ -338,6 +340,12 @@ enum pInfo
 	Defense,
 	Dodge,
 	Accuracy,
+	AttackRate,
+	DefenseRate,
+	CritMult,
+	CritReduction,
+	CritMultReduction,
+	Vamp,
 	GlobalTopPosition,
 	LocalTopPosition,
 	WalkersLimit,
@@ -373,6 +381,10 @@ enum wInfo
 	Crit,
 	AttackRate,
 	DefenseRate,
+	CritMult,
+	CritReduction,
+	CritMultReduction,
+	Vamp,
 	WeaponID
 };
 
@@ -461,10 +473,12 @@ new SecondTimer[MAX_PLAYERS] = -1;
 //Arrays
 new EmptyInvItem[iInfo] = {
 	-1,
+	0,
+	{-1,-1,-1,-1,-1,-1,-1},
 	{0,0,0,0,0,0,0},
 	0
 };
-new MOD_CLEAR[MAX_MOD] = {0,0,0,0,0,0,0};
+new PROP_CLEAR[MAX_PROPERTIES] = {-1,-1,-1,-1,-1,-1,-1};
 new EmptyMarketSellingItem[MarketItem] = {
 	-1,
 	-1,
@@ -472,6 +486,8 @@ new EmptyMarketSellingItem[MarketItem] = {
 	0,
 	0,
 	"None",
+	0,
+	{-1,-1,-1,-1,-1,-1,-1},
 	{0,0,0,0,0,0,0}
 };
 new BossesNames[MAX_BOSSES][128] = {
@@ -1193,6 +1209,9 @@ public OnPlayerGiveDamage(playerid, damagedid, Float:amount, weaponid, bodypart)
 	new miss_chance = PlayerInfo[damagedid][DefenseRate] - PlayerInfo[playerid][AttackRate];
 	if(miss_chance > 0)
 		miss_chance *= 2;
+	else if(miss_chance < 0)
+		miss_chance = 0;
+	
 	new bool:is_miss = CheckChance(miss_chance);
 
 	new damage;
@@ -1202,6 +1221,8 @@ public OnPlayerGiveDamage(playerid, damagedid, Float:amount, weaponid, bodypart)
 	damage = PlayerInfo[playerid][DamageMin] + random(PlayerInfo[playerid][DamageMax]-PlayerInfo[playerid][DamageMin]+1);
 
 	new Float:defense_mul = floatsub(1.0, floatdiv(PlayerInfo[damagedid][Defense], DEFENSE_DIVIDER));
+	if(defense_mul <= 0)
+		defense_mul = 0.01;
 	damage = floatround(floatmul(damage, defense_mul));
 
 	if(is_miss)
@@ -1349,11 +1370,17 @@ stock UpdatePlayerVisual(playerid)
 {
 	SetPlayerSkin(playerid, PlayerInfo[playerid][Skin]);
 	SetPlayerColor(playerid, IsTourStarted ? HexTeamColors[PlayerInfo[playerid][TeamColor]][0] : HexRateColors[PlayerInfo[playerid][Rank]-1][0]);
+	UpdatePlayerEffects(playerid);
 	if(!FCNPC_IsValid(playerid))
 	{
 		SetCameraBehindPlayer(playerid);
 		UpdatePlayerWeapon(playerid);
 	}
+}
+
+stock UpdatePlayerEffects(playerid)
+{
+	//TODO
 }
 
 public OnPlayerDeath(playerid, killerid, reason)
@@ -1474,6 +1501,7 @@ public FCNPC_OnSpawn(npcid)
 
 	UpdatePlayerWeapon(npcid);
 	UpdatePlayerSkin(npcid);
+	UpdatePlayerEffects(npcid);
 	if(IsTourStarted && IsTourParticipant(PlayerInfo[npcid][ID]))
 	{
 		SetPVarInt(npcid, "MovingTicks", 0);
@@ -1621,7 +1649,7 @@ public OnPlayerPickUpPickup(playerid, pickupid)
 
 			if(IsEquip(BossLootItems[i][ItemID]))
 			{
-				AddEquip(playerid, BossLootItems[i][ItemID], MOD_CLEAR);
+				AddEquip(playerid, BossLootItems[i][ItemID]);
 				if(item[Grade] >= GRADE_C)
 				{
 					format(string, sizeof(string), "{%s}%s {ffffff}приобрел {%s}[%s]{ffffff}.", 
@@ -1661,7 +1689,7 @@ public OnPlayerPickUpPickup(playerid, pickupid)
 
 				if(IsEquip(WalkerLootItems[j][i][ItemID]))
 				{
-					AddEquip(playerid, WalkerLootItems[j][i][ItemID], MOD_CLEAR);
+					AddEquip(playerid, WalkerLootItems[j][i][ItemID]);
 					if(item[Grade] >= GRADE_C)
 					{
 						format(string, sizeof(string), "{%s}%s {ffffff}приобрел {%s}[%s]{ffffff}.", 
@@ -2641,22 +2669,11 @@ public OnDialogResponse(playerid, dialogid, response, listitem, inputtext[])
 				{
 					new item[MarketItem];
 					item = GetMarketItem(listitem, category);
-
-					if(PlayerInfo[playerid][Cash] < item[Price])
-					{
-						SendClientMessage(playerid, COLOR_GREY, "Недостаточно денег.");
-						ShowMarketBuyList(playerid, category);
-						return 1;
-					}
-
-					if(IsInventoryFull(playerid))
-					{
-						SendClientMessage(playerid, COLOR_GREY, "Инвентарь полон.");
-						ShowMarketBuyList(playerid, category);
-						return 1;
-					}
-
-					BuyItem(playerid, item[LotID]);
+					
+					SetPVarInt(playerid, "MarketBuyItemListID", listitem);
+					new iinfo[2048];
+					iinfo = GetMarketItemDesc(item);
+					ShowPlayerDialog(playerid, 1107, DIALOG_STYLE_INPUT, "Рынок", iinfo, "Купить", "Отмена");
 				}
 			}
 			else
@@ -2761,6 +2778,35 @@ public OnDialogResponse(playerid, dialogid, response, listitem, inputtext[])
 				MarketSellingItem[playerid][Price] = price;
 				UpdateMarketSellWindow(playerid);
 			}
+		}
+		case 1107:
+		{
+			if(response)
+			{
+				new category = GetPVarInt(playerid, "MarketBuyCategory");
+				new listitem = GetPVarInt(playerid, "MarketBuyItemListID");
+
+				new item[MarketItem];
+				item = GetMarketItem(listitem, category);
+
+				if(PlayerInfo[playerid][Cash] < item[Price])
+				{
+					SendClientMessage(playerid, COLOR_GREY, "Недостаточно денег.");
+					ShowMarketBuyList(playerid, category);
+					return 1;
+				}
+
+				if(IsInventoryFull(playerid))
+				{
+					SendClientMessage(playerid, COLOR_GREY, "Инвентарь полон.");
+					ShowMarketBuyList(playerid, category);
+					return 1;
+				}
+
+				BuyItem(playerid, item[LotID]);
+			}
+			else
+				ShowPlayerDialog(playerid, 1103, DIALOG_STYLE_TABLIST, "Рынок", "Оружие\nДоспехи\nРасходные материалы", "Далее", "Назад");
 		}
 	}
 	return 1;
@@ -4205,7 +4251,7 @@ stock GiveTournamentRewards()
 			{
 				new string[255];
 				format(string, sizeof(string), "Награда за %d место", place);
-				PendingItem(name, reward[ItemID], MOD_CLEAR, reward[ItemsCount], string);
+				PendingItem(name, reward[ItemID], 0, PROP_CLEAR, PROP_VAL_CLEAR, reward[ItemsCount], string);
 			}
 			if(reward[Money] > 0)
 				GivePlayerMoneyOffline(name, reward[Money]);
@@ -4219,11 +4265,11 @@ stock GiveTournamentRewards()
 					new string[255];
 					format(string, sizeof(string), "Награда за %d место", place);
 					SendClientMessage(id, COLOR_GREY, "Инвентарь полон, награды отправлены на почту.");
-					PendingItem(name, reward[ItemID], MOD_CLEAR, reward[ItemsCount], string);
+					PendingItem(name, reward[ItemID], 0, PROP_CLEAR, PROP_VAL_CLEAR, reward[ItemsCount], string);
 					continue;
 				}
 				if(IsEquip(reward[ItemID]))
-					AddEquip(id, reward[ItemID], MOD_CLEAR);
+					AddEquip(id, reward[ItemID]);
 				else
 					AddItem(id, reward[ItemID], reward[ItemsCount]);
 			}
@@ -4319,18 +4365,23 @@ stock UpdateMarketItems()
 			new itemid = -1;
 			new count = 0;
 			new owner[255];
-			new mod[MAX_MOD];
+			new mod;
+			new props[MAX_PROPERTIES];
+			new prop_vals[MAX_PROPERTIES];
 			new string[255];
 
 			cache_get_value_name_int(i, "ItemID", itemid);
 			cache_get_value_name_int(i, "ItemCount", count);
 			cache_get_value_name(i, "Owner", owner);
-			cache_get_value_name(i, "ItemMod", string);
-			sscanf(string, "a<i>[7]", mod);
+			cache_get_value_name_int(i, "ItemMod", mod);
+			cache_get_value_name(i, "ItemProps", string);
+			sscanf(string, "a<i>[7]", props);
+			cache_get_value_name(i, "ItemPropVals", string);
+			sscanf(string, "a<i>[7]", prop_vals);
 
 			cache_unset_active();
 
-			PendingItem(owner, itemid, mod, count, "Срок регистрации предмета истек");
+			PendingItem(owner, itemid, mod, props, prop_vals, count, "Срок регистрации предмета истек");
 
 			new sub_query[255];
 			format(sub_query, sizeof(sub_query), "DELETE FROM `marketplace` WHERE `ID` = '%d'", id);
@@ -4349,6 +4400,11 @@ stock UpdateMarketItems()
 	}
 
 	cache_delete(q_result);
+}
+
+stock GetMarketItemDesc(item[])
+{
+	//TODO
 }
 
 stock GetMarketItem(id, category)
@@ -4374,8 +4430,11 @@ stock GetMarketItem(id, category)
 	cache_get_value_name_int(id, "ItemCount", item[Count]);
 	cache_get_value_name(id, "Owner", string);
 	sscanf(string, "s[255]", item[Owner]);
-	cache_get_value_name(id, "ItemMod", string);
-	sscanf(string, "a<i>[7]", item[Mod]);
+	cache_get_value_name_int(id, "ItemMod", item[Mod]);
+	cache_get_value_name(id, "ItemProps", string);
+	sscanf(string, "a<i>[7]", item[Property]);
+	cache_get_value_name(id, "ItemPropVals", string);
+	sscanf(string, "a<i>[7]", item[PropertyVal]);
 
 	cache_delete(q_result);
 	return item;
@@ -4404,14 +4463,17 @@ stock GetMarketItemByLotID(id)
 	cache_get_value_name_int(0, "ItemCount", item[Count]);
 	cache_get_value_name(0, "Owner", string);
 	sscanf(string, "s[255]", item[Owner]);
-	cache_get_value_name(0, "ItemMod", string);
-	sscanf(string, "a<i>[7]", item[Mod]);
+	cache_get_value_name_int(id, "ItemMod", item[Mod]);
+	cache_get_value_name(id, "ItemProps", string);
+	sscanf(string, "a<i>[7]", item[Property]);
+	cache_get_value_name(id, "ItemPropVals", string);
+	sscanf(string, "a<i>[7]", item[PropertyVal]);
 
 	cache_delete(q_result);
 	return item;
 }
 
-stock AddItemToMarket(playerid, slotid, lotid, category, time = 2)
+stock AddItemToMarket(playerid, slotid, lotid, category, time = 3)
 {
 	new item[MarketItem];
 	item = GetMarketItemByLotID(lotid)
@@ -4430,8 +4492,8 @@ stock AddItemToMarket(playerid, slotid, lotid, category, time = 2)
 
 	id++;
 
-	format(query, sizeof(query), "INSERT INTO `marketplace`(`ID`, `Owner`, `ItemID`, `Category`, `ItemCount`, `ItemMod`, `Price`, `Time`) VALUES ('%d','%s','%d','%d','%d','%s','%d','%d')",
-		id, item[Owner], item[ID], category, item[Count], ArrayToString(item[Mod]), item[Price], time
+	format(query, sizeof(query), "INSERT INTO `marketplace`(`ID`, `Owner`, `ItemID`, `Category`, `ItemCount`, `ItemMod`, `ItemProps`, `ItemPropVals`, `Price`, `Time`) VALUES ('%d','%s','%d','%d','%d','%d','%s','%s','%d','%d')",
+		id, item[Owner], item[ID], category, item[Count], item[Mod], ArrayToString(item[Property], MAX_PROPERTIES), ArrayToString(item[PropertyVal], MAX_PROPERTIES), item[Price], time
 	);
 	new Cache:sq_result = mysql_query(sql_handle, query);
 	cache_delete(sq_result);
@@ -4517,9 +4579,10 @@ stock RegisterMarketItem(playerid, category)
 	}
 
 	new query[255];
-	format(query, sizeof(query), "INSERT INTO `marketplace`(`ID`, `Owner`, `ItemID`, `Category`, `ItemCount`, `ItemMod`, `Price`, `Time`) VALUES ('%d', '%s', '%d', '%d', '%d', '%s', '%d', '%d')",
+	format(query, sizeof(query), "INSERT INTO `marketplace`(`ID`, `Owner`, `ItemID`, `Category`, `ItemCount`, `ItemMod`, `ItemProps`, `ItemPropVals`, `Price`, `Time`) VALUES ('%d', '%s', '%d', '%d', '%d', '%d', '%s', '%s', '%d', '%d')",
 		MarketSellingItem[playerid][LotID], MarketSellingItem[playerid][Owner], MarketSellingItem[playerid][ID], category, MarketSellingItem[playerid][Count],
-		ArrayToString(MarketSellingItem[playerid][Mod], MAX_MOD), MarketSellingItem[playerid][Price], MarketSellingItem[playerid][rTime]
+		MarketSellingItem[playerid][Mod], ArrayToString(MarketSellingItem[playerid][Property], MAX_PROPERTIES), ArrayToString(MarketSellingItem[playerid][PropertyVal], MAX_PROPERTIES), 
+		MarketSellingItem[playerid][Price], MarketSellingItem[playerid][rTime]
 	);
 	new Cache:q_result = mysql_query(sql_handle, query);
 	cache_delete(q_result);
@@ -4595,7 +4658,7 @@ stock BuyItem(playerid, lotid, count = 1)
 	GivePlayerMoney(playerid, -amount);
 
 	if(IsEquip(item[ID]))
-		AddEquip(playerid, item[ID], item[Mod]);
+		AddEquipEx(playerid, item[ID], item[Mod], item[Property], item[PropertyVal]);
 	else
 		AddItem(playerid, item[ID], count);
 	
@@ -4661,7 +4724,7 @@ stock CancelItem(playerid, listitem)
 	}
 
 	SendClientMessage(playerid, COLOR_GREEN, "Регистрация отменена. Предметы отправлены на почту.");
-	PendingItem(item[Owner], item[ID], item[Mod], item[Count], "Предмет возвращен");
+	PendingItem(item[Owner], item[ID], item[Mod], item[Property], item[PropertyVal], item[Count], "Предмет возвращен");
 
 	DeleteItemFromMarket(item[LotID], item[Count]);
 	ShowMarketMenu(playerid);
@@ -4681,7 +4744,7 @@ stock ShowMarketSellingItems(playerid, category, content[])
 	else
 		listitems = "Предмет (улучшения)\tЦена\tВладелец\tВремя регистрации";
 	strcat(listitems, content);
-	ShowPlayerDialog(playerid, 1101, DIALOG_STYLE_TABLIST_HEADERS, "Рынок", listitems, "Купить", "Назад");
+	ShowPlayerDialog(playerid, 1101, DIALOG_STYLE_TABLIST_HEADERS, "Рынок", listitems, category == MARKET_CATEGORY_MATERIAL ? "Купить" : "Посмотреть", "Назад");
 }
 
 stock ShowMarketMyItems(playerid, content[])
@@ -4691,38 +4754,14 @@ stock ShowMarketMyItems(playerid, content[])
 	ShowPlayerDialog(playerid, 1102, DIALOG_STYLE_TABLIST_HEADERS, "Рынок", listitems, "Снять", "Назад");
 }
 
-stock GetColorByStoneModifier(value)
+stock GetModString(mod)
 {
-	new color[32] = "ffffff";
-	switch(value)
-	{
-		case MOD_DAMAGE: color = "FFCC00";
-		case MOD_DEFENSE: color = "CC0000";
-		case MOD_ACCURACY: color = "3366FF";
-		case MOD_DODGE: color = "00CC00";
-	}
-	return color;
-}
-
-stock GetModString(mod[])
-{
-	new out[255] = "";
-	for(new i = 0; i < MAX_MOD; i++)
-	{
-		if(mod[i] == 0) break;
-		new mstr[32];
-		format(mstr, sizeof(mstr), " {%s}o", GetColorByStoneModifier(mod[i]));
-		strcat(out, mstr);
-	}
-
-	if(strlen(out) > 0)
-	{
-		strdel(out, 0, 1);
-		strins(out, "{ffffff}(", 0);
-		strcat(out, "{ffffff})");
-	}
-
-	return out;
+	new string[8] = "";
+	if(mod <= 0)
+		return string;
+	
+	format(string, sizeof(string), "%d ", mod);
+	return string;
 }
 
 stock ShowMarketBuyList(playerid, category)
@@ -4775,8 +4814,9 @@ stock ShowMarketBuyList(playerid, category)
 		}
 		else
 		{
-			format(buf, sizeof(buf), "\n{%s}[%s]%s\t{00CC00}%d$\t{ffffff}%s\t{ffffff}%d",
-				GetGradeColor(item[Grade]), item[Name], GetModString(m_item[Mod]), m_item[Price], m_item[Owner], m_item[rTime]
+
+			format(buf, sizeof(buf), "\n{%s}[%s%s]\t{00CC00}%d$\t{ffffff}%s\t{ffffff}%d",
+				GetGradeColor(item[Grade]), GetModString(m_item[Mod]), item[Name], m_item[Price], m_item[Owner], m_item[rTime]
 			);
 		}
 
@@ -4829,8 +4869,8 @@ stock ShowMarketMyLotList(playerid)
 		m_item = GetMarketItemByLotID(m_id);
 		item = GetItem(m_item[ID]);
 
-		format(buf, sizeof(buf), "\n{%s}[%s]{ffffff}[x%d]\t{00CC00}%d$\t{ffffff}%d",
-			GetGradeColor(item[Grade]), item[Name], m_item[Count], m_item[Price], m_item[rTime]
+		format(buf, sizeof(buf), "\n{%s}[%s%s]{ffffff}[x%d]\t{00CC00}%d$\t{ffffff}%d",
+			GetGradeColor(item[Grade]), GetModString(m_item[Mod]), item[Name], m_item[Count], m_item[Price], m_item[rTime]
 		);
 
 		strcat(content, buf);
@@ -4926,11 +4966,11 @@ stock GiveTourRewards(tour)
 				if(IsInventoryFull(id))
 				{
 					SendClientMessage(id, COLOR_GREY, "Инвентарь полон, награды отправлены на почту.");
-					PendingItem(PvpInfo[i][Name], reward[ItemID], MOD_CLEAR, reward[ItemsCount], "Награда за тур");
+					PendingItem(PvpInfo[i][Name], reward[ItemID], 0, PROP_CLEAR, PROP_VAL_CLEAR, reward[ItemsCount], "Награда за тур");
 					continue;
 				}
 				if(IsEquip(reward[ItemID]))
-					AddEquip(id, reward[ItemID], MOD_CLEAR);
+					AddEquip(id, reward[ItemID]);
 				else
 					AddItem(id, reward[ItemID], reward[ItemsCount]);
 			}
@@ -4940,7 +4980,7 @@ stock GiveTourRewards(tour)
 		else
 		{
 			if(reward[ItemID] != -1 && reward[ItemsCount] > 0)
-				PendingItem(PvpInfo[i][Name], reward[ItemID], MOD_CLEAR, reward[ItemsCount], "Награда за тур");
+				PendingItem(PvpInfo[i][Name], reward[ItemID], 0, PROP_CLEAR, PROP_VAL_CLEAR, reward[ItemsCount], "Награда за тур");
 			if(reward[Money] > 0)
 				GivePlayerMoneyOffline(PvpInfo[i][Name], reward[Money]);
 		}
@@ -4995,6 +5035,7 @@ stock ShowPlayerPost(playerid)
 		cache_get_value_name(i, "Text", text);
 		cache_get_value_name_int(i, "ItemID", reward[ItemID]);
 		cache_get_value_name_int(i, "Count", reward[ItemsCount]);
+		cache_get_value_name_int(i, "ItemMod", reward[Mod]);
 		cache_unset_active();
 
 		if(strlen(text) <= 0)
@@ -5004,7 +5045,7 @@ stock ShowPlayerPost(playerid)
 		{
 			new item[BaseItem];
 			item = GetItem(reward[ItemID]);
-			format(string, sizeof(string), "\n{ffffff}%s\t{%s}%s\t{ffffff}%d", text, GetGradeColor(item[Grade]), item[Name], reward[ItemsCount]);
+			format(string, sizeof(string), "\n{ffffff}%s\t{%s}%s%s\t{ffffff}%d", text, GetGradeColor(item[Grade]), GetModString(reward[Mod]), item[Name], reward[ItemsCount]);
 		}
 		else
 			format(string, sizeof(string), "\n{ffffff}%s\t{ffffff}-\t-", text);
@@ -5034,15 +5075,20 @@ stock ClaimMail(playerid, num)
 	}
 
 	new reward[RewardInfo];
+	new mod;
 	new p_id = -1;
 	cache_get_value_name_int(num, "ItemID", reward[ItemID]);
 	cache_get_value_name_int(num, "Count", reward[ItemsCount]);
 	cache_get_value_name_int(num, "PendingID", p_id);
+	cache_get_value_name_int(num, "ItemMod", mod);
 
 	new string[255];
-	new mod[MAX_MOD];
-	cache_get_value_name(num, "ItemMod", string);
-	sscanf(string, "a<i>[7]", mod);
+	new prop[MAX_PROPERTIES];
+	new prop_vals[MAX_PROPERTIES];
+	cache_get_value_name(num, "ItemProps", string);
+	sscanf(string, "a<i>[7]", prop);
+	cache_get_value_name(num, "ItemPropVals", string);
+	sscanf(string, "a<i>[7]", prop_vals);
 
 	cache_delete(q_result);
 
@@ -5055,7 +5101,7 @@ stock ClaimMail(playerid, num)
 	if(reward[ItemID] != -1)
 	{
 		if(IsEquip(reward[ItemID]))
-			AddEquip(playerid, reward[ItemID], mod);
+			AddEquipEx(playerid, reward[ItemID], mod, prop, prop_vals);
 		else
 			AddItem(playerid, reward[ItemID], reward[ItemsCount]);
 	}
@@ -5358,125 +5404,65 @@ stock OpenLockbox(playerid, lockboxid)
 	new rank = PlayerInfo[playerid][Rank];
 	switch(lockboxid)
 	{
-		case 202:
+		case 194:
 		{
 			switch(chance)
 			{
-				case 0..1299: { itemid = 196; count = 2; }
-				case 1300..2599: { itemid = 197; count = 2; }
-				case 2600..3899: { itemid = 198; count = 2; }
-				case 3900..5199: { itemid = 199; count = 2; }
-				case 5200..6499: { itemid = 200; count = 2; }
-				case 6500..7799: { itemid = 201; count = 2; }
-				case 7800..8399: { itemid = 191; count = 1; }
-				case 8400..8699: { itemid = 195; count = 1; }
-				case 8700..9099: { itemid = GetRandomEquip(rank, rank, RND_EQUIP_TYPE_WEAPON, GRADE_N); count = 1; }
-				case 9100..9499: { itemid = GetRandomEquip(rank, rank, RND_EQUIP_TYPE_ARMOR, GRADE_N); count = 1; }
-				case 9500..9699: { itemid = GetRandomEquip(rank, rank, RND_EQUIP_TYPE_WEAPON, GRADE_B); count = 1; }
-				case 9700..9899: { itemid = GetRandomEquip(rank, rank, RND_EQUIP_TYPE_ARMOR, GRADE_B); count = 1; }
-				case 9900..9989: { itemid = 192; count = 1; }
-				default: { itemid = 193; count = 1; }
+				case 0..699: { itemid = 199; count = 250; }
+				case 700..1399: { itemid = 187; count = 20; }
+				case 1400..1899: { itemid = 188; count = 15; }
+				case 1900..2499: { itemid = 200; count = 5; }
+				case 2500..2999: { itemid = 189; count = 3; }
+				case 3000..3499: { itemid = 187; count = 40; }
+				case 3500..3999: { itemid = 188; count = 25; }
+				case 4000..4499: { itemid = 193; count = 1; }
+				case 4500..4699: { itemid = GetRandomEquip(rank, rank, RND_EQUIP_TYPE_WEAPON, RND_EQUIP_GRADE_RANDOM); count = 1; }
+				case 4700..4899: { itemid = GetRandomEquip(rank, rank, RND_EQUIP_TYPE_ARMOR, RND_EQUIP_GRADE_RANDOM); count = 1; }
+				case 4900..5099: { itemid = 190; count = 2; }
+				case 5100..5199: { itemid = 191; count = 1; }
+				default: { itemid = 199; count = 250; }
 			}
 		}
-		case 203:
+		case 195:
 		{
 			switch(chance)
 			{
-				case 0..1299: { itemid = 196; count = 5; }
-				case 1300..2599: { itemid = 197; count = 5; }
-				case 2600..3899: { itemid = 198; count = 5; }
-				case 3900..5199: { itemid = 199; count = 5; }
-				case 5200..6499: { itemid = 200; count = 5; }
-				case 6500..7799: { itemid = 201; count = 5; }
-				case 7800..8299: { itemid = 191; count = 2; }
-				case 8400..8699: { itemid = 195; count = 2; }
-				case 8700..9099: { itemid = GetRandomEquip(rank, rank, RND_EQUIP_TYPE_WEAPON, GRADE_N); count = 1; }
-				case 9100..9499: { itemid = GetRandomEquip(rank, rank, RND_EQUIP_TYPE_ARMOR, GRADE_N); count = 1; }
-				case 9500..9699: { itemid = GetRandomEquip(rank, rank, RND_EQUIP_TYPE_WEAPON, GRADE_B); count = 1; }
-				case 9700..9899: { itemid = GetRandomEquip(rank, rank, RND_EQUIP_TYPE_ARMOR, GRADE_B); count = 1; }
-				case 9900..9928: { itemid = 193; count = 1; }
-				case 9929: { itemid = 194; count = 1; }
-				default: { itemid = 192; count = 1; }
+				case 0..699: { itemid = 199; count = 250; }
+				case 700..1399: { itemid = 187; count = 40; }
+				case 1400..1899: { itemid = 188; count = 25; }
+				case 1900..2499: { itemid = 200; count = 10; }
+				case 2500..2999: { itemid = 189; count = 5; }
+				case 3000..3499: { itemid = 187; count = 75; }
+				case 3500..3999: { itemid = 188; count = 50; }
+				case 4000..4499: { itemid = 193; count = 2; }
+				case 4500..4799: { itemid = GetRandomEquip(rank, rank, RND_EQUIP_TYPE_WEAPON, RND_EQUIP_GRADE_RANDOM); count = 1; }
+				case 4800..5099: { itemid = GetRandomEquip(rank, rank, RND_EQUIP_TYPE_ARMOR, RND_EQUIP_GRADE_RANDOM); count = 1; }
+				case 5100..5369: { itemid = 190; count = 3; }
+				case 5370..5498: { itemid = 191; count = 2; }
+				case 5499: { itemid = 192; count = 1; }
+				default: { itemid = 199; count = 500; }
 			}
 		}
-		case 310:
+		case 196:
 		{
 			count = 1;
-			switch(chance)
-			{
-				case 0..3999: itemid = 250 + 6 * random(4);
-				case 4000..6999: itemid = 251 + 6 * random(4);
-				case 7000..8299: itemid = 252 + 6 * random(4);
-				case 8300..8999: itemid = 253 + 6 * random(4);
-				case 9000..9599: itemid = 254 + 6 * random(4);
-				default: itemid = 255 + 6 * random(4);
-			}
+			itemid = 75;
 		}
-		case 311:
+		case 197:
 		{
 			count = 1;
-			switch(chance)
-			{
-				case 0..3999: itemid = 274 + 5 * random(4);
-				case 4000..6999: itemid = 275 + 5 * random(4);
-				case 7000..8299: itemid = 276 + 5 * random(4);
-				case 8300..9199: itemid = 277 + 5 * random(4);
-				default: itemid = 278 + 5 * random(4);
-			}
+			itemid = 76 + random(2);
 		}
-		case 312:
+		case 198:
 		{
 			count = 1;
-			switch(chance)
-			{
-				case 0..5999: itemid = 294 + 4 * random(4);
-				case 6000..9499: itemid = 295 + 4 * random(4);
-				case 9500..9899: itemid = 296 + 4 * random(4);
-				default: itemid = 297 + 4 * random(4);
-			}
-		}
-		case 313:
-		{
-			count = 1;
-			itemid = 205 + random(4) * 9;
-		}
-		case 314:
-		{
-			count = 1;
-			switch(chance)
-			{
-				case 0,1: itemid = 313;
-				case 2,3: itemid = 194;
-				case 4..153: itemid = 310;
-				case 154..253: itemid = 311;
-				case 254..256: itemid = 312;
-				case 257..1256: { itemid = 191; count = 5; }
-				case 1257..1656: { itemid = 192; count = 3; }
-				case 1657..1756: itemid = 193;
-				case 1757..2761: itemid = GetRandomEquip(rank, rank);
-				default: { itemid = 195; count = 10; }
-			}
-		}
-		case 315:
-		{
-			count = 1;
-			itemid = 154 + random(7);
-		}
-		case 316:
-		{
-			count = 1;
-			itemid = 161 + random(7);
-		}
-		case 317:
-		{
-			count = 1;
-			itemid = 168 + random(14);
+			itemid = 77;
 		}
 	}
 	if(itemid == -1) return;
 
 	if(IsEquip(itemid))
-		AddEquip(playerid, itemid, MOD_CLEAR);
+		AddEquip(playerid, itemid);
 	else
 		AddItem(playerid, itemid, count);
 
@@ -6220,10 +6206,10 @@ stock RollWalkerLootItem(rank, ownerid)
 			switch(chance)
 			{
 				case 0..48: itemid = GetRandomEquip(1, 1);
-				case 49: itemid = 313;
-				case 50..999: itemid = GetRandomStone();
-				case 1000..1099: { itemid = 195; count = rank; }
-				default: { itemid = 241; count = (rank * 5 - rank) + random(rank * 3); }
+				case 49: itemid = 201;
+				case 50..999: { itemid = 187; count = rank * 2; }
+				case 1000..1018: itemid = 196;
+				default: { itemid = 199; count = (rank * 5 - rank) + random(rank * 3); }
 			}
 		}
 		case 2:
@@ -6231,11 +6217,10 @@ stock RollWalkerLootItem(rank, ownerid)
 			switch(chance)
 			{
 				case 0..48: itemid = GetRandomEquip(1, 2);
-				case 49: itemid = 313;
-				case 50..999: { itemid = GetRandomStone(); count = 2; }
-				case 1000..1099: { itemid = 195; count = rank; }
-				case 1100..1124: itemid = 315;
-				default: { itemid = 241; count = (rank * 5 - rank) + random(rank * 3); }
+				case 49: itemid = 201;
+				case 50..999: { itemid = 187; count = rank * 2; }
+				case 1000..1024: itemid = 196;
+				default: { itemid = 199; count = (rank * 5 - rank) + random(rank * 3); }
 			}
 		}
 		case 3:
@@ -6243,12 +6228,10 @@ stock RollWalkerLootItem(rank, ownerid)
 			switch(chance)
 			{
 				case 0..48: itemid = GetRandomEquip(2, 3);
-				case 49: itemid = 313;
-				case 50..999: { itemid = GetRandomStone(); count = 4; }
-				case 1000..1099: itemid = 310;
-				case 1100..1199: { itemid = 195; count = rank; }
-				case 1200..1224: itemid = 315;
-				default: { itemid = 241; count = (rank * 5 - rank) + random(rank * 3); }
+				case 49: itemid = 201;
+				case 50..999: { itemid = 187; count = rank * 2; }
+				case 1000..1099: itemid = 196;
+				default: { itemid = 199; count = (rank * 5 - rank) + random(rank * 3); }
 			}
 		}
 		case 4:
@@ -6256,12 +6239,10 @@ stock RollWalkerLootItem(rank, ownerid)
 			switch(chance)
 			{
 				case 0..48: itemid = GetRandomEquip(3, 4);
-				case 49: itemid = 313;
-				case 50..999: { itemid = GetRandomStone(); count = 6; }
-				case 1000..1199: itemid = 310;
-				case 1200..1299: { itemid = 195; count = rank; }
-				case 1300..1324: itemid = 316;
-				default: { itemid = 241; count = (rank * 5 - rank) + random(rank * 3); }
+				case 49: itemid = 201;
+				case 50..999: { itemid = 187; count = rank * 2; }
+				case 1000..1199: itemid = 196;
+				default: { itemid = 199; count = (rank * 5 - rank) + random(rank * 3); }
 			}
 		}
 		case 5:
@@ -6269,12 +6250,10 @@ stock RollWalkerLootItem(rank, ownerid)
 			switch(chance)
 			{
 				case 0..48: itemid = GetRandomEquip(4, 5);
-				case 49: itemid = 313;
-				case 50..999: { itemid = GetRandomBooster(); count = 4; }
-				case 1000..1299: itemid = 310;
-				case 1300..1399: { itemid = 195; count = rank; }
-				case 1400..1424: itemid = 316;
-				default: { itemid = 241; count = (rank * 5 - rank) + random(rank * 3); }
+				case 49: itemid = 201;
+				case 50..999: { itemid = 188; count = rank - 3; }
+				case 1000..1299: itemid = 196;
+				default: { itemid = 199; count = (rank * 5 - rank) + random(rank * 3); }
 			}
 		}
 		case 6:
@@ -6282,12 +6261,10 @@ stock RollWalkerLootItem(rank, ownerid)
 			switch(chance)
 			{
 				case 0..48: itemid = GetRandomEquip(5, 6);
-				case 49: itemid = 313;
-				case 50..999: { itemid = GetRandomBooster(); count = 6; }
-				case 1000..1099: itemid = 311;
-				case 1100..1199: { itemid = 195; count = rank; }
-				case 1200..1224: itemid = 316;
-				default: { itemid = 241; count = (rank * 5 - rank) + random(rank * 3); }
+				case 49: itemid = 201;
+				case 50..999: { itemid = 188; count = rank - 3; }
+				case 1000..1099: itemid = 197;
+				default: { itemid = 199; count = (rank * 5 - rank) + random(rank * 3); }
 			}
 		}
 		case 7:
@@ -6295,13 +6272,11 @@ stock RollWalkerLootItem(rank, ownerid)
 			switch(chance)
 			{
 				case 0..48: itemid = GetRandomEquip(6, 7);
-				case 49: itemid = 313;
-				case 50..999: { itemid = GetRandomBooster(); count = 8; }
-				case 1000..1149: itemid = 311;
-				case 1150..1199: { itemid = 191; count = 3; }
-				case 1200..1299: { itemid = 195; count = rank; }
-				case 1300..1324: itemid = 316;
-				default: { itemid = 241; count = (rank * 5 - rank) + random(rank * 3); }
+				case 49: itemid = 201;
+				case 50..999: { itemid = 188; count = rank - 3; }
+				case 1000..1149: itemid = 197;
+				case 1150..1199: { itemid = 189; count = 3; }
+				default: { itemid = 199; count = (rank * 5 - rank) + random(rank * 3); }
 			}
 		}
 		case 8:
@@ -6309,13 +6284,11 @@ stock RollWalkerLootItem(rank, ownerid)
 			switch(chance)
 			{
 				case 0..48: itemid = GetRandomEquip(7, 8);
-				case 49: itemid = 313;
-				case 50..1149: { itemid = GetRandomBooster(); count = 10; }
-				case 1150..1159: itemid = 312;
-				case 1160..1299: { itemid = 192; count = 3; }
-				case 1300..1399: { itemid = 195; count = rank; }
-				case 1400..1424: itemid = 317;
-				default: { itemid = 241; count = (rank * 5 - rank) + random(rank * 3); }
+				case 49: itemid = 201;
+				case 50..999: { itemid = 188; count = rank - 3; }
+				case 1150..1159: itemid = 198;
+				case 1160..1299: { itemid = 190; count = 3; }
+				default: { itemid = 199; count = (rank * 5 - rank) + random(rank * 3); }
 			}
 		}
 		case 9:
@@ -6323,13 +6296,11 @@ stock RollWalkerLootItem(rank, ownerid)
 			switch(chance)
 			{
 				case 0..48: itemid = GetRandomEquip(8, 9);
-				case 49: itemid = 313;
-				case 50..1449: { itemid = GetRandomBooster(); count = 12; }
-				case 1450..1474: itemid = 312;
-				case 1475..1799: { itemid = 192; count = 5; }
-				case 1800..1899: { itemid = 195; count = rank; }
-				case 1900..1924: itemid = 317;
-				default: { itemid = 241; count = (rank * 5 - rank) + random(rank * 3); }
+				case 49: itemid = 201;
+				case 50..1449: { itemid = 188; count = rank - 3; }
+				case 1450..1474: itemid = 198;
+				case 1475..1799: { itemid = 190; count = 5; }
+				default: { itemid = 199; count = (rank * 5 - rank) + random(rank * 3); }
 			}
 		}
 	}
@@ -6353,9 +6324,9 @@ stock RollBossLootItem(bossid)
 			switch(chance)
 			{
 				case 0..499: itemid = GetRandomEquip(1, 2);
-				case 500..799: itemid = GetRandomAccessory(0);
-				case 800..4999: { itemid = 195; count = 2; }
-				default: { itemid = GetRandomBooster(); count = 2; }
+				case 500..799: itemid = 75;
+				case 800..4999: { itemid = 187; count = 3; }
+				default: { itemid = 188; count = 1; }
 			}
 		}
 		case 1:
@@ -6363,10 +6334,10 @@ stock RollBossLootItem(bossid)
 			switch(chance)
 			{
 				case 0..499: itemid = GetRandomEquip(2, 3);
-				case 500..899: itemid = GetRandomAccessory(0);
-				case 900..1299: itemid = 191;
-				case 1300..5499: { itemid = 195; count = 4; }
-				default: { itemid = GetRandomBooster(); count = 4; }
+				case 500..899: itemid = 75;
+				case 900..1299: itemid = 189;
+				case 1300..5499: { itemid = 187; count = 4; }
+				default: { itemid = 188; count = 2; }
 			}
 		}
 		case 2:
@@ -6374,11 +6345,11 @@ stock RollBossLootItem(bossid)
 			switch(chance)
 			{
 				case 0..499: itemid = GetRandomEquip(4, 6);
-				case 500..799: itemid = GetRandomAccessory(1);
-				case 800..1399: itemid = 191;
-				case 1400..1599: itemid = 192;
-				case 1600..5499: { itemid = GetRandomBooster(); count = 8; }
-				default: { itemid = 195; count = 8; }
+				case 500..799: itemid = 76;
+				case 800..1399: itemid = 189;
+				case 1400..1599: itemid = 190;
+				case 1600..5499: { itemid = 187; count = 8; }
+				default: { itemid = 188; count = 4; }
 			}
 		}
 		case 3:
@@ -6386,13 +6357,13 @@ stock RollBossLootItem(bossid)
 			switch(chance)
 			{
 				case 0..499: itemid = GetRandomEquip(7, 8);
-				case 500..599: itemid = 202;
-				case 600..759: itemid = 192;
-				case 800..1069: itemid = GetRandomAccessory(2);
-				case 1070..1099: itemid = 193;
-				case 1100..1399: { itemid = 191; count = 2; }
-				case 1400..5499: { itemid = GetRandomBooster(); count = 14; }
-				default: { itemid = 195; count = 14; }
+				case 500..599: itemid = 194;
+				case 600..759: itemid = 190;
+				case 800..1069: itemid = 77;
+				case 1070..1099: itemid = 191;
+				case 1100..1399: { itemid = 189; count = 2; }
+				case 1400..5499: { itemid = 187; count = 14; }
+				default: { itemid = 188; count = 7; }
 			}
 		}
 		case 4:
@@ -6400,14 +6371,14 @@ stock RollBossLootItem(bossid)
 			switch(chance)
 			{
 				case 0..499: itemid = GetRandomEquip(9, 9);
-				case 500..599: itemid = 203;
-				case 600..819: itemid = GetRandomAccessory(3);
-				case 820..879: itemid = 193;
-				case 880: itemid = 194;
-				case 881..1099: { itemid = 192; count = 2; }
-				case 1100..1399: { itemid = 191; count = 3; }
-				case 1400..5499: { itemid = GetRandomBooster(); count = 28; }
-				default: { itemid = 195; count = 28; }
+				case 500..599: itemid = 195;
+				case 600..819: itemid = 78;
+				case 820..879: itemid = 191;
+				case 880: itemid = 192;
+				case 881..1099: { itemid = 190; count = 2; }
+				case 1100..1399: { itemid = 189; count = 3; }
+				case 1400..5499: { itemid = 187; count = 28; }
+				default: { itemid = 188; count = 14; }
 			}
 		}
 	}
@@ -6419,42 +6390,117 @@ stock RollBossLootItem(bossid)
 	return loot;
 }
 
+stock GenerateGrade(type, rank)
+{
+	new grade = GRADE_N;
+	new chance = random(101);
+	if(type == 0)
+	{
+		switch(rank)
+		{
+			case 7..9:
+			{
+				switch(chance)
+				{
+					case 0..49: grade = GRADE_N;
+					case 50..73: grade = GRADE_C;
+					case 74..85: grade = GRADE_B;
+					case 86..95: grade = GRADE_A;
+					default: grade = GRADE_S;
+				}
+			}
+			default:
+			{
+				switch(chance)
+				{
+					case 0..49: grade = GRADE_N;
+					case 50..77: grade = GRADE_C;
+					case 78..90: grade = GRADE_B;
+					default: grade = GRADE_A;
+				}
+			}
+		}
+	}
+	else
+	{
+		switch(rank)
+		{
+			case 1:
+			{
+				case 0..59: grade = GRADE_N;
+				default: grade = GRADE_C;
+			}
+			case 2..5:
+			{
+				case 0..54: grade = GRADE_N;
+				case 55..84: grade = GRADE_C;
+				default: grade = GRADE_B;
+			}
+			default:
+			{
+				case 0..49: grade = GRADE_N;
+				case 50..77: grade = GRADE_C;
+				case 78..90: grade = GRADE_B;
+				default: grade = GRADE_A;
+			}
+		}
+	}
+
+	return grade;
+}
+
+stock GetBaseEquipID(type, rank)
+{
+	new id;
+	if(type == 0)
+	{
+		switch(rank)
+		{
+			case 2: id = 5;
+			case 3: id = 9;
+			case 4: id = 13;
+			case 5: id = 17;
+			case 6: id = 21;
+			case 7: id = 29;
+			case 8: id = 34;
+			case 9: id = 39;
+			default: id = 1;
+		}
+	}
+	else
+	{
+		switch(rank)
+		{
+			case 2: id = 47;
+			case 3: id = 50;
+			case 4: id = 53;
+			case 5: id = 56;
+			case 6: id = 59;
+			case 7: id = 63;
+			case 8: id = 67;
+			case 9: id = 71;
+			default: id = 45;
+		}
+	}
+
+	return id;
+}
+
 stock GetRandomEquip(minrank, maxrank, eq_type = RND_EQUIP_TYPE_RANDOM, grade = RND_EQUIP_GRADE_RANDOM)
 {
 	new rank = minrank + random(maxrank-minrank+1) - 1;
 	new type = eq_type == RND_EQUIP_TYPE_RANDOM ? random(2) : eq_type;
-	new baseid = type == 0 ? 1 : 82;
-
-	if(type == 0 && grade == RND_EQUIP_GRADE_RANDOM && CheckChance(30))
-	{
-		if(rank == MAX_RANK)
-			return 242 + rank - 1;
-		return 242 + rank;
-	}
+	new baseid = GetBaseEquipID(type, rank);
 
 	if(type == 0 && rank == 5)
 	{
 		rank += random(2);
-		return baseid + rank * 8 + (grade == RND_EQUIP_GRADE_RANDOM ? random(8) : grade-1);
+		return baseid + rank * 8 + (grade == RND_EQUIP_GRADE_RANDOM ? GenerateGrade(type, rank)-1 : grade-1);
 	}
 	if(type == 0 && rank > 5)
-		return baseid + (rank+1) * 8 + (grade == RND_EQUIP_GRADE_RANDOM ? random(8) : grade-1);
-	return baseid + rank * 8 + (grade == RND_EQUIP_GRADE_RANDOM ? random(8) : grade-1);
-}
+		return baseid + (rank+1) * 8 + (grade == RND_EQUIP_GRADE_RANDOM ? GenerateGrade(type, rank)-1 : grade-1);
 
-stock GetRandomAccessory(type)
-{
-	return 154 + type * 7 + random(7);
-}
-
-stock GetRandomBooster()
-{
-	return 196 + random(6);
-}
-
-stock GetRandomStone()
-{
-	return 187 + random(4);
+	return baseid + rank * 8 + (grade == RND_EQUIP_GRADE_RANDOM ? GenerateGrade(type, rank)-1 : grade-1);
 }
 
 stock DebugLogInt(msg[], variable)
