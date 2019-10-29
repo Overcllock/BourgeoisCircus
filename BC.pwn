@@ -62,6 +62,7 @@
 #define DEFAULT_CRIT_MULT 1.2
 #define DEFAULT_CRIT_MULT_REDUCTION 0.0
 #define DEFAULT_CRIT_REDUCTION 0
+#define DEFAULT_VAMP 0.0
 #define DEFAULT_POS_X -2170.3948
 #define DEFAULT_POS_Y 645.6729
 #define DEFAULT_POS_Z 1057.5938
@@ -235,7 +236,7 @@ enum MarketItem
 	Owner[255],
 	Mod,
 	Property[MAX_PROPERTIES],
-	PropertyVal[MAX_PROPERTIES]
+	Float:PropertyVal[MAX_PROPERTIES]
 };
 enum tInfo
 {
@@ -258,10 +259,10 @@ enum BossInfo
 	HP,
 	AttackRate,
 	DefenseRate,
-	CritMult,
+	Float:CritMult,
 	CritReduction,
-	CritMultReduction,
-	Vamp
+	Float:CritMultReduction,
+	Float:Vamp
 };
 enum LootInfo
 {
@@ -273,6 +274,7 @@ enum RewardInfo
 {
 	ItemID,
 	ItemsCount,
+	Mod,
 	Money
 };
 enum pvpInf
@@ -298,7 +300,7 @@ enum iInfo
 	ID,
 	Mod,
 	Property[MAX_PROPERTIES],
-	PropertyVal[MAX_PROPERTIES],
+	Float:PropertyVal[MAX_PROPERTIES],
 	Count,
 };
 enum BaseItem 
@@ -342,10 +344,10 @@ enum pInfo
 	Accuracy,
 	AttackRate,
 	DefenseRate,
-	CritMult,
+	Float:CritMult,
 	CritReduction,
-	CritMultReduction,
-	Vamp,
+	Float:CritMultReduction,
+	Float:Vamp,
 	GlobalTopPosition,
 	LocalTopPosition,
 	WalkersLimit,
@@ -357,13 +359,13 @@ enum pInfo
 	WeaponMod,
 	ArmorMod,
 	WeaponProperty[MAX_PROPERTIES],
-	WeaponPropertyVal[MAX_PROPERTIES],
+	Float:WeaponPropertyVal[MAX_PROPERTIES],
 	ArmorProperty[MAX_PROPERTIES],
-	ArmorPropertyVal[MAX_PROPERTIES],
+	Float:ArmorPropertyVal[MAX_PROPERTIES],
 	Acc1Property[MAX_PROPERTIES],
-	Acc1PropertyVal[MAX_PROPERTIES],
+	Float:Acc1PropertyVal[MAX_PROPERTIES],
 	Acc2Property[MAX_PROPERTIES],
-	Acc2PropertyVal[MAX_PROPERTIES]
+	Float:Acc2PropertyVal[MAX_PROPERTIES]
 };
 enum wInfo
 {
@@ -381,10 +383,10 @@ enum wInfo
 	Crit,
 	AttackRate,
 	DefenseRate,
-	CritMult,
+	Float:CritMult,
 	CritReduction,
-	CritMultReduction,
-	Vamp,
+	Float:CritMultReduction,
+	Float:Vamp,
 	WeaponID
 };
 
@@ -415,7 +417,6 @@ new WalkerLootPickups[MAX_PLAYERS][MAX_WALKER_LOOT];
 new WalkerLootItems[MAX_PLAYERS][MAX_WALKER_LOOT][LootInfo];
 
 new ModItemSlot[MAX_PLAYERS] = -1;
-new ModStone[MAX_PLAYERS] = -1;
 new ModPotion[MAX_PLAYERS] = -1;
 new IsSlotsBlocked[MAX_PLAYERS] = false;
 
@@ -475,10 +476,11 @@ new EmptyInvItem[iInfo] = {
 	-1,
 	0,
 	{-1,-1,-1,-1,-1,-1,-1},
-	{0,0,0,0,0,0,0},
+	{0.0,0.0,0.0,0.0,0.0,0.0,0.0},
 	0
 };
 new PROP_CLEAR[MAX_PROPERTIES] = {-1,-1,-1,-1,-1,-1,-1};
+new Float:PROP_VAL_CLEAR[MAX_PROPERTIES] = {0.0,0.0,0.0,0.0,0.0,0.0,0.0};
 new EmptyMarketSellingItem[MarketItem] = {
 	-1,
 	-1,
@@ -488,7 +490,7 @@ new EmptyMarketSellingItem[MarketItem] = {
 	"None",
 	0,
 	{-1,-1,-1,-1,-1,-1,-1},
-	{0,0,0,0,0,0,0}
+	{0.0,0.0,0.0,0.0,0.0,0.0,0.0}
 };
 new BossesNames[MAX_BOSSES][128] = {
 	{"BOSS_Edemsky"},
@@ -550,11 +552,12 @@ new HexRateColors[MAX_RANK][1] = {
 	{0x6d9eebff}
 };
 new HexGradeColors[MAX_GRADES][1] = {
-	{0xCCCCCCFF},
-	{0xFFCC00FF},
-	{0xCC6600FF},
-	{0x9966FFFF},
-	{0x3399FFFF}
+	{0xCCCCCCFF}, //N
+	{0xFFCC00FF}, //D
+	{0x33CC00FF}, //C
+	{0x0099FFFF}, //B
+	{0xCC33FFFF}, //A
+	{0xFF9900FF} //S
 };
 new HexTeamColors[MAX_TEAMCOLORS][1] = {
 	{0x339999FF},
@@ -614,13 +617,12 @@ new PlayerText:EqInfClose[MAX_PLAYERS];
 new PlayerText:EqInfDelim1[MAX_PLAYERS];
 new PlayerText:EqInfItemName[MAX_PLAYERS];
 new PlayerText:EqInfItemIcon[MAX_PLAYERS];
+new PlayerText:EqInfItemType[MAX_PLAYERS];
+new PlayerText:EqInfItemRank[MAX_PLAYERS];
+new PlayerText:EqInfPropTxt[MAX_PLAYERS];
 new PlayerText:EqInfMainStat[MAX_PLAYERS];
-new PlayerText:EqInfBonusStat[MAX_PLAYERS][2];
-new PlayerText:EqInfDelim2[MAX_PLAYERS];
 new PlayerText:EqInfDelim3[MAX_PLAYERS];
-new PlayerText:EqInfTxt2[MAX_PLAYERS];
-new PlayerText:EqInfMod[MAX_PLAYERS][MAX_MOD];
-new PlayerText:EqInfModStat[MAX_PLAYERS][4];
+new PlayerText:EqInfProp[MAX_PLAYERS][MAX_PROPERTIES];
 new PlayerText:EqInfDelim4[MAX_PLAYERS];
 new PlayerText:EqInfDescriptionStr[MAX_PLAYERS][3];
 new PlayerText:EqInfDelim5[MAX_PLAYERS];
@@ -632,7 +634,6 @@ new PlayerText:InfDelim1[MAX_PLAYERS];
 new PlayerText:InfItemIcon[MAX_PLAYERS];
 new PlayerText:InfItemName[MAX_PLAYERS];
 new PlayerText:InfItemType[MAX_PLAYERS];
-new PlayerText:InfItemEffect[MAX_PLAYERS][2];
 new PlayerText:InfDelim2[MAX_PLAYERS];
 new PlayerText:InfDescriptionStr[MAX_PLAYERS][3];
 new PlayerText:InfDelim3[MAX_PLAYERS];
@@ -642,15 +643,21 @@ new PlayerText:InfClose[MAX_PLAYERS];
 new PlayerText:UpgBox[MAX_PLAYERS];
 new PlayerText:UpgTxt1[MAX_PLAYERS];
 new PlayerText:UpgDelim1[MAX_PLAYERS];
-new PlayerText:UpgModInfo[MAX_PLAYERS];
 new PlayerText:UpgItemSlot[MAX_PLAYERS];
 new PlayerText:UpgTxt2[MAX_PLAYERS];
-new PlayerText:UpgStoneSlot[MAX_PLAYERS];
 new PlayerText:UpgTxt3[MAX_PLAYERS];
 new PlayerText:UpgPotionSlot[MAX_PLAYERS];
-new PlayerText:UpgTxt4[MAX_PLAYERS];
+new PlayerText:UpgPotionCount[MAX_PLAYERS];
+new PlayerText:UpgDefSlot[MAX_PLAYERS];
+new PlayerText:UpgDefCount[MAX_PLAYERS];
 new PlayerText:UpgBtn[MAX_PLAYERS];
+new PlayerText:UpgSafeBtn[MAX_PLAYERS];
 new PlayerText:UpgClose[MAX_PLAYERS];
+new PlayerText:UpgOldItemTxt[MAX_PLAYERS];
+new PlayerText:UpgNewItemTxt[MAX_PLAYERS];
+new PlayerText:UpgArrow[MAX_PLAYERS];
+new PlayerText:UpgMainTxt[MAX_PLAYERS];
+new PlayerText:UpgCongrTxt[MAX_PLAYERS];
 
 new PlayerText:CmbBox[MAX_PLAYERS];
 new PlayerText:CmbTxt1[MAX_PLAYERS];
@@ -743,7 +750,7 @@ cmd:giveitem(playerid, params[])
 	
 	new ok = false;
 	if(IsEquip(itemid))
-		ok = AddEquip(playerid, itemid, MOD_CLEAR);
+		ok = AddEquip(playerid, itemid);
 	else
 		ok = AddItem(playerid, itemid, count);
 
@@ -1230,11 +1237,11 @@ public OnPlayerGiveDamage(playerid, damagedid, Float:amount, weaponid, bodypart)
 	else if(is_crit)
 	{
 		new Float:mult;
-		mult = floatsub(PlayerInfo[playerid][CritMult], PlayerInfo[damagedid][CritMulRed]);
+		mult = floatsub(PlayerInfo[playerid][CritMult], PlayerInfo[damagedid][CritMultReduction]);
 		if(mult <= 0)
 			mult = 0.01;
 
-		damage = floatround(floatmul(floatmul(damage, mult), floatsub(1.0, floatdiv(PlayerInfo[damagedid][CritRed], 100))));
+		damage = floatround(floatmul(floatmul(damage, mult), floatsub(1.0, floatdiv(PlayerInfo[damagedid][CritReduction], 100))));
 		if(damage <= 0)
 			damage = 1;
 	}
@@ -2247,7 +2254,7 @@ public OnDialogResponse(playerid, dialogid, response, listitem, inputtext[])
 				item = GetItem(itemid);
 				PlayerInfo[playerid][Cash] -= item[Price];
 				GivePlayerMoney(playerid, -item[Price]);
-				AddEquip(playerid, itemid, MOD_CLEAR);
+				AddEquip(playerid, itemid);
 				ShowPlayerDialog(playerid, 1, DIALOG_STYLE_MSGBOX, "Покупка", "{66CC00}Предмет куплен.", "Закрыть", "");
 			}
 			return 1;
@@ -2311,7 +2318,7 @@ public OnDialogResponse(playerid, dialogid, response, listitem, inputtext[])
 				item = GetItem(itemid);
 				PlayerInfo[playerid][Cash] -= item[Price];
 				GivePlayerMoney(playerid, -item[Price]);
-				AddEquip(playerid, itemid, MOD_CLEAR);
+				AddEquip(playerid, itemid);
 				ShowPlayerDialog(playerid, 1, DIALOG_STYLE_MSGBOX, "Покупка", "{66CC00}Предмет куплен.", "Закрыть", "");
 			}
 			return 1;
@@ -2672,7 +2679,7 @@ public OnDialogResponse(playerid, dialogid, response, listitem, inputtext[])
 					
 					SetPVarInt(playerid, "MarketBuyItemListID", listitem);
 					new iinfo[2048];
-					iinfo = GetMarketItemDesc(item);
+					iinfo = GetMarketItemDesc(listitem, category);
 					ShowPlayerDialog(playerid, 1107, DIALOG_STYLE_INPUT, "Рынок", iinfo, "Купить", "Отмена");
 				}
 			}
@@ -2784,10 +2791,10 @@ public OnDialogResponse(playerid, dialogid, response, listitem, inputtext[])
 			if(response)
 			{
 				new category = GetPVarInt(playerid, "MarketBuyCategory");
-				new listitem = GetPVarInt(playerid, "MarketBuyItemListID");
+				new _listitem = GetPVarInt(playerid, "MarketBuyItemListID");
 
 				new item[MarketItem];
-				item = GetMarketItem(listitem, category);
+				item = GetMarketItem(_listitem, category);
 
 				if(PlayerInfo[playerid][Cash] < item[Price])
 				{
@@ -2931,15 +2938,19 @@ public OnPlayerClickPlayerTextDraw(playerid, PlayerText:playertextid)
 		new item[BaseItem];
 		item = GetItem(itemid);
 
-		if(item[Type] == ITEMTYPE_BOX || item[Type] == ITEMTYPE_PASSIVE || item[Type] == ITEMTYPE_MODIFIER)
+		if(item[Type] == ITEMTYPE_BOX || item[Type] == ITEMTYPE_PASSIVE)
 		{
 			ShowPlayerDialog(playerid, 1, DIALOG_STYLE_MSGBOX, "Ошибка", "Этот предмет нельзя продать.", "Закрыть", "");
 			return 0;
 		}
 
 		MarketSellingItem[playerid][ID] = itemid;
-		for(new i = 0; i < MAX_MOD; i++)
-			MarketSellingItem[playerid][Mod][i] = PlayerInventory[playerid][SelectedSlot[playerid]][Mod][i];
+		MarketSellingItem[playerid][Mod] = PlayerInventory[playerid][SelectedSlot[playerid]][Mod];
+		for(new i = 0; i < MAX_PROPERTIES; i++)
+		{
+			MarketSellingItem[playerid][Property][i] = PlayerInventory[playerid][SelectedSlot[playerid]][Property][i];
+			MarketSellingItem[playerid][PropertyVal][i] = PlayerInventory[playerid][SelectedSlot[playerid]][PropertyVal][i];
+		}
 		MarketSellingItem[playerid][Count] = 1;
 		MarketSellingItem[playerid][Price] = item[Price] / 2;
 		MarketSellingItem[playerid][rTime] = 3;
@@ -2983,8 +2994,10 @@ public OnPlayerClickPlayerTextDraw(playerid, PlayerText:playertextid)
 			return 0;
 		}
 
-		AddEquip(playerid, PlayerInfo[playerid][AccSlot1ID], MOD_CLEAR);
+		AddEquipEx(playerid, PlayerInfo[playerid][AccSlot1ID], 0, PlayerInfo[playerid][Acc1Property], PlayerInfo[playerid][Acc1PropertyVal]);
 		PlayerInfo[playerid][AccSlot1ID] = -1;
+		PlayerInfo[playerid][Acc1Property] = PROP_CLEAR;
+		PlayerInfo[playerid][Acc1PropertyVal] = PROP_VAL_CLEAR;
 		UpdatePlayerStats(playerid);
 
 		if(IsInventoryOpen[playerid])
@@ -3000,8 +3013,10 @@ public OnPlayerClickPlayerTextDraw(playerid, PlayerText:playertextid)
 			return 0;
 		}
 
-		AddEquip(playerid, PlayerInfo[playerid][AccSlot2ID], MOD_CLEAR);
+		AddEquipEx(playerid, PlayerInfo[playerid][AccSlot2ID], 0, PlayerInfo[playerid][Acc2Property], PlayerInfo[playerid][Acc2PropertyVal]);
 		PlayerInfo[playerid][AccSlot2ID] = -1;
+		PlayerInfo[playerid][Acc2Property] = PROP_CLEAR;
+		PlayerInfo[playerid][Acc2PropertyVal] = PROP_VAL_CLEAR;
 		UpdatePlayerStats(playerid);
 
 		if(IsInventoryOpen[playerid])
@@ -3052,8 +3067,8 @@ public OnPlayerClickPlayerTextDraw(playerid, PlayerText:playertextid)
 			return 0;
 
 		new itemid = PlayerInventory[playerid][SelectedSlot[playerid]][ID];
-		if(IsModifiableEquip(itemid))
-			ShowEquipInfo(playerid, itemid, PlayerInventory[playerid][SelectedSlot[playerid]][Mod]);
+		if(IsEquip(itemid))
+			ShowEquipInfo(playerid, SelectedSlot[playerid], itemid);
 		else
 			ShowItemInfo(playerid, itemid);
 	}
@@ -3092,7 +3107,7 @@ public OnPlayerClickPlayerTextDraw(playerid, PlayerText:playertextid)
 			new itemid = PlayerInventory[playerid][SelectedSlot[playerid]][ID];
 			if(IsModifiableEquip(itemid))
 			{
-				if(GetModLevel(PlayerInventory[playerid][SelectedSlot[playerid]][Mod]) == MAX_MOD)
+				if(PlayerInventory[playerid][SelectedSlot[playerid]][Mod] == MAX_MOD)
 				{
 					ShowPlayerDialog(playerid, 1, DIALOG_STYLE_MSGBOX, "Модификация", "Этот предмет достиг максимального уровня модификации.", "Закрыть", "");
 					return 0;
@@ -3107,49 +3122,6 @@ public OnPlayerClickPlayerTextDraw(playerid, PlayerText:playertextid)
 			}
 		}
 		ShowPlayerDialog(playerid, 1, DIALOG_STYLE_MSGBOX, "Модификация", "Выберите предмет.", "Закрыть", "");
-	}
-	else if(playertextid == UpgItemSlot[playerid])
-	{
-		if(SelectedSlot[playerid] == -1) return 0;
-		new itemid = PlayerInventory[playerid][SelectedSlot[playerid]][ID];
-		if(itemid == -1) return 0;
-		if(!IsModifiableEquip(itemid)) return 0;
-		if(GetModLevel(PlayerInventory[playerid][SelectedSlot[playerid]][Mod]) == MAX_MOD)
-		{
-			ShowPlayerDialog(playerid, 1, DIALOG_STYLE_MSGBOX, "Модификация", "Этот предмет достиг максимального уровня модификации.", "Закрыть", "");
-			return 0;
-		}
-
-		ModItemSlot[playerid] = SelectedSlot[playerid];
-		ModStone[playerid] = -1;
-		ModPotion[playerid] = -1;
-		UpdateModWindow(playerid);
-	}
-	else if(playertextid == UpgStoneSlot[playerid])
-	{
-		if(SelectedSlot[playerid] == -1) return 0;
-		new itemid = PlayerInventory[playerid][SelectedSlot[playerid]][ID];
-		if(itemid == -1) return 0;
-		if(!IsModStone(itemid)) return 0;
-		if(ModItemSlot[playerid] == -1)
-		{
-			ShowPlayerDialog(playerid, 1, DIALOG_STYLE_MSGBOX, "Модификация", "Не выбран предмет для модификации.", "Закрыть", "");
-			return 0;
-		}
-
-		new equip[BaseItem];
-		equip = GetItem(PlayerInventory[playerid][ModItemSlot[playerid]][ID]);
-		if( ((itemid == 187 || itemid == 189) && equip[Type] == ITEMTYPE_WEAPON) ||
-			((itemid == 188 || itemid == 190) && equip[Type] == ITEMTYPE_ARMOR) )
-		{
-			ModStone[playerid] = itemid;
-			UpdateModWindow(playerid);
-		}
-		else
-		{
-			ShowPlayerDialog(playerid, 1, DIALOG_STYLE_MSGBOX, "Модификация", "Нельзя использовать этот камень.", "Закрыть", "");
-			return 0;
-		}
 	}
 	else if(playertextid == UpgPotionSlot[playerid])
 	{
@@ -3169,8 +3141,17 @@ public OnPlayerClickPlayerTextDraw(playerid, PlayerText:playertextid)
 	else if(playertextid == UpgBtn[playerid])
 	{
 		if(ModItemSlot[playerid] == -1) return 0;
-		if(ModStone[playerid] == -1) return 0;
 		UpgradeItem(playerid, ModItemSlot[playerid], ModPotion[playerid]);
+		UpdateModWindow(playerid);
+	}
+	else if(playertextid == UpgSafeBtn[playerid])
+	{
+		if(ModItemSlot[playerid] == -1) return 0;
+		new def_count = GetDefCount(PlayerInventory[playerid][ModItemSlot[playerid]][Mod]+1);
+		if(def_count > 0 && !HasItem(playerid, 188, def_count))
+			return ShowPlayerDialog(playerid, 1, DIALOG_STYLE_MSGBOX, "Модификация", "Недостаточно печатей.", "Закрыть", "");
+
+		UpgradeItem(playerid, ModItemSlot[playerid], ModPotion[playerid], true);
 		UpdateModWindow(playerid);
 	}
 	else if(playertextid == InfClose[playerid])
@@ -4367,7 +4348,7 @@ stock UpdateMarketItems()
 			new owner[255];
 			new mod;
 			new props[MAX_PROPERTIES];
-			new prop_vals[MAX_PROPERTIES];
+			new Float:prop_vals[MAX_PROPERTIES];
 			new string[255];
 
 			cache_get_value_name_int(i, "ItemID", itemid);
@@ -4402,8 +4383,12 @@ stock UpdateMarketItems()
 	cache_delete(q_result);
 }
 
-stock GetMarketItemDesc(item[])
+stock GetMarketItemDesc(listitem, category)
 {
+	new item[MarketItem];
+	item = GetMarketItem(listitem, category);
+	new desc[2048] = "Описание";
+	return desc;
 	//TODO
 }
 
@@ -4434,7 +4419,7 @@ stock GetMarketItem(id, category)
 	cache_get_value_name(id, "ItemProps", string);
 	sscanf(string, "a<i>[7]", item[Property]);
 	cache_get_value_name(id, "ItemPropVals", string);
-	sscanf(string, "a<i>[7]", item[PropertyVal]);
+	sscanf(string, "a<f>[7]", item[PropertyVal]);
 
 	cache_delete(q_result);
 	return item;
@@ -4467,7 +4452,7 @@ stock GetMarketItemByLotID(id)
 	cache_get_value_name(id, "ItemProps", string);
 	sscanf(string, "a<i>[7]", item[Property]);
 	cache_get_value_name(id, "ItemPropVals", string);
-	sscanf(string, "a<i>[7]", item[PropertyVal]);
+	sscanf(string, "a<f>[7]", item[PropertyVal]);
 
 	cache_delete(q_result);
 	return item;
@@ -4493,7 +4478,7 @@ stock AddItemToMarket(playerid, slotid, lotid, category, time = 3)
 	id++;
 
 	format(query, sizeof(query), "INSERT INTO `marketplace`(`ID`, `Owner`, `ItemID`, `Category`, `ItemCount`, `ItemMod`, `ItemProps`, `ItemPropVals`, `Price`, `Time`) VALUES ('%d','%s','%d','%d','%d','%d','%s','%s','%d','%d')",
-		id, item[Owner], item[ID], category, item[Count], item[Mod], ArrayToString(item[Property], MAX_PROPERTIES), ArrayToString(item[PropertyVal], MAX_PROPERTIES), item[Price], time
+		id, item[Owner], item[ID], category, item[Count], item[Mod], ArrayToString(item[Property], MAX_PROPERTIES), FloatArrayToString(item[PropertyVal], MAX_PROPERTIES), item[Price], time
 	);
 	new Cache:sq_result = mysql_query(sql_handle, query);
 	cache_delete(sq_result);
@@ -4581,7 +4566,7 @@ stock RegisterMarketItem(playerid, category)
 	new query[255];
 	format(query, sizeof(query), "INSERT INTO `marketplace`(`ID`, `Owner`, `ItemID`, `Category`, `ItemCount`, `ItemMod`, `ItemProps`, `ItemPropVals`, `Price`, `Time`) VALUES ('%d', '%s', '%d', '%d', '%d', '%d', '%s', '%s', '%d', '%d')",
 		MarketSellingItem[playerid][LotID], MarketSellingItem[playerid][Owner], MarketSellingItem[playerid][ID], category, MarketSellingItem[playerid][Count],
-		MarketSellingItem[playerid][Mod], ArrayToString(MarketSellingItem[playerid][Property], MAX_PROPERTIES), ArrayToString(MarketSellingItem[playerid][PropertyVal], MAX_PROPERTIES), 
+		MarketSellingItem[playerid][Mod], ArrayToString(MarketSellingItem[playerid][Property], MAX_PROPERTIES), FloatArrayToString(MarketSellingItem[playerid][PropertyVal], MAX_PROPERTIES), 
 		MarketSellingItem[playerid][Price], MarketSellingItem[playerid][rTime]
 	);
 	new Cache:q_result = mysql_query(sql_handle, query);
@@ -4744,7 +4729,13 @@ stock ShowMarketSellingItems(playerid, category, content[])
 	else
 		listitems = "Предмет (улучшения)\tЦена\tВладелец\tВремя регистрации";
 	strcat(listitems, content);
-	ShowPlayerDialog(playerid, 1101, DIALOG_STYLE_TABLIST_HEADERS, "Рынок", listitems, category == MARKET_CATEGORY_MATERIAL ? "Купить" : "Посмотреть", "Назад");
+
+	new but_str[32];
+	if(category == MARKET_CATEGORY_MATERIAL)
+		but_str = "Купить";
+	else
+		but_str = "Посмотреть";
+	ShowPlayerDialog(playerid, 1101, DIALOG_STYLE_TABLIST_HEADERS, "Рынок", listitems, but_str, "Назад");
 }
 
 stock ShowMarketMyItems(playerid, content[])
@@ -5084,7 +5075,7 @@ stock ClaimMail(playerid, num)
 
 	new string[255];
 	new prop[MAX_PROPERTIES];
-	new prop_vals[MAX_PROPERTIES];
+	new Float:prop_vals[MAX_PROPERTIES];
 	cache_get_value_name(num, "ItemProps", string);
 	sscanf(string, "a<i>[7]", prop);
 	cache_get_value_name(num, "ItemPropVals", string);
@@ -6427,21 +6418,30 @@ stock GenerateGrade(type, rank)
 		{
 			case 1:
 			{
-				case 0..59: grade = GRADE_N;
-				default: grade = GRADE_C;
+				switch(chance)
+				{
+					case 0..59: grade = GRADE_N;
+					default: grade = GRADE_C;
+				}
 			}
 			case 2..5:
 			{
-				case 0..54: grade = GRADE_N;
-				case 55..84: grade = GRADE_C;
-				default: grade = GRADE_B;
+				switch(chance)
+				{
+					case 0..54: grade = GRADE_N;
+					case 55..84: grade = GRADE_C;
+					default: grade = GRADE_B;
+				}
 			}
 			default:
 			{
-				case 0..49: grade = GRADE_N;
-				case 50..77: grade = GRADE_C;
-				case 78..90: grade = GRADE_B;
-				default: grade = GRADE_A;
+				switch(chance)
+				{
+					case 0..49: grade = GRADE_N;
+					case 50..77: grade = GRADE_C;
+					case 78..90: grade = GRADE_B;
+					default: grade = GRADE_A;
+				}
 			}
 		}
 	}
@@ -6618,55 +6618,6 @@ stock UpdatePlayerWeapon(playerid)
 		GivePlayerWeapon(playerid, weaponid, 999999);
 }
 
-stock UpdatePlayerStats(playerid)
-{
-	new weapon_damage[2];
-	new default_damage[2];
-	default_damage = GetWeaponBaseDamage(PlayerInfo[playerid][WeaponSlotID]);
-	weapon_damage[0] = GetEquipModifiedValue(default_damage[0], PlayerInfo[playerid][WeaponMod]);
-	weapon_damage[1] = GetEquipModifiedValue(default_damage[1], PlayerInfo[playerid][WeaponMod]);
-	PlayerInfo[playerid][DamageMin] = weapon_damage[0];
-	PlayerInfo[playerid][DamageMax] = weapon_damage[1];
-	
-	new armor_defense;
-	new default_defense;
-	default_defense = GetArmorBaseDefense(PlayerInfo[playerid][ArmorSlotID]);
-	armor_defense = GetEquipModifiedValue(default_defense, PlayerInfo[playerid][ArmorMod]));
-	PlayerInfo[playerid][Defense] = armor_defense;
-
-	PlayerInfo[playerid][Accuracy] = DEFAULT_ACCURACY + GetPlayerPropValue(playerid, PROPERTY_ACCURACY) + PlayerInfo[playerid][Rank] * 10;
-	PlayerInfo[playerid][Dodge] = DEFAULT_DODGE + GetPlayerPropValue(playerid, PROPERTY_DODGE) + PlayerInfo[playerid][Rank] * 10;
-	PlayerInfo[playerid][Crit] = DEFAULT_CRIT + GetPlayerPropValue(playerid, PROPERTY_CRIT) + PlayerInfo[playerid][Rank] * 2;
-	PlayerInfo[playerid][CritMult] = DEFAULT_CRIT_MULT + GetPlayerPropValue(playerid, PROPERTY_CRIT_MULT);
-	PlayerInfo[playerid][CritMultReduction] = DEFAULT_CRIT_MULT_REDUCTION + GetPlayerPropValue(playerid, PROPERTY_CRIT_MULT_REDUCTION);
-	PlayerInfo[playerid][CritReduction] = DEFAULT_CRIT_REDUCTION + GetPlayerPropValue(playerid, PROPERTY_CRIT_REDUCTION);
-	PlayerInfo[playerid][Vamp] = GetPlayerPropValue(playerid, PROPERTY_VAMP);
-	PlayerInfo[playerid][AttackRate] = DEFAULT_ATTACK_RATE + GetPlayerPropValue(playerid, PROPERTY_DAMAGE_RATE) + PlayerInfo[playerid][Rank] * 12;
-	PlayerInfo[playerid][DefenseRate] = DEFAULT_DEFENSE_RATE + GetPlayerPropValue(playerid, PROPERTY_DEFENSE_RATE) + PlayerInfo[playerid][Rank] * 11;
-
-	PlayerInfo[playerid][DamageMin] += GetPlayerPropValue(playerid, PROPERTY_DAMAGE);
-	PlayerInfo[playerid][DamageMax] += GetPlayerPropValue(playerid, PROPERTY_DAMAGE);
-	PlayerInfo[playerid][Defense] += GetPlayerPropValue(playerid, PROPERTY_DEFENSE);
-
-	new damage_multiplier = 100;
-	new defense_multiplier = 100;
-
-	damage_multiplier += GetPlayerPropValue(playerid, PROPERTY_DAMAGE_PERCENTAGE);
-	defense_multiplier += GetPlayerPropValue(playerid, PROPERTY_DEFENSE_PERCENTAGE);
-
-	PlayerInfo[playerid][DamageMin] = (PlayerInfo[playerid][DamageMin] * damage_multiplier) / 100;
-	PlayerInfo[playerid][DamageMax] = (PlayerInfo[playerid][DamageMax] * damage_multiplier) / 100;
-	PlayerInfo[playerid][Defense] = (PlayerInfo[playerid][Defense] * defense_multiplier) / 100;
-
-	UpdatePlayerMaxHP(playerid);
-	new hp_multiplier = 100 + GetPlayerPropValue(playerid, PROPERTY_HP);
-	new Float:new_max_hp = floatmul(MaxHP[playerid], floatdiv(hp_multiplier, 100));
-	SetPlayerMaxHP(playerid, new_max_hp, true);
-
-	if(IsInventoryOpen[playerid] && !FCNPC_IsValid(playerid))
-		UpdatePlayerStatsVisual(playerid);
-}
-
 stock Float:GetPlayerPropValue(playerid, prop)
 {
 	new Float:value = 0;
@@ -6688,6 +6639,55 @@ stock Float:GetPlayerPropValue(playerid, prop)
 		value = floatadd(value, 5);
 	
 	return value;
+}
+
+stock UpdatePlayerStats(playerid)
+{
+	new weapon_damage[2];
+	new default_damage[2];
+	default_damage = GetWeaponBaseDamage(PlayerInfo[playerid][WeaponSlotID]);
+	weapon_damage[0] = GetEquipModifiedValue(default_damage[0], PlayerInfo[playerid][WeaponMod]);
+	weapon_damage[1] = GetEquipModifiedValue(default_damage[1], PlayerInfo[playerid][WeaponMod]);
+	PlayerInfo[playerid][DamageMin] = weapon_damage[0];
+	PlayerInfo[playerid][DamageMax] = weapon_damage[1];
+	
+	new armor_defense;
+	new default_def;
+	default_def = GetArmorBaseDefense(PlayerInfo[playerid][ArmorSlotID]);
+	armor_defense = GetEquipModifiedValue(default_def, PlayerInfo[playerid][ArmorMod]);
+	PlayerInfo[playerid][Defense] = armor_defense;
+
+	PlayerInfo[playerid][Accuracy] = DEFAULT_ACCURACY + floatround(GetPlayerPropValue(playerid, PROPERTY_ACCURACY)) + PlayerInfo[playerid][Rank] * 10;
+	PlayerInfo[playerid][Dodge] = DEFAULT_DODGE + floatround(GetPlayerPropValue(playerid, PROPERTY_DODGE)) + PlayerInfo[playerid][Rank] * 10;
+	PlayerInfo[playerid][Crit] = DEFAULT_CRIT + floatround(GetPlayerPropValue(playerid, PROPERTY_CRIT)) + PlayerInfo[playerid][Rank] * 2;
+	PlayerInfo[playerid][CritMult] = floatadd(DEFAULT_CRIT_MULT, GetPlayerPropValue(playerid, PROPERTY_CRIT_MULT));
+	PlayerInfo[playerid][CritMultReduction] = floatadd(DEFAULT_CRIT_MULT_REDUCTION, GetPlayerPropValue(playerid, PROPERTY_CRIT_MULT_REDUCTION));
+	PlayerInfo[playerid][CritReduction] = DEFAULT_CRIT_REDUCTION + floatround(GetPlayerPropValue(playerid, PROPERTY_CRIT_REDUCTION));
+	PlayerInfo[playerid][Vamp] = GetPlayerPropValue(playerid, PROPERTY_VAMP);
+	PlayerInfo[playerid][AttackRate] = DEFAULT_ATTACK_RATE + floatround(GetPlayerPropValue(playerid, PROPERTY_DAMAGE_RATE)) + PlayerInfo[playerid][Rank] * 12;
+	PlayerInfo[playerid][DefenseRate] = DEFAULT_DEFENSE_RATE + floatround(GetPlayerPropValue(playerid, PROPERTY_DEFENSE_RATE)) + PlayerInfo[playerid][Rank] * 11;
+
+	PlayerInfo[playerid][DamageMin] += floatround(GetPlayerPropValue(playerid, PROPERTY_DAMAGE));
+	PlayerInfo[playerid][DamageMax] += floatround(GetPlayerPropValue(playerid, PROPERTY_DAMAGE));
+	PlayerInfo[playerid][Defense] += floatround(GetPlayerPropValue(playerid, PROPERTY_DEFENSE));
+
+	new damage_multiplier = 100;
+	new defense_multiplier = 100;
+
+	damage_multiplier += floatround(GetPlayerPropValue(playerid, PROPERTY_DAMAGE_PERCENTAGE));
+	defense_multiplier += floatround(GetPlayerPropValue(playerid, PROPERTY_DEFENSE_PERCENTAGE));
+
+	PlayerInfo[playerid][DamageMin] = (PlayerInfo[playerid][DamageMin] * damage_multiplier) / 100;
+	PlayerInfo[playerid][DamageMax] = (PlayerInfo[playerid][DamageMax] * damage_multiplier) / 100;
+	PlayerInfo[playerid][Defense] = (PlayerInfo[playerid][Defense] * defense_multiplier) / 100;
+
+	UpdatePlayerMaxHP(playerid);
+	new hp_multiplier = 100 + floatround(GetPlayerPropValue(playerid, PROPERTY_HP));
+	new Float:new_max_hp = floatmul(MaxHP[playerid], floatdiv(hp_multiplier, 100));
+	SetPlayerMaxHP(playerid, new_max_hp, true);
+
+	if(IsInventoryOpen[playerid] && !FCNPC_IsValid(playerid))
+		UpdatePlayerStatsVisual(playerid);
 }
 
 stock UndressEquip(playerid, type)
@@ -6725,7 +6725,7 @@ stock UndressEquip(playerid, type)
 			}
 			else if(PlayerInfo[playerid][AccSlot2ID] != -1)
 			{
-				AddEquip(playerid, PlayerInfo[playerid][AccSlot2ID], 0, PlayerInfo[playerid][Acc2Property], PlayerInfo[playerid][Acc2PropertyVal]);
+				AddEquipEx(playerid, PlayerInfo[playerid][AccSlot2ID], 0, PlayerInfo[playerid][Acc2Property], PlayerInfo[playerid][Acc2PropertyVal]);
 				PlayerInfo[playerid][AccSlot2ID] = -1;
 				PlayerInfo[playerid][Acc2Property] = PROP_CLEAR;
 				PlayerInfo[playerid][Acc2PropertyVal] = PROP_VAL_CLEAR;
@@ -6748,7 +6748,7 @@ stock EquipItem(playerid, type, slot)
 
 	new mod;
 	new prop[MAX_PROPERTIES];
-	new prop_vals[MAX_PROPERTIES];
+	new Float:prop_vals[MAX_PROPERTIES];
 
 	mod = PlayerInventory[playerid][slot][Mod];
 	for(new i = 0; i < MAX_PROPERTIES; i++)
@@ -7006,7 +7006,7 @@ stock SaveInventorySlot(playerid, slot)
 	new query[255];
 	format(query, sizeof(query), "UPDATE `inventories` SET `ItemID` = '%d', `Count` = '%d', `SlotMod` = '%d', `SlotProps` = '%s', `SlotPropVals` = '%s' WHERE `PlayerName` = '%s' AND `SlotID` = '%d' LIMIT 1", 
 		PlayerInventory[playerid][slot][ID], PlayerInventory[playerid][slot][Count], PlayerInventory[playerid][slot][Mod], 
-		ArrayToString(PlayerInventory[playerid][slot][Property], MAX_PROPERTIES), ArrayToString(PlayerInventory[playerid][slot][PropertyVal], MAX_PROPERTIES), name, slot
+		ArrayToString(PlayerInventory[playerid][slot][Property], MAX_PROPERTIES), FloatArrayToString(PlayerInventory[playerid][slot][PropertyVal], MAX_PROPERTIES), name, slot
 	);
 	new Cache:q_result = mysql_query(sql_handle, query);
 	cache_delete(q_result);
@@ -7059,7 +7059,7 @@ stock PendingMessage(name[], text[])
 		UpdatePlayerPost(id);
 }
 
-stock PendingItem(name[], id, mod, props[], prop_vals[], count = 1, text[])
+stock PendingItem(name[], id, mod, props[], Float:prop_vals[], count = 1, text[])
 {
 	new sub_query[255] = "SELECT MAX(`PendingID`) AS `PendingID` FROM `pendings`";
 	new Cache:sq_result = mysql_query(sql_handle, sub_query);
@@ -7075,7 +7075,7 @@ stock PendingItem(name[], id, mod, props[], prop_vals[], count = 1, text[])
 
 	new query[255];
 	format(query, sizeof(query), "INSERT INTO `pendings`(`PendingID`, `PlayerName`, `ItemID`, `Count`, `ItemMod`, `ItemProps`, `ItemPropVals`, `Text`) VALUES ('%d','%s','%d','%d','%d','%s','%s','%s')",
-		p_id, name, id, count, mod, ArrayToString(props, MAX_PROPERTIES), ArrayToString(prop_vals, MAX_PROPERTIES), text
+		p_id, name, id, count, mod, ArrayToString(props, MAX_PROPERTIES), FloatArrayToString(prop_vals, MAX_PROPERTIES), text
 	);
 	new Cache:q_result = mysql_query(sql_handle, query);
 	cache_delete(q_result);
@@ -7085,10 +7085,85 @@ stock PendingItem(name[], id, mod, props[], prop_vals[], count = 1, text[])
 		UpdatePlayerPost(playerid);
 }
 
-stock GenerateEquipProps(id)
+stock Float:GenerateProperty(type)
 {
-	new props_info[MAX_PROPERTIES][2];
-	//TODO
+	new Float:prop[2];
+	new chance = random(10001);
+	new query[255];
+
+	prop[0] = -1;
+	prop[1] = 0;
+
+	format(query, sizeof(query), "SELECT * FROM `props` WHERE `type` = '%d'", type);
+	new Cache:q_result = mysql_query(sql_handle, query);
+
+	new row_count = 0;
+	cache_get_row_count(row_count);
+	if(row_count <= 0)
+	{
+		cache_delete(q_result);
+		print("GenerateProperty() error.");
+		return prop;
+	}
+
+	q_result = cache_save();
+	cache_unset_active();
+
+	new cur_chance = 0;
+	for(new i = 0; i < row_count; i++)
+	{
+		new ch;
+		cache_set_active(q_result);
+		cache_get_value_name_int(i, "chance", ch);
+		
+		cur_chance += ch;
+		if(chance < cur_chance)
+		{
+			new _prop;
+			cache_get_value_name_int(i, "prop", _prop);
+			cache_get_value_name_float(i, "value", prop[1]);
+			cache_unset_active();
+			prop[0] = _prop;
+			break;
+		}
+
+		cache_unset_active();
+	}
+
+	cache_delete(q_result);
+	return prop;
+}
+
+stock Float:GenerateEquipProps(id)
+{
+	new Float:props_info[MAX_PROPERTIES][2];
+	for(new i = 0; i < MAX_PROPERTIES; i++)
+	{
+		props_info[i][0] = -1;
+		props_info[i][1] = 0;
+	}
+	
+	new item[BaseItem];
+	item = GetItem(id);
+
+	new props_count;
+	switch(item[Grade])
+	{
+		case GRADE_C: props_count = 1;
+		case GRADE_B: props_count = 2;
+		case GRADE_A: props_count = 3;
+		case GRADE_S: props_count = 4;
+		default: props_count = 0;
+	}
+
+	for(new i = 0; i < props_count; i++)
+	{
+		new Float:prop[2];
+		prop = GenerateProperty(item[Type]-1);
+		props_info[i][0] = prop[0];
+		props_info[i][1] = prop[1];
+	}
+	
 	return props_info;
 }
 
@@ -7102,12 +7177,36 @@ stock AddEquip(playerid, id)
 	PlayerInventory[playerid][slot][Count] = 1;
 	PlayerInventory[playerid][slot][Mod] = 0;
 
-	new props_info[MAX_PROPERTIES][2];
+	new Float:props_info[MAX_PROPERTIES][2];
 	props_info = GenerateEquipProps(id);
 	for(new i = 0; i < MAX_PROPERTIES; i++)
 	{
-		PlayerInventory[playerid][slot][Property][i] = props_info[i][0];
+		PlayerInventory[playerid][slot][Property][i] = floatround(props_info[i][0]);
 		PlayerInventory[playerid][slot][PropertyVal][i] = props_info[i][1];
+	}
+
+	SaveInventorySlot(playerid, slot);
+
+	if(IsInventoryOpen[playerid])
+		UpdateSlot(playerid, slot);
+
+	return true;
+}
+
+stock AddEquipEx(playerid, id, mod, props[], Float:prop_vals[])
+{
+	if(IsInventoryFull(playerid))
+		return false;
+	
+	new slot = GetInvEmptySlotID(playerid);
+	PlayerInventory[playerid][slot][ID] = id;
+	PlayerInventory[playerid][slot][Count] = 1;
+	PlayerInventory[playerid][slot][Mod] = mod;
+	
+	for(new i = 0; i < MAX_PROPERTIES; i++)
+	{
+		PlayerInventory[playerid][slot][Property][i] = props[i];
+		PlayerInventory[playerid][slot][PropertyVal][i] = prop_vals[i];
 	}
 
 	SaveInventorySlot(playerid, slot);
@@ -7244,7 +7343,7 @@ stock GetBoss(id)
 	cache_get_value_name_float(0, "CritMult", boss[CritMult]);
 	cache_get_value_name_int(0, "CritReduction", boss[CritReduction]);
 	cache_get_value_name_float(0, "CritMultReduction", boss[CritMultReduction]);
-	cache_get_value_name_int(0, "Vamp", boss[Vamp]);
+	cache_get_value_name_float(0, "Vamp", boss[Vamp]);
 	cache_get_value_name_int(0, "HP", boss[HP]);
 
 	cache_delete(q_result);
@@ -7461,8 +7560,6 @@ stock ShowItemInfo(playerid, itemid)
 	PlayerTextDrawSetStringRus(playerid, InfItemName[playerid], item[Name]);
 	PlayerTextDrawColor(playerid, InfItemName[playerid], HexGradeColors[item[Grade]-1][0]);
 	PlayerTextDrawSetStringRus(playerid, InfItemType[playerid], GetItemTypeString(item[Type]));
-	PlayerTextDrawSetStringRus(playerid, InfItemEffect[playerid][0], GetItemEffectString(item[Property][0], item[PropertyVal][0]));
-	PlayerTextDrawSetStringRus(playerid, InfItemEffect[playerid][1], GetItemEffectString(item[Property][1], item[PropertyVal][1]));
 	format(string, sizeof(string), "Цена: %d$", item[Price]);
 	PlayerTextDrawSetStringRus(playerid, InfPrice[playerid], string);
 
@@ -7472,8 +7569,6 @@ stock ShowItemInfo(playerid, itemid)
 	PlayerTextDrawShow(playerid, InfItemIcon[playerid]);
 	PlayerTextDrawShow(playerid, InfItemName[playerid]);
 	PlayerTextDrawShow(playerid, InfItemType[playerid]);
-	PlayerTextDrawShow(playerid, InfItemEffect[playerid][0]);
-	PlayerTextDrawShow(playerid, InfItemEffect[playerid][1]);
 	PlayerTextDrawShow(playerid, InfDelim2[playerid]);
 	PlayerTextDrawShow(playerid, InfDelim3[playerid]);
 	PlayerTextDrawShow(playerid, InfPrice[playerid]);
@@ -7503,8 +7598,6 @@ stock HideItemInfo(playerid)
 	PlayerTextDrawHide(playerid, InfItemIcon[playerid]);
 	PlayerTextDrawHide(playerid, InfItemName[playerid]);
 	PlayerTextDrawHide(playerid, InfItemType[playerid]);
-	PlayerTextDrawHide(playerid, InfItemEffect[playerid][0]);
-	PlayerTextDrawHide(playerid, InfItemEffect[playerid][1]);
 	PlayerTextDrawHide(playerid, InfDelim2[playerid]);
 	PlayerTextDrawHide(playerid, InfDelim3[playerid]);
 	PlayerTextDrawHide(playerid, InfPrice[playerid]);
@@ -7519,30 +7612,53 @@ stock HideEquipInfo(playerid)
 {
 	PlayerTextDrawHide(playerid, EqInfBox[playerid]);
 	PlayerTextDrawHide(playerid, EqInfTxt1[playerid]);
-	PlayerTextDrawHide(playerid, EqInfTxt2[playerid]);
 	PlayerTextDrawHide(playerid, EqInfDelim1[playerid]);
 	PlayerTextDrawHide(playerid, EqInfItemIcon[playerid]);
 	PlayerTextDrawHide(playerid, EqInfItemName[playerid]);
 	PlayerTextDrawHide(playerid, EqInfMainStat[playerid]);
-	PlayerTextDrawHide(playerid, EqInfBonusStat[playerid][0]);
-	PlayerTextDrawHide(playerid, EqInfBonusStat[playerid][1]);
-	PlayerTextDrawHide(playerid, EqInfDelim2[playerid]);
+	PlayerTextDrawHide(playerid, EqInfItemRank[playerid]);
 	PlayerTextDrawHide(playerid, EqInfDelim3[playerid]);
 	PlayerTextDrawHide(playerid, EqInfDelim4[playerid]);
 	PlayerTextDrawHide(playerid, EqInfDelim5[playerid]);
 	PlayerTextDrawHide(playerid, EqInfPrice[playerid]);
 	PlayerTextDrawHide(playerid, EqInfClose[playerid]);
-	for(new i = 0; i < 4; i++)
-		PlayerTextDrawHide(playerid, EqInfModStat[playerid][i]);
-	for(new i = 0; i < MAX_MOD; i++)
-		PlayerTextDrawHide(playerid, EqInfMod[playerid][i]);
+	PlayerTextDrawHide(playerid, EqInfPropTxt[playerid]);
+	PlayerTextDrawHide(playerid, EqInfItemType[playerid]);
+	for(new i = 0; i < MAX_PROPERTIES; i++)
+		PlayerTextDrawHide(playerid, EqInfProp[playerid][i]);
 	for(new i = 0; i < 3; i++)
 		PlayerTextDrawHide(playerid, EqInfDescriptionStr[playerid][i]);
 
 	Windows[playerid][EquipInfo] = false;
 }
 
-stock ShowEquipInfo(playerid, itemid, mod[])
+stock GetPropDesc(prop, Float:prop_val)
+{
+	new string[255];
+
+	switch(prop)
+	{
+		case PROPERTY_ACCURACY: format(string, sizeof(string), "Точность +%d", floatround(prop_val));
+		case PROPERTY_CRIT: format(string, sizeof(string), "Шанс крита +%d", floatround(prop_val));
+		case PROPERTY_CRIT_MULT: format(string, sizeof(string), "Урон от крита +%.2f", prop_val);
+		case PROPERTY_CRIT_MULT_REDUCTION: format(string, sizeof(string), "Уменьшить силу крита +%.2f", prop_val);
+		case PROPERTY_CRIT_REDUCTION: format(string, sizeof(string), "Снижение крит. урона +%d%%", floatround(prop_val));
+		case PROPERTY_DAMAGE: format(string, sizeof(string), "Сила атаки +%d", floatround(prop_val));
+		case PROPERTY_DAMAGE_PERCENTAGE: format(string, sizeof(string), "Сила атаки +%.2f%%", prop_val);
+		case PROPERTY_DAMAGE_RATE: format(string, sizeof(string), "Рейтинг атаки +%d", floatround(prop_val));
+		case PROPERTY_DEFENSE: format(string, sizeof(string), "Защита +%d", floatround(prop_val));
+		case PROPERTY_DEFENSE_PERCENTAGE: format(string, sizeof(string), "Защита +%.2f%%", prop_val);
+		case PROPERTY_DEFENSE_RATE: format(string, sizeof(string), "Рейтинг защиты +%d", floatround(prop_val));
+		case PROPERTY_DODGE: format(string, sizeof(string), "Уклонение +%d", floatround(prop_val));
+		case PROPERTY_HP: format(string, sizeof(string), "Макс. ХП +%d%%", floatround(prop_val));
+		case PROPERTY_VAMP: format(string, sizeof(string), "Поглощение ХП +%.2f%%", prop_val);
+		default: string = "";
+	}
+
+	return string;
+}
+
+stock ShowEquipInfo(playerid, slotid, itemid)
 {
 	new item[BaseItem];
 	new string[255];
@@ -7553,70 +7669,98 @@ stock ShowEquipInfo(playerid, itemid, mod[])
 	PlayerTextDrawSetPreviewModel(playerid, EqInfItemIcon[playerid], item[Model]);
 	PlayerTextDrawSetPreviewRot(playerid, EqInfItemIcon[playerid], item[ModelRotX], item[ModelRotY], item[ModelRotZ]);
 	PlayerTextDrawBackgroundColor(playerid, EqInfItemIcon[playerid], HexGradeColors[item[Grade]-1][0]);
-	PlayerTextDrawSetStringRus(playerid, EqInfItemName[playerid], item[Name]);
+
+	PlayerTextDrawSetStringRus(playerid, EqInfItemType[playerid], GetItemTypeString(item[Type]));
+
+	if(PlayerInventory[playerid][slotid][Mod] > 0)
+	{
+		format(string, sizeof(string), "[+%d %s]", PlayerInventory[playerid][slotid][Mod], item[Name]);
+		PlayerTextDrawSetStringRus(playerid, EqInfItemName[playerid], string);
+	}
+	else
+		PlayerTextDrawSetStringRus(playerid, EqInfItemName[playerid], item[Name]);
 	PlayerTextDrawColor(playerid, EqInfItemName[playerid], HexGradeColors[item[Grade]-1][0]);
-	PlayerTextDrawSetStringRus(playerid, EqInfBonusStat[playerid][0], GetItemEffectString(item[Property][0], item[PropertyVal][0]));
-	PlayerTextDrawSetStringRus(playerid, EqInfBonusStat[playerid][1], GetItemEffectString(item[Property][1], item[PropertyVal][1]));
+
+	format(string, sizeof(string), "Ранг: %s", GetRankInterval(item[MinRank]));
+	PlayerTextDrawSetStringRus(playerid, EqInfItemRank[playerid], string);
+	if(PlayerInfo[playerid][Rank] >= item[MinRank])
+		PlayerTextDrawColor(playerid, EqInfItemRank[playerid], 0xFFFFFFFF);
+	else
+		PlayerTextDrawColor(playerid, EqInfItemRank[playerid], 0xCC0000FF);
+
 	format(string, sizeof(string), "Цена: %d$", item[Price]);
 	PlayerTextDrawSetStringRus(playerid, EqInfPrice[playerid], string);
 
 	PlayerTextDrawShow(playerid, EqInfBox[playerid]);
 	PlayerTextDrawShow(playerid, EqInfTxt1[playerid]);
-	PlayerTextDrawShow(playerid, EqInfTxt2[playerid]);
 	PlayerTextDrawShow(playerid, EqInfDelim1[playerid]);
 	PlayerTextDrawShow(playerid, EqInfItemIcon[playerid]);
 	PlayerTextDrawShow(playerid, EqInfItemName[playerid]);
-	PlayerTextDrawShow(playerid, EqInfBonusStat[playerid][0]);
-	PlayerTextDrawShow(playerid, EqInfBonusStat[playerid][1]);
-	PlayerTextDrawShow(playerid, EqInfDelim2[playerid]);
+	PlayerTextDrawShow(playerid, EqInfItemRank[playerid]);
+	PlayerTextDrawShow(playerid, EqInfItemType[playerid]);
 	PlayerTextDrawShow(playerid, EqInfDelim3[playerid]);
 	PlayerTextDrawShow(playerid, EqInfDelim4[playerid]);
 	PlayerTextDrawShow(playerid, EqInfDelim5[playerid]);
 	PlayerTextDrawShow(playerid, EqInfPrice[playerid]);
 	PlayerTextDrawShow(playerid, EqInfClose[playerid]);
 
-	for(new i = 0; i < MAX_MOD; i++)
+	new prop_count = 0;
+	for(new i = 0; i < MAX_PROPERTIES; i++)
 	{
-		PlayerTextDrawSetPreviewModel(playerid, EqInfMod[playerid][i], GetModModel(mod[i]));
-		PlayerTextDrawSetPreviewRot(playerid, EqInfMod[playerid][i], 0.000000, 0.000000, 0.000000, 1.000000);
-		PlayerTextDrawShow(playerid, EqInfMod[playerid][i]);
+		if(PlayerInventory[playerid][slotid][Property][i] == -1)
+			break;
+
+		new prop_str[255];
+		prop_str = GetPropDesc(PlayerInventory[playerid][slotid][Property][i], PlayerInventory[playerid][slotid][PropertyVal][i]);
+		PlayerTextDrawSetStringRus(playerid, EqInfProp[playerid][i], prop_str);
+
+		if(PlayerInventory[playerid][slotid][Mod] >= 7)
+		{
+			switch(item[Grade])
+			{
+				case GRADE_N: PlayerTextDrawColor(playerid, EqInfProp[playerid][i], 0xFFCC00FF);
+				case GRADE_C: if(i > 0) PlayerTextDrawColor(playerid, EqInfProp[playerid][i], 0xFFCC00FF);
+				case GRADE_B: if(i > 1) PlayerTextDrawColor(playerid, EqInfProp[playerid][i], 0xFFCC00FF);
+				case GRADE_A: if(i > 2) PlayerTextDrawColor(playerid, EqInfProp[playerid][i], 0xFFCC00FF);
+				case GRADE_S: if(i > 3) PlayerTextDrawColor(playerid, EqInfProp[playerid][i], 0xFFCC00FF);
+				default: PlayerTextDrawColor(playerid, EqInfProp[playerid][i], 0xFFFFFFFF);
+			}
+		}
+		else
+			PlayerTextDrawColor(playerid, EqInfProp[playerid][i], 0xFFFFFFFF);
+
+		prop_count++;
+		PlayerTextDrawShow(playerid, EqInfProp[playerid][i]);
 	}
 
-	new modifiers[4];
-	modifiers = GetModifiers(mod);
-	new modifiers_count = GetModifiersCount(modifiers);
-	new modifiers_effects_descs[4][255];
-	modifiers_effects_descs = MapModifiersDescs(mod, modifiers, modifiers_count);
-	for(new i = 0; i < 4; i++)
-	{
-		PlayerTextDrawSetStringRus(playerid, EqInfModStat[playerid][i], modifiers_effects_descs[i]);
-		PlayerTextDrawShow(playerid, EqInfModStat[playerid][i]);
-	}
+	if(prop_count > 0)
+		PlayerTextDrawShow(playerid, EqInfPropTxt[playerid]);
 
 	if(item[Type] == ITEMTYPE_WEAPON)
 	{
-		new bool:mod_exists = false;
-		mod_exists = ModifierExists(mod, MOD_DAMAGE);
-		PlayerTextDrawColor(playerid, EqInfMainStat[playerid], mod_exists ? 16711935 : -1);
+		PlayerTextDrawColor(playerid, EqInfMainStat[playerid], -1);
 		new damage[2];
 		damage = GetWeaponBaseDamage(itemid);
-		if(mod_exists)
-			damage = GetWeaponModifiedDamage(damage, GetModifierLevel(mod, MOD_DAMAGE));
+		if(PlayerInventory[playerid][slotid][Mod] > 0)
+		{
+			damage[0] = GetEquipModifiedValue(damage[0], PlayerInventory[playerid][slotid][Mod]);
+			damage[1] = GetEquipModifiedValue(damage[1], PlayerInventory[playerid][slotid][Mod]);
+		}
 		format(string, sizeof(string), "Урон: %d-%d", damage[0], damage[1]);
+		PlayerTextDrawSetStringRus(playerid, EqInfMainStat[playerid], string);
+		PlayerTextDrawShow(playerid, EqInfMainStat[playerid]);
 	}
 	else if(item[Type] == ITEMTYPE_ARMOR)
 	{
-		new bool:mod_exists = false;
-		mod_exists = ModifierExists(mod, MOD_DEFENSE);
-		PlayerTextDrawColor(playerid, EqInfMainStat[playerid], mod_exists ? 16711935 : -1);
+		PlayerTextDrawColor(playerid, EqInfMainStat[playerid], -1);
 		new defense;
 		defense = GetArmorBaseDefense(itemid);
-		if(mod_exists)
-			defense = GetArmorModifiedDefense(defense, GetModifierLevel(mod, MOD_DEFENSE));
+		if(PlayerInventory[playerid][slotid][Mod] > 0)
+			defense = GetEquipModifiedValue(defense, PlayerInventory[playerid][slotid][Mod]);
 		format(string, sizeof(string), "Защита: %d", defense);
+		PlayerTextDrawSetStringRus(playerid, EqInfMainStat[playerid], string);
+		PlayerTextDrawShow(playerid, EqInfMainStat[playerid]);
 	}
-	PlayerTextDrawSetStringRus(playerid, EqInfMainStat[playerid], string);
-	PlayerTextDrawShow(playerid, EqInfMainStat[playerid]);
 
 	new desc_used_strings = strlen(item[Description]) / MAX_DESCRIPTION_SIZE + 1;
 	if(desc_used_strings > 3)
@@ -7931,42 +8075,76 @@ stock ShowModWindow(playerid, itemslot)
 
 	HideOpenedInfoWindows(playerid);
 
+	SetPVarInt(playerid, "ModMsgSuccess", 0);
+	SetPVarInt(playerid, "ModMsgFail", 0);
+	SetPVarInt(playerid, "ModMsgSafeFail", 0);
+	SetPVarInt(playerid, "ModMsgDestroy", 0);
+
 	PlayerTextDrawSetPreviewModel(playerid, UpgPotionSlot[playerid], -1);
 	PlayerTextDrawSetPreviewRot(playerid, UpgPotionSlot[playerid], 0, 0, 0);
-	PlayerTextDrawSetPreviewModel(playerid, UpgStoneSlot[playerid], -1);
-	PlayerTextDrawSetPreviewRot(playerid, UpgStoneSlot[playerid], 0, 0, 0);
+	PlayerTextDrawSetPreviewModel(playerid, UpgDefSlot[playerid], -1);
+	PlayerTextDrawSetPreviewRot(playerid, UpgDefSlot[playerid], 0, 0, 0);
 	PlayerTextDrawSetPreviewModel(playerid, UpgItemSlot[playerid], -1);
 	PlayerTextDrawSetPreviewRot(playerid, UpgItemSlot[playerid], 0, 0, 0);
-	PlayerTextDrawBackgroundColor(playerid, UpgStoneSlot[playerid], -1061109505);
 	PlayerTextDrawBackgroundColor(playerid, UpgPotionSlot[playerid], -1061109505);
 	PlayerTextDrawBackgroundColor(playerid, UpgItemSlot[playerid], -1061109505);
+	PlayerTextDrawBackgroundColor(playerid, UpgDefSlot[playerid], -1061109505);
 
 	new item[BaseItem];
 	item = GetItem(PlayerInventory[playerid][itemslot][ID]);
+
+	new def_item[BaseItem];
+	def_item = GetItem(188);
 
 	PlayerTextDrawSetPreviewModel(playerid, UpgItemSlot[playerid], item[Model]);
 	PlayerTextDrawSetPreviewRot(playerid, UpgItemSlot[playerid], item[ModelRotX], item[ModelRotY], item[ModelRotZ]);
 	PlayerTextDrawBackgroundColor(playerid, UpgItemSlot[playerid], HexGradeColors[item[Grade]-1][0]);
 
-	new mod_level = GetModLevel(PlayerInventory[playerid][itemslot][Mod]);
-	new string[64];
-	format(string, sizeof(string), "%d модификация", mod_level+1);
-	PlayerTextDrawSetStringRus(playerid, UpgModInfo[playerid], string);
-	PlayerTextDrawShow(playerid, UpgModInfo[playerid]);
+	PlayerTextDrawSetPreviewModel(playerid, UpgDefSlot[playerid], def_item[Model]);
+	PlayerTextDrawSetPreviewRot(playerid, UpgDefSlot[playerid], def_item[ModelRotX], def_item[ModelRotY], def_item[ModelRotZ]);
+	PlayerTextDrawBackgroundColor(playerid, UpgDefSlot[playerid], HexGradeColors[def_item[Grade]-1][0]);
+
+	new def_slot = FindItem(playerid, 188);
+	if(def_slot != -1)
+	{
+		new str[32];
+		format(str, sizeof(str), "%d", PlayerInventory[playerid][def_slot][Count]);
+		PlayerTextDrawSetStringRus(playerid, UpgDefCount[playerid], str);
+		PlayerTextDrawShow(playerid, UpgDefCount[playerid]);
+	}
+
+	new old_mod_str[64];
+	new new_mod_str[64];
+	new mod_level = PlayerInventory[playerid][itemslot][Mod];
+
+	if(mod_level == 0)
+		format(old_mod_str, sizeof(old_mod_str), "%s", item[Name]);
+	else
+		format(old_mod_str, sizeof(old_mod_str), "+%d %s", mod_level, item[Name]);
+
+	PlayerTextDrawSetStringRus(playerid, UpgOldItemTxt[playerid], old_mod_str);
+	PlayerTextDrawColor(playerid, UpgOldItemTxt[playerid], HexGradeColors[item[Grade]][0]);
+	PlayerTextDrawShow(playerid, UpgOldItemTxt[playerid]);
+
+	format(new_mod_str, sizeof(new_mod_str), "+%d %s", mod_level+1, item[Name]);
+
+	PlayerTextDrawSetStringRus(playerid, UpgNewItemTxt[playerid], new_mod_str);
+	PlayerTextDrawColor(playerid, UpgNewItemTxt[playerid], HexGradeColors[item[Grade]][0]);
+	PlayerTextDrawShow(playerid, UpgNewItemTxt[playerid]);
 
 	ModItemSlot[playerid] = itemslot;
 
 	PlayerTextDrawShow(playerid, UpgBox[playerid]);
 	PlayerTextDrawShow(playerid, UpgTxt1[playerid]);
 	PlayerTextDrawShow(playerid, UpgDelim1[playerid]);
-	PlayerTextDrawShow(playerid, UpgItemSlot[playerid]);
 	PlayerTextDrawShow(playerid, UpgTxt2[playerid]);
-	PlayerTextDrawShow(playerid, UpgStoneSlot[playerid]);
 	PlayerTextDrawShow(playerid, UpgTxt3[playerid]);
+	PlayerTextDrawShow(playerid, UpgDefSlot[playerid]);
 	PlayerTextDrawShow(playerid, UpgPotionSlot[playerid]);
-	PlayerTextDrawShow(playerid, UpgTxt4[playerid]);
+	PlayerTextDrawShow(playerid, UpgSafeBtn[playerid]);
 	PlayerTextDrawShow(playerid, UpgBtn[playerid]);
 	PlayerTextDrawShow(playerid, UpgClose[playerid]);
+	PlayerTextDrawShow(playerid, UpgArrow[playerid]);
 }
 
 stock HideModWindow(playerid)
@@ -7976,67 +8154,126 @@ stock HideModWindow(playerid)
 
 	ModItemSlot[playerid] = -1;
 	ModPotion[playerid] = -1;
-	ModStone[playerid] = -1;
+
+	SetPVarInt(playerid, "ModMsgSuccess", 0);
+	SetPVarInt(playerid, "ModMsgFail", 0);
+	SetPVarInt(playerid, "ModMsgSafeFail", 0);
+	SetPVarInt(playerid, "ModMsgDestroy", 0);
 
 	PlayerTextDrawHide(playerid, UpgBox[playerid]);
 	PlayerTextDrawHide(playerid, UpgTxt1[playerid]);
 	PlayerTextDrawHide(playerid, UpgDelim1[playerid]);
-	PlayerTextDrawHide(playerid, UpgModInfo[playerid]);
 	PlayerTextDrawHide(playerid, UpgItemSlot[playerid]);
 	PlayerTextDrawHide(playerid, UpgTxt2[playerid]);
-	PlayerTextDrawHide(playerid, UpgStoneSlot[playerid]);
 	PlayerTextDrawHide(playerid, UpgTxt3[playerid]);
 	PlayerTextDrawHide(playerid, UpgPotionSlot[playerid]);
-	PlayerTextDrawHide(playerid, UpgTxt4[playerid]);
 	PlayerTextDrawHide(playerid, UpgBtn[playerid]);
 	PlayerTextDrawHide(playerid, UpgClose[playerid]);
+	PlayerTextDrawHide(playerid, UpgPotionCount[playerid]);
+	PlayerTextDrawHide(playerid, UpgDefSlot[playerid]);
+	PlayerTextDrawHide(playerid, UpgDefCount[playerid]);
+	PlayerTextDrawHide(playerid, UpgSafeBtn[playerid]);
+	PlayerTextDrawHide(playerid, UpgOldItemTxt[playerid]);
+	PlayerTextDrawHide(playerid, UpgNewItemTxt[playerid]);
+	PlayerTextDrawHide(playerid, UpgArrow[playerid]);
+	PlayerTextDrawHide(playerid, UpgMainTxt[playerid]);
+	PlayerTextDrawHide(playerid, UpgCongrTxt[playerid]);
 }
 
 stock UpdateModWindow(playerid)
 {
-	PlayerTextDrawHide(playerid, UpgModInfo[playerid]);
 	PlayerTextDrawHide(playerid, UpgItemSlot[playerid]);
-	PlayerTextDrawHide(playerid, UpgStoneSlot[playerid]);
 	PlayerTextDrawHide(playerid, UpgPotionSlot[playerid]);
+	PlayerTextDrawHide(playerid, UpgDefSlot[playerid]);
+	PlayerTextDrawHide(playerid, UpgDefCount[playerid]);
+	PlayerTextDrawHide(playerid, UpgPotionCount[playerid]);
+	PlayerTextDrawHide(playerid, UpgOldItemTxt[playerid]);
+	PlayerTextDrawHide(playerid, UpgNewItemTxt[playerid]);
+	PlayerTextDrawHide(playerid, UpgMainTxt[playerid]);
+	PlayerTextDrawHide(playerid, UpgCongrTxt[playerid]);
 
 	PlayerTextDrawSetPreviewModel(playerid, UpgPotionSlot[playerid], -1);
 	PlayerTextDrawSetPreviewRot(playerid, UpgPotionSlot[playerid], 0, 0, 0);
-	PlayerTextDrawSetPreviewModel(playerid, UpgStoneSlot[playerid], -1);
-	PlayerTextDrawSetPreviewRot(playerid, UpgStoneSlot[playerid], 0, 0, 0);
+	PlayerTextDrawSetPreviewModel(playerid, UpgDefSlot[playerid], -1);
+	PlayerTextDrawSetPreviewRot(playerid, UpgDefSlot[playerid], 0, 0, 0);
 	PlayerTextDrawSetPreviewModel(playerid, UpgItemSlot[playerid], -1);
 	PlayerTextDrawSetPreviewRot(playerid, UpgItemSlot[playerid], 0, 0, 0);
-	PlayerTextDrawBackgroundColor(playerid, UpgStoneSlot[playerid], -1061109505);
 	PlayerTextDrawBackgroundColor(playerid, UpgPotionSlot[playerid], -1061109505);
 	PlayerTextDrawBackgroundColor(playerid, UpgItemSlot[playerid], -1061109505);
+	PlayerTextDrawBackgroundColor(playerid, UpgDefSlot[playerid], -1061109505);
 
 	if(ModItemSlot[playerid] != -1)
 	{
 		new item[BaseItem];
+		new def_item[BaseItem];
 		item = GetItem(PlayerInventory[playerid][ModItemSlot[playerid]][ID]);
+		def_item = GetItem(188);
 
 		PlayerTextDrawSetPreviewModel(playerid, UpgItemSlot[playerid], item[Model]);
 		PlayerTextDrawSetPreviewRot(playerid, UpgItemSlot[playerid], item[ModelRotX], item[ModelRotY], item[ModelRotZ]);
 		PlayerTextDrawBackgroundColor(playerid, UpgItemSlot[playerid], HexGradeColors[item[Grade]-1][0]);
 
-		new mod_level = GetModLevel(PlayerInventory[playerid][ModItemSlot[playerid]][Mod]);
-		new string[64];
-		format(string, sizeof(string), "%d модификация", mod_level+1);
-		PlayerTextDrawSetStringRus(playerid, UpgModInfo[playerid], string);
-		PlayerTextDrawShow(playerid, UpgModInfo[playerid]);
-	}
-	if(ModStone[playerid] != -1)
-	{
-		if(HasItem(playerid, ModStone[playerid]))
-		{
-			new item[BaseItem];
-			item = GetItem(ModStone[playerid]);
+		PlayerTextDrawSetPreviewModel(playerid, UpgDefSlot[playerid], def_item[Model]);
+		PlayerTextDrawSetPreviewRot(playerid, UpgDefSlot[playerid], def_item[ModelRotX], def_item[ModelRotY], def_item[ModelRotZ]);
+		PlayerTextDrawBackgroundColor(playerid, UpgDefSlot[playerid], HexGradeColors[def_item[Grade]-1][0]);
 
-			PlayerTextDrawSetPreviewModel(playerid, UpgStoneSlot[playerid], item[Model]);
-			PlayerTextDrawSetPreviewRot(playerid, UpgStoneSlot[playerid], item[ModelRotX], item[ModelRotY], item[ModelRotZ]);
-			PlayerTextDrawBackgroundColor(playerid, UpgStoneSlot[playerid], HexGradeColors[item[Grade]-1][0]);
-		}
+		new old_mod_str[64];
+		new new_mod_str[64];
+		new mod_level = PlayerInventory[playerid][ModItemSlot[playerid]][Mod];
+
+		if(mod_level == 0)
+			format(old_mod_str, sizeof(old_mod_str), "%s", item[Name]);
 		else
-			ModStone[playerid] = -1;
+			format(old_mod_str, sizeof(old_mod_str), "+%d %s", mod_level, item[Name]);
+
+		PlayerTextDrawSetStringRus(playerid, UpgOldItemTxt[playerid], old_mod_str);
+		PlayerTextDrawColor(playerid, UpgOldItemTxt[playerid], HexGradeColors[item[Grade]][0]);
+		PlayerTextDrawShow(playerid, UpgOldItemTxt[playerid]);
+
+		format(new_mod_str, sizeof(new_mod_str), "+%d %s", mod_level+1, item[Name]);
+
+		PlayerTextDrawSetStringRus(playerid, UpgNewItemTxt[playerid], new_mod_str);
+		PlayerTextDrawColor(playerid, UpgNewItemTxt[playerid], HexGradeColors[item[Grade]][0]);
+		PlayerTextDrawShow(playerid, UpgNewItemTxt[playerid]);
+
+		new def_slot = FindItem(playerid, 188);
+		if(def_slot != -1)
+		{
+			new str[32];
+			format(str, sizeof(str), "%d", PlayerInventory[playerid][def_slot][Count]);
+			PlayerTextDrawSetStringRus(playerid, UpgDefCount[playerid], str);
+			PlayerTextDrawShow(playerid, UpgDefCount[playerid]);
+		}
+
+		if(GetPVarInt(playerid, "ModMsgSuccess") > 0)
+		{
+			new str[128];
+			format(str, sizeof(str), "+%d %s", mod_level, item[Name]);
+			PlayerTextDrawColor(playerid, UpgMainTxt[playerid], HexGradeColors[item[Grade]][0]);
+			PlayerTextDrawSetStringRus(playerid, UpgMainTxt[playerid], str);
+			PlayerTextDrawShow(playerid, UpgMainTxt[playerid]);
+
+			PlayerTextDrawShow(playerid, UpgItemSlot[playerid]);
+			PlayerTextDrawShow(playerid, UpgCongrTxt[playerid]);
+
+			SetPVarInt(playerid, "ModMsgSuccess", 0);
+		}
+		else if(GetPVarInt(playerid, "ModMsgFail") > 0)
+		{
+			PlayerTextDrawColor(playerid, UpgMainTxt[playerid], 0xFFFFFFFF);
+			PlayerTextDrawSetStringRus(playerid, UpgMainTxt[playerid], "Усиление не удалось");
+			PlayerTextDrawShow(playerid, UpgMainTxt[playerid]);
+
+			SetPVarInt(playerid, "ModMsgFail", 0);
+		}
+		else if(GetPVarInt(playerid, "ModMsgSafeFail") > 0)
+		{
+			PlayerTextDrawColor(playerid, UpgMainTxt[playerid], 0xFFFFFFFF);
+			PlayerTextDrawSetStringRus(playerid, UpgMainTxt[playerid], "Усиление не удалось, но печать предотвратила уничтожение предмета");
+			PlayerTextDrawShow(playerid, UpgMainTxt[playerid]);
+
+			SetPVarInt(playerid, "ModMsgSafeFail", 0);
+		}
 	}
 	if(ModPotion[playerid] != -1)
 	{
@@ -8048,14 +8285,31 @@ stock UpdateModWindow(playerid)
 			PlayerTextDrawSetPreviewModel(playerid, UpgPotionSlot[playerid], item[Model]);
 			PlayerTextDrawSetPreviewRot(playerid, UpgPotionSlot[playerid], item[ModelRotX], item[ModelRotY], item[ModelRotZ]);
 			PlayerTextDrawBackgroundColor(playerid, UpgPotionSlot[playerid], HexGradeColors[item[Grade]-1][0]);
+
+			new potion_slot = FindItem(playerid, ModPotion[playerid]);
+			if(potion_slot != -1)
+			{
+				new str[32];
+				format(str, sizeof(str), "%d", PlayerInventory[playerid][potion_slot][Count]);
+				PlayerTextDrawSetStringRus(playerid, UpgPotionCount[playerid], str);
+				PlayerTextDrawShow(playerid, UpgPotionCount[playerid]);
+			}
 		}
 		else
 			ModPotion[playerid] = -1;
 	}
 
-	PlayerTextDrawShow(playerid, UpgItemSlot[playerid]);
-	PlayerTextDrawShow(playerid, UpgStoneSlot[playerid]);
+	if(GetPVarInt(playerid, "ModMsgDestroy") > 0)
+	{
+		PlayerTextDrawColor(playerid, UpgMainTxt[playerid], 0xFFFFFFFF);
+		PlayerTextDrawSetStringRus(playerid, UpgMainTxt[playerid], "Усиление не удалось и предмет был уничтожен");
+		PlayerTextDrawShow(playerid, UpgMainTxt[playerid]);
+
+		SetPVarInt(playerid, "ModMsgDestroy", 0);
+	}
+
 	PlayerTextDrawShow(playerid, UpgPotionSlot[playerid]);
+	PlayerTextDrawShow(playerid, UpgDefSlot[playerid]);
 }
 
 stock CmbItemExist(playerid, item)
@@ -8403,27 +8657,7 @@ stock CombineItems(playerid)
 	ShowPlayerDialog(playerid, 1, DIALOG_STYLE_MSGBOX, "Комбинирование", "Нет доступных комбинаций.", "Закрыть", "");
 }
 
-stock ShowModSuccessMessage(item, level)
-{
-	//TODO
-}
-
-stock ShowModFailMessage()
-{
-	//TODO
-}
-
-stock ShowModDestroyMessage()
-{
-	//TODO
-}
-
-stock ShowModSafeFailMessage()
-{
-	//TODO
-}
-
-stock UpgradeItem(playerid, itemslot, is_safe = false, potionid = -1)
+stock UpgradeItem(playerid, itemslot, potionid = -1, bool:is_safe = false)
 {
 	new itemid = PlayerInventory[playerid][itemslot][ID];
 	new level = PlayerInventory[playerid][itemslot][Mod] + 1;
@@ -8480,12 +8714,12 @@ stock UpgradeItem(playerid, itemslot, is_safe = false, potionid = -1)
 			);
 			SendClientMessageToAll(COLOR_LIGHTRED, cng_string);
 		}
-		ShowModSuccessMessage(item, level);
+		SetPVarInt(playerid, "ModMsgSuccess", 1);
 	}
 	//fail
 	else if(roll <= chances[0] + chances[1])
 	{
-		ShowModFailMessage();
+		SetPVarInt(playerid, "ModMsgFail", 1);
 	}
 	//destroy
 	else
@@ -8496,11 +8730,11 @@ stock UpgradeItem(playerid, itemslot, is_safe = false, potionid = -1)
 			ModItemSlot[playerid] = -1;
 			ModPotion[playerid] = -1;
 
-			ShowModDestroyMessage();
+			SetPVarInt(playerid, "ModMsgDestroy", 1);
 		}
 		else
 		{
-			new def_slot = FindItem(playerid, 188, GetDefCount(level));
+			new def_slot = FindItem(playerid, 188);
 			if(def_slot == -1)
 			{
 				SendClientMessage(playerid, COLOR_LIGHTRED, "Ошибка модификации.");
@@ -8508,7 +8742,7 @@ stock UpgradeItem(playerid, itemslot, is_safe = false, potionid = -1)
 			}
 
 			DeleteItem(playerid, def_slot, GetDefCount(level));
-			ShowModSafeFailMessage();
+			SetPVarInt(playerid, "ModMsgSafeFail", 1);
 		}
 	}
 }
@@ -8594,7 +8828,7 @@ stock GetWeaponBaseDamage(weaponid)
 
 stock GetArmorBaseDefense(armorid)
 {
-	new defense;
+	new defense = 100;
 	switch(armorid)
 	{
 		case 45: defense = 180;
@@ -8673,24 +8907,6 @@ stock ArrayValueExist(arr[], size, value)
 	return false;
 }
 
-stock GetItemEffectString(effect, value)
-{
-	new string[128];
-	switch(effect) 
-	{
-	    case 1: format(string, sizeof(string), "Урон +%d%%", value);
-	    case 2: format(string, sizeof(string), "Защита +%d%%", value);
-	    case 3: format(string, sizeof(string), "Уклонение +%d", value);
-	    case 4: format(string, sizeof(string), "Точность +%d", value);
-	    case 5: format(string, sizeof(string), "HP +%d%%", value);
-	    case 6: format(string, sizeof(string), "Шанс крита +%d%%", value);
-		case 7: format(string, sizeof(string), "Лут с боссов X%d", value);
-	    default: string = "";
-	}
-
-	return string;
-}
-
 stock GetDefCount(level)
 {
 	new count = 0;
@@ -8717,9 +8933,7 @@ stock GetItemTypeString(type)
 	new string[64];
 	switch(type) 
 	{
-	    case 1: string = "Оружие";
-	    case 2: string = "Доспех";
-	    case 3: string = "Аксессуар";
+	    case 1..3: string = "Предмет снаряжения";
 	    case 4: string = "Пассивный предмет";
 	    case 5: string = "Материал";
 	    case 6: string = "Коробка";
@@ -8777,19 +8991,29 @@ stock GetHexPlaceColor(place)
 	return color;
 }
 
-stock ArrayToString(array[], size, type = TYPE_INT)
+stock ArrayToString(array[], size)
 {
 	new string[1024] = "";
 	new buf[255];
 
 	for(new i = 0; i < size; i++)
 	{
-		switch(type)
-		{
-			case TYPE_STRING: { format(buf, sizeof(buf), "%s ", array[i]); }
-			case TYPE_FLOAT: { format(buf, sizeof(buf), "%f ", array[i]); }
-			default: { format(buf, sizeof(buf), "%i ", array[i]); }
-		}
+		format(buf, sizeof(buf), "%i ", array[i]);
+		strcat(string, buf);
+	}
+
+	strdel(string, strlen(string)-1, strlen(string));
+	return string;
+}
+
+stock FloatArrayToString(Float:array[], size)
+{
+	new string[1024] = "";
+	new buf[255];
+
+	for(new i = 0; i < size; i++)
+	{
+		format(buf, sizeof(buf), "%.2f ", array[i]);
 		strcat(string, buf);
 	}
 
@@ -8947,11 +9171,23 @@ stock SavePlayer(playerid, bool:with_pos = true)
 	strcat(query, tmp);
 	format(tmp, sizeof(tmp), "`Defense` = '%d', `Dodge` = '%d', `Accuracy` = '%d', ", PlayerInfo[playerid][Defense], PlayerInfo[playerid][Dodge], PlayerInfo[playerid][Accuracy]);
 	strcat(query, tmp);
+	format(tmp, sizeof(tmp), "`AttackRate` = '%d', `DefenseRate` = '%d', `Vamp` = '%f', ", PlayerInfo[playerid][AttackRate], PlayerInfo[playerid][DefenseRate], PlayerInfo[playerid][Vamp]);
+	strcat(query, tmp);
+	format(tmp, sizeof(tmp), "`CritMult` = '%f', `CritMultReduction` = '%f', `CritReduction` = '%d', ", PlayerInfo[playerid][CritMult], PlayerInfo[playerid][CritMultReduction], PlayerInfo[playerid][CritReduction]);
+	strcat(query, tmp);
 	format(tmp, sizeof(tmp), "`Crit` = '%d', `GlobalTopPos` = '%d', `LocalTopPos` = '%d', `WalkersLimit` = '%d', ", PlayerInfo[playerid][Crit], PlayerInfo[playerid][GlobalTopPosition], PlayerInfo[playerid][LocalTopPosition], PlayerInfo[playerid][WalkersLimit]);
 	strcat(query, tmp);
 	format(tmp, sizeof(tmp), "`WeaponSlotID` = '%d', `ArmorSlotID` = '%d', `AccSlot1ID` = '%d', `AccSlot2ID` = '%d', ", PlayerInfo[playerid][WeaponSlotID], PlayerInfo[playerid][ArmorSlotID], PlayerInfo[playerid][AccSlot1ID], PlayerInfo[playerid][AccSlot2ID]);
 	strcat(query, tmp);
-	format(tmp, sizeof(tmp), "`WeaponMod` = '%s', `ArmorMod` = '%s' ", ArrayToString(PlayerInfo[playerid][WeaponMod], MAX_MOD), ArrayToString(PlayerInfo[playerid][ArmorMod], MAX_MOD));
+	format(tmp, sizeof(tmp), "`WeaponProperty` = '%s', `WeaponPropertyVal` = '%s', ", ArrayToString(PlayerInfo[playerid][WeaponProperty], MAX_PROPERTIES), FloatArrayToString(PlayerInfo[playerid][WeaponPropertyVal], MAX_PROPERTIES));
+	strcat(query, tmp);
+	format(tmp, sizeof(tmp), "`ArmorProperty` = '%s', `ArmorPropertyVal` = '%s', ", ArrayToString(PlayerInfo[playerid][ArmorProperty], MAX_PROPERTIES), FloatArrayToString(PlayerInfo[playerid][ArmorPropertyVal], MAX_PROPERTIES));
+	strcat(query, tmp);
+	format(tmp, sizeof(tmp), "`Acc1Property` = '%s', `Acc1PropertyVal` = '%s', ", ArrayToString(PlayerInfo[playerid][Acc1Property], MAX_PROPERTIES), FloatArrayToString(PlayerInfo[playerid][Acc1PropertyVal], MAX_PROPERTIES));
+	strcat(query, tmp);
+	format(tmp, sizeof(tmp), "`Acc2Property` = '%s', `Acc2PropertyVal` = '%s', ", ArrayToString(PlayerInfo[playerid][Acc2Property], MAX_PROPERTIES), FloatArrayToString(PlayerInfo[playerid][Acc2PropertyVal], MAX_PROPERTIES));
+	strcat(query, tmp);
+	format(tmp, sizeof(tmp), "`WeaponMod` = '%s', `ArmorMod` = '%s' ", PlayerInfo[playerid][WeaponMod], PlayerInfo[playerid][ArmorMod]);
 	strcat(query, tmp);
 	format(tmp, sizeof(tmp), "WHERE `Name` = '%s' LIMIT 1", name);
 	strcat(query, tmp);
@@ -8968,8 +9204,8 @@ stock CreateInventory(name[])
 
 	for(new i = 0; i < MAX_SLOTS; i++)
 	{
-		format(query, sizeof(query), "INSERT INTO `inventories`(`PlayerName`, `SlotID`, `ItemID`, `SlotMod`, `Count`) VALUES ('%s','%d','%d','%s','%d')",
-			name, i, -1, "0 0 0 0 0 0 0", 0
+		format(query, sizeof(query), "INSERT INTO `inventories`(`PlayerName`, `SlotID`, `ItemID`, `SlotMod`, `SlotProps`, `SlotPropVals`, `Count`) VALUES ('%s','%d','%d','%d','%s','%s','%d')",
+			name, i, -1, 0, "-1 -1 -1 -1 -1 -1 -1", "0 0 0 0 0 0 0", 0
 		);
 
 		new Cache:q_result = mysql_query(sql_handle, query);
@@ -8987,8 +9223,9 @@ stock SaveInventory(playerid)
 
 	for(new i = 0; i < MAX_SLOTS; i++)
 	{
-		format(query, sizeof(query), "UPDATE `inventories` SET `ItemID` = '%d', `SlotMod` = '%s', `Count` = '%d' WHERE `PlayerName` = '%s' AND `SlotID` = '%d' LIMIT 1", 
-			PlayerInventory[playerid][i][ID], ArrayToString(PlayerInventory[playerid][i][Mod], MAX_MOD), PlayerInventory[playerid][i][Count], name, i
+		format(query, sizeof(query), "UPDATE `inventories` SET `ItemID` = '%d', `SlotMod` = '%d', `SlotProps` = '%s', `SlotPropVals` = '%s', `Count` = '%d' WHERE `PlayerName` = '%s' AND `SlotID` = '%d' LIMIT 1", 
+			PlayerInventory[playerid][i][ID], PlayerInventory[playerid][i][Mod], ArrayToString(PlayerInventory[playerid][i][Property], MAX_PROPERTIES),
+			FloatArrayToString(PlayerInventory[playerid][i][PropertyVal], MAX_PROPERTIES), PlayerInventory[playerid][i][Count], name, i
 		);
 		new Cache:q_result = mysql_query(sql_handle, query);
 		cache_delete(q_result);
@@ -9024,10 +9261,13 @@ stock LoadInventory(playerid)
 
 		cache_get_value_name_int(i, "ItemID", PlayerInventory[playerid][slot_id][ID]);
 		cache_get_value_name_int(i, "Count", PlayerInventory[playerid][slot_id][Count]);
+		cache_get_value_name_int(i, "SlotMod", PlayerInventory[playerid][slot_id][Mod]);
 
 		new string[255];
-		cache_get_value_name(i, "SlotMod", string);
-		sscanf(string, "a<i>[7]", PlayerInventory[playerid][slot_id][Mod]);
+		cache_get_value_name(i, "SlotProps", string);
+		sscanf(string, "a<i>[7]", PlayerInventory[playerid][slot_id][Property]);
+		cache_get_value_name(i, "SlotPropVals", string);
+		sscanf(string, "a<f>[7]", PlayerInventory[playerid][slot_id][PropertyVal]);
 	}
 
 	cache_delete(q_result);
@@ -9072,6 +9312,12 @@ stock LoadPlayer(playerid)
 	cache_get_value_name_int(0, "Dodge", PlayerInfo[playerid][Dodge]);
 	cache_get_value_name_int(0, "Accuracy", PlayerInfo[playerid][Accuracy]);
 	cache_get_value_name_int(0, "Crit", PlayerInfo[playerid][Crit]);
+	cache_get_value_name_int(0, "AttackRate", PlayerInfo[playerid][AttackRate]);
+	cache_get_value_name_int(0, "DefenseRate", PlayerInfo[playerid][DefenseRate]);
+	cache_get_value_name_float(0, "Vamp", PlayerInfo[playerid][Vamp]);
+	cache_get_value_name_float(0, "CritMult", PlayerInfo[playerid][CritMult]);
+	cache_get_value_name_int(0, "CritReduction", PlayerInfo[playerid][CritReduction]);
+	cache_get_value_name_float(0, "CritMultReduction", PlayerInfo[playerid][CritMultReduction]);
 	cache_get_value_name_int(0, "GlobalTopPos", PlayerInfo[playerid][GlobalTopPosition]);
 	cache_get_value_name_int(0, "LocalTopPos", PlayerInfo[playerid][LocalTopPosition]);
 	cache_get_value_name_int(0, "WalkersLimit", PlayerInfo[playerid][WalkersLimit]);
@@ -9079,16 +9325,30 @@ stock LoadPlayer(playerid)
 	cache_get_value_name_int(0, "ArmorSlotID", PlayerInfo[playerid][ArmorSlotID]);
 	cache_get_value_name_int(0, "AccSlot1ID", PlayerInfo[playerid][AccSlot1ID]);
 	cache_get_value_name_int(0, "AccSlot2ID", PlayerInfo[playerid][AccSlot2ID]);
+	cache_get_value_name_int(0, "WeaponMod", PlayerInfo[playerid][WeaponMod]);
+	cache_get_value_name_int(0, "ArmorMod", PlayerInfo[playerid][ArmorMod]);
 
 	new owner[255];
 	cache_get_value_name(0, "Owner", owner);
 	sscanf(owner, "s[255]", PlayerInfo[playerid][Owner]);
 
 	new string[255];
-	cache_get_value_name(0, "WeaponMod", string);
-	sscanf(string, "a<i>[7]", PlayerInfo[playerid][WeaponMod]);
-	cache_get_value_name(0, "ArmorMod", string);
-	sscanf(string, "a<i>[7]", PlayerInfo[playerid][ArmorMod]);
+	cache_get_value_name(0, "WeaponProperty", string);
+	sscanf(string, "a<i>[7]", PlayerInfo[playerid][WeaponProperty]);
+	cache_get_value_name(0, "WeaponPropertyVal", string);
+	sscanf(string, "a<f>[7]", PlayerInfo[playerid][WeaponPropertyVal]);
+	cache_get_value_name(0, "ArmorProperty", string);
+	sscanf(string, "a<i>[7]", PlayerInfo[playerid][ArmorProperty]);
+	cache_get_value_name(0, "ArmorPropertyVal", string);
+	sscanf(string, "a<f>[7]", PlayerInfo[playerid][ArmorPropertyVal]);
+	cache_get_value_name(0, "Acc1Property", string);
+	sscanf(string, "a<i>[7]", PlayerInfo[playerid][Acc1Property]);
+	cache_get_value_name(0, "Acc1PropertyVal", string);
+	sscanf(string, "a<f>[7]", PlayerInfo[playerid][Acc1PropertyVal]);
+	cache_get_value_name(0, "Acc2Property", string);
+	sscanf(string, "a<i>[7]", PlayerInfo[playerid][Acc1Property]);
+	cache_get_value_name(0, "Acc2PropertyVal", string);
+	sscanf(string, "a<f>[7]", PlayerInfo[playerid][Acc1PropertyVal]);
 
 	cache_delete(q_result);
 
@@ -9100,10 +9360,11 @@ stock LoadPlayer(playerid)
 stock CreatePlayer(playerid, name[], owner[], sex)
 {
 	new query[2048] = "INSERT INTO `players`( \
-		`ID`, `Name`, `Owner`, `Sex`, `Rate`, `MaxRank`, `Rank`, `Cash`, `PosX`, `PosY`, `PosZ`, \
-		`Angle`, `Interior`, `Skin`, `Kills`, `Deaths`, `DamageMin`, `DamageMax`, `Defense`, \
-		`Dodge`, `Accuracy`, `Crit`, `GlobalTopPos`, `LocalTopPos`, `WeaponSlotID`, `WeaponMod`, \
-		`ArmorSlotID`, `ArmorMod`, `AccSlot1ID`, `AccSlot2ID`) VALUES (";
+		`ID`, `Name`, `Owner`, `Sex`, `Rate`, `MaxRank`, `Rank`, `Cash`, `PosX`, `PosY`, `PosZ`, `Angle`, `Interior`, `Skin`, `Kills`, `Deaths`, \
+		`DamageMin`, `DamageMax`, `Defense`, `Dodge`, `Accuracy`, `Crit`, `AttackRate`, `DefenseRate`, `CritMult`, `CritReduction`, `CritMultReduction`, ";
+	strcat(query, "`Vamp`, `GlobalTopPos`, `LocalTopPos`, `WalkersLimit`, `WeaponSlotID`, `WeaponMod`, `WeaponProperty`, `WeaponPropertyVal`, `ArmorSlotID`, \
+		`ArmorMod`, `ArmorProperty`, `ArmorPropertyVal`, `AccSlot1ID`, `AccSlot2ID`, `Acc1Property`, `Acc1PropertyVal`, `Acc2Property`, `Acc2PropertyVal`) VALUES (");
+
 	new tmp[1024];
 
 	new sub_query[255] = "SELECT MAX(`ID`) AS `ID` FROM `players`";
@@ -9120,8 +9381,14 @@ stock CreatePlayer(playerid, name[], owner[], sex)
 
 	id++;
 
-	format(tmp, sizeof(tmp), "'%d','%s','%s','%d','%d','%d','%d','%d','%f','%f','%f','%f','%d','%d','%d','%d','%d','%d','%d','%d','%d','%d','%d','%d','%d','%s','%d','%s','%d','%d')",
-		id, name, owner, sex, 0, 1, 1, 0, DEFAULT_POS_X, DEFAULT_POS_Y, DEFAULT_POS_Z, 180, 1, 78, 0, 0, 13, 15, 5, 0, 5, 5, 20, 10, 0, "0 0 0 0 0 0 0", 81, "0 0 0 0 0 0 0", -1, -1
+	format(tmp, sizeof(tmp), "'%d','%s','%s','%d','%d','%d','%d','%d','%f','%f','%f','%f',\
+		'%d','%d','%d','%d','%d','%d','%d','%d','%d','%d','%d','%d','%f','%d','%f','%f','%d',\
+		'%d','%d','%d','%d','%s','%s','%d','%d','%s','%s','%d','%d','%s','%s','%s','%s')",
+		id, name, owner, sex, 0, 1, 1, 0, DEFAULT_POS_X, DEFAULT_POS_Y, DEFAULT_POS_Z, 180, 1, 78, 0, 0,
+		DEFAULT_DAMAGE_MIN, DEFAULT_DAMAGE_MAX, DEFAULT_DEFENSE, DEFAULT_DODGE, DEFAULT_ACCURACY, DEFAULT_CRIT,
+		DEFAULT_ATTACK_RATE, DEFAULT_DEFENSE_RATE, DEFAULT_CRIT_MULT, DEFAULT_CRIT_REDUCTION, DEFAULT_CRIT_MULT_REDUCTION,
+		DEFAULT_VAMP, 20, 10, 30, -1, 0, "-1 -1 -1 -1 -1 -1 -1", "0 0 0 0 0 0 0", -1, 0, "-1 -1 -1 -1 -1 -1 -1", "0 0 0 0 0 0 0",
+		-1, -1, "-1 -1 -1 -1 -1 -1 -1", "0 0 0 0 0 0 0", "-1 -1 -1 -1 -1 -1 -1", "0 0 0 0 0 0 0"
 	);
 	strcat(query, tmp);
 
@@ -9470,6 +9737,12 @@ stock GetWalker(rank)
 	cache_get_value_name_int(0, "Dodge", walker[Dodge]);
 	cache_get_value_name_int(0, "Accuracy", walker[Accuracy]);
 	cache_get_value_name_int(0, "Crit", walker[Crit]);
+	cache_get_value_name_int(0, "AttackRate", walker[AttackRate]);
+	cache_get_value_name_int(0, "DefenseRate", walker[DefenseRate]);
+	cache_get_value_name_float(0, "CritMult", walker[CritMult]);
+	cache_get_value_name_float(0, "CritMultReduction", walker[CritMultReduction]);
+	cache_get_value_name_int(0, "CritReduction", walker[CritReduction]);
+	cache_get_value_name_float(0, "Vamp", walker[Vamp]);
 	cache_get_value_name_int(0, "WeaponID", walker[WeaponID]);
 
 	new name[255];
@@ -9568,6 +9841,12 @@ stock InitWalkers()
 		PlayerInfo[Walkers[i][ID]][Dodge] = Walkers[i][Dodge];
 		PlayerInfo[Walkers[i][ID]][Accuracy] = Walkers[i][Accuracy];
 		PlayerInfo[Walkers[i][ID]][Crit] = Walkers[i][Crit];
+		PlayerInfo[Walkers[i][ID]][AttackRate] = Walkers[i][AttackRate];
+		PlayerInfo[Walkers[i][ID]][DefenseRate] = Walkers[i][DefenseRate];
+		PlayerInfo[Walkers[i][ID]][CritMult] = Walkers[i][CritMult];
+		PlayerInfo[Walkers[i][ID]][CritMultReduction] = Walkers[i][CritMultReduction];
+		PlayerInfo[Walkers[i][ID]][CritReduction] = Walkers[i][CritReduction];
+		PlayerInfo[Walkers[i][ID]][Vamp] = Walkers[i][Vamp];
 		PlayerInfo[Walkers[i][ID]][Sex] = 0;
 		PlayerInfo[Walkers[i][ID]][Skin] = Walkers[i][Skin];
 		PlayerInfo[Walkers[i][ID]][WeaponSlotID] = Walkers[i][WeaponID];
@@ -10062,7 +10341,7 @@ stock InitPlayerTextDraws(playerid)
 	PlayerTextDrawSetPreviewModel(playerid, EqInfDelim1[playerid], 18656);
 	PlayerTextDrawSetPreviewRot(playerid, EqInfDelim1[playerid], 0.000000, 0.000000, 0.000000, 1.000000);
 
-	EqInfItemName[playerid] = CreatePlayerTextDraw(playerid, 318.400054, 130.210311, "[Type C-HP increasing] Bourgeois destroyer");
+	EqInfItemName[playerid] = CreatePlayerTextDraw(playerid, 318.400054, 130.210311, "[+13 Legendary bourgeois destroyer]");
 	PlayerTextDrawLetterSize(playerid, EqInfItemName[playerid], 0.169999, 0.811851);
 	PlayerTextDrawAlignment(playerid, EqInfItemName[playerid], 2);
 	PlayerTextDrawColor(playerid, EqInfItemName[playerid], -5963521);
@@ -10086,8 +10365,38 @@ stock InitPlayerTextDraws(playerid)
 	PlayerTextDrawSetPreviewModel(playerid, EqInfItemIcon[playerid], -1);
 	PlayerTextDrawSetPreviewRot(playerid, EqInfItemIcon[playerid], 0.000000, 0.000000, 0.000000, 1.000000);
 
-	EqInfMainStat[playerid] = CreatePlayerTextDraw(playerid, 283.400146, 141.451766, "Damage: 950-1120");
-	PlayerTextDrawLetterSize(playerid, EqInfMainStat[playerid], 0.284000, 1.085629);
+	EqInfItemType[playerid] = CreatePlayerTextDraw(playerid, 283.199554, 141.875717, "Weapon");
+	PlayerTextDrawLetterSize(playerid, EqInfItemType[playerid], 0.200865, 0.845863);
+	PlayerTextDrawAlignment(playerid, EqInfItemType[playerid], 1);
+	PlayerTextDrawColor(playerid, EqInfItemType[playerid], -1);
+	PlayerTextDrawSetShadow(playerid, EqInfItemType[playerid], 0);
+	PlayerTextDrawSetOutline(playerid, EqInfItemType[playerid], 0);
+	PlayerTextDrawBackgroundColor(playerid, EqInfItemType[playerid], 51);
+	PlayerTextDrawFont(playerid, EqInfItemType[playerid], 1);
+	PlayerTextDrawSetProportional(playerid, EqInfItemType[playerid], 1);
+
+	EqInfItemRank[playerid] = CreatePlayerTextDraw(playerid, 283.566345, 161.948440, "Rank: Platinum");
+	PlayerTextDrawLetterSize(playerid, EqInfItemRank[playerid], 0.188333, 0.757924);
+	PlayerTextDrawAlignment(playerid, EqInfItemRank[playerid], 1);
+	PlayerTextDrawColor(playerid, EqInfItemRank[playerid], -1);
+	PlayerTextDrawSetShadow(playerid, EqInfItemRank[playerid], 0);
+	PlayerTextDrawSetOutline(playerid, EqInfItemRank[playerid], 0);
+	PlayerTextDrawBackgroundColor(playerid, EqInfItemRank[playerid], 51);
+	PlayerTextDrawFont(playerid, EqInfItemRank[playerid], 1);
+	PlayerTextDrawSetProportional(playerid, EqInfItemRank[playerid], 1);
+
+	EqInfPropTxt[playerid] = CreatePlayerTextDraw(playerid, 252.366531, 173.516815, "Особые характеристики:");
+	PlayerTextDrawLetterSize(playerid, EqInfPropTxt[playerid], 0.233666, 1.015110);
+	PlayerTextDrawAlignment(playerid, EqInfPropTxt[playerid], 1);
+	PlayerTextDrawColor(playerid, EqInfPropTxt[playerid], 16711935);
+	PlayerTextDrawSetShadow(playerid, EqInfPropTxt[playerid], 0);
+	PlayerTextDrawSetOutline(playerid, EqInfPropTxt[playerid], 0);
+	PlayerTextDrawBackgroundColor(playerid, EqInfPropTxt[playerid], 51);
+	PlayerTextDrawFont(playerid, EqInfPropTxt[playerid], 1);
+	PlayerTextDrawSetProportional(playerid, EqInfPropTxt[playerid], 1);
+
+	EqInfMainStat[playerid] = CreatePlayerTextDraw(playerid, 283.400146, 152.984542, "Damage: 950-1120");
+	PlayerTextDrawLetterSize(playerid, EqInfMainStat[playerid], 0.212165, 0.885686);
 	PlayerTextDrawAlignment(playerid, EqInfMainStat[playerid], 1);
 	PlayerTextDrawColor(playerid, EqInfMainStat[playerid], 16711935);
 	PlayerTextDrawSetShadow(playerid, EqInfMainStat[playerid], 0);
@@ -10095,39 +10404,6 @@ stock InitPlayerTextDraws(playerid)
 	PlayerTextDrawBackgroundColor(playerid, EqInfMainStat[playerid], 51);
 	PlayerTextDrawFont(playerid, EqInfMainStat[playerid], 1);
 	PlayerTextDrawSetProportional(playerid, EqInfMainStat[playerid], 1);
-
-	EqInfBonusStat[playerid][0] = CreatePlayerTextDraw(playerid, 283.499786, 154.352645, "Max HP +10%");
-	PlayerTextDrawLetterSize(playerid, EqInfBonusStat[playerid][0], 0.188333, 0.757925);
-	PlayerTextDrawAlignment(playerid, EqInfBonusStat[playerid][0], 1);
-	PlayerTextDrawColor(playerid, EqInfBonusStat[playerid][0], -1);
-	PlayerTextDrawSetShadow(playerid, EqInfBonusStat[playerid][0], 0);
-	PlayerTextDrawSetOutline(playerid, EqInfBonusStat[playerid][0], 0);
-	PlayerTextDrawBackgroundColor(playerid, EqInfBonusStat[playerid][0], 51);
-	PlayerTextDrawFont(playerid, EqInfBonusStat[playerid][0], 1);
-	PlayerTextDrawSetProportional(playerid, EqInfBonusStat[playerid][0], 1);
-
-	EqInfDelim2[playerid] = CreatePlayerTextDraw(playerid, 278.732940, 152.840209, "inf_delim2");
-	PlayerTextDrawLetterSize(playerid, EqInfDelim2[playerid], 0.005665, 1.837852);
-	PlayerTextDrawTextSize(playerid, EqInfDelim2[playerid], 107.833137, 1.617777);
-	PlayerTextDrawAlignment(playerid, EqInfDelim2[playerid], 1);
-	PlayerTextDrawColor(playerid, EqInfDelim2[playerid], 16711935);
-	PlayerTextDrawUseBox(playerid, EqInfDelim2[playerid], true);
-	PlayerTextDrawBoxColor(playerid, EqInfDelim2[playerid], 0);
-	PlayerTextDrawSetShadow(playerid, EqInfDelim2[playerid], 0);
-	PlayerTextDrawSetOutline(playerid, EqInfDelim2[playerid], 0);
-	PlayerTextDrawFont(playerid, EqInfDelim2[playerid], 5);
-	PlayerTextDrawSetPreviewModel(playerid, EqInfDelim2[playerid], 18656);
-	PlayerTextDrawSetPreviewRot(playerid, EqInfDelim2[playerid], 0.000000, 0.000000, 0.000000, 1.000000);
-
-	EqInfBonusStat[playerid][1] = CreatePlayerTextDraw(playerid, 283.566345, 161.948440, "Increase damage up to 10%");
-	PlayerTextDrawLetterSize(playerid, EqInfBonusStat[playerid][1], 0.188333, 0.757925);
-	PlayerTextDrawAlignment(playerid, EqInfBonusStat[playerid][1], 1);
-	PlayerTextDrawColor(playerid, EqInfBonusStat[playerid][1], -1);
-	PlayerTextDrawSetShadow(playerid, EqInfBonusStat[playerid][1], 0);
-	PlayerTextDrawSetOutline(playerid, EqInfBonusStat[playerid][1], 0);
-	PlayerTextDrawBackgroundColor(playerid, EqInfBonusStat[playerid][1], 51);
-	PlayerTextDrawFont(playerid, EqInfBonusStat[playerid][1], 1);
-	PlayerTextDrawSetProportional(playerid, EqInfBonusStat[playerid][1], 1);
 
 	EqInfDelim3[playerid] = CreatePlayerTextDraw(playerid, 248.866241, 170.386657, "inf_delim3");
 	PlayerTextDrawLetterSize(playerid, EqInfDelim3[playerid], 0.005665, 1.837852);
@@ -10142,93 +10418,28 @@ stock InitPlayerTextDraws(playerid)
 	PlayerTextDrawSetPreviewModel(playerid, EqInfDelim3[playerid], 18656);
 	PlayerTextDrawSetPreviewRot(playerid, EqInfDelim3[playerid], 0.000000, 0.000000, 0.000000, 1.000000);
 
-	EqInfTxt2[playerid] = CreatePlayerTextDraw(playerid, 319.100036, 173.973190, "Модификации");
-	PlayerTextDrawLetterSize(playerid, EqInfTxt2[playerid], 0.233666, 1.015111);
-	PlayerTextDrawAlignment(playerid, EqInfTxt2[playerid], 2);
-	PlayerTextDrawColor(playerid, EqInfTxt2[playerid], -1);
-	PlayerTextDrawSetShadow(playerid, EqInfTxt2[playerid], 0);
-	PlayerTextDrawSetOutline(playerid, EqInfTxt2[playerid], 0);
-	PlayerTextDrawBackgroundColor(playerid, EqInfTxt2[playerid], 51);
-	PlayerTextDrawFont(playerid, EqInfTxt2[playerid], 1);
-	PlayerTextDrawSetProportional(playerid, EqInfTxt2[playerid], 1);
-
-	new mod_x = 252;
-	new mod_offset = 19;
+	new mod_y = 185;
+	new mod_offset = 8;
 	idx = 0;
-	for(new i = 1; i <= MAX_MOD; i++)
+	for(new i = 1; i <= MAX_PROPERTIES; i++)
 	{
-		EqInfMod[playerid][idx] = CreatePlayerTextDraw(playerid, mod_x, 191, "mod");
-		PlayerTextDrawLetterSize(playerid, EqInfMod[playerid][idx], 0.000000, 0.000000);
-		PlayerTextDrawTextSize(playerid, EqInfMod[playerid][idx], 18.000000, 18.000000);
-		PlayerTextDrawAlignment(playerid, EqInfMod[playerid][idx], 1);
-		PlayerTextDrawColor(playerid, EqInfMod[playerid][idx], -1);
-		PlayerTextDrawUseBox(playerid, EqInfMod[playerid][idx], true);
-		PlayerTextDrawBoxColor(playerid, EqInfMod[playerid][idx], 0);
-		PlayerTextDrawSetShadow(playerid, EqInfMod[playerid][idx], 0);
-		PlayerTextDrawSetOutline(playerid, EqInfMod[playerid][idx], 0);
-		PlayerTextDrawFont(playerid, EqInfMod[playerid][idx], 5);
-		PlayerTextDrawBackgroundColor(playerid, EqInfMod[playerid][idx], 0x00000000);
-		PlayerTextDrawSetPreviewModel(playerid, EqInfMod[playerid][idx], 3106);
-		PlayerTextDrawSetPreviewRot(playerid, EqInfMod[playerid][idx], 0.000000, 0.000000, 0.000000, 1.000000);
+		EqInfProp[playerid][idx] = CreatePlayerTextDraw(playerid, 256, mod_y, "Prop");
+		PlayerTextDrawLetterSize(playerid, EqInfProp[playerid][idx], 0.200663, 0.894814);
+		PlayerTextDrawAlignment(playerid, EqInfProp[playerid][idx], 1);
+		PlayerTextDrawColor(playerid, EqInfProp[playerid][idx], -1);
+		PlayerTextDrawSetShadow(playerid, EqInfProp[playerid][idx], 0);
+		PlayerTextDrawSetOutline(playerid, EqInfProp[playerid][idx], 0);
+		PlayerTextDrawBackgroundColor(playerid, EqInfProp[playerid][idx], 0x00000000);
+		PlayerTextDrawFont(playerid, EqInfProp[playerid][idx], 1);
+		PlayerTextDrawSetProportional(playerid, EqInfProp[playerid][idx], 1);
+		PlayerTextDrawSetPreviewModel(playerid, EqInfProp[playerid][idx], 0);
+		PlayerTextDrawSetPreviewRot(playerid, EqInfProp[playerid][idx], 0.000000, 0.000000, 0.000000, 0.000000);
 
-		mod_x += mod_offset;
+		mod_y += mod_offset;
 		idx++;
 	}
 
-	EqInfModStat[playerid][0] = CreatePlayerTextDraw(playerid, 253.399841, 215.993835, "Increases damage by 50%");
-	PlayerTextDrawLetterSize(playerid, EqInfModStat[playerid][0], 0.200666, 0.894814);
-	PlayerTextDrawAlignment(playerid, EqInfModStat[playerid][0], 1);
-	PlayerTextDrawColor(playerid, EqInfModStat[playerid][0], 16711935);
-	PlayerTextDrawSetShadow(playerid, EqInfModStat[playerid][0], 0);
-	PlayerTextDrawSetOutline(playerid, EqInfModStat[playerid][0], 0);
-	PlayerTextDrawBackgroundColor(playerid, EqInfModStat[playerid][0], 51);
-	PlayerTextDrawFont(playerid, EqInfModStat[playerid][0], 1);
-	PlayerTextDrawSetProportional(playerid, EqInfModStat[playerid][0], 1);
-
-	EqInfModStat[playerid][1] = CreatePlayerTextDraw(playerid, 253.466476, 223.879959, "Bonus 2");
-	PlayerTextDrawLetterSize(playerid, EqInfModStat[playerid][1], 0.200666, 0.894814);
-	PlayerTextDrawAlignment(playerid, EqInfModStat[playerid][1], 1);
-	PlayerTextDrawColor(playerid, EqInfModStat[playerid][1], 16711935);
-	PlayerTextDrawSetShadow(playerid, EqInfModStat[playerid][1], 0);
-	PlayerTextDrawSetOutline(playerid, EqInfModStat[playerid][1], 0);
-	PlayerTextDrawBackgroundColor(playerid, EqInfModStat[playerid][1], 51);
-	PlayerTextDrawFont(playerid, EqInfModStat[playerid][1], 1);
-	PlayerTextDrawSetProportional(playerid, EqInfModStat[playerid][1], 1);
-
-	EqInfModStat[playerid][2] = CreatePlayerTextDraw(playerid, 253.566345, 231.392700, "Bonus 3");
-	PlayerTextDrawLetterSize(playerid, EqInfModStat[playerid][2], 0.200666, 0.894814);
-	PlayerTextDrawAlignment(playerid, EqInfModStat[playerid][2], 1);
-	PlayerTextDrawColor(playerid, EqInfModStat[playerid][2], 16711935);
-	PlayerTextDrawSetShadow(playerid, EqInfModStat[playerid][2], 0);
-	PlayerTextDrawSetOutline(playerid, EqInfModStat[playerid][2], 0);
-	PlayerTextDrawBackgroundColor(playerid, EqInfModStat[playerid][2], 51);
-	PlayerTextDrawFont(playerid, EqInfModStat[playerid][2], 1);
-	PlayerTextDrawSetProportional(playerid, EqInfModStat[playerid][2], 1);
-
-	EqInfModStat[playerid][3] = CreatePlayerTextDraw(playerid, 253.599548, 238.822448, "Bonus 4");
-	PlayerTextDrawLetterSize(playerid, EqInfModStat[playerid][3], 0.200666, 0.894814);
-	PlayerTextDrawAlignment(playerid, EqInfModStat[playerid][3], 1);
-	PlayerTextDrawColor(playerid, EqInfModStat[playerid][3], 16711935);
-	PlayerTextDrawSetShadow(playerid, EqInfModStat[playerid][3], 0);
-	PlayerTextDrawSetOutline(playerid, EqInfModStat[playerid][3], 0);
-	PlayerTextDrawBackgroundColor(playerid, EqInfModStat[playerid][3], 51);
-	PlayerTextDrawFont(playerid, EqInfModStat[playerid][3], 1);
-	PlayerTextDrawSetProportional(playerid, EqInfModStat[playerid][3], 1);
-
-	EqInfDelim4[playerid] = CreatePlayerTextDraw(playerid, 248.366043, 250.118347, "inf_delim4");
-	PlayerTextDrawLetterSize(playerid, EqInfDelim4[playerid], 0.005665, 1.837852);
-	PlayerTextDrawTextSize(playerid, EqInfDelim4[playerid], 137.866516, 2.405925);
-	PlayerTextDrawAlignment(playerid, EqInfDelim4[playerid], 1);
-	PlayerTextDrawColor(playerid, EqInfDelim4[playerid], 16711935);
-	PlayerTextDrawUseBox(playerid, EqInfDelim4[playerid], true);
-	PlayerTextDrawBoxColor(playerid, EqInfDelim4[playerid], 0);
-	PlayerTextDrawSetShadow(playerid, EqInfDelim4[playerid], 0);
-	PlayerTextDrawSetOutline(playerid, EqInfDelim4[playerid], 0);
-	PlayerTextDrawFont(playerid, EqInfDelim4[playerid], 5);
-	PlayerTextDrawSetPreviewModel(playerid, EqInfDelim4[playerid], 18656);
-	PlayerTextDrawSetPreviewRot(playerid, EqInfDelim4[playerid], 0.000000, 0.000000, 0.000000, 1.000000);
-
-	EqInfDescriptionStr[playerid][0] = CreatePlayerTextDraw(playerid, 319.433380, 254.530380, "[Description string 1]");
+	EqInfDescriptionStr[playerid][0] = CreatePlayerTextDraw(playerid, 319.433380, 248.141815, "[Description string 1]");
 	PlayerTextDrawLetterSize(playerid, EqInfDescriptionStr[playerid][0], 0.167666, 0.749629);
 	PlayerTextDrawAlignment(playerid, EqInfDescriptionStr[playerid][0], 2);
 	PlayerTextDrawColor(playerid, EqInfDescriptionStr[playerid][0], -1);
@@ -10238,7 +10449,7 @@ stock InitPlayerTextDraws(playerid)
 	PlayerTextDrawFont(playerid, EqInfDescriptionStr[playerid][0], 1);
 	PlayerTextDrawSetProportional(playerid, EqInfDescriptionStr[playerid][0], 1);
 
-	EqInfDescriptionStr[playerid][1] = CreatePlayerTextDraw(playerid, 319.400115, 264.200103, "[Description string 2]");
+	EqInfDescriptionStr[playerid][1] = CreatePlayerTextDraw(playerid, 319.400115, 258.558502, "[Description string 2]");
 	PlayerTextDrawLetterSize(playerid, EqInfDescriptionStr[playerid][1], 0.167666, 0.749629);
 	PlayerTextDrawAlignment(playerid, EqInfDescriptionStr[playerid][1], 2);
 	PlayerTextDrawColor(playerid, EqInfDescriptionStr[playerid][1], -1);
@@ -10248,7 +10459,7 @@ stock InitPlayerTextDraws(playerid)
 	PlayerTextDrawFont(playerid, EqInfDescriptionStr[playerid][1], 1);
 	PlayerTextDrawSetProportional(playerid, EqInfDescriptionStr[playerid][1], 1);
 
-	EqInfDescriptionStr[playerid][2] = CreatePlayerTextDraw(playerid, 319.633575, 274.035766, "[Description string 3]");
+	EqInfDescriptionStr[playerid][2] = CreatePlayerTextDraw(playerid, 319.633575, 269.058013, "[Description string 3]");
 	PlayerTextDrawLetterSize(playerid, EqInfDescriptionStr[playerid][2], 0.167666, 0.749629);
 	PlayerTextDrawAlignment(playerid, EqInfDescriptionStr[playerid][2], 2);
 	PlayerTextDrawColor(playerid, EqInfDescriptionStr[playerid][2], -1);
@@ -10258,7 +10469,7 @@ stock InitPlayerTextDraws(playerid)
 	PlayerTextDrawFont(playerid, EqInfDescriptionStr[playerid][2], 1);
 	PlayerTextDrawSetProportional(playerid, EqInfDescriptionStr[playerid][2], 1);
 
-	EqInfDelim5[playerid] = CreatePlayerTextDraw(playerid, 248.532775, 286.045776, "inf_delim5");
+	EqInfDelim5[playerid] = CreatePlayerTextDraw(playerid, 248.399673, 281.690307, "inf_delim5");
 	PlayerTextDrawLetterSize(playerid, EqInfDelim5[playerid], 0.005665, 1.837852);
 	PlayerTextDrawTextSize(playerid, EqInfDelim5[playerid], 137.866516, 2.405925);
 	PlayerTextDrawAlignment(playerid, EqInfDelim5[playerid], 1);
@@ -10271,7 +10482,7 @@ stock InitPlayerTextDraws(playerid)
 	PlayerTextDrawSetPreviewModel(playerid, EqInfDelim5[playerid], 18656);
 	PlayerTextDrawSetPreviewRot(playerid, EqInfDelim5[playerid], 0.000000, 0.000000, 0.000000, 1.000000);
 
-	EqInfPrice[playerid] = CreatePlayerTextDraw(playerid, 385.366790, 289.913970, "Price: 9999999999$");
+	EqInfPrice[playerid] = CreatePlayerTextDraw(playerid, 385.500000, 285.765869, "Price: 9999999999$");
 	PlayerTextDrawLetterSize(playerid, EqInfPrice[playerid], 0.234000, 1.069036);
 	PlayerTextDrawAlignment(playerid, EqInfPrice[playerid], 3);
 	PlayerTextDrawColor(playerid, EqInfPrice[playerid], -1);
@@ -10348,28 +10559,6 @@ stock InitPlayerTextDraws(playerid)
 	PlayerTextDrawBackgroundColor(playerid, InfItemType[playerid], 51);
 	PlayerTextDrawFont(playerid, InfItemType[playerid], 1);
 	PlayerTextDrawSetProportional(playerid, InfItemType[playerid], 1);
-
-	InfItemEffect[playerid][0] = CreatePlayerTextDraw(playerid, 282.866516, 187.131805, "Decreases required rank for equip by 1");
-	PlayerTextDrawLetterSize(playerid, InfItemEffect[playerid][0], 0.167666, 0.749629);
-	PlayerTextDrawAlignment(playerid, InfItemEffect[playerid][0], 1);
-	PlayerTextDrawColor(playerid, InfItemEffect[playerid][0], -1);
-	PlayerTextDrawSetShadow(playerid, InfItemEffect[playerid][0], 0);
-	PlayerTextDrawSetOutline(playerid, InfItemEffect[playerid][0], 0);
-	PlayerTextDrawBackgroundColor(playerid, InfItemEffect[playerid][0], 51);
-	PlayerTextDrawFont(playerid, InfItemEffect[playerid][0], 1);
-	PlayerTextDrawSetProportional(playerid, InfItemEffect[playerid][0], 1);
-
-	InfItemEffect[playerid][1] = CreatePlayerTextDraw(playerid, 282.866546, 193.939468, "Damage +25%");
-	PlayerTextDrawLetterSize(playerid, InfItemEffect[playerid][1], 0.167666, 0.749629);
-	PlayerTextDrawAlignment(playerid, InfItemEffect[playerid][1], 1);
-	PlayerTextDrawColor(playerid, InfItemEffect[playerid][1], -1);
-	PlayerTextDrawSetShadow(playerid, InfItemEffect[playerid][1], 0);
-	PlayerTextDrawSetOutline(playerid, InfItemEffect[playerid][1], 0);
-	PlayerTextDrawBackgroundColor(playerid, InfItemEffect[playerid][1], 51);
-	PlayerTextDrawFont(playerid, InfItemEffect[playerid][1], 1);
-	PlayerTextDrawSetProportional(playerid, InfItemEffect[playerid][1], 1);
-	PlayerTextDrawSetPreviewModel(playerid, InfItemEffect[playerid][1], 19134);
-	PlayerTextDrawSetPreviewRot(playerid, InfItemEffect[playerid][1], 0.000000, 0.000000, 90.000000, 1.000000);
 
 	InfDelim2[playerid] = CreatePlayerTextDraw(playerid, 251.033248, 204.010681, "inf_delim2");
 	PlayerTextDrawLetterSize(playerid, InfDelim2[playerid], 0.000000, -0.233333);
@@ -10451,9 +10640,10 @@ stock InitPlayerTextDraws(playerid)
 	PlayerTextDrawSetSelectable(playerid, InfClose[playerid], true);
 	PlayerTextDrawBackgroundColor(playerid, InfClose[playerid], 0x0000000);
 
-	UpgBox[playerid] = CreatePlayerTextDraw(playerid, 383.666778, 153.737030, "upg_box");
-	PlayerTextDrawLetterSize(playerid, UpgBox[playerid], 0.000000, 10.753333);
-	PlayerTextDrawTextSize(playerid, UpgBox[playerid], 255.666656, 0.000000);
+	/////
+	UpgBox[playerid] = CreatePlayerTextDraw(playerid, 415.533599, 154.566558, "upg_box");
+	PlayerTextDrawLetterSize(playerid, UpgBox[playerid], 0.000000, 13.053355);
+	PlayerTextDrawTextSize(playerid, UpgBox[playerid], 215.866714, 0.000000);
 	PlayerTextDrawAlignment(playerid, UpgBox[playerid], 1);
 	PlayerTextDrawColor(playerid, UpgBox[playerid], 0);
 	PlayerTextDrawUseBox(playerid, UpgBox[playerid], true);
@@ -10461,9 +10651,11 @@ stock InitPlayerTextDraws(playerid)
 	PlayerTextDrawSetShadow(playerid, UpgBox[playerid], 0);
 	PlayerTextDrawSetOutline(playerid, UpgBox[playerid], 0);
 	PlayerTextDrawFont(playerid, UpgBox[playerid], 0);
+	PlayerTextDrawSetPreviewModel(playerid, UpgBox[playerid], 18656);
+	PlayerTextDrawSetPreviewRot(playerid, UpgBox[playerid], 0.000000, 0.000000, 0.000000, 1.000000);
 
 	UpgTxt1[playerid] = CreatePlayerTextDraw(playerid, 320.166687, 153.481506, "Модификация");
-	PlayerTextDrawLetterSize(playerid, UpgTxt1[playerid], 0.267666, 1.044148);
+	PlayerTextDrawLetterSize(playerid, UpgTxt1[playerid], 0.267666, 1.044147);
 	PlayerTextDrawAlignment(playerid, UpgTxt1[playerid], 2);
 	PlayerTextDrawColor(playerid, UpgTxt1[playerid], -1);
 	PlayerTextDrawSetShadow(playerid, UpgTxt1[playerid], 0);
@@ -10472,9 +10664,9 @@ stock InitPlayerTextDraws(playerid)
 	PlayerTextDrawFont(playerid, UpgTxt1[playerid], 1);
 	PlayerTextDrawSetProportional(playerid, UpgTxt1[playerid], 1);
 
-	UpgDelim1[playerid] = CreatePlayerTextDraw(playerid, 256.966674, 163.727508, "upg_delim1");
-	PlayerTextDrawLetterSize(playerid, UpgDelim1[playerid], 0.000000, 0.000000);
-	PlayerTextDrawTextSize(playerid, UpgDelim1[playerid], 124.566665, 2.200000);
+	UpgDelim1[playerid] = CreatePlayerTextDraw(playerid, 217.666656, 163.229598, "upg_delim1");
+	PlayerTextDrawLetterSize(playerid, UpgDelim1[playerid], 0.000000, -7.433332);
+	PlayerTextDrawTextSize(playerid, UpgDelim1[playerid], 196.133361, 2.200000);
 	PlayerTextDrawAlignment(playerid, UpgDelim1[playerid], 1);
 	PlayerTextDrawColor(playerid, UpgDelim1[playerid], 16711935);
 	PlayerTextDrawUseBox(playerid, UpgDelim1[playerid], true);
@@ -10485,33 +10677,59 @@ stock InitPlayerTextDraws(playerid)
 	PlayerTextDrawSetPreviewModel(playerid, UpgDelim1[playerid], 18656);
 	PlayerTextDrawSetPreviewRot(playerid, UpgDelim1[playerid], 0.000000, 0.000000, 0.000000, 1.000000);
 
-	UpgModInfo[playerid] = CreatePlayerTextDraw(playerid, 320.066711, 176.425201, "7 modification");
-	PlayerTextDrawLetterSize(playerid, UpgModInfo[playerid], 0.245666, 0.919703);
-	PlayerTextDrawAlignment(playerid, UpgModInfo[playerid], 2);
-	PlayerTextDrawColor(playerid, UpgModInfo[playerid], -1);
-	PlayerTextDrawSetShadow(playerid, UpgModInfo[playerid], 0);
-	PlayerTextDrawSetOutline(playerid, UpgModInfo[playerid], 0);
-	PlayerTextDrawBackgroundColor(playerid, UpgModInfo[playerid], 51);
-	PlayerTextDrawFont(playerid, UpgModInfo[playerid], 1);
-	PlayerTextDrawSetProportional(playerid, UpgModInfo[playerid], 1);
+	UpgOldItemTxt[playerid] = CreatePlayerTextDraw(playerid, 220.166717, 171.986801, "+12 Legendary bourgeois destroyer");
+	PlayerTextDrawLetterSize(playerid, UpgOldItemTxt[playerid], 0.129999, 0.600000);
+	PlayerTextDrawAlignment(playerid, UpgOldItemTxt[playerid], 1);
+	PlayerTextDrawColor(playerid, UpgOldItemTxt[playerid], -5963521);
+	PlayerTextDrawSetShadow(playerid, UpgOldItemTxt[playerid], 0);
+	PlayerTextDrawSetOutline(playerid, UpgOldItemTxt[playerid], 0);
+	PlayerTextDrawBackgroundColor(playerid, UpgOldItemTxt[playerid], 51);
+	PlayerTextDrawFont(playerid, UpgOldItemTxt[playerid], 1);
+	PlayerTextDrawSetProportional(playerid, UpgOldItemTxt[playerid], 1);
+	PlayerTextDrawSetPreviewModel(playerid, UpgOldItemTxt[playerid], 18656);
+	PlayerTextDrawSetPreviewRot(playerid, UpgOldItemTxt[playerid], 0.000000, 0.000000, 0.000000, 1.000000);
 
-	UpgItemSlot[playerid] = CreatePlayerTextDraw(playerid, 305.100158, 193.345382, "item_slot");
-	PlayerTextDrawLetterSize(playerid, UpgItemSlot[playerid], 0.000000, 0.000000);
-	PlayerTextDrawTextSize(playerid, UpgItemSlot[playerid], 30.000000, 30.000000);
-	PlayerTextDrawAlignment(playerid, UpgItemSlot[playerid], 1);
-	PlayerTextDrawColor(playerid, UpgItemSlot[playerid], -1);
-	PlayerTextDrawUseBox(playerid, UpgItemSlot[playerid], true);
-	PlayerTextDrawBoxColor(playerid, UpgItemSlot[playerid], 0);
-	PlayerTextDrawSetShadow(playerid, UpgItemSlot[playerid], 0);
-	PlayerTextDrawSetOutline(playerid, UpgItemSlot[playerid], 0);
-	PlayerTextDrawBackgroundColor(playerid, UpgItemSlot[playerid], -1378294017);
-	PlayerTextDrawFont(playerid, UpgItemSlot[playerid], 5);
-	PlayerTextDrawSetSelectable(playerid, UpgItemSlot[playerid], true);
-	PlayerTextDrawSetPreviewModel(playerid, UpgItemSlot[playerid], -1);
-	PlayerTextDrawSetPreviewRot(playerid, UpgItemSlot[playerid], 0.000000, 0.000000, 90.000000, 1.000000);
+	UpgSafeBtn[playerid] = CreatePlayerTextDraw(playerid, 364.533264, 260.549591, "Safe");
+	PlayerTextDrawLetterSize(playerid, UpgSafeBtn[playerid], 0.275332, 1.060739);
+	PlayerTextDrawTextSize(playerid, UpgSafeBtn[playerid], 1.033336, -99.389656);
+	PlayerTextDrawAlignment(playerid, UpgSafeBtn[playerid], 2);
+	PlayerTextDrawColor(playerid, UpgSafeBtn[playerid], 255);
+	PlayerTextDrawUseBox(playerid, UpgSafeBtn[playerid], true);
+	PlayerTextDrawBoxColor(playerid, UpgSafeBtn[playerid], 16711935);
+	PlayerTextDrawSetShadow(playerid, UpgSafeBtn[playerid], 0);
+	PlayerTextDrawSetOutline(playerid, UpgSafeBtn[playerid], 0);
+	PlayerTextDrawBackgroundColor(playerid, UpgSafeBtn[playerid], 51);
+	PlayerTextDrawFont(playerid, UpgSafeBtn[playerid], 1);
+	PlayerTextDrawSetProportional(playerid, UpgSafeBtn[playerid], 1);
+	PlayerTextDrawSetSelectable(playerid, UpgSafeBtn[playerid], true);
 
-	UpgTxt2[playerid] = CreatePlayerTextDraw(playerid, 320.500091, 225.543746, "Предмет");
-	PlayerTextDrawLetterSize(playerid, UpgTxt2[playerid], 0.189999, 0.766222);
+	UpgPotionCount[playerid] = CreatePlayerTextDraw(playerid, 238.233551, 242.481414, "9999");
+	PlayerTextDrawLetterSize(playerid, UpgPotionCount[playerid], 0.124664, 0.629333);
+	PlayerTextDrawAlignment(playerid, UpgPotionCount[playerid], 3);
+	PlayerTextDrawColor(playerid, UpgPotionCount[playerid], 255);
+	PlayerTextDrawSetShadow(playerid, UpgPotionCount[playerid], 0);
+	PlayerTextDrawSetOutline(playerid, UpgPotionCount[playerid], 0);
+	PlayerTextDrawBackgroundColor(playerid, UpgPotionCount[playerid], 51);
+	PlayerTextDrawFont(playerid, UpgPotionCount[playerid], 1);
+	PlayerTextDrawSetProportional(playerid, UpgPotionCount[playerid], 1);
+
+	UpgDefSlot[playerid] = CreatePlayerTextDraw(playerid, 240.666656, 227.844406, "def_slot");
+	PlayerTextDrawLetterSize(playerid, UpgDefSlot[playerid], 0.000000, -1.966668);
+	PlayerTextDrawTextSize(playerid, UpgDefSlot[playerid], 20.000000, 20.000000);
+	PlayerTextDrawAlignment(playerid, UpgDefSlot[playerid], 1);
+	PlayerTextDrawColor(playerid, UpgDefSlot[playerid], -1);
+	PlayerTextDrawUseBox(playerid, UpgDefSlot[playerid], true);
+	PlayerTextDrawBoxColor(playerid, UpgDefSlot[playerid], 0);
+	PlayerTextDrawSetShadow(playerid, UpgDefSlot[playerid], 0);
+	PlayerTextDrawSetOutline(playerid, UpgDefSlot[playerid], 0);
+	PlayerTextDrawBackgroundColor(playerid, UpgDefSlot[playerid], -1378294017);
+	PlayerTextDrawFont(playerid, UpgDefSlot[playerid], 5);
+	PlayerTextDrawSetSelectable(playerid, UpgDefSlot[playerid], true);
+	PlayerTextDrawSetPreviewModel(playerid, UpgDefSlot[playerid], -1);
+	PlayerTextDrawSetPreviewRot(playerid, UpgDefSlot[playerid], 0.000000, 0.000000, 90.000000, 1.000000);
+
+	UpgTxt2[playerid] = CreatePlayerTextDraw(playerid, 251.133499, 249.533401, "Печати");
+	PlayerTextDrawLetterSize(playerid, UpgTxt2[playerid], 0.125997, 0.629333);
 	PlayerTextDrawAlignment(playerid, UpgTxt2[playerid], 2);
 	PlayerTextDrawColor(playerid, UpgTxt2[playerid], -1);
 	PlayerTextDrawSetShadow(playerid, UpgTxt2[playerid], 0);
@@ -10520,33 +10738,8 @@ stock InitPlayerTextDraws(playerid)
 	PlayerTextDrawFont(playerid, UpgTxt2[playerid], 1);
 	PlayerTextDrawSetProportional(playerid, UpgTxt2[playerid], 1);
 
-	UpgStoneSlot[playerid] = CreatePlayerTextDraw(playerid, 271.533660, 203.217758, "stone_slot");
-	PlayerTextDrawLetterSize(playerid, UpgStoneSlot[playerid], 0.000000, 0.000000);
-	PlayerTextDrawTextSize(playerid, UpgStoneSlot[playerid], 20.000000, 20.000000);
-	PlayerTextDrawAlignment(playerid, UpgStoneSlot[playerid], 1);
-	PlayerTextDrawColor(playerid, UpgStoneSlot[playerid], -1);
-	PlayerTextDrawUseBox(playerid, UpgStoneSlot[playerid], true);
-	PlayerTextDrawBoxColor(playerid, UpgStoneSlot[playerid], 0);
-	PlayerTextDrawSetShadow(playerid, UpgStoneSlot[playerid], 0);
-	PlayerTextDrawSetOutline(playerid, UpgStoneSlot[playerid], 0);
-	PlayerTextDrawBackgroundColor(playerid, UpgStoneSlot[playerid], -1378294017);
-	PlayerTextDrawFont(playerid, UpgStoneSlot[playerid], 5);
-	PlayerTextDrawSetSelectable(playerid, UpgStoneSlot[playerid], true);
-	PlayerTextDrawSetPreviewModel(playerid, UpgStoneSlot[playerid], -1);
-	PlayerTextDrawSetPreviewRot(playerid, UpgStoneSlot[playerid], 0.000000, 0.000000, 90.000000, 1.000000);
-
-	UpgTxt3[playerid] = CreatePlayerTextDraw(playerid, 282.066864, 224.967407, "Камень");
-	PlayerTextDrawLetterSize(playerid, UpgTxt3[playerid], 0.189999, 0.766222);
-	PlayerTextDrawAlignment(playerid, UpgTxt3[playerid], 2);
-	PlayerTextDrawColor(playerid, UpgTxt3[playerid], -1);
-	PlayerTextDrawSetShadow(playerid, UpgTxt3[playerid], 0);
-	PlayerTextDrawSetOutline(playerid, UpgTxt3[playerid], 0);
-	PlayerTextDrawBackgroundColor(playerid, UpgTxt3[playerid], 51);
-	PlayerTextDrawFont(playerid, UpgTxt3[playerid], 1);
-	PlayerTextDrawSetProportional(playerid, UpgTxt3[playerid], 1);
-
-	UpgPotionSlot[playerid] = CreatePlayerTextDraw(playerid, 347.999938, 204.199996, "potion_slot");
-	PlayerTextDrawLetterSize(playerid, UpgPotionSlot[playerid], 0.000000, 0.033333);
+	UpgPotionSlot[playerid] = CreatePlayerTextDraw(playerid, 218.433212, 227.844421, "potion_slot");
+	PlayerTextDrawLetterSize(playerid, UpgPotionSlot[playerid], 0.000000, -2.066668);
 	PlayerTextDrawTextSize(playerid, UpgPotionSlot[playerid], 20.000000, 20.000000);
 	PlayerTextDrawAlignment(playerid, UpgPotionSlot[playerid], 1);
 	PlayerTextDrawColor(playerid, UpgPotionSlot[playerid], -1);
@@ -10560,32 +10753,32 @@ stock InitPlayerTextDraws(playerid)
 	PlayerTextDrawSetPreviewModel(playerid, UpgPotionSlot[playerid], -1);
 	PlayerTextDrawSetPreviewRot(playerid, UpgPotionSlot[playerid], 0.000000, 0.000000, 90.000000, 1.000000);
 
-	UpgTxt4[playerid] = CreatePlayerTextDraw(playerid, 358.533477, 225.677017, "Эликсир");
-	PlayerTextDrawLetterSize(playerid, UpgTxt4[playerid], 0.189999, 0.766222);
-	PlayerTextDrawAlignment(playerid, UpgTxt4[playerid], 2);
-	PlayerTextDrawColor(playerid, UpgTxt4[playerid], -1);
-	PlayerTextDrawSetShadow(playerid, UpgTxt4[playerid], 0);
-	PlayerTextDrawSetOutline(playerid, UpgTxt4[playerid], 0);
-	PlayerTextDrawBackgroundColor(playerid, UpgTxt4[playerid], 51);
-	PlayerTextDrawFont(playerid, UpgTxt4[playerid], 1);
-	PlayerTextDrawSetProportional(playerid, UpgTxt4[playerid], 1);
+	UpgTxt3[playerid] = CreatePlayerTextDraw(playerid, 229.000213, 248.408874, "Эликсиры");
+	PlayerTextDrawLetterSize(playerid, UpgTxt3[playerid], 0.189998, 0.766222);
+	PlayerTextDrawAlignment(playerid, UpgTxt3[playerid], 2);
+	PlayerTextDrawColor(playerid, UpgTxt3[playerid], -1);
+	PlayerTextDrawSetShadow(playerid, UpgTxt3[playerid], 0);
+	PlayerTextDrawSetOutline(playerid, UpgTxt3[playerid], 0);
+	PlayerTextDrawBackgroundColor(playerid, UpgTxt3[playerid], 51);
+	PlayerTextDrawFont(playerid, UpgTxt3[playerid], 1);
+	PlayerTextDrawSetProportional(playerid, UpgTxt3[playerid], 1);
 
-	UpgBtn[playerid] = CreatePlayerTextDraw(playerid, 320.200012, 235.905120, "Улучшить");
+	UpgBtn[playerid] = CreatePlayerTextDraw(playerid, 266.633209, 260.462097, "Upgrade");
 	PlayerTextDrawLetterSize(playerid, UpgBtn[playerid], 0.275332, 1.060739);
-	PlayerTextDrawTextSize(playerid, UpgBtn[playerid], 15.033336, 99.389656);
+	PlayerTextDrawTextSize(playerid, UpgBtn[playerid], 1.033336, -99.389656);
 	PlayerTextDrawAlignment(playerid, UpgBtn[playerid], 2);
 	PlayerTextDrawColor(playerid, UpgBtn[playerid], 255);
 	PlayerTextDrawUseBox(playerid, UpgBtn[playerid], true);
 	PlayerTextDrawBoxColor(playerid, UpgBtn[playerid], 16711935);
 	PlayerTextDrawSetShadow(playerid, UpgBtn[playerid], 0);
 	PlayerTextDrawSetOutline(playerid, UpgBtn[playerid], 0);
-	PlayerTextDrawBackgroundColor(playerid, UpgBtn[playerid], 0x00000000);
+	PlayerTextDrawBackgroundColor(playerid, UpgBtn[playerid], 51);
 	PlayerTextDrawFont(playerid, UpgBtn[playerid], 1);
 	PlayerTextDrawSetProportional(playerid, UpgBtn[playerid], 1);
 	PlayerTextDrawSetSelectable(playerid, UpgBtn[playerid], true);
 
-	UpgClose[playerid] = CreatePlayerTextDraw(playerid, 377.066680, 151.780822, "x");
-	PlayerTextDrawLetterSize(playerid, UpgClose[playerid], 0.347000, 1.243258);
+	UpgClose[playerid] = CreatePlayerTextDraw(playerid, 408.933349, 151.200027, "x");
+	PlayerTextDrawLetterSize(playerid, UpgClose[playerid], 0.347000, 1.243257);
 	PlayerTextDrawTextSize(playerid, UpgClose[playerid], 8.000000, 4.562961);
 	PlayerTextDrawAlignment(playerid, UpgClose[playerid], 2);
 	PlayerTextDrawColor(playerid, UpgClose[playerid], -2147483393);
@@ -10596,7 +10789,81 @@ stock InitPlayerTextDraws(playerid)
 	PlayerTextDrawFont(playerid, UpgClose[playerid], 1);
 	PlayerTextDrawSetProportional(playerid, UpgClose[playerid], 1);
 	PlayerTextDrawSetSelectable(playerid, UpgClose[playerid], true);
-	PlayerTextDrawBackgroundColor(playerid, UpgClose[playerid], 0x00000000);
+	PlayerTextDrawSetPreviewModel(playerid, UpgClose[playerid], 19134);
+	PlayerTextDrawSetPreviewRot(playerid, UpgClose[playerid], 0.000000, 0.000000, 90.000000, 1.000000);
+
+	UpgNewItemTxt[playerid] = CreatePlayerTextDraw(playerid, 412.566589, 171.783889, "+13 Legengary bourgeois destroyer");
+	PlayerTextDrawLetterSize(playerid, UpgNewItemTxt[playerid], 0.129999, 0.600000);
+	PlayerTextDrawAlignment(playerid, UpgNewItemTxt[playerid], 3);
+	PlayerTextDrawColor(playerid, UpgNewItemTxt[playerid], -5963521);
+	PlayerTextDrawSetShadow(playerid, UpgNewItemTxt[playerid], 0);
+	PlayerTextDrawSetOutline(playerid, UpgNewItemTxt[playerid], 0);
+	PlayerTextDrawBackgroundColor(playerid, UpgNewItemTxt[playerid], 51);
+	PlayerTextDrawFont(playerid, UpgNewItemTxt[playerid], 1);
+	PlayerTextDrawSetProportional(playerid, UpgNewItemTxt[playerid], 1);
+	PlayerTextDrawSetPreviewModel(playerid, UpgNewItemTxt[playerid], 18656);
+	PlayerTextDrawSetPreviewRot(playerid, UpgNewItemTxt[playerid], 0.000000, 0.000000, 0.000000, 1.000000);
+
+	UpgArrow[playerid] = CreatePlayerTextDraw(playerid, 318.666748, 169.921630, "=>");
+	PlayerTextDrawLetterSize(playerid, UpgArrow[playerid], 0.272330, 1.106369);
+	PlayerTextDrawAlignment(playerid, UpgArrow[playerid], 2);
+	PlayerTextDrawColor(playerid, UpgArrow[playerid], -1);
+	PlayerTextDrawSetShadow(playerid, UpgArrow[playerid], 0);
+	PlayerTextDrawSetOutline(playerid, UpgArrow[playerid], 0);
+	PlayerTextDrawBackgroundColor(playerid, UpgArrow[playerid], 51);
+	PlayerTextDrawFont(playerid, UpgArrow[playerid], 1);
+	PlayerTextDrawSetProportional(playerid, UpgArrow[playerid], 1);
+	PlayerTextDrawSetPreviewModel(playerid, UpgArrow[playerid], 18656);
+	PlayerTextDrawSetPreviewRot(playerid, UpgArrow[playerid], 0.000000, 0.000000, 0.000000, 1.000000);
+
+	UpgDefCount[playerid] = CreatePlayerTextDraw(playerid, 260.366943, 242.319900, "9998");
+	PlayerTextDrawLetterSize(playerid, UpgDefCount[playerid], 0.124664, 0.629333);
+	PlayerTextDrawAlignment(playerid, UpgDefCount[playerid], 3);
+	PlayerTextDrawColor(playerid, UpgDefCount[playerid], 255);
+	PlayerTextDrawSetShadow(playerid, UpgDefCount[playerid], 0);
+	PlayerTextDrawSetOutline(playerid, UpgDefCount[playerid], 0);
+	PlayerTextDrawBackgroundColor(playerid, UpgDefCount[playerid], 51);
+	PlayerTextDrawFont(playerid, UpgDefCount[playerid], 1);
+	PlayerTextDrawSetProportional(playerid, UpgDefCount[playerid], 1);
+
+	UpgMainTxt[playerid] = CreatePlayerTextDraw(playerid, 320.666564, 209.287368, "+13 Legengary bourgeois destroyer");
+	PlayerTextDrawLetterSize(playerid, UpgMainTxt[playerid], 0.134997, 0.591999);
+	PlayerTextDrawAlignment(playerid, UpgMainTxt[playerid], 2);
+	PlayerTextDrawColor(playerid, UpgMainTxt[playerid], -5963521);
+	PlayerTextDrawSetShadow(playerid, UpgMainTxt[playerid], 0);
+	PlayerTextDrawSetOutline(playerid, UpgMainTxt[playerid], 0);
+	PlayerTextDrawBackgroundColor(playerid, UpgMainTxt[playerid], 51);
+	PlayerTextDrawFont(playerid, UpgMainTxt[playerid], 1);
+	PlayerTextDrawSetProportional(playerid, UpgMainTxt[playerid], 1);
+	PlayerTextDrawSetPreviewModel(playerid, UpgMainTxt[playerid], 18656);
+	PlayerTextDrawSetPreviewRot(playerid, UpgMainTxt[playerid], 0.000000, 0.000000, 0.000000, 1.000000);
+
+	UpgCongrTxt[playerid] = CreatePlayerTextDraw(playerid, 321.233398, 197.013320, "Поздравляем! Предмет усилен.");
+	PlayerTextDrawLetterSize(playerid, UpgCongrTxt[playerid], 0.165997, 0.795258);
+	PlayerTextDrawAlignment(playerid, UpgCongrTxt[playerid], 2);
+	PlayerTextDrawColor(playerid, UpgCongrTxt[playerid], -1);
+	PlayerTextDrawSetShadow(playerid, UpgCongrTxt[playerid], 0);
+	PlayerTextDrawSetOutline(playerid, UpgCongrTxt[playerid], 0);
+	PlayerTextDrawBackgroundColor(playerid, UpgCongrTxt[playerid], 51);
+	PlayerTextDrawFont(playerid, UpgCongrTxt[playerid], 1);
+	PlayerTextDrawSetProportional(playerid, UpgCongrTxt[playerid], 1);
+	PlayerTextDrawSetPreviewModel(playerid, UpgCongrTxt[playerid], 18656);
+	PlayerTextDrawSetPreviewRot(playerid, UpgCongrTxt[playerid], 0.000000, 0.000000, 0.000000, 1.000000);
+
+	UpgItemSlot[playerid] = CreatePlayerTextDraw(playerid, 308.000000, 220.000000, "item_slot");
+	PlayerTextDrawLetterSize(playerid, UpgItemSlot[playerid], 0.000000, -1.800002);
+	PlayerTextDrawTextSize(playerid, UpgItemSlot[playerid], 20.000000, 20.000000);
+	PlayerTextDrawAlignment(playerid, UpgItemSlot[playerid], 2);
+	PlayerTextDrawColor(playerid, UpgItemSlot[playerid], -1);
+	PlayerTextDrawUseBox(playerid, UpgItemSlot[playerid], true);
+	PlayerTextDrawBoxColor(playerid, UpgItemSlot[playerid], 0);
+	PlayerTextDrawSetShadow(playerid, UpgItemSlot[playerid], 0);
+	PlayerTextDrawSetOutline(playerid, UpgItemSlot[playerid], 0);
+	PlayerTextDrawBackgroundColor(playerid, UpgItemSlot[playerid], -1378294017);
+	PlayerTextDrawFont(playerid, UpgItemSlot[playerid], 5);
+	PlayerTextDrawSetPreviewModel(playerid, UpgItemSlot[playerid], -1);
+	PlayerTextDrawSetPreviewRot(playerid, UpgItemSlot[playerid], 0.000000, 0.000000, 90.000000, 1.000000);
+	/////
 
 	PvpPanelBox[playerid] = CreatePlayerTextDraw(playerid, 164.000000, 274.448150, "box");
 	PlayerTextDrawLetterSize(playerid, PvpPanelBox[playerid], 0.000000, 16.460287);
@@ -11135,41 +11402,28 @@ stock DeletePlayerTextDraws(playerid)
 
 	PlayerTextDrawDestroy(playerid, EqInfBox[playerid]);
 	PlayerTextDrawDestroy(playerid, EqInfTxt1[playerid]);
-	PlayerTextDrawDestroy(playerid, EqInfTxt2[playerid]);
 	PlayerTextDrawDestroy(playerid, EqInfClose[playerid]);
 	PlayerTextDrawDestroy(playerid, EqInfDelim1[playerid]);
 	PlayerTextDrawDestroy(playerid, EqInfItemName[playerid]);
 	PlayerTextDrawDestroy(playerid, EqInfItemIcon[playerid]);
 	PlayerTextDrawDestroy(playerid, EqInfMainStat[playerid]);
-	PlayerTextDrawDestroy(playerid, EqInfDelim2[playerid]);
 	PlayerTextDrawDestroy(playerid, EqInfDelim3[playerid]);
 	PlayerTextDrawDestroy(playerid, EqInfDelim4[playerid]);
 	PlayerTextDrawDestroy(playerid, EqInfDelim5[playerid]);
 	PlayerTextDrawDestroy(playerid, EqInfPrice[playerid]);
-	for(new i = 0; i < 2; i++)
-	{
-		PlayerTextDrawDestroy(playerid, EqInfBonusStat[playerid][i]);
-	}
+	PlayerTextDrawDestroy(playerid, EqInfItemRank[playerid]);
+	PlayerTextDrawDestroy(playerid, EqInfItemType[playerid]);
+	PlayerTextDrawDestroy(playerid, EqInfPropTxt[playerid]);
 	for(new i = 0; i < 3; i++)
-	{
 		PlayerTextDrawDestroy(playerid, EqInfDescriptionStr[playerid][i]);
-	}
-	for(new i = 0; i < 4; i++)
-	{
-		PlayerTextDrawDestroy(playerid, EqInfModStat[playerid][i]);
-	}
-	for(new i = 0; i < MAX_MOD; i++)
-	{
-		PlayerTextDrawDestroy(playerid, EqInfMod[playerid][i]);
-	}
+	for(new i = 0; i < MAX_PROPERTIES; i++)
+		PlayerTextDrawDestroy(playerid, EqInfProp[playerid][i]);
 
 	PlayerTextDrawDestroy(playerid, InfClose[playerid]);
 	PlayerTextDrawDestroy(playerid, InfPrice[playerid]);
 	PlayerTextDrawDestroy(playerid, InfDelim1[playerid]);
 	PlayerTextDrawDestroy(playerid, InfDelim2[playerid]);
 	PlayerTextDrawDestroy(playerid, InfDelim3[playerid]);
-	PlayerTextDrawDestroy(playerid, InfItemEffect[playerid][0]);
-	PlayerTextDrawDestroy(playerid, InfItemEffect[playerid][1]);
 	PlayerTextDrawDestroy(playerid, InfItemType[playerid]);
 	PlayerTextDrawDestroy(playerid, InfItemName[playerid]);
 	PlayerTextDrawDestroy(playerid, InfItemIcon[playerid]);
@@ -11184,12 +11438,18 @@ stock DeletePlayerTextDraws(playerid)
 	PlayerTextDrawDestroy(playerid, UpgTxt1[playerid]);
 	PlayerTextDrawDestroy(playerid, UpgTxt2[playerid]);
 	PlayerTextDrawDestroy(playerid, UpgTxt3[playerid]);
-	PlayerTextDrawDestroy(playerid, UpgTxt4[playerid]);
 	PlayerTextDrawDestroy(playerid, UpgBtn[playerid]);
+	PlayerTextDrawDestroy(playerid, UpgSafeBtn[playerid]);
 	PlayerTextDrawDestroy(playerid, UpgPotionSlot[playerid]);
-	PlayerTextDrawDestroy(playerid, UpgStoneSlot[playerid]);
 	PlayerTextDrawDestroy(playerid, UpgItemSlot[playerid]);
-	PlayerTextDrawDestroy(playerid, UpgModInfo[playerid]);
+	PlayerTextDrawDestroy(playerid, UpgDefSlot[playerid]);
+	PlayerTextDrawDestroy(playerid, UpgDefCount[playerid]);
+	PlayerTextDrawDestroy(playerid, UpgPotionCount[playerid]);
+	PlayerTextDrawDestroy(playerid, UpgOldItemTxt[playerid]);
+	PlayerTextDrawDestroy(playerid, UpgNewItemTxt[playerid]);
+	PlayerTextDrawDestroy(playerid, UpgArrow[playerid]);
+	PlayerTextDrawDestroy(playerid, UpgMainTxt[playerid]);
+	PlayerTextDrawDestroy(playerid, UpgCongrTxt[playerid]);
 	PlayerTextDrawDestroy(playerid, UpgDelim1[playerid]);
 	PlayerTextDrawDestroy(playerid, UpgBox[playerid]);
 
