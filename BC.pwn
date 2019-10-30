@@ -787,7 +787,7 @@ cmd:spawnboss(playerid, params[])
 	if(sscanf(params, "i", bossid))
 		return SendClientMessage(playerid, COLOR_GREY, "USAGE: /spawnboss [bossid]");
 
-	new query[255];
+	new query[512];
 	format(query, sizeof(query), "UPDATE `bosses` SET `RespawnTime` = '0' WHERE `ID` = '%d' LIMIT 1", bossid);
 	new Cache:q_result = mysql_query(sql_handle, query);
 	cache_delete(q_result);
@@ -1256,6 +1256,13 @@ public OnPlayerGiveDamage(playerid, damagedid, Float:amount, weaponid, bodypart)
 	else
 		real_damage = damage;
 
+	if(real_damage > 0 && PlayerInfo[playerid][Vamp] > 0)
+	{
+		new Float:vamp_hp = 0;
+		vamp_hp = floatmul(floatdiv(PlayerInfo[playerid][Vamp], 100), real_damage);
+		GivePlayerHP(playerid, vamp_hp);
+	}
+
 	if(IsTourStarted)
 	{
 		new damagerid = GetPvpIndex(playerid);
@@ -1385,9 +1392,39 @@ stock UpdatePlayerVisual(playerid)
 	}
 }
 
+stock DisableEffects(playerid)
+{
+    for(new i = 0; i < 2; i++)
+    {
+    	if (IsPlayerAttachedObjectSlotUsed(playerid, i))
+    	RemovePlayerAttachedObject(playerid, i);
+    }
+}
+
 stock UpdatePlayerEffects(playerid)
 {
-	//TODO
+	switch(PlayerInfo[playerid][WeaponMod])
+	{
+	    case 0..6:
+	    {
+			DisableEffects(playerid);
+	    }
+	    case 7..9:
+	    {
+	        SetPlayerAttachedObject(playerid, 0, 18700, 5, 1.983503, 1.558882, -0.129482, 86.705787, 308.978118, 268.198822, 1.500000, 1.500000, 1.500000);
+   			SetPlayerAttachedObject(playerid, 1, 18700, 6, 1.983503, 1.558882, -0.129482, 86.705787, 308.978118, 268.198822, 1.500000, 1.500000, 1.500000);
+	    }
+	    case 10..12:
+	    {
+	        SetPlayerAttachedObject(playerid, 0, 18699, 5, 1.983503, 1.558882, -0.129482, 86.705787, 308.978118, 268.198822, 1.500000, 1.500000, 1.500000);
+   			SetPlayerAttachedObject(playerid, 1, 18699, 6, 1.983503, 1.558882, -0.129482, 86.705787, 308.978118, 268.198822, 1.500000, 1.500000, 1.500000);
+	    }
+	    case 13:
+	    {
+	        SetPlayerAttachedObject(playerid, 0, 18693, 5, 1.983503, 1.558882, -0.129482, 86.705787, 308.978118, 268.198822, 1.500000, 1.500000, 1.500000);
+   			SetPlayerAttachedObject(playerid, 1, 18693, 6, 1.983503, 1.558882, -0.129482, 86.705787, 308.978118, 268.198822, 1.500000, 1.500000, 1.500000);
+	    }
+	}
 }
 
 public OnPlayerDeath(playerid, killerid, reason)
@@ -1751,7 +1788,8 @@ public OnPlayerKeyStateChange(playerid, newkeys, oldkeys)
 		//буржуа
 		if(IsPlayerInRangeOfPoint(playerid, 2.0, 221.0985,-1838.1259,3.6268))
 		{
-			//ShowCmbWindow(playerid);
+			new listitems[] = "Изменить характеристики оружия\nИзменить характеристики доспехов";
+			ShowPlayerDialog(playerid, 1200, DIALOG_STYLE_LIST, "Буржуа", listitems, "Далее", "Закрыть");
 		}
 		//рынок
 		else if(IsPlayerInRangeOfPoint(playerid, 3.0, 231.7, -1840.6, 2.5))
@@ -1874,7 +1912,7 @@ public OnDialogResponse(playerid, dialogid, response, listitem, inputtext[])
 				new pass[255];
 				pass = MD5_Hash(inputtext);
 
-				new query[255];
+				new query[512];
 				format(query, sizeof(query), "INSERT INTO `accounts`(`pass`, `admin`, `teamcolor`, `login`) VALUES ('%s','%d','%d','%s')", 
 					pass, 0, 0, login
 				);
@@ -1910,7 +1948,7 @@ public OnDialogResponse(playerid, dialogid, response, listitem, inputtext[])
             new login[64];
 			GetPlayerName(playerid, login, sizeof(login));
 
-			new query[255];
+			new query[512];
 			format(query, sizeof(query), "SELECT * FROM `accounts` WHERE `login` = '%s' AND `pass` = '%s' LIMIT 1", login, MD5_Hash(inputtext));
 			new Cache:q_result = mysql_query(sql_handle, query);
 
@@ -2202,7 +2240,7 @@ public OnDialogResponse(playerid, dialogid, response, listitem, inputtext[])
 			{
 				new itemid = -1;
 
-				new query[255];
+				new query[512];
 				format(query, sizeof(query), "SELECT * FROM `weapon_seller` WHERE `ID` = '%d' LIMIT 1", listitem);
 				new Cache:q_result = mysql_query(sql_handle, query);
 
@@ -2266,7 +2304,7 @@ public OnDialogResponse(playerid, dialogid, response, listitem, inputtext[])
 			{
 				new itemid = -1;
 
-				new query[255];
+				new query[512];
 				format(query, sizeof(query), "SELECT * FROM `armor_seller` WHERE `ID` = '%d' LIMIT 1", listitem);
 				new Cache:q_result = mysql_query(sql_handle, query);
 
@@ -2330,7 +2368,7 @@ public OnDialogResponse(playerid, dialogid, response, listitem, inputtext[])
 			{
 				new itemid = -1;
 
-				new query[255];
+				new query[512];
 				format(query, sizeof(query), "SELECT * FROM `materials_seller` WHERE `ID` = '%d' LIMIT 1", listitem);
 				new Cache:q_result = mysql_query(sql_handle, query);
 
@@ -2815,6 +2853,34 @@ public OnDialogResponse(playerid, dialogid, response, listitem, inputtext[])
 			else
 				ShowPlayerDialog(playerid, 1103, DIALOG_STYLE_TABLIST, "Рынок", "Оружие\nДоспехи\nРасходные материалы", "Далее", "Назад");
 		}
+		//буржуа TODO
+		case 1200:
+		{
+			if(response)
+			{
+				switch(listitem)
+				{
+					case 0:
+					{
+						if(PlayerInfo[playerid][WeaponMod] < 7)
+						{
+							SendClientMessage(playerid, COLOR_GREY, "Необходимо надеть оружие уровня модификации +7 или выше.");
+							return 1;
+						}
+					}
+					case 1:
+					{
+						if(PlayerInfo[playerid][ArmorMod] < 7)
+						{
+							SendClientMessage(playerid, COLOR_GREY, "Необходимо надеть доспех уровня модификации +7 или выше.");
+							return 1;
+						}
+					}
+				}
+			}
+			else 
+				return 1;
+		}
 	}
 	return 1;
 }
@@ -2856,13 +2922,6 @@ public FCNPC_OnUpdate(npcid)
 public OnPlayerUpdate(playerid)
 {
 	if(FCNPC_IsValid(playerid)) return 0;
-	if(!IsSpawned[playerid]) return 0;
-	if(GetPlayerPing(playerid) > 300)
-	{
-		SendClientMessage(playerid, COLOR_LIGHTRED, "[SERVER] Non-stable ping detected: unable to execute player update function.");
-		return 0;
-	}
-
 	new Float:hp;
 	hp = GetPVarFloat(playerid, "HP");
 	SetPlayerHP(playerid, hp);
@@ -3112,6 +3171,11 @@ public OnPlayerClickPlayerTextDraw(playerid, PlayerText:playertextid)
 					ShowPlayerDialog(playerid, 1, DIALOG_STYLE_MSGBOX, "Модификация", "Этот предмет достиг максимального уровня модификации.", "Закрыть", "");
 					return 0;
 				}
+				if(!HasItem(playerid, 187))
+				{
+					ShowPlayerDialog(playerid, 1, DIALOG_STYLE_MSGBOX, "Модификация", "У вас нет усилителя.", "Закрыть", "");
+					return 0;
+				}
 				ShowModWindow(playerid, SelectedSlot[playerid]);
 				return 1;
 			}
@@ -3256,7 +3320,7 @@ public TickSecond(playerid)
 
 public TickHour()
 {
-	new query[255];
+	new query[512];
 	format(query, sizeof(query), "UPDATE `players` SET `WalkersLimit` = '%d'", WALKERS_LIMIT);
 	new Cache:result = mysql_query(sql_handle, query);
 	cache_delete(result);
@@ -3363,7 +3427,7 @@ public TeleportBossAttackersToHome()
 public UpdatePlayerMaxHP(playerid)
 {
 	new Float:max_hp = 1000.0;
-	max_hp = floatadd(max_hp, floatmul(100.0, PlayerInfo[playerid][Rank] - 1));
+	max_hp = floatadd(max_hp, floatmul(500.0, PlayerInfo[playerid][Rank] - 1));
 	if(max_hp < 1000)
 	    max_hp = 1000.0;
 	MaxHP[playerid] = max_hp;
@@ -3467,7 +3531,7 @@ public GivePlayerRate(playerid, rate)
 
 public GivePlayerMoneyOffline(name[], money)
 {
-	new query[255];
+	new query[512];
 	format(query, sizeof(query), "SELECT * FROM `players` WHERE `Name` = '%s' LIMIT 1", name);
 	new Cache:q_result = mysql_query(sql_handle, query);
 	new row_count = 0;
@@ -3491,7 +3555,7 @@ public GivePlayerMoneyOffline(name[], money)
 
 public GivePlayerRateOffline(name[], rate)
 {
-	new query[255];
+	new query[512];
 	format(query, sizeof(query), "SELECT * FROM `players` WHERE `Name` = '%s' LIMIT 1", name);
 	new Cache:q_result = mysql_query(sql_handle, query);
 	new row_count = 0;
@@ -3519,7 +3583,7 @@ public SetPlayerRateOffline(name[], rate)
 	new new_rate = rate;
 	if(new_rate < 0) new_rate = 0;
 	if(new_rate > MAX_RATE) new_rate = MAX_RATE;
-	new query[255];
+	new query[512];
 	format(query, sizeof(query), "UPDATE `players` SET `Rate` = '%d' WHERE `Name` = '%s' LIMIT 1", new_rate, name);
 	new Cache:result = mysql_query(sql_handle, query);
 	cache_delete(result);
@@ -3711,7 +3775,7 @@ stock InitTourNPC(npcid)
 
 	LoadPlayer(npcid);
 
-	new query[255];
+	new query[512];
 	format(query, sizeof(query), "SELECT * FROM `accounts` WHERE `login` = '%s' LIMIT 1", PlayerInfo[npcid][Owner]);
 	new Cache:q_result = mysql_query(sql_handle, query);
 	new row_count = 0;
@@ -4142,7 +4206,7 @@ stock BossBehaviour(id)
 
 stock GiveTournamentRewards()
 {
-	new query[255];
+	new query[512];
 	format(query, sizeof(query), "SELECT * FROM `players` WHERE `Owner` <> 'Admin' LIMIT %d", MAX_PARTICIPANTS);
 	new Cache:q_result = mysql_query(sql_handle, query);
 	new row_count = 0;
@@ -4174,49 +4238,49 @@ stock GiveTournamentRewards()
 		{
 			case 1:
 			{
-				reward[ItemID] = 203;
+				reward[ItemID] = 195;
 				reward[ItemsCount] = 15;
 				money = 4000;
 			}
 			case 2:
 			{
-				reward[ItemID] = 203;
+				reward[ItemID] = 195;
 				reward[ItemsCount] = 13;
 				money = 3800;
 			}
 			case 3:
 			{
-				reward[ItemID] = 203;
+				reward[ItemID] = 195;
 				reward[ItemsCount] = 11;
 				money = 3500;
 			}
 			case 4..5:
 			{
-				reward[ItemID] = 203;
+				reward[ItemID] = 195;
 				reward[ItemsCount] = 7;
 				money = 2750;
 			}
 			case 6..8:
 			{
-				reward[ItemID] = 202;
+				reward[ItemID] = 194;
 				reward[ItemsCount] = 10;
 				money = 2200;
 			}
 			case 9..12:
 			{
-				reward[ItemID] = 202;
+				reward[ItemID] = 194;
 				reward[ItemsCount] = 8;
 				money = 1600;
 			}
 			case 13..16:
 			{
-				reward[ItemID] = 202;
+				reward[ItemID] = 194;
 				reward[ItemsCount] = 6;
 				money = 1350;
 			}
 			default:
 			{
-				reward[ItemID] = 202;
+				reward[ItemID] = 194;
 				reward[ItemsCount] = 4;
 				money = 1000;
 			}
@@ -4262,7 +4326,7 @@ stock GiveTournamentRewards()
 
 stock UpdateBossesCooldowns()
 {
-	new query[255];
+	new query[512];
 	format(query, sizeof(query), "SELECT * FROM `bosses` LIMIT %d", MAX_BOSSES);
 	new Cache:q_result = mysql_query(sql_handle, query);
 	new row_count = 0;
@@ -4395,7 +4459,7 @@ stock GetMarketItemDesc(listitem, category)
 stock GetMarketItem(id, category)
 {
 	new item[MarketItem];
-	new query[255];
+	new query[512];
 	format(query, sizeof(query), "SELECT * FROM `marketplace` WHERE `Category` = '%d' ORDER BY `Price` LIMIT %d", category, MAX_MARKET_ITEMS);
 	new Cache:q_result = mysql_query(sql_handle, query);
 	new row_count = 0;
@@ -4428,7 +4492,7 @@ stock GetMarketItem(id, category)
 stock GetMarketItemByLotID(id)
 {
 	new item[MarketItem];
-	new query[255];
+	new query[512];
 	format(query, sizeof(query), "SELECT * FROM `marketplace` WHERE `ID` = '%d' LIMIT 1", id);
 	new Cache:q_result = mysql_query(sql_handle, query);
 	new row_count = 0;
@@ -4448,10 +4512,10 @@ stock GetMarketItemByLotID(id)
 	cache_get_value_name_int(0, "ItemCount", item[Count]);
 	cache_get_value_name(0, "Owner", string);
 	sscanf(string, "s[255]", item[Owner]);
-	cache_get_value_name_int(id, "ItemMod", item[Mod]);
-	cache_get_value_name(id, "ItemProps", string);
+	cache_get_value_name_int(0, "ItemMod", item[Mod]);
+	cache_get_value_name(0, "ItemProps", string);
 	sscanf(string, "a<i>[7]", item[Property]);
-	cache_get_value_name(id, "ItemPropVals", string);
+	cache_get_value_name(0, "ItemPropVals", string);
 	sscanf(string, "a<f>[7]", item[PropertyVal]);
 
 	cache_delete(q_result);
@@ -4463,7 +4527,7 @@ stock AddItemToMarket(playerid, slotid, lotid, category, time = 3)
 	new item[MarketItem];
 	item = GetMarketItemByLotID(lotid)
 
-	new query[255] = "SELECT MAX(`ID`) AS `ID` FROM `marketplace`";
+	new query[512] = "SELECT MAX(`ID`) AS `ID` FROM `marketplace`";
 	new Cache:q_result = mysql_query(sql_handle, query);
 	new id = -1;
 	cache_get_value_name_int(0, "ID", id);
@@ -4493,14 +4557,14 @@ stock DeleteItemFromMarket(lotid, count = 1)
 	item = GetMarketItemByLotID(lotid);
 	if(item[Count] <= count)
 	{
-		new query[255];
+		new query[512];
 		format(query, sizeof(query), "DELETE FROM `marketplace` WHERE `ID` = '%d'", item[LotID]);
 		new Cache:q_result = mysql_query(sql_handle, query);
 		cache_delete(q_result);
 	}
 	else
 	{
-		new query[255];
+		new query[512];
 		format(query, sizeof(query), "UPDATE `marketplace` SET `ItemCount` = '%d' WHERE `ID` = '%d'", item[Count] - count, item[LotID]);
 		new Cache:q_result = mysql_query(sql_handle, query);
 		cache_delete(q_result);
@@ -4509,7 +4573,7 @@ stock DeleteItemFromMarket(lotid, count = 1)
 
 stock MarketItemExist(id)
 {
-	new query[255];
+	new query[512];
 	format(query, sizeof(query), "SELECT * FROM `marketplace` WHERE `ID` = '%d'", id);
 	new Cache:q_result = mysql_query(sql_handle, query);
 
@@ -4524,7 +4588,7 @@ stock MarketItemExist(id)
 
 stock GetMarketLotsCountByCategory(category)
 {
-	new query[255];
+	new query[512];
 	format(query, sizeof(query), "SELECT * FROM `marketplace` WHERE `Category` = '%d' ORDER BY `Price` LIMIT %d", category, MAX_MARKET_ITEMS);
 	new Cache:q_result = mysql_query(sql_handle, query);
 
@@ -4537,7 +4601,7 @@ stock GetMarketLotsCountByCategory(category)
 
 stock GetMarketLotsCountByOwner(owner[])
 {
-	new query[255];
+	new query[512];
 	format(query, sizeof(query), "SELECT * FROM `marketplace` WHERE `Owner` = '%d'", owner);
 	new Cache:q_result = mysql_query(sql_handle, query);
 
@@ -4563,7 +4627,7 @@ stock RegisterMarketItem(playerid, category)
 		return;
 	}
 
-	new query[255];
+	new query[512];
 	format(query, sizeof(query), "INSERT INTO `marketplace`(`ID`, `Owner`, `ItemID`, `Category`, `ItemCount`, `ItemMod`, `ItemProps`, `ItemPropVals`, `Price`, `Time`) VALUES ('%d', '%s', '%d', '%d', '%d', '%d', '%s', '%s', '%d', '%d')",
 		MarketSellingItem[playerid][LotID], MarketSellingItem[playerid][Owner], MarketSellingItem[playerid][ID], category, MarketSellingItem[playerid][Count],
 		MarketSellingItem[playerid][Mod], ArrayToString(MarketSellingItem[playerid][Property], MAX_PROPERTIES), FloatArrayToString(MarketSellingItem[playerid][PropertyVal], MAX_PROPERTIES), 
@@ -4673,7 +4737,7 @@ stock BuyItem(playerid, lotid, count = 1)
 
 stock CancelItem(playerid, listitem)
 {
-	new query[255];
+	new query[512];
 	format(query, sizeof(query), "SELECT * FROM `marketplace` WHERE `Owner` = '%s' ORDER BY `Time` LIMIT %d", PlayerInfo[playerid][Name], MAX_MARKET_ITEMS);
 	new Cache:q_result = mysql_query(sql_handle, query);
 
@@ -4751,13 +4815,13 @@ stock GetModString(mod)
 	if(mod <= 0)
 		return string;
 	
-	format(string, sizeof(string), "%d ", mod);
+	format(string, sizeof(string), "+%d ", mod);
 	return string;
 }
 
 stock ShowMarketBuyList(playerid, category)
 {
-	new query[255];
+	new query[512];
 	format(query, sizeof(query), "SELECT * FROM `marketplace` WHERE `Category` = '%d' ORDER BY `Price` LIMIT %d", category, MAX_MARKET_ITEMS);
 	new Cache:q_result = mysql_query(sql_handle, query);
 
@@ -4820,7 +4884,7 @@ stock ShowMarketBuyList(playerid, category)
 
 stock ShowMarketMyLotList(playerid)
 {
-	new query[255];
+	new query[512];
 	format(query, sizeof(query), "SELECT * FROM `marketplace` WHERE `Owner` = '%s' ORDER BY `Time` LIMIT %d", PlayerInfo[playerid][Name], MAX_MARKET_ITEMS);
 	new Cache:q_result = mysql_query(sql_handle, query);
 
@@ -4900,7 +4964,7 @@ stock GiveTourRates(tour)
 stock GetPlayerRankOffline(name[])
 {
 	new rank = 1;
-	new query[255];
+	new query[512];
 	format(query, sizeof(query), "SELECT * FROM `players` WHERE `Name` = '%s' LIMIT 1", name);
 	new Cache:q_result = mysql_query(sql_handle, query);
 	new row_count = 0;
@@ -4990,7 +5054,7 @@ stock AddPlayerMoney(playerid, money)
 
 stock UpdatePlayerPost(playerid)
 {
-	new query[255];
+	new query[512];
 	format(query, sizeof(query), "SELECT * FROM `pendings` WHERE `PlayerName` = '%s'", PlayerInfo[playerid][Name]);
 	new Cache:q_result = mysql_query(sql_handle, query);
 
@@ -5007,7 +5071,7 @@ stock UpdatePlayerPost(playerid)
 
 stock ShowPlayerPost(playerid)
 {
-	new query[255];
+	new query[512];
 	format(query, sizeof(query), "SELECT * FROM `pendings` WHERE `PlayerName` = '%s' ORDER BY `PendingID` DESC", PlayerInfo[playerid][Name]);
 	new Cache:q_result = mysql_query(sql_handle, query);
 
@@ -5053,7 +5117,7 @@ stock ShowPlayerPost(playerid)
 
 stock ClaimMail(playerid, num)
 {
-	new query[255];
+	new query[512];
 	format(query, sizeof(query), "SELECT * FROM `pendings` WHERE `PlayerName` = '%s' ORDER BY `PendingID` DESC", PlayerInfo[playerid][Name]);
 	new Cache:q_result = mysql_query(sql_handle, query);
 
@@ -5079,7 +5143,7 @@ stock ClaimMail(playerid, num)
 	cache_get_value_name(num, "ItemProps", string);
 	sscanf(string, "a<i>[7]", prop);
 	cache_get_value_name(num, "ItemPropVals", string);
-	sscanf(string, "a<i>[7]", prop_vals);
+	sscanf(string, "a<f>[7]", prop_vals);
 
 	cache_delete(q_result);
 
@@ -5113,7 +5177,7 @@ stock UpdateTourParticipants()
 
 	if(Tournament[Tour] == 1)
 	{
-		new query[255];
+		new query[512];
 		format(query, sizeof(query), "SELECT * FROM `players` WHERE `Owner` <> 'Admin' LIMIT %d", MAX_PARTICIPANTS);
 		new Cache:q_result = mysql_query(sql_handle, query);
 
@@ -5447,7 +5511,7 @@ stock OpenLockbox(playerid, lockboxid)
 		case 198:
 		{
 			count = 1;
-			itemid = 77;
+			itemid = 78;
 		}
 	}
 	if(itemid == -1) return;
@@ -5470,7 +5534,7 @@ stock SwitchPlayer(playerid)
 {
 	new listitems[1024] = "Имя\tРейтинг";
 	new string[255];
-	new query[255];
+	new query[512];
 
 	for(new i = 0; i < ParticipantsCount[playerid]; i++)
 	{
@@ -5892,7 +5956,7 @@ stock SetBossCooldown(bossid)
 		default: resp_time = 15;
 	}
 
-	new query[255];
+	new query[512];
 	format(query, sizeof(query), "UPDATE `bosses` SET `RespawnTime` = '%d' WHERE `ID` = '%d' LIMIT 1", resp_time, bossid);
 	new Cache:q_result = mysql_query(sql_handle, query);
 	cache_delete(q_result);
@@ -6492,15 +6556,7 @@ stock GetRandomEquip(minrank, maxrank, eq_type = RND_EQUIP_TYPE_RANDOM, grade = 
 	new type = eq_type == RND_EQUIP_TYPE_RANDOM ? random(2) : eq_type;
 	new baseid = GetBaseEquipID(type, rank);
 
-	if(type == 0 && rank == 5)
-	{
-		rank += random(2);
-		return baseid + rank * 8 + (grade == RND_EQUIP_GRADE_RANDOM ? GenerateGrade(type, rank)-1 : grade-1);
-	}
-	if(type == 0 && rank > 5)
-		return baseid + (rank+1) * 8 + (grade == RND_EQUIP_GRADE_RANDOM ? GenerateGrade(type, rank)-1 : grade-1);
-
-	return baseid + rank * 8 + (grade == RND_EQUIP_GRADE_RANDOM ? GenerateGrade(type, rank)-1 : grade-1);
+	return baseid + (grade == RND_EQUIP_GRADE_RANDOM ? GenerateGrade(type, rank)-1 : grade-1);
 }
 
 stock DebugLogInt(msg[], variable)
@@ -6529,6 +6585,7 @@ stock UpdateHPBar(playerid)
 	new string[64];
 	format(string, sizeof(string), "%d%% %d/%d", percents, floatround(hp), floatround(max_hp));
 	PlayerTextDrawSetStringRus(playerid, HPBar[playerid], string);
+	PlayerTextDrawShow(playerid, HPBar[playerid]);
 	if(IsInventoryOpen[playerid])
 	{
 		format(string, sizeof(string), "HP: %.0f/%.0f", GetPlayerHP(playerid), GetPlayerMaxHP(playerid));
@@ -6569,16 +6626,16 @@ stock UpdatePlayerSkin(playerid)
 
 	switch(PlayerInfo[playerid][ArmorSlotID])
 	{
-		case 81: PlayerInfo[playerid][Skin] = PlayerInfo[playerid][Sex] == 0 ? 78 : 131;
-		case 82..89: PlayerInfo[playerid][Skin] = PlayerInfo[playerid][Sex] == 0 ? 22 : 13;
-		case 90..97: PlayerInfo[playerid][Skin] = PlayerInfo[playerid][Sex] == 0 ? 6 : 41;
-		case 98..105: PlayerInfo[playerid][Skin] = PlayerInfo[playerid][Sex] == 0 ? 167 : 205;
-		case 106..113: PlayerInfo[playerid][Skin] = PlayerInfo[playerid][Sex] == 0 ? 70 : 219;
-		case 114..121: PlayerInfo[playerid][Skin] = PlayerInfo[playerid][Sex] == 0 ? 310 : 309;
-		case 122..129: PlayerInfo[playerid][Skin] = PlayerInfo[playerid][Sex] == 0 ? 147 : 141;
-		case 130..137: PlayerInfo[playerid][Skin] = PlayerInfo[playerid][Sex] == 0 ? 127 : 150;
-		case 138..145: PlayerInfo[playerid][Skin] = PlayerInfo[playerid][Sex] == 0 ? 126 : 93;
-		case 146..153: PlayerInfo[playerid][Skin] = PlayerInfo[playerid][Sex] == 0 ? 294 : 214;
+		case 44: PlayerInfo[playerid][Skin] = PlayerInfo[playerid][Sex] == 0 ? 78 : 131;
+		case 45..46: PlayerInfo[playerid][Skin] = PlayerInfo[playerid][Sex] == 0 ? 22 : 13;
+		case 47..49: PlayerInfo[playerid][Skin] = PlayerInfo[playerid][Sex] == 0 ? 6 : 41;
+		case 50..52: PlayerInfo[playerid][Skin] = PlayerInfo[playerid][Sex] == 0 ? 167 : 205;
+		case 53..55: PlayerInfo[playerid][Skin] = PlayerInfo[playerid][Sex] == 0 ? 70 : 219;
+		case 56..58: PlayerInfo[playerid][Skin] = PlayerInfo[playerid][Sex] == 0 ? 310 : 309;
+		case 59..62: PlayerInfo[playerid][Skin] = PlayerInfo[playerid][Sex] == 0 ? 147 : 141;
+		case 63..66: PlayerInfo[playerid][Skin] = PlayerInfo[playerid][Sex] == 0 ? 127 : 150;
+		case 67..70: PlayerInfo[playerid][Skin] = PlayerInfo[playerid][Sex] == 0 ? 126 : 93;
+		case 71..74: PlayerInfo[playerid][Skin] = PlayerInfo[playerid][Sex] == 0 ? 294 : 214;
 		default: PlayerInfo[playerid][Skin] = PlayerInfo[playerid][Sex] == 0 ? DEFAULT_SKIN_MALE : DEFAULT_SKIN_FEMALE;
 	}
 	SetPlayerSkin(playerid, PlayerInfo[playerid][Skin]);
@@ -6596,15 +6653,15 @@ stock UpdatePlayerWeapon(playerid)
 	new weaponid;
 	switch(PlayerInfo[playerid][WeaponSlotID])
 	{
-		case 9..16,242: weaponid = 24;
-		case 17..24,243: weaponid = 28;
-		case 25..32,244: weaponid = 32;
-		case 33..40,245,214..222: weaponid = 29;
-		case 41..48,246: weaponid = 30;
-		case 49..56,223..231: weaponid = 31;
-		case 57..64,247,232..240: weaponid = 25;
-		case 65..72,248: weaponid = 27;
-		case 73..80,249: weaponid = 26;
+		case 5..8: weaponid = 24;
+		case 9..12: weaponid = 28;
+		case 13..16: weaponid = 32;
+		case 17..20: weaponid = 29;
+		case 21..24: weaponid = 30;
+		case 25..28: weaponid = 31;
+		case 29..33: weaponid = 25;
+		case 34..38: weaponid = 27;
+		case 39..43: weaponid = 26;
 		default: weaponid = 22;
 	}
 
@@ -6736,6 +6793,7 @@ stock UndressEquip(playerid, type)
 	}
 
 	UpdatePlayerStats(playerid);
+	UpdatePlayerEffects(playerid);
 
 	if(IsInventoryOpen[playerid])
 		UpdateEquipSlots(playerid);
@@ -6814,6 +6872,7 @@ stock EquipItem(playerid, type, slot)
 	}
 
 	UpdatePlayerStats(playerid);
+	UpdatePlayerEffects(playerid);
 
 	if(IsInventoryOpen[playerid])
 		UpdateEquipSlots(playerid);
@@ -7003,7 +7062,7 @@ stock SaveInventorySlot(playerid, slot)
 	new name[255];
 	GetPlayerName(playerid, name, sizeof(name));
 
-	new query[255];
+	new query[512];
 	format(query, sizeof(query), "UPDATE `inventories` SET `ItemID` = '%d', `Count` = '%d', `SlotMod` = '%d', `SlotProps` = '%s', `SlotPropVals` = '%s' WHERE `PlayerName` = '%s' AND `SlotID` = '%d' LIMIT 1", 
 		PlayerInventory[playerid][slot][ID], PlayerInventory[playerid][slot][Count], PlayerInventory[playerid][slot][Mod], 
 		ArrayToString(PlayerInventory[playerid][slot][Property], MAX_PROPERTIES), FloatArrayToString(PlayerInventory[playerid][slot][PropertyVal], MAX_PROPERTIES), name, slot
@@ -7047,7 +7106,7 @@ stock PendingMessage(name[], text[])
 	cache_delete(sq_result);
 	p_id++;
 
-	new query[255];
+	new query[512];
 	format(query, sizeof(query), "INSERT INTO `pendings`(`PendingID`, `PlayerName`, `ItemID`, `Count`, `ItemMod`, `ItemProps`, `ItemPropVals`, `Text`) VALUES ('%d','%s','%d','%d','%d','%s','%s','%s')",
 		p_id, name, -1, 0, 0, "-1 -1 -1 -1 -1 -1 -1", "0 0 0 0 0 0 0", text
 	);
@@ -7073,7 +7132,7 @@ stock PendingItem(name[], id, mod, props[], Float:prop_vals[], count = 1, text[]
 	cache_delete(sq_result);
 	p_id++;
 
-	new query[255];
+	new query[512];
 	format(query, sizeof(query), "INSERT INTO `pendings`(`PendingID`, `PlayerName`, `ItemID`, `Count`, `ItemMod`, `ItemProps`, `ItemPropVals`, `Text`) VALUES ('%d','%s','%d','%d','%d','%s','%s','%s')",
 		p_id, name, id, count, mod, ArrayToString(props, MAX_PROPERTIES), FloatArrayToString(prop_vals, MAX_PROPERTIES), text
 	);
@@ -7089,7 +7148,7 @@ stock Float:GenerateProperty(type)
 {
 	new Float:prop[2];
 	new chance = random(10001);
-	new query[255];
+	new query[512];
 
 	prop[0] = -1;
 	prop[1] = 0;
@@ -7293,7 +7352,7 @@ stock HasItemOffline(playerid, id, count = 1)
 	new name[255];
 	GetPlayerName(playerid, name, sizeof(name));
 
-	new query[255];
+	new query[512];
 	format(query, sizeof(query), "SELECT * FROM `inventories` WHERE `PlayerName` = '%s' AND `ItemID` = '%d' LIMIT 1", name, id);
 	new Cache:q_result = mysql_query(sql_handle, query);
 
@@ -7314,7 +7373,7 @@ stock HasItemOffline(playerid, id, count = 1)
 stock GetBoss(id)
 {
 	new string[255];
-	new query[255];
+	new query[512];
 	new boss[BossInfo];
 	format(query, sizeof(query), "SELECT * FROM `bosses` WHERE `ID` = '%d' LIMIT 1", id);
 	new Cache:q_result = mysql_query(sql_handle, query);
@@ -7352,7 +7411,7 @@ stock GetBoss(id)
 
 stock DbItemExists(id)
 {
-	new query[255];
+	new query[512];
 	format(query, sizeof(query), "SELECT * FROM `items` WHERE `ID` = '%d' LIMIT 1", id);
 	new Cache:q_result = mysql_query(sql_handle, query);
 
@@ -7368,7 +7427,7 @@ stock DbItemExists(id)
 stock GetItem(id)
 {
 	new string[255];
-	new query[255];
+	new query[512];
 	new item[BaseItem];
 	format(query, sizeof(query), "SELECT * FROM `items` WHERE `ID` = '%d' LIMIT 1", id);
 	new Cache:q_result = mysql_query(sql_handle, query);
@@ -7532,7 +7591,7 @@ stock TeleportToRandomArenaPos(playerid)
 
 stock ConnectParticipants(playerid)
 {
-	new query[255];
+	new query[512];
 	format(query, sizeof(query), "SELECT * FROM `players` WHERE `Owner` = '%s' LIMIT 20", AccountLogin[playerid]);
 	new Cache:q_result = mysql_query(sql_handle, query);
 
@@ -8123,13 +8182,13 @@ stock ShowModWindow(playerid, itemslot)
 		format(old_mod_str, sizeof(old_mod_str), "+%d %s", mod_level, item[Name]);
 
 	PlayerTextDrawSetStringRus(playerid, UpgOldItemTxt[playerid], old_mod_str);
-	PlayerTextDrawColor(playerid, UpgOldItemTxt[playerid], HexGradeColors[item[Grade]][0]);
+	PlayerTextDrawColor(playerid, UpgOldItemTxt[playerid], HexGradeColors[item[Grade]-1][0]);
 	PlayerTextDrawShow(playerid, UpgOldItemTxt[playerid]);
 
 	format(new_mod_str, sizeof(new_mod_str), "+%d %s", mod_level+1, item[Name]);
 
 	PlayerTextDrawSetStringRus(playerid, UpgNewItemTxt[playerid], new_mod_str);
-	PlayerTextDrawColor(playerid, UpgNewItemTxt[playerid], HexGradeColors[item[Grade]][0]);
+	PlayerTextDrawColor(playerid, UpgNewItemTxt[playerid], HexGradeColors[item[Grade]-1][0]);
 	PlayerTextDrawShow(playerid, UpgNewItemTxt[playerid]);
 
 	ModItemSlot[playerid] = itemslot;
@@ -8204,6 +8263,13 @@ stock UpdateModWindow(playerid)
 
 	if(ModItemSlot[playerid] != -1)
 	{
+		if(!HasItem(playerid, 187))
+		{
+			HideModWindow(playerid);
+			ShowPlayerDialog(playerid, 1, DIALOG_STYLE_MSGBOX, "Модификация", "Вы использовали все усилители.", "Закрыть", "");
+			return;
+		}
+
 		new item[BaseItem];
 		new def_item[BaseItem];
 		item = GetItem(PlayerInventory[playerid][ModItemSlot[playerid]][ID]);
@@ -8227,13 +8293,13 @@ stock UpdateModWindow(playerid)
 			format(old_mod_str, sizeof(old_mod_str), "+%d %s", mod_level, item[Name]);
 
 		PlayerTextDrawSetStringRus(playerid, UpgOldItemTxt[playerid], old_mod_str);
-		PlayerTextDrawColor(playerid, UpgOldItemTxt[playerid], HexGradeColors[item[Grade]][0]);
+		PlayerTextDrawColor(playerid, UpgOldItemTxt[playerid], HexGradeColors[item[Grade]-1][0]);
 		PlayerTextDrawShow(playerid, UpgOldItemTxt[playerid]);
 
 		format(new_mod_str, sizeof(new_mod_str), "+%d %s", mod_level+1, item[Name]);
 
 		PlayerTextDrawSetStringRus(playerid, UpgNewItemTxt[playerid], new_mod_str);
-		PlayerTextDrawColor(playerid, UpgNewItemTxt[playerid], HexGradeColors[item[Grade]][0]);
+		PlayerTextDrawColor(playerid, UpgNewItemTxt[playerid], HexGradeColors[item[Grade]-1][0]);
 		PlayerTextDrawShow(playerid, UpgNewItemTxt[playerid]);
 
 		new def_slot = FindItem(playerid, 188);
@@ -8249,7 +8315,7 @@ stock UpdateModWindow(playerid)
 		{
 			new str[128];
 			format(str, sizeof(str), "+%d %s", mod_level, item[Name]);
-			PlayerTextDrawColor(playerid, UpgMainTxt[playerid], HexGradeColors[item[Grade]][0]);
+			PlayerTextDrawColor(playerid, UpgMainTxt[playerid], HexGradeColors[item[Grade]-1][0]);
 			PlayerTextDrawSetStringRus(playerid, UpgMainTxt[playerid], str);
 			PlayerTextDrawShow(playerid, UpgMainTxt[playerid]);
 
@@ -8546,7 +8612,7 @@ stock CombineItems(playerid)
 		}
 	}
 
-	new query[255];
+	new query[512];
 	format(query, sizeof(query), "SELECT * FROM `combinations` WHERE \
 	`Item1_ID` = '%d' AND \
 	`Item1_Count` = '%d' AND \
@@ -8715,6 +8781,7 @@ stock UpgradeItem(playerid, itemslot, potionid = -1, bool:is_safe = false)
 			SendClientMessageToAll(COLOR_LIGHTRED, cng_string);
 		}
 		SetPVarInt(playerid, "ModMsgSuccess", 1);
+		UpdatePlayerEffects(playerid);
 	}
 	//fail
 	else if(roll <= chances[0] + chances[1])
@@ -8750,7 +8817,7 @@ stock UpgradeItem(playerid, itemslot, potionid = -1, bool:is_safe = false)
 stock GetModChances(level, potionid = -1)
 {
 	new chances[3];
-	new query[255];
+	new query[512];
 	format(query, sizeof(query), "SELECT * FROM `mod_chances` WHERE `Level` = '%d' AND `Potion` = '%d' LIMIT 1", level, potionid);
 	new Cache:q_result = mysql_query(sql_handle, query);
 
@@ -9013,7 +9080,7 @@ stock FloatArrayToString(Float:array[], size)
 
 	for(new i = 0; i < size; i++)
 	{
-		format(buf, sizeof(buf), "%.2f ", array[i]);
+		format(buf, sizeof(buf), "%.4f ", array[i]);
 		strcat(string, buf);
 	}
 
@@ -9112,7 +9179,7 @@ stock LoadTournamentInfo()
 
 stock SaveTournamentInfo()
 {
-	new query[255];
+	new query[512];
 	format(query, sizeof(query), "UPDATE `tournament` SET `Number` = '%d', `Phase` = '%d', `Tour` = '%d', `Participants` = '%s' LIMIT 1", 
 		Tournament[Number], Tournament[Phase], Tournament[Tour], ArrayToString(Tournament[ParticipantsIDs], MAX_PARTICIPANTS)
 	);
@@ -9123,7 +9190,7 @@ stock SaveTournamentInfo()
 
 stock LoadAccount(playerid, login[])
 {
-	new query[255];
+	new query[512];
 	format(query, sizeof(query), "SELECT * FROM `accounts` WHERE `login` = '%s' LIMIT 1", login);
 	new Cache:q_result = mysql_query(sql_handle, query);
 
@@ -9187,7 +9254,7 @@ stock SavePlayer(playerid, bool:with_pos = true)
 	strcat(query, tmp);
 	format(tmp, sizeof(tmp), "`Acc2Property` = '%s', `Acc2PropertyVal` = '%s', ", ArrayToString(PlayerInfo[playerid][Acc2Property], MAX_PROPERTIES), FloatArrayToString(PlayerInfo[playerid][Acc2PropertyVal], MAX_PROPERTIES));
 	strcat(query, tmp);
-	format(tmp, sizeof(tmp), "`WeaponMod` = '%s', `ArmorMod` = '%s' ", PlayerInfo[playerid][WeaponMod], PlayerInfo[playerid][ArmorMod]);
+	format(tmp, sizeof(tmp), "`WeaponMod` = '%d', `ArmorMod` = '%d' ", PlayerInfo[playerid][WeaponMod], PlayerInfo[playerid][ArmorMod]);
 	strcat(query, tmp);
 	format(tmp, sizeof(tmp), "WHERE `Name` = '%s' LIMIT 1", name);
 	strcat(query, tmp);
@@ -9279,7 +9346,7 @@ stock LoadPlayer(playerid)
 	GetPlayerName(playerid, name, sizeof(name));
 	PlayerInfo[playerid][Name] = name;
 
-	new query[255];
+	new query[512];
 	format(query, sizeof(query), "SELECT * FROM `players` WHERE `Name` = '%s' LIMIT 1", name);
 	new Cache:q_result = mysql_query(sql_handle, query);
 
@@ -9346,9 +9413,9 @@ stock LoadPlayer(playerid)
 	cache_get_value_name(0, "Acc1PropertyVal", string);
 	sscanf(string, "a<f>[7]", PlayerInfo[playerid][Acc1PropertyVal]);
 	cache_get_value_name(0, "Acc2Property", string);
-	sscanf(string, "a<i>[7]", PlayerInfo[playerid][Acc1Property]);
+	sscanf(string, "a<i>[7]", PlayerInfo[playerid][Acc2Property]);
 	cache_get_value_name(0, "Acc2PropertyVal", string);
-	sscanf(string, "a<f>[7]", PlayerInfo[playerid][Acc1PropertyVal]);
+	sscanf(string, "a<f>[7]", PlayerInfo[playerid][Acc2PropertyVal]);
 
 	cache_delete(q_result);
 
@@ -9387,7 +9454,7 @@ stock CreatePlayer(playerid, name[], owner[], sex)
 		id, name, owner, sex, 0, 1, 1, 0, DEFAULT_POS_X, DEFAULT_POS_Y, DEFAULT_POS_Z, 180, 1, 78, 0, 0,
 		DEFAULT_DAMAGE_MIN, DEFAULT_DAMAGE_MAX, DEFAULT_DEFENSE, DEFAULT_DODGE, DEFAULT_ACCURACY, DEFAULT_CRIT,
 		DEFAULT_ATTACK_RATE, DEFAULT_DEFENSE_RATE, DEFAULT_CRIT_MULT, DEFAULT_CRIT_REDUCTION, DEFAULT_CRIT_MULT_REDUCTION,
-		DEFAULT_VAMP, 20, 10, 30, -1, 0, "-1 -1 -1 -1 -1 -1 -1", "0 0 0 0 0 0 0", -1, 0, "-1 -1 -1 -1 -1 -1 -1", "0 0 0 0 0 0 0",
+		DEFAULT_VAMP, 20, 10, 30, 0, 0, "-1 -1 -1 -1 -1 -1 -1", "0 0 0 0 0 0 0", 44, 0, "-1 -1 -1 -1 -1 -1 -1", "0 0 0 0 0 0 0",
 		-1, -1, "-1 -1 -1 -1 -1 -1 -1", "0 0 0 0 0 0 0", "-1 -1 -1 -1 -1 -1 -1", "0 0 0 0 0 0 0"
 	);
 	strcat(query, tmp);
@@ -9426,7 +9493,7 @@ stock GetColorByRate(rate)
 
 stock UpdateGlobalRatingTop()
 {
-	new query[255];
+	new query[512];
 	format(query, sizeof(query), "SELECT * FROM `players` WHERE `Owner` <> 'Admin' ORDER BY `Rate` DESC LIMIT %d", MAX_PARTICIPANTS);
 	new Cache:q_result = mysql_query(sql_handle, query);
 
@@ -9470,7 +9537,7 @@ stock UpdateGlobalRatingTop()
 stock UpdateLocalRatingTop(playerid)
 {
 	new name[255];
-	new query[255];
+	new query[512];
 	new string[255];
 	
 	GetPlayerName(playerid, name, sizeof(name));
@@ -9584,7 +9651,7 @@ stock ShowTourParticipants(playerid)
 
 stock ShowTournamentTab(playerid)
 {
-	new query[255];
+	new query[512];
 	format(query, sizeof(query), "SELECT * FROM `tournament_tab` ORDER BY `Score` DESC LIMIT %d", MAX_PARTICIPANTS);
 	new Cache:q_result = mysql_query(sql_handle, query);
 
@@ -9662,7 +9729,7 @@ stock GetPlayerByName(name[])
 {
 	new player[pInfo];
 	
-	new query[255];
+	new query[512];
 	format(query, sizeof(query), "SELECT * FROM `players` WHERE `Name` = '%s' LIMIT 1", name);
 	new Cache:q_result = mysql_query(sql_handle, query);
 	new row_count;
@@ -9688,7 +9755,7 @@ stock GetPlayer(id)
 {
 	new player[pInfo];
 
-	new query[255];
+	new query[512];
 	format(query, sizeof(query), "SELECT * FROM `players` WHERE `ID` = '%d' LIMIT 1", id);
 	new Cache:q_result = mysql_query(sql_handle, query);
 	new row_count;
@@ -9716,7 +9783,7 @@ stock GetWalker(rank)
 {
 	new walker[wInfo];
 
-	new query[255];
+	new query[512];
 	format(query, sizeof(query), "SELECT * FROM `walkers` WHERE `Rank` = '%d' LIMIT 1", rank);
 	new Cache:q_result = mysql_query(sql_handle, query);
 	new row_count;
@@ -10689,16 +10756,16 @@ stock InitPlayerTextDraws(playerid)
 	PlayerTextDrawSetPreviewModel(playerid, UpgOldItemTxt[playerid], 18656);
 	PlayerTextDrawSetPreviewRot(playerid, UpgOldItemTxt[playerid], 0.000000, 0.000000, 0.000000, 1.000000);
 
-	UpgSafeBtn[playerid] = CreatePlayerTextDraw(playerid, 364.533264, 260.549591, "Safe");
+	UpgSafeBtn[playerid] = CreatePlayerTextDraw(playerid, 364.533264, 260.549591, "Защищенное");
 	PlayerTextDrawLetterSize(playerid, UpgSafeBtn[playerid], 0.275332, 1.060739);
-	PlayerTextDrawTextSize(playerid, UpgSafeBtn[playerid], 1.033336, -99.389656);
+	PlayerTextDrawTextSize(playerid, UpgSafeBtn[playerid], 13.033336, 99.389656);
 	PlayerTextDrawAlignment(playerid, UpgSafeBtn[playerid], 2);
 	PlayerTextDrawColor(playerid, UpgSafeBtn[playerid], 255);
 	PlayerTextDrawUseBox(playerid, UpgSafeBtn[playerid], true);
 	PlayerTextDrawBoxColor(playerid, UpgSafeBtn[playerid], 16711935);
 	PlayerTextDrawSetShadow(playerid, UpgSafeBtn[playerid], 0);
 	PlayerTextDrawSetOutline(playerid, UpgSafeBtn[playerid], 0);
-	PlayerTextDrawBackgroundColor(playerid, UpgSafeBtn[playerid], 51);
+	PlayerTextDrawBackgroundColor(playerid, UpgSafeBtn[playerid], 0x00000000);
 	PlayerTextDrawFont(playerid, UpgSafeBtn[playerid], 1);
 	PlayerTextDrawSetProportional(playerid, UpgSafeBtn[playerid], 1);
 	PlayerTextDrawSetSelectable(playerid, UpgSafeBtn[playerid], true);
@@ -10763,16 +10830,16 @@ stock InitPlayerTextDraws(playerid)
 	PlayerTextDrawFont(playerid, UpgTxt3[playerid], 1);
 	PlayerTextDrawSetProportional(playerid, UpgTxt3[playerid], 1);
 
-	UpgBtn[playerid] = CreatePlayerTextDraw(playerid, 266.633209, 260.462097, "Upgrade");
+	UpgBtn[playerid] = CreatePlayerTextDraw(playerid, 266.633209, 260.462097, "Обычное");
 	PlayerTextDrawLetterSize(playerid, UpgBtn[playerid], 0.275332, 1.060739);
-	PlayerTextDrawTextSize(playerid, UpgBtn[playerid], 1.033336, -99.389656);
+	PlayerTextDrawTextSize(playerid, UpgBtn[playerid], 13.033336, 99.389656);
 	PlayerTextDrawAlignment(playerid, UpgBtn[playerid], 2);
 	PlayerTextDrawColor(playerid, UpgBtn[playerid], 255);
 	PlayerTextDrawUseBox(playerid, UpgBtn[playerid], true);
 	PlayerTextDrawBoxColor(playerid, UpgBtn[playerid], 16711935);
 	PlayerTextDrawSetShadow(playerid, UpgBtn[playerid], 0);
 	PlayerTextDrawSetOutline(playerid, UpgBtn[playerid], 0);
-	PlayerTextDrawBackgroundColor(playerid, UpgBtn[playerid], 51);
+	PlayerTextDrawBackgroundColor(playerid, UpgBtn[playerid], 0x00000000);
 	PlayerTextDrawFont(playerid, UpgBtn[playerid], 1);
 	PlayerTextDrawSetProportional(playerid, UpgBtn[playerid], 1);
 	PlayerTextDrawSetSelectable(playerid, UpgBtn[playerid], true);
@@ -10789,6 +10856,7 @@ stock InitPlayerTextDraws(playerid)
 	PlayerTextDrawFont(playerid, UpgClose[playerid], 1);
 	PlayerTextDrawSetProportional(playerid, UpgClose[playerid], 1);
 	PlayerTextDrawSetSelectable(playerid, UpgClose[playerid], true);
+	PlayerTextDrawBackgroundColor(playerid, UpgClose[playerid], 0x00000000);
 	PlayerTextDrawSetPreviewModel(playerid, UpgClose[playerid], 19134);
 	PlayerTextDrawSetPreviewRot(playerid, UpgClose[playerid], 0.000000, 0.000000, 90.000000, 1.000000);
 
