@@ -236,7 +236,7 @@ enum MarketItem
 	Owner[255],
 	Mod,
 	Property[MAX_PROPERTIES],
-	Float:PropertyVal[MAX_PROPERTIES]
+	PropertyVal[MAX_PROPERTIES]
 };
 enum tInfo
 {
@@ -300,7 +300,7 @@ enum iInfo
 	ID,
 	Mod,
 	Property[MAX_PROPERTIES],
-	Float:PropertyVal[MAX_PROPERTIES],
+	PropertyVal[MAX_PROPERTIES],
 	Count,
 };
 enum BaseItem 
@@ -359,13 +359,13 @@ enum pInfo
 	WeaponMod,
 	ArmorMod,
 	WeaponProperty[MAX_PROPERTIES],
-	Float:WeaponPropertyVal[MAX_PROPERTIES],
+	WeaponPropertyVal[MAX_PROPERTIES],
 	ArmorProperty[MAX_PROPERTIES],
-	Float:ArmorPropertyVal[MAX_PROPERTIES],
+	ArmorPropertyVal[MAX_PROPERTIES],
 	Acc1Property[MAX_PROPERTIES],
-	Float:Acc1PropertyVal[MAX_PROPERTIES],
+	Acc1PropertyVal[MAX_PROPERTIES],
 	Acc2Property[MAX_PROPERTIES],
-	Float:Acc2PropertyVal[MAX_PROPERTIES]
+	Acc2PropertyVal[MAX_PROPERTIES]
 };
 enum wInfo
 {
@@ -476,11 +476,11 @@ new EmptyInvItem[iInfo] = {
 	-1,
 	0,
 	{-1,-1,-1,-1,-1,-1,-1},
-	{0.0,0.0,0.0,0.0,0.0,0.0,0.0},
+	{0,0,0,0,0,0,0},
 	0
 };
 new PROP_CLEAR[MAX_PROPERTIES] = {-1,-1,-1,-1,-1,-1,-1};
-new Float:PROP_VAL_CLEAR[MAX_PROPERTIES] = {0.0,0.0,0.0,0.0,0.0,0.0,0.0};
+new PROP_VAL_CLEAR[MAX_PROPERTIES] = {0,0,0,0,0,0,0};
 new EmptyMarketSellingItem[MarketItem] = {
 	-1,
 	-1,
@@ -490,7 +490,7 @@ new EmptyMarketSellingItem[MarketItem] = {
 	"None",
 	0,
 	{-1,-1,-1,-1,-1,-1,-1},
-	{0.0,0.0,0.0,0.0,0.0,0.0,0.0}
+	{0,0,0,0,0,0,0}
 };
 new BossesNames[MAX_BOSSES][128] = {
 	{"BOSS_Edemsky"},
@@ -2719,7 +2719,7 @@ public OnDialogResponse(playerid, dialogid, response, listitem, inputtext[])
 					SetPVarInt(playerid, "MarketBuyItemListID", listitem);
 					new iinfo[2048];
 					iinfo = GetMarketItemDesc(listitem, category);
-					ShowPlayerDialog(playerid, 1107, DIALOG_STYLE_INPUT, "Рынок", iinfo, "Купить", "Отмена");
+					ShowPlayerDialog(playerid, 1107, DIALOG_STYLE_MSGBOX, "Рынок", iinfo, "Купить", "Отмена");
 				}
 			}
 			else
@@ -2869,16 +2869,9 @@ public OnDialogResponse(playerid, dialogid, response, listitem, inputtext[])
 							return 1;
 						}
 
-						new req_noses = GetMaxPropsByMod(PlayerInfo[playerid][WeaponMod]);
-						if(!HasItem(playerid, 200, req_noses))
-						{
-							SendClientMessage(playerid, COLOR_GREY, "Недостаточно красных носов.");
-							return 1;
-						}
-
-						DeleteItem(playerid, 200, req_noses);
-						AddWeaponProps(playerid);
-						SendClientMessage(playerid, COLOR_GREEN, "Характеристики добавлены.");
+						new desc[2048];
+						desc = GetEquipDesc(PlayerInfo[playerid][WeaponSlotID], PlayerInfo[playerid][WeaponMod], PlayerInfo[playerid][WeaponProperty], PlayerInfo[playerid][WeaponPropertyVal]);
+						ShowPlayerDialog(playerid, 1201, DIALOG_STYLE_MSGBOX, "Буржуа", desc, "Добавить", "Назад");
 					}
 					case 1:
 					{
@@ -2888,21 +2881,68 @@ public OnDialogResponse(playerid, dialogid, response, listitem, inputtext[])
 							return 1;
 						}
 
-						new req_noses = GetMaxPropsByMod(PlayerInfo[playerid][ArmorMod]);
-						if(!HasItem(playerid, 200, req_noses))
-						{
-							SendClientMessage(playerid, COLOR_GREY, "Недостаточно красных носов.");
-							return 1;
-						}
-
-						DeleteItem(playerid, 200, req_noses);
-						AddArmorProps(playerid);
-						SendClientMessage(playerid, COLOR_GREEN, "Характеристики добавлены.");
+						new desc[2048];
+						desc = GetEquipDesc(PlayerInfo[playerid][ArmorSlotID], PlayerInfo[playerid][ArmorMod], PlayerInfo[playerid][ArmorProperty], PlayerInfo[playerid][ArmorPropertyVal]);
+						ShowPlayerDialog(playerid, 1202, DIALOG_STYLE_MSGBOX, "Буржуа", desc, "Добавить", "Назад");
 					}
 				}
 			}
 			else 
 				return 1;
+		}
+		case 1201:
+		{
+			if(response)
+			{
+				new req_noses = GetMaxPropsByMod(PlayerInfo[playerid][WeaponMod]);
+				if(!HasItem(playerid, 200, req_noses))
+				{
+					SendClientMessage(playerid, COLOR_GREY, "Недостаточно красных носов.");
+					return 1;
+				}
+
+				new slot = FindItem(playerid, 200);
+				DeleteItem(playerid, slot, req_noses);
+				AddWeaponProps(playerid);
+				UpdatePlayerStats(playerid);
+				SendClientMessage(playerid, COLOR_GREEN, "Характеристики добавлены.");
+
+				new desc[2048];
+				desc = GetEquipDesc(PlayerInfo[playerid][WeaponSlotID], PlayerInfo[playerid][WeaponMod], PlayerInfo[playerid][WeaponProperty], PlayerInfo[playerid][WeaponPropertyVal]);
+				ShowPlayerDialog(playerid, 1201, DIALOG_STYLE_MSGBOX, "Буржуа", desc, "Добавить", "Назад");
+			}
+			else
+			{
+				new listitems[] = "Добавить характеристики оружия\nДобавить характеристики доспехов";
+				ShowPlayerDialog(playerid, 1200, DIALOG_STYLE_LIST, "Буржуа", listitems, "Далее", "Закрыть");
+			}
+		}
+		case 1202:
+		{
+			if(response)
+			{
+				new req_noses = GetMaxPropsByMod(PlayerInfo[playerid][ArmorMod]);
+				if(!HasItem(playerid, 200, req_noses))
+				{
+					SendClientMessage(playerid, COLOR_GREY, "Недостаточно красных носов.");
+					return 1;
+				}
+
+				new slot = FindItem(playerid, 200);
+				DeleteItem(playerid, slot, req_noses);
+				AddArmorProps(playerid);
+				UpdatePlayerStats(playerid);
+				SendClientMessage(playerid, COLOR_GREEN, "Характеристики добавлены.");
+
+				new desc[2048];
+				desc = GetEquipDesc(PlayerInfo[playerid][ArmorSlotID], PlayerInfo[playerid][ArmorMod], PlayerInfo[playerid][ArmorProperty], PlayerInfo[playerid][ArmorPropertyVal]);
+				ShowPlayerDialog(playerid, 1202, DIALOG_STYLE_MSGBOX, "Буржуа", desc, "Добавить", "Назад");
+			}
+			else
+			{
+				new listitems[] = "Добавить характеристики оружия\nДобавить характеристики доспехов";
+				ShowPlayerDialog(playerid, 1200, DIALOG_STYLE_LIST, "Буржуа", listitems, "Далее", "Закрыть");
+			}
 		}
 	}
 	return 1;
@@ -4442,7 +4482,7 @@ stock UpdateMarketItems()
 			new owner[255];
 			new mod;
 			new props[MAX_PROPERTIES];
-			new Float:prop_vals[MAX_PROPERTIES];
+			new prop_vals[MAX_PROPERTIES];
 			new string[255];
 
 			cache_get_value_name_int(i, "ItemID", itemid);
@@ -4477,27 +4517,25 @@ stock UpdateMarketItems()
 	cache_delete(q_result);
 }
 
-stock GetMarketItemDesc(listitem, category)
+stock GetEquipDesc(id, mod, props[], prop_vals[])
 {
-	new item[MarketItem];
-	item = GetMarketItem(listitem, category);
 	new eq_item[BaseItem];
-	eq_item = GetItem(item[ID]);
+	eq_item = GetItem(id);
 
 	new desc[2048];
-	format(desc, sizeof(desc), "{%s}[%s%s]\n", GetGradeColor(eq_item[Grade]), GetModString(item[Mod]), eq_item[Name]);
+	format(desc, sizeof(desc), "{%s}[%s%s]\n", GetGradeColor(eq_item[Grade]), GetModString(mod), eq_item[Name]);
 
 	new props_str[1024] = " {00FF00}Особые характеристики:\n";
 	new props_count = 0;
 	for(new i = 0; i < MAX_PROPERTIES; i++)
 	{
-		if(item[Property][i] == -1)
+		if(props[i] == -1)
 			break;
 
-		new prop_str[128];
-		prop_str = GetPropDesc(item[Property][i], item[PropertyVal][i]);
+		new prop_str[255];
+		prop_str = GetPropDesc(props[i], prop_vals[i]);
 		new color[16] = "FFFFFF";
-		if(item[Mod] >= 7)
+		if(mod >= 7)
 		{
 			switch(eq_item[Grade])
 			{
@@ -4519,6 +4557,16 @@ stock GetMarketItemDesc(listitem, category)
 	if(props_count > 0)
 		strcat(desc, props_str);
 
+	return desc;
+}
+
+stock GetMarketItemDesc(listitem, category)
+{
+	new item[MarketItem];
+	item = GetMarketItem(listitem, category);
+
+	new desc[2048];
+	desc = GetEquipDesc(item[ID], item[Mod], item[Property], item[PropertyVal]);
 	return desc;
 }
 
@@ -4549,7 +4597,7 @@ stock GetMarketItem(id, category)
 	cache_get_value_name(id, "ItemProps", string);
 	sscanf(string, "a<i>[7]", item[Property]);
 	cache_get_value_name(id, "ItemPropVals", string);
-	sscanf(string, "a<f>[7]", item[PropertyVal]);
+	sscanf(string, "a<i>[7]", item[PropertyVal]);
 
 	cache_delete(q_result);
 	return item;
@@ -4582,7 +4630,7 @@ stock GetMarketItemByLotID(id)
 	cache_get_value_name(0, "ItemProps", string);
 	sscanf(string, "a<i>[7]", item[Property]);
 	cache_get_value_name(0, "ItemPropVals", string);
-	sscanf(string, "a<f>[7]", item[PropertyVal]);
+	sscanf(string, "a<i>[7]", item[PropertyVal]);
 
 	cache_delete(q_result);
 	return item;
@@ -4608,7 +4656,7 @@ stock AddItemToMarket(playerid, slotid, lotid, category, time = 3)
 	id++;
 
 	format(query, sizeof(query), "INSERT INTO `marketplace`(`ID`, `Owner`, `ItemID`, `Category`, `ItemCount`, `ItemMod`, `ItemProps`, `ItemPropVals`, `Price`, `Time`) VALUES ('%d','%s','%d','%d','%d','%d','%s','%s','%d','%d')",
-		id, item[Owner], item[ID], category, item[Count], item[Mod], ArrayToString(item[Property], MAX_PROPERTIES), FloatArrayToString(item[PropertyVal], MAX_PROPERTIES), item[Price], time
+		id, item[Owner], item[ID], category, item[Count], item[Mod], ArrayToString(item[Property], MAX_PROPERTIES), ArrayToString(item[PropertyVal], MAX_PROPERTIES), item[Price], time
 	);
 	new Cache:sq_result = mysql_query(sql_handle, query);
 	cache_delete(sq_result);
@@ -4696,7 +4744,7 @@ stock RegisterMarketItem(playerid, category)
 	new query[512];
 	format(query, sizeof(query), "INSERT INTO `marketplace`(`ID`, `Owner`, `ItemID`, `Category`, `ItemCount`, `ItemMod`, `ItemProps`, `ItemPropVals`, `Price`, `Time`) VALUES ('%d', '%s', '%d', '%d', '%d', '%d', '%s', '%s', '%d', '%d')",
 		MarketSellingItem[playerid][LotID], MarketSellingItem[playerid][Owner], MarketSellingItem[playerid][ID], category, MarketSellingItem[playerid][Count],
-		MarketSellingItem[playerid][Mod], ArrayToString(MarketSellingItem[playerid][Property], MAX_PROPERTIES), FloatArrayToString(MarketSellingItem[playerid][PropertyVal], MAX_PROPERTIES), 
+		MarketSellingItem[playerid][Mod], ArrayToString(MarketSellingItem[playerid][Property], MAX_PROPERTIES), ArrayToString(MarketSellingItem[playerid][PropertyVal], MAX_PROPERTIES), 
 		MarketSellingItem[playerid][Price], MarketSellingItem[playerid][rTime]
 	);
 	new Cache:q_result = mysql_query(sql_handle, query);
@@ -5205,11 +5253,11 @@ stock ClaimMail(playerid, num)
 
 	new string[255];
 	new prop[MAX_PROPERTIES];
-	new Float:prop_vals[MAX_PROPERTIES];
+	new prop_vals[MAX_PROPERTIES];
 	cache_get_value_name(num, "ItemProps", string);
 	sscanf(string, "a<i>[7]", prop);
 	cache_get_value_name(num, "ItemPropVals", string);
-	sscanf(string, "a<f>[7]", prop_vals);
+	sscanf(string, "a<i>[7]", prop_vals);
 
 	cache_delete(q_result);
 
@@ -6741,25 +6789,25 @@ stock UpdatePlayerWeapon(playerid)
 		GivePlayerWeapon(playerid, weaponid, 999999);
 }
 
-stock Float:GetPlayerPropValue(playerid, prop)
+stock GetPlayerPropValue(playerid, prop)
 {
-	new Float:value = 0;
+	new value = 0;
 	for(new i = 0; i < MAX_PROPERTIES; i++)
 	{
 		if(PlayerInfo[playerid][WeaponProperty][i] == prop)
-			value = floatadd(value, PlayerInfo[playerid][WeaponPropertyVal][i]);
+			value += PlayerInfo[playerid][WeaponPropertyVal][i];
 		if(PlayerInfo[playerid][ArmorProperty][i] == prop)
-			value = floatadd(value, PlayerInfo[playerid][ArmorPropertyVal][i]);
+			value += PlayerInfo[playerid][ArmorPropertyVal][i];
 		if(PlayerInfo[playerid][Acc1Property][i] == prop)
-			value = floatadd(value, PlayerInfo[playerid][Acc1PropertyVal][i]);
+			value += PlayerInfo[playerid][Acc1PropertyVal][i];
 		if(PlayerInfo[playerid][Acc2Property][i] == prop)
-			value = floatadd(value, PlayerInfo[playerid][Acc2PropertyVal][i]);
+			value += PlayerInfo[playerid][Acc2PropertyVal][i];
 	}
 
-	if(prop == PROPERTY_DAMAGE && HasItem(playerid, 183, 1))
-		value = floatadd(value, 5);
-	if(prop == PROPERTY_DEFENSE && HasItem(playerid, 184, 1))
-		value = floatadd(value, 5);
+	if(prop == PROPERTY_DAMAGE_PERCENTAGE && HasItem(playerid, 183, 1))
+		value += 5;
+	if(prop == PROPERTY_DEFENSE_PERCENTAGE && HasItem(playerid, 184, 1))
+		value += 5;
 	
 	return value;
 }
@@ -6780,32 +6828,32 @@ stock UpdatePlayerStats(playerid)
 	armor_defense = GetEquipModifiedValue(default_def, PlayerInfo[playerid][ArmorMod]);
 	PlayerInfo[playerid][Defense] = armor_defense;
 
-	PlayerInfo[playerid][Accuracy] = DEFAULT_ACCURACY + floatround(GetPlayerPropValue(playerid, PROPERTY_ACCURACY)) + PlayerInfo[playerid][Rank] * 10;
-	PlayerInfo[playerid][Dodge] = DEFAULT_DODGE + floatround(GetPlayerPropValue(playerid, PROPERTY_DODGE)) + PlayerInfo[playerid][Rank] * 10;
-	PlayerInfo[playerid][Crit] = DEFAULT_CRIT + floatround(GetPlayerPropValue(playerid, PROPERTY_CRIT)) + PlayerInfo[playerid][Rank] * 4;
-	PlayerInfo[playerid][CritMult] = floatadd(DEFAULT_CRIT_MULT, GetPlayerPropValue(playerid, PROPERTY_CRIT_MULT));
-	PlayerInfo[playerid][CritMultReduction] = floatadd(DEFAULT_CRIT_MULT_REDUCTION, GetPlayerPropValue(playerid, PROPERTY_CRIT_MULT_REDUCTION));
-	PlayerInfo[playerid][CritReduction] = DEFAULT_CRIT_REDUCTION + floatround(GetPlayerPropValue(playerid, PROPERTY_CRIT_REDUCTION));
-	PlayerInfo[playerid][Vamp] = GetPlayerPropValue(playerid, PROPERTY_VAMP);
-	PlayerInfo[playerid][AttackRate] = DEFAULT_ATTACK_RATE + floatround(GetPlayerPropValue(playerid, PROPERTY_DAMAGE_RATE)) + PlayerInfo[playerid][Rank] * 12;
-	PlayerInfo[playerid][DefenseRate] = DEFAULT_DEFENSE_RATE + floatround(GetPlayerPropValue(playerid, PROPERTY_DEFENSE_RATE)) + PlayerInfo[playerid][Rank] * 11;
+	PlayerInfo[playerid][Accuracy] = DEFAULT_ACCURACY + GetPlayerPropValue(playerid, PROPERTY_ACCURACY) + PlayerInfo[playerid][Rank] * 10;
+	PlayerInfo[playerid][Dodge] = DEFAULT_DODGE + GetPlayerPropValue(playerid, PROPERTY_DODGE) + PlayerInfo[playerid][Rank] * 10;
+	PlayerInfo[playerid][Crit] = DEFAULT_CRIT + GetPlayerPropValue(playerid, PROPERTY_CRIT) + PlayerInfo[playerid][Rank] * 4;
+	PlayerInfo[playerid][CritMult] = floatadd(DEFAULT_CRIT_MULT, floatdiv(GetPlayerPropValue(playerid, PROPERTY_CRIT_MULT), 100));
+	PlayerInfo[playerid][CritMultReduction] = floatadd(DEFAULT_CRIT_MULT_REDUCTION, floatdiv(GetPlayerPropValue(playerid, PROPERTY_CRIT_MULT_REDUCTION), 100));
+	PlayerInfo[playerid][CritReduction] = DEFAULT_CRIT_REDUCTION + GetPlayerPropValue(playerid, PROPERTY_CRIT_REDUCTION);
+	PlayerInfo[playerid][Vamp] = floatdiv(GetPlayerPropValue(playerid, PROPERTY_VAMP), 100);
+	PlayerInfo[playerid][AttackRate] = DEFAULT_ATTACK_RATE + GetPlayerPropValue(playerid, PROPERTY_DAMAGE_RATE) + PlayerInfo[playerid][Rank] * 12;
+	PlayerInfo[playerid][DefenseRate] = DEFAULT_DEFENSE_RATE + GetPlayerPropValue(playerid, PROPERTY_DEFENSE_RATE) + PlayerInfo[playerid][Rank] * 11;
 
-	PlayerInfo[playerid][DamageMin] += floatround(GetPlayerPropValue(playerid, PROPERTY_DAMAGE));
-	PlayerInfo[playerid][DamageMax] += floatround(GetPlayerPropValue(playerid, PROPERTY_DAMAGE));
-	PlayerInfo[playerid][Defense] += floatround(GetPlayerPropValue(playerid, PROPERTY_DEFENSE));
+	PlayerInfo[playerid][DamageMin] += GetPlayerPropValue(playerid, PROPERTY_DAMAGE);
+	PlayerInfo[playerid][DamageMax] += GetPlayerPropValue(playerid, PROPERTY_DAMAGE);
+	PlayerInfo[playerid][Defense] += GetPlayerPropValue(playerid, PROPERTY_DEFENSE);
 
 	new damage_multiplier = 100;
 	new defense_multiplier = 100;
 
-	damage_multiplier += floatround(GetPlayerPropValue(playerid, PROPERTY_DAMAGE_PERCENTAGE));
-	defense_multiplier += floatround(GetPlayerPropValue(playerid, PROPERTY_DEFENSE_PERCENTAGE));
+	damage_multiplier += GetPlayerPropValue(playerid, PROPERTY_DAMAGE_PERCENTAGE);
+	defense_multiplier += GetPlayerPropValue(playerid, PROPERTY_DEFENSE_PERCENTAGE);
 
 	PlayerInfo[playerid][DamageMin] = (PlayerInfo[playerid][DamageMin] * damage_multiplier) / 100;
 	PlayerInfo[playerid][DamageMax] = (PlayerInfo[playerid][DamageMax] * damage_multiplier) / 100;
 	PlayerInfo[playerid][Defense] = (PlayerInfo[playerid][Defense] * defense_multiplier) / 100;
 
 	UpdatePlayerMaxHP(playerid);
-	new hp_multiplier = 100 + floatround(GetPlayerPropValue(playerid, PROPERTY_HP));
+	new hp_multiplier = 100 + GetPlayerPropValue(playerid, PROPERTY_HP);
 	new Float:new_max_hp = floatmul(MaxHP[playerid], floatdiv(hp_multiplier, 100));
 	SetPlayerMaxHP(playerid, new_max_hp, true);
 
@@ -6872,7 +6920,7 @@ stock EquipItem(playerid, type, slot)
 
 	new mod;
 	new prop[MAX_PROPERTIES];
-	new Float:prop_vals[MAX_PROPERTIES];
+	new prop_vals[MAX_PROPERTIES];
 
 	mod = PlayerInventory[playerid][slot][Mod];
 	for(new i = 0; i < MAX_PROPERTIES; i++)
@@ -7131,7 +7179,7 @@ stock SaveInventorySlot(playerid, slot)
 	new query[512];
 	format(query, sizeof(query), "UPDATE `inventories` SET `ItemID` = '%d', `Count` = '%d', `SlotMod` = '%d', `SlotProps` = '%s', `SlotPropVals` = '%s' WHERE `PlayerName` = '%s' AND `SlotID` = '%d' LIMIT 1", 
 		PlayerInventory[playerid][slot][ID], PlayerInventory[playerid][slot][Count], PlayerInventory[playerid][slot][Mod], 
-		ArrayToString(PlayerInventory[playerid][slot][Property], MAX_PROPERTIES), FloatArrayToString(PlayerInventory[playerid][slot][PropertyVal], MAX_PROPERTIES), name, slot
+		ArrayToString(PlayerInventory[playerid][slot][Property], MAX_PROPERTIES), ArrayToString(PlayerInventory[playerid][slot][PropertyVal], MAX_PROPERTIES), name, slot
 	);
 	new Cache:q_result = mysql_query(sql_handle, query);
 	cache_delete(q_result);
@@ -7184,7 +7232,7 @@ stock PendingMessage(name[], text[])
 		UpdatePlayerPost(id);
 }
 
-stock PendingItem(name[], id, mod, props[], Float:prop_vals[], count = 1, text[])
+stock PendingItem(name[], id, mod, props[], prop_vals[], count = 1, text[])
 {
 	new sub_query[255] = "SELECT MAX(`PendingID`) AS `PendingID` FROM `pendings`";
 	new Cache:sq_result = mysql_query(sql_handle, sub_query);
@@ -7200,7 +7248,7 @@ stock PendingItem(name[], id, mod, props[], Float:prop_vals[], count = 1, text[]
 
 	new query[512];
 	format(query, sizeof(query), "INSERT INTO `pendings`(`PendingID`, `PlayerName`, `ItemID`, `Count`, `ItemMod`, `ItemProps`, `ItemPropVals`, `Text`) VALUES ('%d','%s','%d','%d','%d','%s','%s','%s')",
-		p_id, name, id, count, mod, ArrayToString(props, MAX_PROPERTIES), FloatArrayToString(prop_vals, MAX_PROPERTIES), text
+		p_id, name, id, count, mod, ArrayToString(props, MAX_PROPERTIES), ArrayToString(prop_vals, MAX_PROPERTIES), text
 	);
 	new Cache:q_result = mysql_query(sql_handle, query);
 	cache_delete(q_result);
@@ -7210,9 +7258,9 @@ stock PendingItem(name[], id, mod, props[], Float:prop_vals[], count = 1, text[]
 		UpdatePlayerPost(playerid);
 }
 
-stock Float:GenerateProperty(type)
+stock GenerateProperty(type)
 {
-	new Float:prop[2];
+	new prop[2];
 	new chance = random(10001);
 	new query[512];
 
@@ -7246,7 +7294,7 @@ stock Float:GenerateProperty(type)
 		{
 			new _prop;
 			cache_get_value_name_int(i, "prop", _prop);
-			cache_get_value_name_float(i, "value", prop[1]);
+			cache_get_value_name_int(i, "value", prop[1]);
 			cache_unset_active();
 			prop[0] = _prop;
 			break;
@@ -7259,9 +7307,9 @@ stock Float:GenerateProperty(type)
 	return prop;
 }
 
-stock Float:GenerateEquipProps(id)
+stock GenerateEquipProps(id)
 {
-	new Float:props_info[MAX_PROPERTIES][2];
+	new props_info[MAX_PROPERTIES][2];
 	for(new i = 0; i < MAX_PROPERTIES; i++)
 	{
 		props_info[i][0] = -1;
@@ -7283,7 +7331,7 @@ stock Float:GenerateEquipProps(id)
 
 	for(new i = 0; i < props_count; i++)
 	{
-		new Float:prop[2];
+		new prop[2];
 		prop = GenerateProperty(item[Type]-1);
 		props_info[i][0] = prop[0];
 		props_info[i][1] = prop[1];
@@ -7329,18 +7377,18 @@ stock AddWeaponProps(playerid)
 	new grade = item[Grade];
 	new default_props_count = GetMaxPropsByGrade(grade);
 
-	for(new i = default_props_count-1; i < MAX_PROPERTIES; i++)
+	for(new i = default_props_count; i < MAX_PROPERTIES; i++)
 	{
 		PlayerInfo[playerid][WeaponProperty][i] = -1;
 		PlayerInfo[playerid][WeaponPropertyVal][i] = 0;
 	}
 
 	new new_props_count = 1 + random(GetMaxPropsByMod(mod));
-	for(new i = default_props_count-1; i < default_props_count+new_props_count-1; i++)
+	for(new i = default_props_count; i < default_props_count+new_props_count; i++)
 	{
-		new Float:prop[2];
+		new prop[2];
 		prop = GenerateProperty(item[Type]-1);
-		PlayerInfo[playerid][WeaponProperty][i] = prop[0];
+		PlayerInfo[playerid][WeaponProperty][i] = floatround(prop[0]);
 		PlayerInfo[playerid][WeaponPropertyVal][i] = prop[1];
 	}
 }
@@ -7353,18 +7401,18 @@ stock AddArmorProps(playerid)
 	new grade = item[Grade];
 	new default_props_count = GetMaxPropsByGrade(grade);
 
-	for(new i = default_props_count-1; i < MAX_PROPERTIES; i++)
+	for(new i = default_props_count; i < MAX_PROPERTIES; i++)
 	{
 		PlayerInfo[playerid][ArmorProperty][i] = -1;
 		PlayerInfo[playerid][ArmorPropertyVal][i] = 0;
 	}
 
 	new new_props_count = 1 + random(GetMaxPropsByMod(mod));
-	for(new i = default_props_count-1; i < default_props_count+new_props_count-1; i++)
+	for(new i = default_props_count; i < default_props_count+new_props_count; i++)
 	{
-		new Float:prop[2];
+		new prop[2];
 		prop = GenerateProperty(item[Type]-1);
-		PlayerInfo[playerid][ArmorProperty][i] = prop[0];
+		PlayerInfo[playerid][ArmorProperty][i] = floatround(prop[0]);
 		PlayerInfo[playerid][ArmorPropertyVal][i] = prop[1];
 	}
 }
@@ -7379,7 +7427,7 @@ stock AddEquip(playerid, id)
 	PlayerInventory[playerid][slot][Count] = 1;
 	PlayerInventory[playerid][slot][Mod] = 0;
 
-	new Float:props_info[MAX_PROPERTIES][2];
+	new props_info[MAX_PROPERTIES][2];
 	props_info = GenerateEquipProps(id);
 	for(new i = 0; i < MAX_PROPERTIES; i++)
 	{
@@ -7395,7 +7443,7 @@ stock AddEquip(playerid, id)
 	return true;
 }
 
-stock AddEquipEx(playerid, id, mod, props[], Float:prop_vals[])
+stock AddEquipEx(playerid, id, mod, props[], prop_vals[])
 {
 	if(IsInventoryFull(playerid))
 		return false;
@@ -7834,26 +7882,26 @@ stock HideEquipInfo(playerid)
 	Windows[playerid][EquipInfo] = false;
 }
 
-stock GetPropDesc(prop, Float:prop_val)
+stock GetPropDesc(prop, prop_val)
 {
 	new string[255];
 
 	switch(prop)
 	{
-		case PROPERTY_ACCURACY: format(string, sizeof(string), "Точность +%d", floatround(prop_val));
-		case PROPERTY_CRIT: format(string, sizeof(string), "Шанс крита +%d", floatround(prop_val));
-		case PROPERTY_CRIT_MULT: format(string, sizeof(string), "Урон от крита +%.2f", prop_val);
-		case PROPERTY_CRIT_MULT_REDUCTION: format(string, sizeof(string), "Уменьшить силу крита +%.2f", prop_val);
-		case PROPERTY_CRIT_REDUCTION: format(string, sizeof(string), "Снижение крит. урона +%d%%", floatround(prop_val));
-		case PROPERTY_DAMAGE: format(string, sizeof(string), "Сила атаки +%d", floatround(prop_val));
-		case PROPERTY_DAMAGE_PERCENTAGE: format(string, sizeof(string), "Сила атаки +%.2f%%", prop_val);
-		case PROPERTY_DAMAGE_RATE: format(string, sizeof(string), "Рейтинг атаки +%d", floatround(prop_val));
-		case PROPERTY_DEFENSE: format(string, sizeof(string), "Защита +%d", floatround(prop_val));
-		case PROPERTY_DEFENSE_PERCENTAGE: format(string, sizeof(string), "Защита +%.2f%%", prop_val);
-		case PROPERTY_DEFENSE_RATE: format(string, sizeof(string), "Рейтинг защиты +%d", floatround(prop_val));
-		case PROPERTY_DODGE: format(string, sizeof(string), "Уклонение +%d", floatround(prop_val));
-		case PROPERTY_HP: format(string, sizeof(string), "Макс. ХП +%d%%", floatround(prop_val));
-		case PROPERTY_VAMP: format(string, sizeof(string), "Поглощение ХП +%.2f%%", prop_val);
+		case PROPERTY_ACCURACY: format(string, sizeof(string), "Точность +%d", prop_val);
+		case PROPERTY_CRIT: format(string, sizeof(string), "Шанс крита +%d", prop_val);
+		case PROPERTY_CRIT_MULT: format(string, sizeof(string), "Урон от крита +%.2f", floatadd(floatdiv(prop_val, 100), 0.001));
+		case PROPERTY_CRIT_MULT_REDUCTION: format(string, sizeof(string), "Уменьшить силу крита +%.2f", floatadd(floatdiv(prop_val, 100), 0.001));
+		case PROPERTY_CRIT_REDUCTION: format(string, sizeof(string), "Снижение крит. урона +%d%%", prop_val);
+		case PROPERTY_DAMAGE: format(string, sizeof(string), "Сила атаки +%d", prop_val);
+		case PROPERTY_DAMAGE_PERCENTAGE: format(string, sizeof(string), "Сила атаки +%.2f%%", floatdiv(prop_val, 1));
+		case PROPERTY_DAMAGE_RATE: format(string, sizeof(string), "Рейтинг атаки +%d", prop_val);
+		case PROPERTY_DEFENSE: format(string, sizeof(string), "Защита +%d", prop_val);
+		case PROPERTY_DEFENSE_PERCENTAGE: format(string, sizeof(string), "Защита +%.2f%%", floatdiv(prop_val, 1));
+		case PROPERTY_DEFENSE_RATE: format(string, sizeof(string), "Рейтинг защиты +%d", prop_val);
+		case PROPERTY_DODGE: format(string, sizeof(string), "Уклонение +%d", prop_val);
+		case PROPERTY_HP: format(string, sizeof(string), "Макс. ХП +%d%%", prop_val);
+		case PROPERTY_VAMP: format(string, sizeof(string), "Поглощение ХП +%.2f%%", floatdiv(prop_val, 100));
 		default: string = "";
 	}
 
@@ -7916,6 +7964,7 @@ stock ShowEquipInfo(playerid, slotid, itemid)
 		prop_str = GetPropDesc(PlayerInventory[playerid][slotid][Property][i], PlayerInventory[playerid][slotid][PropertyVal][i]);
 		PlayerTextDrawSetStringRus(playerid, EqInfProp[playerid][i], prop_str);
 
+		PlayerTextDrawColor(playerid, EqInfProp[playerid][i], 0xFFFFFFFF);
 		if(PlayerInventory[playerid][slotid][Mod] >= 7)
 		{
 			switch(item[Grade])
@@ -7925,11 +7974,8 @@ stock ShowEquipInfo(playerid, slotid, itemid)
 				case GRADE_B: if(i > 1) PlayerTextDrawColor(playerid, EqInfProp[playerid][i], 0xFFCC00FF);
 				case GRADE_A: if(i > 2) PlayerTextDrawColor(playerid, EqInfProp[playerid][i], 0xFFCC00FF);
 				case GRADE_S: if(i > 3) PlayerTextDrawColor(playerid, EqInfProp[playerid][i], 0xFFCC00FF);
-				default: PlayerTextDrawColor(playerid, EqInfProp[playerid][i], 0xFFFFFFFF);
 			}
 		}
-		else
-			PlayerTextDrawColor(playerid, EqInfProp[playerid][i], 0xFFFFFFFF);
 
 		prop_count++;
 		PlayerTextDrawShow(playerid, EqInfProp[playerid][i]);
@@ -9216,21 +9262,6 @@ stock ArrayToString(array[], size)
 	return string;
 }
 
-stock FloatArrayToString(Float:array[], size)
-{
-	new string[1024] = "";
-	new buf[255];
-
-	for(new i = 0; i < size; i++)
-	{
-		format(buf, sizeof(buf), "%.4f ", array[i]);
-		strcat(string, buf);
-	}
-
-	strdel(string, strlen(string)-1, strlen(string));
-	return string;
-}
-
 stock GetRateInterval(rate) 
 {
 	new interval[32];
@@ -9389,13 +9420,13 @@ stock SavePlayer(playerid, bool:with_pos = true)
 	strcat(query, tmp);
 	format(tmp, sizeof(tmp), "`WeaponSlotID` = '%d', `ArmorSlotID` = '%d', `AccSlot1ID` = '%d', `AccSlot2ID` = '%d', ", PlayerInfo[playerid][WeaponSlotID], PlayerInfo[playerid][ArmorSlotID], PlayerInfo[playerid][AccSlot1ID], PlayerInfo[playerid][AccSlot2ID]);
 	strcat(query, tmp);
-	format(tmp, sizeof(tmp), "`WeaponProperty` = '%s', `WeaponPropertyVal` = '%s', ", ArrayToString(PlayerInfo[playerid][WeaponProperty], MAX_PROPERTIES), FloatArrayToString(PlayerInfo[playerid][WeaponPropertyVal], MAX_PROPERTIES));
+	format(tmp, sizeof(tmp), "`WeaponProperty` = '%s', `WeaponPropertyVal` = '%s', ", ArrayToString(PlayerInfo[playerid][WeaponProperty], MAX_PROPERTIES), ArrayToString(PlayerInfo[playerid][WeaponPropertyVal], MAX_PROPERTIES));
 	strcat(query, tmp);
-	format(tmp, sizeof(tmp), "`ArmorProperty` = '%s', `ArmorPropertyVal` = '%s', ", ArrayToString(PlayerInfo[playerid][ArmorProperty], MAX_PROPERTIES), FloatArrayToString(PlayerInfo[playerid][ArmorPropertyVal], MAX_PROPERTIES));
+	format(tmp, sizeof(tmp), "`ArmorProperty` = '%s', `ArmorPropertyVal` = '%s', ", ArrayToString(PlayerInfo[playerid][ArmorProperty], MAX_PROPERTIES), ArrayToString(PlayerInfo[playerid][ArmorPropertyVal], MAX_PROPERTIES));
 	strcat(query, tmp);
-	format(tmp, sizeof(tmp), "`Acc1Property` = '%s', `Acc1PropertyVal` = '%s', ", ArrayToString(PlayerInfo[playerid][Acc1Property], MAX_PROPERTIES), FloatArrayToString(PlayerInfo[playerid][Acc1PropertyVal], MAX_PROPERTIES));
+	format(tmp, sizeof(tmp), "`Acc1Property` = '%s', `Acc1PropertyVal` = '%s', ", ArrayToString(PlayerInfo[playerid][Acc1Property], MAX_PROPERTIES), ArrayToString(PlayerInfo[playerid][Acc1PropertyVal], MAX_PROPERTIES));
 	strcat(query, tmp);
-	format(tmp, sizeof(tmp), "`Acc2Property` = '%s', `Acc2PropertyVal` = '%s', ", ArrayToString(PlayerInfo[playerid][Acc2Property], MAX_PROPERTIES), FloatArrayToString(PlayerInfo[playerid][Acc2PropertyVal], MAX_PROPERTIES));
+	format(tmp, sizeof(tmp), "`Acc2Property` = '%s', `Acc2PropertyVal` = '%s', ", ArrayToString(PlayerInfo[playerid][Acc2Property], MAX_PROPERTIES), ArrayToString(PlayerInfo[playerid][Acc2PropertyVal], MAX_PROPERTIES));
 	strcat(query, tmp);
 	format(tmp, sizeof(tmp), "`WeaponMod` = '%d', `ArmorMod` = '%d' ", PlayerInfo[playerid][WeaponMod], PlayerInfo[playerid][ArmorMod]);
 	strcat(query, tmp);
@@ -9435,7 +9466,7 @@ stock SaveInventory(playerid)
 	{
 		format(query, sizeof(query), "UPDATE `inventories` SET `ItemID` = '%d', `SlotMod` = '%d', `SlotProps` = '%s', `SlotPropVals` = '%s', `Count` = '%d' WHERE `PlayerName` = '%s' AND `SlotID` = '%d' LIMIT 1", 
 			PlayerInventory[playerid][i][ID], PlayerInventory[playerid][i][Mod], ArrayToString(PlayerInventory[playerid][i][Property], MAX_PROPERTIES),
-			FloatArrayToString(PlayerInventory[playerid][i][PropertyVal], MAX_PROPERTIES), PlayerInventory[playerid][i][Count], name, i
+			ArrayToString(PlayerInventory[playerid][i][PropertyVal], MAX_PROPERTIES), PlayerInventory[playerid][i][Count], name, i
 		);
 		new Cache:q_result = mysql_query(sql_handle, query);
 		cache_delete(q_result);
@@ -9477,7 +9508,7 @@ stock LoadInventory(playerid)
 		cache_get_value_name(i, "SlotProps", string);
 		sscanf(string, "a<i>[7]", PlayerInventory[playerid][slot_id][Property]);
 		cache_get_value_name(i, "SlotPropVals", string);
-		sscanf(string, "a<f>[7]", PlayerInventory[playerid][slot_id][PropertyVal]);
+		sscanf(string, "a<i>[7]", PlayerInventory[playerid][slot_id][PropertyVal]);
 	}
 
 	cache_delete(q_result);
@@ -9546,19 +9577,19 @@ stock LoadPlayer(playerid)
 	cache_get_value_name(0, "WeaponProperty", string);
 	sscanf(string, "a<i>[7]", PlayerInfo[playerid][WeaponProperty]);
 	cache_get_value_name(0, "WeaponPropertyVal", string);
-	sscanf(string, "a<f>[7]", PlayerInfo[playerid][WeaponPropertyVal]);
+	sscanf(string, "a<i>[7]", PlayerInfo[playerid][WeaponPropertyVal]);
 	cache_get_value_name(0, "ArmorProperty", string);
 	sscanf(string, "a<i>[7]", PlayerInfo[playerid][ArmorProperty]);
 	cache_get_value_name(0, "ArmorPropertyVal", string);
-	sscanf(string, "a<f>[7]", PlayerInfo[playerid][ArmorPropertyVal]);
+	sscanf(string, "a<i>[7]", PlayerInfo[playerid][ArmorPropertyVal]);
 	cache_get_value_name(0, "Acc1Property", string);
 	sscanf(string, "a<i>[7]", PlayerInfo[playerid][Acc1Property]);
 	cache_get_value_name(0, "Acc1PropertyVal", string);
-	sscanf(string, "a<f>[7]", PlayerInfo[playerid][Acc1PropertyVal]);
+	sscanf(string, "a<i>[7]", PlayerInfo[playerid][Acc1PropertyVal]);
 	cache_get_value_name(0, "Acc2Property", string);
 	sscanf(string, "a<i>[7]", PlayerInfo[playerid][Acc2Property]);
 	cache_get_value_name(0, "Acc2PropertyVal", string);
-	sscanf(string, "a<f>[7]", PlayerInfo[playerid][Acc2PropertyVal]);
+	sscanf(string, "a<i>[7]", PlayerInfo[playerid][Acc2PropertyVal]);
 
 	cache_delete(q_result);
 
@@ -10066,6 +10097,7 @@ stock InitWalkers()
 		FCNPC_SetInvulnerable(Walkers[i][ID], false);
 		FCNPC_SetInterior(Walkers[i][ID], 0);
 		UpdatePlayerWeapon(Walkers[i][ID]);
+		UpdatePlayerVisual(Walkers[i][ID]);
 
 		new name[255];
 		format(name, sizeof(name), "[LV%d] %s", Walkers[i][Rank], Walkers[i][Name]);
