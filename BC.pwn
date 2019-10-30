@@ -50,11 +50,11 @@
 #define DEFAULT_SKIN_MALE 78
 #define DEFAULT_SKIN_FEMALE 131
 #define DEFAULT_WEAPON_ID 0
-#define DEFAULT_ARMOR_ID 81
+#define DEFAULT_ARMOR_ID 44
 #define DEFAULT_DAMAGE_MIN 13
 #define DEFAULT_DAMAGE_MAX 15
 #define DEFAULT_DEFENSE 100
-#define DEFAULT_CRIT 5
+#define DEFAULT_CRIT 10
 #define DEFAULT_DODGE 0
 #define DEFAULT_ACCURACY 5
 #define DEFAULT_ATTACK_RATE 5
@@ -1094,6 +1094,7 @@ public OnTournamentEnd()
 	UpdateTourParticipants();
 	UpdateMarketItems();
 	UpdateTempItems();
+	ResetBossesCooldowns();
 }
 
 stock SortPvpData()
@@ -1694,7 +1695,7 @@ public OnPlayerPickUpPickup(playerid, pickupid)
 			if(IsEquip(BossLootItems[i][ItemID]))
 			{
 				AddEquip(playerid, BossLootItems[i][ItemID]);
-				if(item[Grade] >= GRADE_C)
+				if(item[Grade] >= GRADE_B)
 				{
 					format(string, sizeof(string), "{%s}%s {ffffff}приобрел {%s}[%s]{ffffff}.", 
 						GetColorByRate(PlayerInfo[playerid][Rate]), PlayerInfo[playerid][Name], GetGradeColor(item[Grade]), item[Name]
@@ -1788,7 +1789,7 @@ public OnPlayerKeyStateChange(playerid, newkeys, oldkeys)
 		//буржуа
 		if(IsPlayerInRangeOfPoint(playerid, 2.0, 221.0985,-1838.1259,3.6268))
 		{
-			new listitems[] = "Изменить характеристики оружия\nИзменить характеристики доспехов";
+			new listitems[] = "Добавить характеристики оружия\nДобавить характеристики доспехов";
 			ShowPlayerDialog(playerid, 1200, DIALOG_STYLE_LIST, "Буржуа", listitems, "Далее", "Закрыть");
 		}
 		//рынок
@@ -2867,6 +2868,17 @@ public OnDialogResponse(playerid, dialogid, response, listitem, inputtext[])
 							SendClientMessage(playerid, COLOR_GREY, "Необходимо надеть оружие уровня модификации +7 или выше.");
 							return 1;
 						}
+
+						new req_noses = GetMaxPropsByMod(PlayerInfo[playerid][WeaponMod]);
+						if(!HasItem(playerid, 200, req_noses))
+						{
+							SendClientMessage(playerid, COLOR_GREY, "Недостаточно красных носов.");
+							return 1;
+						}
+
+						DeleteItem(playerid, 200, req_noses);
+						AddWeaponProps(playerid);
+						SendClientMessage(playerid, COLOR_GREEN, "Характеристики добавлены.");
 					}
 					case 1:
 					{
@@ -2875,6 +2887,17 @@ public OnDialogResponse(playerid, dialogid, response, listitem, inputtext[])
 							SendClientMessage(playerid, COLOR_GREY, "Необходимо надеть доспех уровня модификации +7 или выше.");
 							return 1;
 						}
+
+						new req_noses = GetMaxPropsByMod(PlayerInfo[playerid][ArmorMod]);
+						if(!HasItem(playerid, 200, req_noses))
+						{
+							SendClientMessage(playerid, COLOR_GREY, "Недостаточно красных носов.");
+							return 1;
+						}
+
+						DeleteItem(playerid, 200, req_noses);
+						AddArmorProps(playerid);
+						SendClientMessage(playerid, COLOR_GREEN, "Характеристики добавлены.");
 					}
 				}
 			}
@@ -4324,6 +4347,13 @@ stock GiveTournamentRewards()
 	}
 }
 
+stock ResetBossesCooldowns()
+{
+	new query[512] = "UPDATE `bosses` SET `RespawnTime` = 0";
+	new Cache:q_result = mysql_query(sql_handle, query);
+	cache_delete(q_result);
+}
+
 stock UpdateBossesCooldowns()
 {
 	new query[512];
@@ -4451,9 +4481,45 @@ stock GetMarketItemDesc(listitem, category)
 {
 	new item[MarketItem];
 	item = GetMarketItem(listitem, category);
-	new desc[2048] = "Описание";
+	new eq_item[BaseItem];
+	eq_item = GetItem(item[ID]);
+
+	new desc[2048];
+	format(desc, sizeof(desc), "{%s}[%s%s]\n", GetGradeColor(eq_item[Grade]), GetModString(item[Mod]), eq_item[Name]);
+
+	new props_str[1024] = " {00FF00}Особые характеристики:\n";
+	new props_count = 0;
+	for(new i = 0; i < MAX_PROPERTIES; i++)
+	{
+		if(item[Property][i] == -1)
+			break;
+
+		new prop_str[128];
+		prop_str = GetPropDesc(item[Property][i], item[PropertyVal][i]);
+		new color[16] = "FFFFFF";
+		if(item[Mod] >= 7)
+		{
+			switch(eq_item[Grade])
+			{
+				case GRADE_N: color = "FFCC00";
+				case GRADE_C: if(i > 0) color = "FFCC00";
+				case GRADE_B: if(i > 1) color = "FFCC00";
+				case GRADE_A: if(i > 2) color = "FFCC00";
+				case GRADE_S: if(i > 3) color = "FFCC00";
+				default: color = "FFFFFF";
+			}
+		}
+		
+		new str[255];
+		format(str, sizeof(str), " {%s}%s\n", color, prop_str);
+		strcat(props_str, str);
+		props_count++;
+	}
+
+	if(props_count > 0)
+		strcat(desc, props_str);
+
 	return desc;
-	//TODO
 }
 
 stock GetMarketItem(id, category)
@@ -5482,7 +5548,7 @@ stock OpenLockbox(playerid, lockboxid)
 		{
 			switch(chance)
 			{
-				case 0..699: { itemid = 199; count = 250; }
+				case 0..699: { itemid = 199; count = 500; }
 				case 700..1399: { itemid = 187; count = 40; }
 				case 1400..1899: { itemid = 188; count = 25; }
 				case 1900..2499: { itemid = 200; count = 10; }
@@ -6716,7 +6782,7 @@ stock UpdatePlayerStats(playerid)
 
 	PlayerInfo[playerid][Accuracy] = DEFAULT_ACCURACY + floatround(GetPlayerPropValue(playerid, PROPERTY_ACCURACY)) + PlayerInfo[playerid][Rank] * 10;
 	PlayerInfo[playerid][Dodge] = DEFAULT_DODGE + floatround(GetPlayerPropValue(playerid, PROPERTY_DODGE)) + PlayerInfo[playerid][Rank] * 10;
-	PlayerInfo[playerid][Crit] = DEFAULT_CRIT + floatround(GetPlayerPropValue(playerid, PROPERTY_CRIT)) + PlayerInfo[playerid][Rank] * 2;
+	PlayerInfo[playerid][Crit] = DEFAULT_CRIT + floatround(GetPlayerPropValue(playerid, PROPERTY_CRIT)) + PlayerInfo[playerid][Rank] * 4;
 	PlayerInfo[playerid][CritMult] = floatadd(DEFAULT_CRIT_MULT, GetPlayerPropValue(playerid, PROPERTY_CRIT_MULT));
 	PlayerInfo[playerid][CritMultReduction] = floatadd(DEFAULT_CRIT_MULT_REDUCTION, GetPlayerPropValue(playerid, PROPERTY_CRIT_MULT_REDUCTION));
 	PlayerInfo[playerid][CritReduction] = DEFAULT_CRIT_REDUCTION + floatround(GetPlayerPropValue(playerid, PROPERTY_CRIT_REDUCTION));
@@ -7224,6 +7290,83 @@ stock Float:GenerateEquipProps(id)
 	}
 	
 	return props_info;
+}
+
+stock GetMaxPropsByGrade(grade)
+{
+	new count;
+	switch(grade)
+	{
+		case GRADE_C: count = 1;
+		case GRADE_B: count = 2;
+		case GRADE_A: count = 3;
+		case GRADE_S: count = 4;
+		default: count = 0;
+	}
+
+	return count;
+}
+
+stock GetMaxPropsByMod(mod)
+{
+	new count;
+	switch(mod)
+	{
+		case 7..9: count = 1;
+		case 10..12: count = 2;
+		case 13: count = 3;
+		default: count = 0;
+	}
+
+	return count;
+}
+
+stock AddWeaponProps(playerid)
+{
+	new mod = PlayerInfo[playerid][WeaponMod];
+	new item[BaseItem];
+	item = GetItem(PlayerInfo[playerid][WeaponSlotID]);
+	new grade = item[Grade];
+	new default_props_count = GetMaxPropsByGrade(grade);
+
+	for(new i = default_props_count-1; i < MAX_PROPERTIES; i++)
+	{
+		PlayerInfo[playerid][WeaponProperty][i] = -1;
+		PlayerInfo[playerid][WeaponPropertyVal][i] = 0;
+	}
+
+	new new_props_count = 1 + random(GetMaxPropsByMod(mod));
+	for(new i = default_props_count-1; i < default_props_count+new_props_count-1; i++)
+	{
+		new Float:prop[2];
+		prop = GenerateProperty(item[Type]-1);
+		PlayerInfo[playerid][WeaponProperty][i] = prop[0];
+		PlayerInfo[playerid][WeaponPropertyVal][i] = prop[1];
+	}
+}
+
+stock AddArmorProps(playerid)
+{
+	new mod = PlayerInfo[playerid][ArmorMod];
+	new item[BaseItem];
+	item = GetItem(PlayerInfo[playerid][ArmorSlotID]);
+	new grade = item[Grade];
+	new default_props_count = GetMaxPropsByGrade(grade);
+
+	for(new i = default_props_count-1; i < MAX_PROPERTIES; i++)
+	{
+		PlayerInfo[playerid][ArmorProperty][i] = -1;
+		PlayerInfo[playerid][ArmorPropertyVal][i] = 0;
+	}
+
+	new new_props_count = 1 + random(GetMaxPropsByMod(mod));
+	for(new i = default_props_count-1; i < default_props_count+new_props_count-1; i++)
+	{
+		new Float:prop[2];
+		prop = GenerateProperty(item[Type]-1);
+		PlayerInfo[playerid][ArmorProperty][i] = prop[0];
+		PlayerInfo[playerid][ArmorPropertyVal][i] = prop[1];
+	}
 }
 
 stock AddEquip(playerid, id)
