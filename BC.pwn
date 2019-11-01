@@ -54,7 +54,7 @@
 #define DEFAULT_DAMAGE_MIN 13
 #define DEFAULT_DAMAGE_MAX 15
 #define DEFAULT_DEFENSE 100
-#define DEFAULT_CRIT 10
+#define DEFAULT_CRIT 20
 #define DEFAULT_DODGE 0
 #define DEFAULT_ACCURACY 5
 #define DEFAULT_ATTACK_RATE 5
@@ -80,8 +80,8 @@
 #define MAX_GRADES 6
 #define MAX_BOSSES 5
 #define MAX_ITEM_ID 500
-#define MAX_LOOT 28
-#define MAX_WALKER_LOOT 12
+#define MAX_LOOT 38
+#define MAX_WALKER_LOOT 18
 #define MAX_PVP_PANEL_ITEMS 5
 #define MAX_RELIABLE_TARGETS 5
 #define MAX_TEAMCOLORS 2
@@ -96,7 +96,7 @@
 #define MAX_TOUR_TIME 180
 #define MAX_WALKERS 30
 #define MAX_COOPERATE_MSGS 10
-#define WALKERS_LIMIT 35
+#define WALKERS_LIMIT 40
 #define MAX_WALKERS_ONE_RANK 4
 
 //Market
@@ -171,9 +171,9 @@
 //Delays
 #define DEFAULT_SHOOT_DELAY 200
 #define COLT_SHOOT_DELAY 200
-#define DEAGLE_SHOOT_DELAY 290
+#define DEAGLE_SHOOT_DELAY 270
 #define MP5_SHOOT_DELAY 140
-#define TEC_SHOOT_DELAY 115
+#define TEC_SHOOT_DELAY 110
 #define AK_SHOOT_DELAY 185
 #define M4_SHOOT_DELAY 175
 #define SHOTGUN_SHOOT_DELAY 520
@@ -1225,8 +1225,8 @@ public OnPlayerGiveDamage(playerid, damagedid, Float:amount, weaponid, bodypart)
 	new damage;
 	if(dodged || is_invulnearable == 1 || weaponid == 0)
 		damage = 0;
-
-	damage = PlayerInfo[playerid][DamageMin] + random(PlayerInfo[playerid][DamageMax]-PlayerInfo[playerid][DamageMin]+1);
+	else
+		damage = PlayerInfo[playerid][DamageMin] + random(PlayerInfo[playerid][DamageMax]-PlayerInfo[playerid][DamageMin]+1);
 
 	new Float:defense_mul = floatsub(1.0, floatdiv(PlayerInfo[damagedid][Defense], DEFENSE_DIVIDER));
 	if(defense_mul <= 0)
@@ -1397,7 +1397,7 @@ stock DisableEffects(playerid)
 {
     for(new i = 0; i < 2; i++)
     {
-    	if (IsPlayerAttachedObjectSlotUsed(playerid, i))
+    	if(IsPlayerAttachedObjectSlotUsed(playerid, i))
     	RemovePlayerAttachedObject(playerid, i);
     }
 }
@@ -4262,50 +4262,50 @@ stock GiveTournamentRewards()
 			case 1:
 			{
 				reward[ItemID] = 195;
-				reward[ItemsCount] = 15;
-				money = 4000;
+				reward[ItemsCount] = 18;
+				money = 8000;
 			}
 			case 2:
 			{
 				reward[ItemID] = 195;
-				reward[ItemsCount] = 13;
-				money = 3800;
+				reward[ItemsCount] = 16;
+				money = 7600;
 			}
 			case 3:
 			{
 				reward[ItemID] = 195;
-				reward[ItemsCount] = 11;
-				money = 3500;
+				reward[ItemsCount] = 13;
+				money = 7000;
 			}
 			case 4..5:
 			{
 				reward[ItemID] = 195;
-				reward[ItemsCount] = 7;
-				money = 2750;
+				reward[ItemsCount] = 9;
+				money = 5500;
 			}
 			case 6..8:
 			{
 				reward[ItemID] = 194;
-				reward[ItemsCount] = 10;
-				money = 2200;
+				reward[ItemsCount] = 12;
+				money = 4400;
 			}
 			case 9..12:
 			{
 				reward[ItemID] = 194;
-				reward[ItemsCount] = 8;
-				money = 1600;
+				reward[ItemsCount] = 10;
+				money = 3200;
 			}
 			case 13..16:
 			{
 				reward[ItemID] = 194;
-				reward[ItemsCount] = 6;
-				money = 1350;
+				reward[ItemsCount] = 8;
+				money = 2700;
 			}
 			default:
 			{
 				reward[ItemID] = 194;
-				reward[ItemsCount] = 4;
-				money = 1000;
+				reward[ItemsCount] = 6;
+				money = 2000;
 			}
 		}
 
@@ -5537,8 +5537,8 @@ stock OpenLockbox(playerid, lockboxid)
 				case 3000..3499: { itemid = 187; count = 40; }
 				case 3500..3999: { itemid = 188; count = 25; }
 				case 4000..4499: { itemid = 193; count = 1; }
-				case 4500..4699: { itemid = GetRandomEquip(rank, rank, RND_EQUIP_TYPE_WEAPON, RND_EQUIP_GRADE_RANDOM); count = 1; }
-				case 4700..4899: { itemid = GetRandomEquip(rank, rank, RND_EQUIP_TYPE_ARMOR, RND_EQUIP_GRADE_RANDOM); count = 1; }
+				case 4500..4699: { itemid = GetRandomEquip(rank, rank+1, RND_EQUIP_TYPE_WEAPON, RND_EQUIP_GRADE_RANDOM); count = 1; }
+				case 4700..4899: { itemid = GetRandomEquip(rank, rank+1, RND_EQUIP_TYPE_ARMOR, RND_EQUIP_GRADE_RANDOM); count = 1; }
 				case 4900..5099: { itemid = 190; count = 2; }
 				case 5100..5199: { itemid = 191; count = 1; }
 				default: { itemid = 199; count = 250; }
@@ -5556,8 +5556,8 @@ stock OpenLockbox(playerid, lockboxid)
 				case 3000..3499: { itemid = 187; count = 75; }
 				case 3500..3999: { itemid = 188; count = 50; }
 				case 4000..4499: { itemid = 193; count = 2; }
-				case 4500..4799: { itemid = GetRandomEquip(rank, rank, RND_EQUIP_TYPE_WEAPON, RND_EQUIP_GRADE_RANDOM); count = 1; }
-				case 4800..5099: { itemid = GetRandomEquip(rank, rank, RND_EQUIP_TYPE_ARMOR, RND_EQUIP_GRADE_RANDOM); count = 1; }
+				case 4500..4799: { itemid = GetRandomEquip(rank, rank+1, RND_EQUIP_TYPE_WEAPON, RND_EQUIP_GRADE_RANDOM); count = 1; }
+				case 4800..5099: { itemid = GetRandomEquip(rank, rank+1, RND_EQUIP_TYPE_ARMOR, RND_EQUIP_GRADE_RANDOM); count = 1; }
 				case 5100..5369: { itemid = 190; count = 3; }
 				case 5370..5498: { itemid = 191; count = 2; }
 				case 5499: { itemid = 192; count = 1; }
@@ -6015,11 +6015,11 @@ stock SetBossCooldown(bossid)
 	new resp_time;
 	switch(bossid)
 	{
-		case 1: resp_time = 30;
-		case 2: resp_time = 60;
-		case 3: resp_time = 120;
-		case 4: resp_time = 240;
-		default: resp_time = 15;
+		case 1: resp_time = 10;
+		case 2: resp_time = 15;
+		case 3: resp_time = 20;
+		case 4: resp_time = 25;
+		default: resp_time = 5;
 	}
 
 	new query[512];
@@ -6618,11 +6618,18 @@ stock GetBaseEquipID(type, rank)
 
 stock GetRandomEquip(minrank, maxrank, eq_type = RND_EQUIP_TYPE_RANDOM, grade = RND_EQUIP_GRADE_RANDOM)
 {
+	if(max_rank > MAX_RANK)
+		max_rank = MAX_RANK;
+		
 	new rank = minrank + random(maxrank-minrank+1) - 1;
 	new type = eq_type == RND_EQUIP_TYPE_RANDOM ? random(2) : eq_type;
 	new baseid = GetBaseEquipID(type, rank);
 
-	return baseid + (grade == RND_EQUIP_GRADE_RANDOM ? GenerateGrade(type, rank)-1 : grade-1);
+	new _grade = grade == RND_EQUIP_GRADE_RANDOM ? GenerateGrade(type, rank)-1 : grade-1;
+	if(_grade > 1)
+		_grade--;
+
+	return baseid + _grade;
 }
 
 stock DebugLogInt(msg[], variable)
@@ -8991,10 +8998,10 @@ stock GetWeaponBaseDamage(weaponid)
 		case 2: { damage[0] = 19; damage[1] = 24; }
 		case 3: { damage[0] = 23; damage[1] = 29; }
 		case 4: { damage[0] = 26; damage[1] = 32; }
-		case 5: { damage[0] = 61; damage[1] = 89; }
-		case 6: { damage[0] = 68; damage[1] = 97; }
-		case 7: { damage[0] = 75; damage[1] = 103; }
-		case 8: { damage[0] = 84; damage[1] = 114; }
+		case 5: { damage[0] = 72; damage[1] = 108; }
+		case 6: { damage[0] = 89; damage[1] = 126; }
+		case 7: { damage[0] = 118; damage[1] = 142; }
+		case 8: { damage[0] = 136; damage[1] = 180; }
 		case 9: { damage[0] = 9; damage[1] = 18; }
 		case 10: { damage[0] = 11; damage[1] = 20; }
 		case 11: { damage[0] = 13; damage[1] = 22; }
@@ -10060,6 +10067,8 @@ stock InitWalkers()
 		PlayerInfo[Walkers[i][ID]][Sex] = 0;
 		PlayerInfo[Walkers[i][ID]][Skin] = Walkers[i][Skin];
 		PlayerInfo[Walkers[i][ID]][WeaponSlotID] = Walkers[i][WeaponID];
+		PlayerInfo[Walkers[i][ID]][WeaponMod] = 0;
+		PlayerInfo[Walkers[i][ID]][ArmorMod] = 0;
 
 		FCNPC_Spawn(Walkers[i][ID], Walkers[i][Skin], 0, 0, 0);
 		SetRandomWalkerPos(Walkers[i][ID]);
