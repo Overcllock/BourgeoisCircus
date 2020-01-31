@@ -1,55 +1,19 @@
-INSERT INTO `mod_chances`(`Level`, `Potion`, `Chances`) VALUES (1, -1, 10000 0 0);
-INSERT INTO `mod_chances`(`Level`, `Potion`, `Chances`) VALUES (2, -1, 10000 0 0);
-INSERT INTO `mod_chances`(`Level`, `Potion`, `Chances`) VALUES (3, -1, 10000 0 0);
-INSERT INTO `mod_chances`(`Level`, `Potion`, `Chances`) VALUES (4, -1, 9000 900 100);
-INSERT INTO `mod_chances`(`Level`, `Potion`, `Chances`) VALUES (5, -1, 6000 3500 500);
-INSERT INTO `mod_chances`(`Level`, `Potion`, `Chances`) VALUES (6, -1, 3000 6000 1000);
-INSERT INTO `mod_chances`(`Level`, `Potion`, `Chances`) VALUES (7, -1, 2000 6500 1500);
-INSERT INTO `mod_chances`(`Level`, `Potion`, `Chances`) VALUES (8, -1, 1200 6500 2300);
-INSERT INTO `mod_chances`(`Level`, `Potion`, `Chances`) VALUES (9, -1, 900 5700 3400);
-INSERT INTO `mod_chances`(`Level`, `Potion`, `Chances`) VALUES (10, -1, 500 5000 4500);
-INSERT INTO `mod_chances`(`Level`, `Potion`, `Chances`) VALUES (11, -1, 200 4000 5800);
-INSERT INTO `mod_chances`(`Level`, `Potion`, `Chances`) VALUES (12, -1, 30 2370 7600);
-INSERT INTO `mod_chances`(`Level`, `Potion`, `Chances`) VALUES (13, -1, 8 1100 8892);
+/* MIGRATIONS */
+Table 'players':
 
-INSERT INTO `mod_chances`(`Level`, `Potion`, `Chances`) VALUES (1, 189, 10000 0 0);
-INSERT INTO `mod_chances`(`Level`, `Potion`, `Chances`) VALUES (2, 189, 10000 0 0);
-INSERT INTO `mod_chances`(`Level`, `Potion`, `Chances`) VALUES (3, 189, 10000 0 0);
-INSERT INTO `mod_chances`(`Level`, `Potion`, `Chances`) VALUES (4, 189, 9500 500 0);
-INSERT INTO `mod_chances`(`Level`, `Potion`, `Chances`) VALUES (5, 189, 6400 3300 300);
-INSERT INTO `mod_chances`(`Level`, `Potion`, `Chances`) VALUES (6, 189, 3500 5800 700);
-INSERT INTO `mod_chances`(`Level`, `Potion`, `Chances`) VALUES (7, 189, 2300 6400 1300);
-INSERT INTO `mod_chances`(`Level`, `Potion`, `Chances`) VALUES (8, 189, 1400 6400 2200);
-INSERT INTO `mod_chances`(`Level`, `Potion`, `Chances`) VALUES (9, 189, 1100 5600 3300);
-INSERT INTO `mod_chances`(`Level`, `Potion`, `Chances`) VALUES (10, 189, 600 5000 4400);
-INSERT INTO `mod_chances`(`Level`, `Potion`, `Chances`) VALUES (11, 189, 300 4000 5700);
-INSERT INTO `mod_chances`(`Level`, `Potion`, `Chances`) VALUES (12, 189, 50 2400 7550);
-INSERT INTO `mod_chances`(`Level`, `Potion`, `Chances`) VALUES (13, 189, 13 1100 8887);
+-'Rank'
+-'MaxRank'
++int 'Level'
++int 'OC'
++int 'CP'
++int 'Status'
++boolean 'IsWatcher'
+'Rate' => 'Exp'
 
-INSERT INTO `mod_chances`(`Level`, `Potion`, `Chances`) VALUES (1, 190, 10000 0 0);
-INSERT INTO `mod_chances`(`Level`, `Potion`, `Chances`) VALUES (2, 190, 10000 0 0);
-INSERT INTO `mod_chances`(`Level`, `Potion`, `Chances`) VALUES (3, 190, 10000 0 0);
-INSERT INTO `mod_chances`(`Level`, `Potion`, `Chances`) VALUES (4, 190, 10000 0 0);
-INSERT INTO `mod_chances`(`Level`, `Potion`, `Chances`) VALUES (5, 190, 7500 2500 0);
-INSERT INTO `mod_chances`(`Level`, `Potion`, `Chances`) VALUES (6, 190, 4500 5000 500);
-INSERT INTO `mod_chances`(`Level`, `Potion`, `Chances`) VALUES (7, 190, 2800 6200 1000);
-INSERT INTO `mod_chances`(`Level`, `Potion`, `Chances`) VALUES (8, 190, 1900 6200 1900);
-INSERT INTO `mod_chances`(`Level`, `Potion`, `Chances`) VALUES (9, 190, 1500 5400 3100);
-INSERT INTO `mod_chances`(`Level`, `Potion`, `Chances`) VALUES (10, 190, 800 4900 4200);
-INSERT INTO `mod_chances`(`Level`, `Potion`, `Chances`) VALUES (11, 190, 400 4000 5600);
-INSERT INTO `mod_chances`(`Level`, `Potion`, `Chances`) VALUES (12, 190, 100 2400 7500);
-INSERT INTO `mod_chances`(`Level`, `Potion`, `Chances`) VALUES (13, 190, 30 1100 8870);
++Table 'warehouse':
 
-INSERT INTO `mod_chances`(`Level`, `Potion`, `Chances`) VALUES (1, 191, 10000 0 0);
-INSERT INTO `mod_chances`(`Level`, `Potion`, `Chances`) VALUES (2, 191, 10000 0 0);
-INSERT INTO `mod_chances`(`Level`, `Potion`, `Chances`) VALUES (3, 191, 10000 0 0);
-INSERT INTO `mod_chances`(`Level`, `Potion`, `Chances`) VALUES (4, 191, 10000 0 0);
-INSERT INTO `mod_chances`(`Level`, `Potion`, `Chances`) VALUES (5, 191, 10000 0 0);
-INSERT INTO `mod_chances`(`Level`, `Potion`, `Chances`) VALUES (6, 191, 8000 2000 0);
-INSERT INTO `mod_chances`(`Level`, `Potion`, `Chances`) VALUES (7, 191, 6500 3300 200);
-INSERT INTO `mod_chances`(`Level`, `Potion`, `Chances`) VALUES (8, 191, 6100 3500 400);
-INSERT INTO `mod_chances`(`Level`, `Potion`, `Chances`) VALUES (9, 191, 3500 4300 2200);
-INSERT INTO `mod_chances`(`Level`, `Potion`, `Chances`) VALUES (10, 191, 1700 6000 3300);
-INSERT INTO `mod_chances`(`Level`, `Potion`, `Chances`) VALUES (11, 191, 700 3900 5400);
-INSERT INTO `mod_chances`(`Level`, `Potion`, `Chances`) VALUES (12, 191, 300 2400 7300);
-INSERT INTO `mod_chances`(`Level`, `Potion`, `Chances`) VALUES (13, 191, 100 1100 8800);
+varchar 'PlayerName' 
+int 'SlotID'
+int 'ItemID' = -1
+varchar 'SlotMod' = '0 0 0 0 0 0 0' 
+int 'Count' = 0
