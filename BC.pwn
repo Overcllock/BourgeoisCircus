@@ -67,7 +67,7 @@
 #define MAX_SLOTS 25
 #define MAX_SLOTS_X 5
 #define MAX_SLOTS_Y 5
-#define MAX_RANK 9
+#define MAX_LEVEL 55
 #define MAX_MOD 7
 #define MAX_PROPERTIES 2
 #define MAX_DESCRIPTION_SIZE 45
@@ -286,7 +286,7 @@ enum BaseItem
 	ID,
 	Name[255],
 	Description[255],
-	MinRank,
+	MinLevel,
 	Type,
 	Grade,
 	Price,
@@ -302,9 +302,12 @@ enum pInfo
 	ID,
 	Name[255],
 	Owner[255],
-	Rate,
-	Rank,
-	MaxRank,
+	Exp,
+	Level,
+	OC,
+	CP,
+	Status,
+	IsWatcher,
 	TeamColor,
 	Cash,
 	Sex,
@@ -989,7 +992,7 @@ public OnTourEnd(finished)
 	{
 		SetPvpTableVisibility(TourPlayers[i], false);
 		TeleportToHome(TourPlayers[i]);
-		SetPlayerColor(TourPlayers[i], HexRateColors[PlayerInfo[TourPlayers[i]][Rank]-1][0]);
+		SetPlayerColor(TourPlayers[i], GetTitleColor(PlayerInfo[TourPlayers[i]][GlobalTopPosition]));
 		SetPVarFloat(TourPlayers[i], "HP", MaxHP[TourPlayers[i]]);
 		SetPlayerHP(TourPlayers[i], MaxHP[TourPlayers[i]]);
 	}
@@ -1096,7 +1099,7 @@ public UpdatePvpTable()
 			if(id == -1) continue;
 			format(name, sizeof(name), "%d. %s", i+1, PvpInfo[i][Name]);
 			PlayerTextDrawSetStringRus(InitID, PvpPanelNameLabels[InitID][i], name);
-			PlayerTextDrawColor(InitID, PvpPanelNameLabels[InitID][i], HexRateColors[PlayerInfo[id][Rank]-1][0]);
+			PlayerTextDrawColor(InitID, PvpPanelNameLabels[InitID][i], GetTitleColor(PlayerInfo[id][GlobalTopPosition]));
 			format(score, sizeof(score), "%d", PvpInfo[i][Score]);
 			PlayerTextDrawSetStringRus(InitID, PvpPanelScoreLabels[InitID][i], score);
 			PlayerTextDrawShow(InitID, PvpPanelNameLabels[InitID][i]);
@@ -1301,7 +1304,7 @@ stock UpdatePlayerVisual(playerid)
 {
 	SetCameraBehindPlayer(playerid);
 	SetPlayerSkin(playerid, PlayerInfo[playerid][Skin]);
-	SetPlayerColor(playerid, IsTourStarted ? HexTeamColors[PlayerInfo[playerid][TeamColor]][0] : HexRateColors[PlayerInfo[playerid][Rank]-1][0]);
+	SetPlayerColor(playerid, IsTourStarted ? HexTeamColors[PlayerInfo[playerid][TeamColor]][0] : GetTitleColor(PlayerInfo[playerid][GlobalTopPosition]));
 	if(!FCNPC_IsValid(playerid))
 		UpdatePlayerWeapon(playerid);
 }
@@ -1525,7 +1528,7 @@ public OnPlayerText(playerid, text[])
 	else
 	{
 		format(message, sizeof(message), "[%s]: %s", name, text);
-		SendClientMessageToAll(HexRateColors[PlayerInfo[playerid][Rank]-1][0], message);
+		SendClientMessageToAll(GetTitleColor(PlayerInfo[playerid][GlobalTopPosition]), message);
 	}
 	return 0;
 }
@@ -2924,12 +2927,10 @@ public OnPlayerClickPlayerTextDraw(playerid, PlayerText:playertextid)
 		{
 			new equip[BaseItem];
 			equip = GetItem(itemid);
-			if((HasItem(playerid, 186, 1) ? PlayerInfo[playerid][MaxRank] + 1 : PlayerInfo[playerid][MaxRank]) < equip[MinRank])
+			if((HasItem(playerid, 186, 1) ? PlayerInfo[playerid][Level] + 5 : PlayerInfo[playerid][Level]) < equip[MinLevel])
 			{
 				new string[255];
-				format(string, sizeof(string), "{ffffff}Ваш ранг не соответствует минимальному для этого предмета.\nМинимальный ранг - {%s}%s", 
-					RateColors[equip[MinRank]-1], GetRankInterval(equip[MinRank])
-				);
+				format(string, sizeof(string), "{ffffff}Ваш уровень не соответствует минимальному для этого предмета.\nМинимальный уровень - %d", equip[MinLevel]);
 				ShowPlayerDialog(playerid, 1, DIALOG_STYLE_MSGBOX, "Инвентарь", string, "Закрыть", "");
 				return 0;
 			}
@@ -5315,7 +5316,7 @@ stock SetPvpTableVisibility(playerid, bool:value)
 			PlayerTextDrawShow(playerid, PvpPanelNameLabels[playerid][i]);
 			PlayerTextDrawShow(playerid, PvpPanelScoreLabels[playerid][i]);
 		}
-		PlayerTextDrawColor(playerid, PvpPanelMyName[playerid], HexRateColors[PlayerInfo[playerid][Rank]-1][0]);
+		PlayerTextDrawColor(playerid, PvpPanelMyName[playerid], GetTitleColor(PlayerInfo[playerid][GlobalTopPosition]));
 		PlayerTextDrawShow(playerid, PvpPanelMyName[playerid]);
 		PlayerTextDrawShow(playerid, PvpPanelMyScore[playerid]);
 	}
@@ -5975,8 +5976,8 @@ stock GetWeaponSellerItemsList()
 		if(itemid == -1) continue;
 		new item[BaseItem];
 		item = GetItem(itemid);
-		format(iteminfo, sizeof(iteminfo), "\n{%s}%s\t{%s}%s\t{66CC00}%d$", 
-			GetGradeColor(item[Grade]), item[Name], RateColors[item[MinRank]-1], GetRankInterval(item[MinRank]), item[Price]
+		format(iteminfo, sizeof(iteminfo), "\n{%s}%s\t{ffffff}%d\t{66CC00}%d$", 
+			GetGradeColor(item[Grade]), item[Name], item[MinLevel], item[Price]
 		);
 		strcat(listitems, iteminfo);
 	}
@@ -6014,8 +6015,8 @@ stock GetArmorSellerItemsList()
 		if(itemid == -1) continue;
 		new item[BaseItem];
 		item = GetItem(itemid);
-		format(iteminfo, sizeof(iteminfo), "\n{%s}%s\t{%s}%s\t{66CC00}%d$", 
-			GetGradeColor(item[Grade]), item[Name], RateColors[item[MinRank]-1], GetRankInterval(item[MinRank]), item[Price]
+		format(iteminfo, sizeof(iteminfo), "\n{%s}%s\t{ffffff}%d\t{66CC00}%d$", 
+			GetGradeColor(item[Grade]), item[Name], item[MinLevel], item[Price]
 		);
 		strcat(listitems, iteminfo);
 	}
@@ -6404,27 +6405,9 @@ stock RollBossLootItem(bossid)
 	return loot;
 }
 
-stock GetRandomEquip(minrank, maxrank, eq_type = RND_EQUIP_TYPE_RANDOM, grade = RND_EQUIP_GRADE_RANDOM)
+stock GetRandomEquip(minlevel, maxlevel, eq_type = RND_EQUIP_TYPE_RANDOM, grade = RND_EQUIP_GRADE_RANDOM)
 {
-	new rank = minrank + random(maxrank-minrank+1) - 1;
-	new type = eq_type == RND_EQUIP_TYPE_RANDOM ? random(2) : eq_type;
-	new baseid = type == 0 ? 1 : 82;
-
-	if(type == 0 && grade == RND_EQUIP_GRADE_RANDOM && CheckChance(30))
-	{
-		if(rank == MAX_RANK)
-			return 242 + rank - 1;
-		return 242 + rank;
-	}
-
-	if(type == 0 && rank == 5)
-	{
-		rank += random(2);
-		return baseid + rank * 8 + (grade == RND_EQUIP_GRADE_RANDOM ? random(8) : grade-1);
-	}
-	if(type == 0 && rank > 5)
-		return baseid + (rank+1) * 8 + (grade == RND_EQUIP_GRADE_RANDOM ? random(8) : grade-1);
-	return baseid + rank * 8 + (grade == RND_EQUIP_GRADE_RANDOM ? random(8) : grade-1);
+	//TODO:
 }
 
 stock GetRandomAccessory(type)
@@ -6477,7 +6460,7 @@ stock UpdateHPBar(playerid)
 
 stock UpdatePlayerRank(playerid)
 {
-	new string[255];
+	/*new string[255];
 	new new_rank = GetRankByRate(PlayerInfo[playerid][Rate]);
 
 	if(new_rank > PlayerInfo[playerid][Rank])
@@ -6495,7 +6478,8 @@ stock UpdatePlayerRank(playerid)
 	if(new_rank > PlayerInfo[playerid][MaxRank])
 		PlayerInfo[playerid][MaxRank] = new_rank;
 	SetPlayerColor(playerid, IsTourStarted ? HexTeamColors[PlayerInfo[playerid][TeamColor]][0] : HexRateColors[PlayerInfo[playerid][Rank]-1][0]);
-	UpdatePlayerStats(playerid);
+	UpdatePlayerStats(playerid);*/
+	//TODO
 }
 
 stock UpdatePlayerSkin(playerid)
@@ -7211,7 +7195,7 @@ stock GetItem(id)
 	sscanf(string, "s[255]", item[Name]);
 	cache_get_value_name_int(0, "Type", item[Type]);
 	cache_get_value_name_int(0, "Grade", item[Grade]);
-	cache_get_value_name_int(0, "MinRank", item[MinRank]);
+	cache_get_value_name_int(0, "MinLevel", item[MinLevel]);
 	cache_get_value_name(0, "Description", string);
 	sscanf(string, "s[255]", item[Description]);
 	cache_get_value_name(0, "Property", string);
@@ -7588,7 +7572,7 @@ stock ShowMainMenu(playerid)
 
 stock ShowCharInfo(playerid)
 {
-	new string[255];
+	/*new string[255];
 
 	format(string, sizeof(string), "%d", PlayerInfo[playerid][Rate]);
 	PlayerTextDrawSetStringRus(playerid, ChrInfRate[playerid], string);
@@ -7633,7 +7617,8 @@ stock ShowCharInfo(playerid)
 	
 	IsInventoryOpen[playerid] = true;
 	Windows[playerid][CharInfo] = true;
-	SelectTextDraw(playerid,0xCCCCFF65);
+	SelectTextDraw(playerid,0xCCCCFF65);*/
+	//TODO
 }
 
 stock HideCharInfo(playerid)
@@ -9144,9 +9129,9 @@ stock SavePlayer(playerid, bool:with_pos = true)
 	new query[2048] = "UPDATE `players` SET ";
 	new tmp[255];
 
-	format(tmp, sizeof(tmp), "`Sex` = '%d', `Rate` = '%d', `Rank` = '%d', ", PlayerInfo[playerid][Sex], PlayerInfo[playerid][Rate], PlayerInfo[playerid][Rank]);
+	format(tmp, sizeof(tmp), "`Sex` = '%d', `Exp` = '%d', `Level` = '%d', ", PlayerInfo[playerid][Sex], PlayerInfo[playerid][Exp], PlayerInfo[playerid][Level]);
 	strcat(query, tmp);
-	format(tmp, sizeof(tmp), "`MaxRank` = '%d', `Cash` = '%d', ", PlayerInfo[playerid][MaxRank], PlayerInfo[playerid][Cash]);
+	format(tmp, sizeof(tmp), "`Status` = '%d', `OC` = '%d', `CP` = '%d', `Cash` = '%d', `IsWatcher` = '%d', ", PlayerInfo[playerid][Status], PlayerInfo[playerid][OC], PlayerInfo[playerid][CP], PlayerInfo[playerid][Cash], PlayerInfo[playerid][IsWatcher]);
 	strcat(query, tmp);
 	if(with_pos)
 	{
@@ -9266,9 +9251,12 @@ stock LoadPlayer(playerid)
 
 	cache_get_value_name_int(0, "ID", PlayerInfo[playerid][ID]);
 	cache_get_value_name_int(0, "Sex", PlayerInfo[playerid][Sex]);
-	cache_get_value_name_int(0, "Rate", PlayerInfo[playerid][Rate]);
-	cache_get_value_name_int(0, "Rank", PlayerInfo[playerid][Rank]);
-	cache_get_value_name_int(0, "MaxRank", PlayerInfo[playerid][MaxRank]);
+	cache_get_value_name_int(0, "Exp", PlayerInfo[playerid][Exp]);
+	cache_get_value_name_int(0, "Level", PlayerInfo[playerid][Level]);
+	cache_get_value_name_int(0, "Status", PlayerInfo[playerid][Status]);
+	cache_get_value_name_int(0, "OC", PlayerInfo[playerid][OC]);
+	cache_get_value_name_int(0, "CP", PlayerInfo[playerid][CP]);
+	cache_get_value_name_int(0, "IsWatcher", PlayerInfo[playerid][IsWatcher]);
 	cache_get_value_name_int(0, "Cash", PlayerInfo[playerid][Cash]);
 	cache_get_value_name_float(0, "PosX", PlayerInfo[playerid][PosX]);
 	cache_get_value_name_float(0, "PosY", PlayerInfo[playerid][PosY]);
@@ -9312,7 +9300,7 @@ stock LoadPlayer(playerid)
 stock CreatePlayer(playerid, name[], owner[], sex)
 {
 	new query[2048] = "INSERT INTO `players`( \
-		`ID`, `Name`, `Owner`, `Sex`, `Rate`, `MaxRank`, `Rank`, `Cash`, `PosX`, `PosY`, `PosZ`, \
+		`ID`, `Name`, `Owner`, `Sex`, `Exp`, `Level`, `OC`, `CP`, `Status`, `IsWatcher`, `Cash`, `PosX`, `PosY`, `PosZ`, \
 		`Angle`, `Interior`, `Skin`, `Kills`, `Deaths`, `DamageMin`, `DamageMax`, `Defense`, \
 		`Dodge`, `Accuracy`, `Crit`, `GlobalTopPos`, `LocalTopPos`, `WeaponSlotID`, `WeaponMod`, \
 		`ArmorSlotID`, `ArmorMod`, `AccSlot1ID`, `AccSlot2ID`) VALUES (";
@@ -9332,8 +9320,8 @@ stock CreatePlayer(playerid, name[], owner[], sex)
 
 	id++;
 
-	format(tmp, sizeof(tmp), "'%d','%s','%s','%d','%d','%d','%d','%d','%f','%f','%f','%f','%d','%d','%d','%d','%d','%d','%d','%d','%d','%d','%d','%d','%d','%s','%d','%s','%d','%d')",
-		id, name, owner, sex, 0, 1, 1, 0, DEFAULT_POS_X, DEFAULT_POS_Y, DEFAULT_POS_Z, 180, 1, 78, 0, 0, 13, 15, 5, 0, 5, 5, 20, 10, 0, "0 0 0 0 0 0 0", 81, "0 0 0 0 0 0 0", -1, -1
+	format(tmp, sizeof(tmp), "'%d','%s','%s','%d','%d','%d','%d','%d','%d','%d','%d','%f','%f','%f','%f','%d','%d','%d','%d','%d','%d','%d','%d','%d','%d','%d','%d','%d','%s','%d','%s','%d','%d')",
+		id, name, owner, sex, 0, 1, 0, 0, 0, 0, 0, DEFAULT_POS_X, DEFAULT_POS_Y, DEFAULT_POS_Z, 180, 1, 78, 0, 0, 13, 15, 5, 0, 5, 5, 20, 10, 0, "0 0 0 0 0 0 0", 81, "0 0 0 0 0 0 0", -1, -1
 	);
 	strcat(query, tmp);
 
@@ -9513,14 +9501,14 @@ stock IsTourParticipant(id)
 
 stock ShowTourParticipants(playerid)
 {
-	new top[4000] = "№ п\\п\tИмя\tРейтинг";
+	new top[4000] = "№ п\\п\tИмя\tУровень\tОС";
 	new string[255];
 	for (new i = 0; i < TourParticipantsCount; i++) 
 	{
 		new player[pInfo];
 		player = GetPlayer(Tournament[ParticipantsIDs][i]);
-		format(string, sizeof(string), "\n{ffffff}%d\t{%s}%s\t%d", 
-			i+1, GetColorByRate(player[Rate]), player[Name], player[Rate]
+		format(string, sizeof(string), "\n{ffffff}%d\t{%s}%s\t{ffffff}%d\t%d", 
+			i+1, GetTitleColor(player[GlobalTopPosition]), player[Name], player[Level], player[OC]
 		);
 		strcat(top, string);
 	}
@@ -9556,7 +9544,7 @@ stock ShowTournamentTab(playerid)
 		cache_get_value_name_int(i, "Score", score);
 		cache_get_value_name_int(i, "Kills", kills);
 		cache_get_value_name_int(i, "Deaths", deaths);
-		cache_get_value_name_int(i, "RateDiff", r_diff);
+		cache_get_value_name_int(i, "OC", r_diff);
 		if(id == -1) continue;
 
 		new player[pInfo];
@@ -9573,10 +9561,11 @@ stock ShowTournamentTab(playerid)
 
 	cache_delete(q_result);
 
-	new top[4000] = "№ п\\п\tИмя\tРезультат\tОчки (рейтинг)";
+	new top[4000] = "№ п\\п\tИмя\tРезультат\tOC";
 	new string[255];
 	for (new i = 0; i < row_count; i++) 
 	{
+		//TODO
 		new rate_color[255];
 		new rate_str[32];
 		new rate_diff = TournamentTab[i][RateDiff];

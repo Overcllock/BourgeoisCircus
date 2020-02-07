@@ -13,6 +13,9 @@ Table 'players':
 Table 'items':
 'MinRank' => 'MinLevel'
 
+Table 'tournament_tab':
+'RateDiff' => 'OC'
+
 +Table 'warehouse':
 
 varchar 'PlayerName' 
