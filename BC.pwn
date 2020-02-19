@@ -1,4 +1,4 @@
-//Bourgeois Circus 1.02
+//Bourgeois Circus 1.1
 
 #include <a_samp>
 #include <a_mail>
@@ -18,7 +18,7 @@
 
 #pragma dynamic 31294
 
-#define VERSION 1.021
+#define VERSION 1.101
 
 //Mysql settings
 
@@ -79,7 +79,6 @@
 #define MAX_PVP_PANEL_ITEMS 5
 #define MAX_RELIABLE_TARGETS 5
 #define MAX_TEAMCOLORS 2
-#define MAX_RATE 3000
 #define MAX_DEATH_MESSAGES 5
 #define MAX_NPC_MOVING_TICKS 60
 #define MAX_NPC_IDLE_TICKS 30
@@ -92,7 +91,7 @@
 #define MAX_COOPERATE_MSGS 10
 #define WALKERS_LIMIT 35
 #define MAX_BOURGEOIS_REWARDS 5
-#define MAX_WALKERS_ONE_RANK 4
+#define MAX_WALKERS_ONE_TYPE 4
 
 //Market
 #define MARKET_CATEGORY_WEAPON 0
@@ -212,8 +211,8 @@ enum TopItem
 	Kills,
 	Deaths,
 	Score,
-	Rate,
-	RateDiff
+	GlobalTopPosition,
+	OC
 };
 enum MarketItem
 {
@@ -264,7 +263,7 @@ enum pvpInf
 	Kills,
 	Deaths,
 	Score,
-	RateDiff
+	OC
 };
 enum TWindow
 {
@@ -341,7 +340,7 @@ enum wInfo
 	ID,
 	Text3D:LabelID,
 	Name[255],
-	Rank,
+	Type,
 	Skin,
 	HP,
 	DamageMin,
@@ -660,19 +659,6 @@ cmd:tests(playerid, params[])
 	TickHour();
 	return SendClientMessage(playerid, COLOR_GREY, "Done.");
 }
-cmd:setrate(playerid, params[])
-{
-	if(PlayerInfo[playerid][Admin] == 0)
-		return 0;
-		
-	new rate;
-	if(sscanf(params, "i", rate))
-		return SendClientMessage(playerid, COLOR_GREY, "USAGE: /setrate [rate]");
-	if(rate < 0 || rate > 3000)
-		return SendClientMessage(playerid, COLOR_GREY, "Value should be between 0 and 3000.");
-	SetPlayerRate(playerid, rate);
-	return SendClientMessage(playerid, COLOR_GREY, "Rate changed succesfully.");
-}
 
 cmd:givemoney(playerid, params[])
 {
@@ -781,6 +767,26 @@ cmd:createinv(playerid, params[])
 	GetPlayerName(id, name, sizeof(name));
 	CreateInventory(name);
 	SendClientMessage(playerid, COLOR_GREEN, "Inventory created");
+	return 1;
+}
+
+cmd:createwarehouse(playerid, params[])
+{
+	if(PlayerInfo[playerid][Admin] == 0)
+		return 0;
+
+	new name[64];
+	new id;
+
+	if(sscanf(params, "i", id))
+		return SendClientMessage(playerid, COLOR_GREY, "USAGE: /createwarehouse [playerid]");
+
+	if(!IsPlayerConnected(id))
+		return SendClientMessage(playerid, COLOR_GREY, "Player in not connected.");
+
+	GetPlayerName(id, name, sizeof(name));
+	CreateWarehouse(name);
+	SendClientMessage(playerid, COLOR_GREEN, "Warehouse created");
 	return 1;
 }
 
@@ -977,7 +983,7 @@ public OnTourEnd(finished)
 		UpdateTournamentTable();
 	}
 
-	for(new i = 0; i < GetPlayerPoolSize(); i++)
+	for(new i = 0; i < MAX_PLAYERS; i++)
 	{
 		if(FCNPC_IsValid(i))
 		{
@@ -1071,6 +1077,7 @@ stock SortPvpData()
 
 public UpdatePvpTable()
 {
+	//TODO
 	new score[64];
 	new name[512];
 	new id = -1;
@@ -1217,6 +1224,8 @@ public OnPlayerGiveDamage(playerid, damagedid, Float:amount, weaponid, bodypart)
 	new Float:new_hp;
 	new_hp = GetPVarFloat(damagedid, "HP");
 	new_hp = floatsub(new_hp, damage);
+	if(new_hp < 0) 
+		new_hp = 0;
 	SetPVarFloat(damagedid, "HP", new_hp);
 
 	return 1;
@@ -1307,6 +1316,7 @@ stock UpdatePlayerVisual(playerid)
 	SetPlayerColor(playerid, IsTourStarted ? HexTeamColors[PlayerInfo[playerid][TeamColor]][0] : GetTitleColor(PlayerInfo[playerid][GlobalTopPosition]));
 	if(!FCNPC_IsValid(playerid))
 		UpdatePlayerWeapon(playerid);
+	//TODO
 }
 
 public OnPlayerDeath(playerid, killerid, reason)
@@ -1364,12 +1374,7 @@ public OnPlayerDeath(playerid, killerid, reason)
 		PvpInfo[player_idx][Deaths]++;
 		
 		GiveKillScore(playerid, _killerid);
-		if((PlayerInfo[_killerid][Rate] - PlayerInfo[playerid][Rate]) < 100)
-		{
-			PvpInfo[player_idx][Score] -= GetScoreDiff(PlayerInfo[playerid][Rate], PlayerInfo[_killerid][Rate], false);
-			if(PvpInfo[player_idx][Score] < 0)
-				PvpInfo[player_idx][Score] = 0;
-		}
+		GiveDeathScore(playerid, _killerid);
 	}
 	else
 	{
@@ -1386,7 +1391,7 @@ public OnPlayerDeath(playerid, killerid, reason)
 			new idx = GetWalkerIdx(playerid);
 			if(idx != -1)
 				DestroyDynamic3DTextLabel(Walkers[idx][LabelID]);
-			WalkerRespawnTimer[playerid] = SetTimerEx("RespawnWalker", GetWalkerRespawnTime(PlayerInfo[playerid][Rank]), false, "i", playerid);
+			WalkerRespawnTimer[playerid] = SetTimerEx("RespawnWalker", GetWalkerRespawnTime(PlayerInfo[playerid][Level]), false, "i", playerid);
 
 			if(killerid != -1 && killerid != INVALID_PLAYER_ID)
 			{
@@ -1475,17 +1480,17 @@ public RespawnWalker(walkerid)
 	new i = GetWalkerIdx(walkerid);
 	if(i == -1) return;
 
-	new rank = random(MAX_RANK) + 1;
-	new w_count = GetWalkersCountByRank(rank);
+	new type = random(WALKER_TYPES) + 1;
+	new w_count = GetWalkersCountByType(type);
 	new iterations = 0;
-	while(w_count >= MAX_WALKERS_ONE_RANK && iterations < 30)
+	while(w_count >= MAX_WALKERS_ONE_TYPE && iterations < 30)
 	{
-		rank = random(MAX_RANK) + 1;
-		w_count = GetWalkersCountByRank(rank);
+		type = random(WALKER_TYPES) + 1;
+		w_count = GetWalkersCountByType(type);
 		iterations++;
 	}
 
-	Walkers[i] = GetWalker(rank);
+	Walkers[i] = GetWalker(type);
 	Walkers[i][ID] = walkerid;
 
 	ResetWalkerDamagersInfo(walkerid);
@@ -1494,7 +1499,7 @@ public RespawnWalker(walkerid)
 	MaxHP[Walkers[i][ID]] = Walkers[i][HP];
 	SetPlayerMaxHP(Walkers[i][ID], Walkers[i][HP], false);
 
-	PlayerInfo[walkerid][Rank] = rank;
+	PlayerInfo[walkerid][Level] = 10 + type * 5;
 	PlayerInfo[walkerid][DamageMin] = Walkers[i][DamageMin];
 	PlayerInfo[walkerid][DamageMax] = Walkers[i][DamageMax];
 	PlayerInfo[walkerid][Defense] = Walkers[i][Defense];
@@ -1506,8 +1511,8 @@ public RespawnWalker(walkerid)
 	PlayerInfo[walkerid][WeaponSlotID] = Walkers[i][WeaponID];
 
 	new name[255];
-	format(name, sizeof(name), "[LV%d] %s", Walkers[i][Rank], Walkers[i][Name]);
-	Walkers[i][LabelID] = CreateDynamic3DTextLabel(name, HexRateColors[Walkers[i][Rank]-1][0], 0, 0, 0.15, 40, Walkers[i][ID]);
+	format(name, sizeof(name), "[LV%d] %s", PlayerInfo[walkerid][Level], Walkers[i][Name]);
+	Walkers[i][LabelID] = CreateDynamic3DTextLabel(name, HexRateColors[Walkers[i][Type]-1][0], 0, 0, 0.15, 40, Walkers[i][ID]);
 
 	FCNPC_Respawn(walkerid);
 	FCNPC_SetSkin(walkerid, Walkers[i][Skin]);
@@ -1578,7 +1583,7 @@ public OnPlayerPickUpPickup(playerid, pickupid)
 				if(item[Grade] >= GRADE_C)
 				{
 					format(string, sizeof(string), "{%s}%s {ffffff}приобрел {%s}[%s]{ffffff}.", 
-						GetColorByRate(PlayerInfo[playerid][Rate]), PlayerInfo[playerid][Name], GetGradeColor(item[Grade]), item[Name]
+						GetTitleColor(PlayerInfo[playerid][GlobalTopPosition]), PlayerInfo[playerid][Name], GetGradeColor(item[Grade]), item[Name]
 					);
 					SendClientMessageToAll(0xFFFFFFFF, string);
 				}
@@ -1618,7 +1623,7 @@ public OnPlayerPickUpPickup(playerid, pickupid)
 					if(item[Grade] >= GRADE_C)
 					{
 						format(string, sizeof(string), "{%s}%s {ffffff}приобрел {%s}[%s]{ffffff}.", 
-							GetColorByRate(PlayerInfo[playerid][Rate]), PlayerInfo[playerid][Name], GetGradeColor(item[Grade]), item[Name]
+							GetTitleColor(PlayerInfo[playerid][GlobalTopPosition]), PlayerInfo[playerid][Name], GetGradeColor(item[Grade]), item[Name]
 						);
 						SendClientMessageToAll(0xFFFFFFFF, string);
 					}
@@ -3567,18 +3572,32 @@ stock StartTour()
 	print("Tour started.");
 }
 
-stock GetScoreDiff(rate1, rate2, bool:is_killer)
+stock GetScoreDiff(killer_pos, killed_pos, bool:for_killer)
 {
-	new diff = rate1 - rate2;
-	if(diff > 0)
-		diff = floatround(floatmul(diff, 0.16));
+	new place_mult;
+	new base_score = 50;
+	new score = 0;
+
+	if(for_killer)
+	{
+		if(killed_pos < killer_pos)
+		{
+			place_mult = killer_pos - killed_pos;
+			score = base_score + (base_score * place_mult);
+		}
+		else
+			score = base_score;
+	}
 	else
-		diff = floatround(floatabs(floatmul(3001 - floatabs(diff), 0.007)));
-	if(is_killer)
-		diff += 50;
-	else
-		diff = floatround(floatmul(diff, 0.3));
-	return diff;
+	{
+		if(killed_pos > killer_pos)
+		{
+			place_mult = killed_pos - killer_pos;
+			score = (place_mult * base_score) / 2;
+		}
+	}
+
+	return score;
 }
 
 stock GetWeaponDelay(weaponid)
@@ -3612,12 +3631,12 @@ stock GetPlayerInGameID(global_id)
 	return -1;
 }
 
-stock GetWalkersCountByRank(rank)
+stock GetWalkersCountByType(type)
 {
 	new count = 0;
 	for(new i = 0; i < MAX_WALKERS; i++)
 	{
-		if(Walkers[i][Rank] == rank)
+		if(Walkers[i][Type] == type)
 			count++;
 	}
 
@@ -5477,7 +5496,7 @@ stock OpenLockbox(playerid, lockboxid)
 
 stock SwitchPlayer(playerid)
 {
-	new listitems[1024] = "Имя\tРейтинг";
+	new listitems[1024] = "Имя\tЗвание\tOC";
 	new string[255];
 	new query[255];
 
@@ -5494,11 +5513,17 @@ stock SwitchPlayer(playerid)
 			return;
 		}
 
-		new rate;
-		cache_get_value_name_int(0, "Rate", rate);
+		new pos;
+		new oc;
+		new status;
+
+		cache_get_value_name_int(0, "GlobalTopPos", pos);
+		cache_get_value_name_int(0, "OC", oc);
+		cache_get_value_name_int(0, "Status", status);
+
 		cache_delete(q_result);
 
-		format(string, sizeof(string), "\n{%s}%s\t%d", GetColorByRate(rate), Participants[playerid][i], rate);
+		format(string, sizeof(string), "\n{%s}%s\t%s\t{ffffff}%d", GetTitleColor(pos), Participants[playerid][i], GetTitle(pos, status), oc);
 		strcat(listitems, string);
 	}
 	ShowPlayerDialog(playerid, 103, DIALOG_STYLE_TABLIST_HEADERS, "Выбор участника", listitems, "Войти", "Закрыть");
@@ -6054,7 +6079,7 @@ stock GetRealKillerId(playerid, lastshotterid)
 
 		new damage = DmgInfo[playerid][i];
 		if(PvpInfo[i][ID] == lastshotterid)
-			damage += MaxHP[playerid] / 3;
+			damage += MaxHP[playerid] / 4;
 		if(damage > max_damage)
 		{
 			max_damage = damage;
@@ -6066,12 +6091,16 @@ stock GetRealKillerId(playerid, lastshotterid)
 
 stock GiveKillScore(playerid, killerid)
 {
-	new base_score = GetScoreDiff(PlayerInfo[playerid][Rate], PlayerInfo[killerid][Rate], true);
+	new base_score = GetScoreDiff(PlayerInfo[killerid][GlobalTopPosition], PlayerInfo[playerid][GlobalTopPosition], true);
 	new killer_idx = GetPvpIndex(killerid);
 
-	new kills_diff = PvpInfo[killer_idx][Kills] - PvpInfo[killer_idx][Deaths];
+	new Float:kills_diff = floatdiv(PvpInfo[killer_idx][Kills], PvpInfo[killer_idx][Deaths]);
 	if(kills_diff > 1)
-		base_score = floatround(floatmul(base_score, floatpower(0.97, kills_diff)));
+		base_score = floatround(floatdiv(base_score, kills_diff));
+
+	if(base_score < 50)
+		base_score = 50;
+
 	PvpInfo[killer_idx][Score] += base_score;
 
 	new damagers_ids[MAX_PARTICIPANTS];
@@ -6096,9 +6125,9 @@ stock GiveKillScore(playerid, killerid)
         }
     }
 
-	for(new i = 1; i < MAX_PARTICIPANTS; i++)
+	for(new i = 0; i < MAX_PARTICIPANTS; i++)
 	{
-		if(DmgInfo[playerid][i] <= 0)
+		if(DmgInfo[playerid][damagers_ids[i]] <= 0)
 			break;
 		new part_id = PvpInfo[damagers_ids[i]][ID];
 		if(part_id == -1 || part_id == killerid || part_id == playerid || part_id == INVALID_PLAYER_ID || GetPlayerTourTeam(playerid) == GetPlayerTourTeam(part_id))
@@ -6107,6 +6136,23 @@ stock GiveKillScore(playerid, killerid)
 		base_score = floatround(floatmul(base_score, 0.75));
 		PvpInfo[damagers_ids[i]][Score] += base_score;
 	}
+}
+
+stock GiveDeathScore(playerid, killerid)
+{
+	new base_score = GetScoreDiff(PlayerInfo[killerid][GlobalTopPosition], PlayerInfo[playerid][GlobalTopPosition], false);
+	new killed_idx = GetPvpIndex(playerid);
+
+	new Float:deaths_diff = floatdiv(PvpInfo[killed_idx][Deaths], PvpInfo[killed_idx][Kills]);
+	if(deaths_diff > 1)
+		base_score = floatround(floatdiv(base_score, deaths_diff));
+
+	if(base_score < 0)
+		base_score = 0;
+
+	PvpInfo[killed_idx][Score] -= base_score;
+	if(PvpInfo[killed_idx][Score] < 0)
+		PvpInfo[killed_idx][Score] = 0;
 }
 
 stock ResetLoot()
@@ -8275,7 +8321,7 @@ stock CombineWithModifier(playerid)
 		new name[255];
 		GetPlayerName(playerid, name, sizeof(name));
 		format(cng_string, sizeof(cng_string), "{%s}%s{FF6347} успешно модернизирован %d на стадии {%s}%s.", 
-			GetColorByRate(PlayerInfo[playerid][Rate]), name, mod_level, GetGradeColor(equip[Grade]), equip[Name]
+			GetTitleColor(PlayerInfo[playerid][GlobalTopPosition]), name, mod_level, GetGradeColor(equip[Grade]), equip[Name]
 		);
 		SendClientMessageToAll(COLOR_LIGHTRED, cng_string);
 	}
@@ -8362,7 +8408,7 @@ stock CombineWithAntique(playerid, m_count, mod_level)
 		new name[255];
 		GetPlayerName(playerid, name, sizeof(name));
 		format(cng_string, sizeof(cng_string), "{%s}%s{FF6347} успешно модернизирован %d на стадии {%s}%s.", 
-			GetColorByRate(PlayerInfo[playerid][Rate]), name, mod_level + 1, GetGradeColor(equip[Grade]), equip[Name]
+			GetTitleColor(PlayerInfo[playerid][GlobalTopPosition]), name, mod_level + 1, GetGradeColor(equip[Grade]), equip[Name]
 		);
 		SendClientMessageToAll(COLOR_LIGHTRED, cng_string);
 	}
@@ -8465,7 +8511,7 @@ stock CombineItems(playerid)
 			{
 				new string[255];
 				format(string, sizeof(string), "{%s}%s {ffffff}приобрел {%s}[%s]{ffffff}.", 
-					GetColorByRate(PlayerInfo[playerid][Rate]), PlayerInfo[playerid][Name], GetGradeColor(eq_item[Grade]), eq_item[Name]
+					GetTitleColor(PlayerInfo[playerid][GlobalTopPosition]), PlayerInfo[playerid][Name], GetGradeColor(eq_item[Grade]), eq_item[Name]
 				);
 				SendClientMessageToAll(0xFFFFFFFF, string);
 			}
@@ -8555,7 +8601,7 @@ stock UpgradeItem(playerid, itemslot, stoneid, potionid = -1)
 			new name[255];
 			GetPlayerName(playerid, name, sizeof(name));
 			format(cng_string, sizeof(cng_string), "{%s}%s{FF6347} успешно модернизирован %d на стадии {%s}%s.", 
-				GetColorByRate(PlayerInfo[playerid][Rate]), name, level, GetGradeColor(item[Grade]), item[Name]
+				GetTitleColor(PlayerInfo[playerid][GlobalTopPosition]), name, level, GetGradeColor(item[Grade]), item[Name]
 			);
 			SendClientMessageToAll(COLOR_LIGHTRED, cng_string);
 		}
@@ -9342,7 +9388,7 @@ stock IsPlayerBesideNPC(playerid)
 
 stock GetColorByRate(rate) 
 {
-	new color[16];
+	/*new color[16];
 	switch (rate) {
 	    case 501..1000: color = RateColors[1];
 	    case 1001..1200: color = RateColors[2];
@@ -9354,7 +9400,8 @@ stock GetColorByRate(rate)
 	    case 2701..3000: color = RateColors[8];
 	    default: color = RateColors[0];
 	}
-	return color;
+	return color;*/
+	//TODO
 }
 
 stock UpdateGlobalRatingTop()
@@ -9466,7 +9513,7 @@ stock UpdateLocalRatingTop(playerid)
 
 stock ShowGlobalRatingTop(playerid)
 {
-	new top[4000] = "№ п\\п\tИмя\tРейтинг";
+	/*new top[4000] = "№ п\\п\tИмя\tРейтинг";
 	new string[455];
 	for (new i = 0; i < MAX_PARTICIPANTS; i++) 
 	{
@@ -9475,12 +9522,13 @@ stock ShowGlobalRatingTop(playerid)
 		);
 		strcat(top, string);
 	}
-	ShowPlayerDialog(playerid, 1, DIALOG_STYLE_TABLIST_HEADERS, "Общий рейтинг участников", top, "Закрыть", "");
+	ShowPlayerDialog(playerid, 1, DIALOG_STYLE_TABLIST_HEADERS, "Общий рейтинг участников", top, "Закрыть", "");*/
+	//TODO
 }
 
 stock ShowLocalRatingTop(playerid)
 {
-	new top[4000] = "№ п\\п\tИмя\tРейтинг";
+	/*new top[4000] = "№ п\\п\tИмя\tРейтинг";
 	new string[455];
 	for (new i = 0; i < MAX_PARTICIPANTS / 2; i++) 
 	{
@@ -9489,7 +9537,8 @@ stock ShowLocalRatingTop(playerid)
 		);
 		strcat(top, string);
 	}
-	ShowPlayerDialog(playerid, 1, DIALOG_STYLE_TABLIST_HEADERS, "Рейтинг моих участников", top, "Закрыть", "");
+	ShowPlayerDialog(playerid, 1, DIALOG_STYLE_TABLIST_HEADERS, "Рейтинг моих участников", top, "Закрыть", "");*/
+	//TODO
 }
 
 stock IsTourParticipant(id)
@@ -9539,20 +9588,21 @@ stock ShowTournamentTab(playerid)
 		new score = 0;
 		new kills = 0;
 		new deaths = 0;
-		new r_diff = 0;
+		new oc_diff = 0;
+
 		cache_get_value_name_int(i, "ID", id);
+		if(id == -1) continue;
 		cache_get_value_name_int(i, "Score", score);
 		cache_get_value_name_int(i, "Kills", kills);
 		cache_get_value_name_int(i, "Deaths", deaths);
-		cache_get_value_name_int(i, "OC", r_diff);
-		if(id == -1) continue;
+		cache_get_value_name_int(i, "OC", oc_diff);
 
 		new player[pInfo];
 		player = GetPlayer(id);
 
 		format(TournamentTab[i][Name], 255, "%s", player[Name]);
-		TournamentTab[i][Rate] = player[Rate];
-		TournamentTab[i][RateDiff] = r_diff;
+		TournamentTab[i][GlobalTopPosition] = player[GlobalTopPosition];
+		TournamentTab[i][OC] = oc_diff;
 		TournamentTab[i][Score] = score;
 		TournamentTab[i][Kills] = kills;
 		TournamentTab[i][Deaths] = deaths;
@@ -9565,24 +9615,23 @@ stock ShowTournamentTab(playerid)
 	new string[255];
 	for (new i = 0; i < row_count; i++) 
 	{
-		//TODO
-		new rate_color[255];
-		new rate_str[32];
-		new rate_diff = TournamentTab[i][RateDiff];
-		if(rate_diff >= 0)
+		new oc_color[32];
+		new oc_str[255];
+		new oc_diff = TournamentTab[i][OC];
+		if(oc_diff >= 0)
 		{
-		    rate_color = "33CC00";
-			format(rate_str, sizeof(rate_str), "+%d", rate_diff);
+		    oc_color = "33CC00";
+			format(oc_str, sizeof(oc_str), "+%d", oc_diff);
 		}
 		else
 		{
-		    rate_color = "CC0000";
-			format(rate_str, sizeof(rate_str), "%d", rate_diff);
+		    oc_color = "CC0000";
+			format(oc_str, sizeof(oc_str), "-%d", oc_diff);
 		}
 
 		format(string, sizeof(string), "\n{%s}%d\t{%s}%s\t{00CC00}%d {ffffff}- {CC0000}%d\t{9900CC}%d {ffffff}({%s}%s{ffffff})", 
-			GetPlaceColor(i+1), i+1, GetColorByRate(TournamentTab[i][Rate]), TournamentTab[i][Name],
-			TournamentTab[i][Kills], TournamentTab[i][Deaths], TournamentTab[i][Score], rate_color, rate_str
+			GetPlaceColor(i+1), i+1, GetTitleColor(TournamentTab[i][GlobalTopPosition]), TournamentTab[i][Name],
+			TournamentTab[i][Kills], TournamentTab[i][Deaths], TournamentTab[i][Score], oc_color, rate_str
 		);
 		strcat(top, string);
 	}
@@ -9646,12 +9695,12 @@ stock GetPlayer(id)
 	return player;
 }
 
-stock GetWalker(rank)
+stock GetWalker(type)
 {
 	new walker[wInfo];
 
 	new query[255];
-	format(query, sizeof(query), "SELECT * FROM `walkers` WHERE `Rank` = '%d' LIMIT 1", rank);
+	format(query, sizeof(query), "SELECT * FROM `walkers` WHERE `Type` = '%d' LIMIT 1", type);
 	new Cache:q_result = mysql_query(sql_handle, query);
 	new row_count;
 	cache_get_row_count(row_count);
@@ -9661,7 +9710,7 @@ stock GetWalker(rank)
 		return walker;
 	}
 
-	walker[Rank] = rank;
+	walker[Type] = type;
 
 	cache_get_value_name_int(0, "Skin", walker[Skin]);
 	cache_get_value_name_int(0, "MaxHP", walker[HP]);
