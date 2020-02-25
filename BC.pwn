@@ -68,6 +68,7 @@
 #define MAX_INVENTORY_SLOTS_X 5
 #define MAX_INVENTORY_SLOTS_Y 5
 #define MAX_LEVEL 55
+#define MAX_OC 500000
 #define WALKER_TYPES 9
 #define MAX_MOD 7
 #define MAX_PROPERTIES 2
@@ -989,7 +990,7 @@ public OnTourEnd(finished)
 	{
 		SetPvpTableVisibility(TourPlayers[i], false);
 		TeleportToHome(TourPlayers[i]);
-		SetPlayerColor(TourPlayers[i], GetTitleColor(PlayerInfo[TourPlayers[i]][Status], PlayerInfo[TourPlayers[i]][GlobalTopPosition]));
+		SetPlayerColor(TourPlayers[i], GetTitleColorHex(PlayerInfo[TourPlayers[i]][Status], PlayerInfo[TourPlayers[i]][GlobalTopPosition]));
 		SetPVarFloat(TourPlayers[i], "HP", MaxHP[TourPlayers[i]]);
 		SetPlayerHP(TourPlayers[i], MaxHP[TourPlayers[i]]);
 	}
@@ -1097,7 +1098,7 @@ public UpdatePvpTable()
 			if(id == -1) continue;
 			format(name, sizeof(name), "%d. %s", i+1, PvpInfo[i][Name]);
 			PlayerTextDrawSetStringRus(InitID, PvpPanelNameLabels[InitID][i], name);
-			PlayerTextDrawColor(InitID, PvpPanelNameLabels[InitID][i], GetTitleColor(PlayerInfo[id][Status], PlayerInfo[id][GlobalTopPosition]));
+			PlayerTextDrawColor(InitID, PvpPanelNameLabels[InitID][i], GetTitleColorHex(PlayerInfo[id][Status], PlayerInfo[id][GlobalTopPosition]));
 			format(score, sizeof(score), "%d", PvpInfo[i][Score]);
 			PlayerTextDrawSetStringRus(InitID, PvpPanelScoreLabels[InitID][i], score);
 			PlayerTextDrawShow(InitID, PvpPanelNameLabels[InitID][i]);
@@ -1304,7 +1305,7 @@ stock UpdatePlayerVisual(playerid)
 {
 	SetCameraBehindPlayer(playerid);
 	SetPlayerSkin(playerid, PlayerInfo[playerid][Skin]);
-	SetPlayerColor(playerid, IsTourStarted ? HexTeamColors[PlayerInfo[playerid][TeamColor]][0] : GetTitleColor(PlayerInfo[playerid][Status], PlayerInfo[playerid][GlobalTopPosition]));
+	SetPlayerColor(playerid, IsTourStarted ? HexTeamColors[PlayerInfo[playerid][TeamColor]][0] : GetTitleColorHex(PlayerInfo[playerid][Status], PlayerInfo[playerid][GlobalTopPosition]));
 	if(!FCNPC_IsValid(playerid))
 		UpdatePlayerWeapon(playerid);
 	//TODO
@@ -1524,7 +1525,7 @@ public OnPlayerText(playerid, text[])
 	else
 	{
 		format(message, sizeof(message), "[%s]: %s", name, text);
-		SendClientMessageToAll(GetTitleColor(PlayerInfo[playerid][Status], PlayerInfo[playerid][GlobalTopPosition]), message);
+		SendClientMessageToAll(GetTitleColorHex(PlayerInfo[playerid][Status], PlayerInfo[playerid][GlobalTopPosition]), message);
 	}
 	return 0;
 }
@@ -5349,7 +5350,7 @@ stock SetPvpTableVisibility(playerid, bool:value)
 			PlayerTextDrawShow(playerid, PvpPanelNameLabels[playerid][i]);
 			PlayerTextDrawShow(playerid, PvpPanelScoreLabels[playerid][i]);
 		}
-		PlayerTextDrawColor(playerid, PvpPanelMyName[playerid], GetTitleColor(PlayerInfo[playerid][Status], PlayerInfo[playerid][GlobalTopPosition]));
+		PlayerTextDrawColor(playerid, PvpPanelMyName[playerid], GetTitleColorHex(PlayerInfo[playerid][Status], PlayerInfo[playerid][GlobalTopPosition]));
 		PlayerTextDrawShow(playerid, PvpPanelMyName[playerid]);
 		PlayerTextDrawShow(playerid, PvpPanelMyScore[playerid]);
 	}
@@ -6467,9 +6468,37 @@ stock RollBossLootItem(bossid)
 	return loot;
 }
 
-stock GetRandomEquip(minlevel, maxlevel, eq_type = RND_EQUIP_TYPE_RANDOM, grade = RND_EQUIP_GRADE_RANDOM)
+//TODO
+stock GetRandomEquip(minlevel, maxlevel, eq_type = RND_EQUIP_TYPE_RANDOM, eq_grade = RND_EQUIP_GRADE_RANDOM)
 {
-	//TODO:
+	new type;
+	new grade;
+
+	if(eq_type == RND_EQUIP_TYPE_RANDOM)
+		type = random(2);
+	else if(eq_type == RND_EQUIP_TYPE_WEAPON)
+		type = 1;
+	else
+		type = 2;
+
+	if(eq_grade == RND_EQUIP_GRADE_RANDOM)
+		grade = 1 + random(3);
+	else
+		grade = eq_grade;
+
+	new query[255];
+	format(query, sizeof(query), "SELECT * FROM `items` WHERE `MinLevel` >= %d AND `MinLevel` <= %d AND `Type` = %d AND `Grade` = %d",
+	minlevel, maxlevel, type, grade);
+	new Cache:q_result = mysql_query(sql_handle, query);
+	new row_count = 0;
+	cache_get_row_count(row_count);
+	if(row_count <= 0)
+	{
+		print("Cannot get random equip.");
+		return;
+	}
+
+	//to be continued
 }
 
 stock GetRandomAccessory(type)
@@ -9342,12 +9371,74 @@ stock IsPlayerBesideNPC(playerid)
 
 stock GetTitleColor(status, pos)
 {
-	//TODO
+	new color[32] = "ffffff";
+	if(status > 0)
+	{
+		color = "1155cc";
+		return color;
+	}
+
+	switch(pos)
+	{
+		case 1: color = "666666";
+		case 2: color = "741b47";
+		case 3: color = "9900ff";
+		case 4,5: color = "ff0000";
+		case 6..8: color = "e06666";
+		case 9..12: color = "ff9900";
+		case 13..16: color = "85200c";
+		default: color = "6aa84f";
+	}
+
+	return color;
+}
+
+stock GetTitleColorHex(status, pos)
+{
+	new color = 0xffffffff;
+	if(status > 0)
+	{
+		color = 0x1155ccff;
+		return color;
+	}
+
+	switch(pos)
+	{
+		case 1: color = 0x666666ff;
+		case 2: color = 0x741b47ff;
+		case 3: color = 0x9900ffff;
+		case 4,5: color = 0xff0000ff;
+		case 6..8: color = 0xe06666ff;
+		case 9..12: color = 0xff9900ff;
+		case 13..16: color = 0x85200cff;
+		default: color = 0x6aa84fff;
+	}
+
+	return color;
 }
 
 stock GetTitle(status, pos)
 {
-	//TODO
+	new title[32] = "ffffff";
+	if(status > 0)
+	{
+		title = "Основатель";
+		return title;
+	}
+
+	switch(pos)
+	{
+		case 1: title = "Генерал";
+		case 2: title = "Полковник";
+		case 3: title = "Подполковник";
+		case 4,5: title = "Майор";
+		case 6..8: title = "Капитан";
+		case 9..12: title = "Лейтенант";
+		case 13..16: title = "Сержант";
+		default: title = "Рядовой";
+	}
+
+	return title;
 }
 
 stock UpdateGlobalOCTop()
