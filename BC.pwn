@@ -6257,6 +6257,7 @@ stock RollBossLoot()
 	}
 }
 
+//TODO
 stock RollWalkerLootItem(rank, ownerid)
 {
 	new chance = random(10001);
@@ -6390,6 +6391,7 @@ stock RollWalkerLootItem(rank, ownerid)
 	return loot;
 }
 
+//TODO
 stock RollBossLootItem(bossid)
 {
 	new chance = random(10001);
@@ -6468,7 +6470,6 @@ stock RollBossLootItem(bossid)
 	return loot;
 }
 
-//TODO
 stock GetRandomEquip(minlevel, maxlevel, eq_type = RND_EQUIP_TYPE_RANDOM, eq_grade = RND_EQUIP_GRADE_RANDOM)
 {
 	new type;
@@ -6498,7 +6499,12 @@ stock GetRandomEquip(minlevel, maxlevel, eq_type = RND_EQUIP_TYPE_RANDOM, eq_gra
 		return;
 	}
 
-	//to be continued
+	new idx = random(row_count);
+	new itemid;
+	cache_get_value_name_int(idx, "ItemID", itemid);
+	cache_delete(q_result);
+
+	return itemid;
 }
 
 stock GetRandomAccessory(type)
