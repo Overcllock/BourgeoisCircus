@@ -67,6 +67,7 @@
 #define MAX_INVENTORY_SLOTS 25
 #define MAX_INVENTORY_SLOTS_X 5
 #define MAX_INVENTORY_SLOTS_Y 5
+#define MAX_WAREHOUSE_SLOTS 25
 #define MAX_LEVEL 55
 #define MAX_OC 500000
 #define WALKER_TYPES 9
@@ -94,6 +95,8 @@
 #define WALKERS_LIMIT 35
 #define MAX_BOURGEOIS_REWARDS 5
 #define MAX_WALKERS_ONE_TYPE 4
+//TODO
+#define MAX_EXP 100000
 
 //Market
 #define MARKET_CATEGORY_WEAPON 0
@@ -187,6 +190,8 @@ forward SetPlayerExpOffline(name[], exp);
 forward GivePlayerExp(playerid, exp);
 forward GivePlayerExpOffline(name[], exp);
 forward GivePlayerMoneyOffline(name[], money);
+forward GivePlayerOC(playerid, oc);
+forward GivePlayerOCOffline(name[], oc);
 forward UpdatePlayerMaxHP(playerid);
 forward CancelBossAttack();
 forward FinishBossAttack();
@@ -216,6 +221,14 @@ enum TopItem
 	GlobalTopPosition,
 	Status,
 	OC
+};
+enum TopLItem
+{
+	Pos,
+	Name[255],
+	GlobalTopPosition,
+	Status,
+	Level
 };
 enum MarketItem
 {
@@ -417,11 +430,13 @@ new health_pickup = 0;
 
 //Player
 new PlayerInventory[MAX_PLAYERS][MAX_INVENTORY_SLOTS][iInfo];
+new PlayerWarehouse[MAX_PLAYERS][MAX_WAREHOUSE_SLOTS][iInfo];
 new PlayerInfo[MAX_PLAYERS][pInfo];
 new PlayerHPMultiplicator[MAX_PLAYERS];
 new bool:PlayerConnect[MAX_PLAYERS] = false;
 new Float:MaxHP[MAX_PLAYERS];
 new bool:IsInventoryOpen[MAX_PLAYERS] = false;
+new bool:IsWarehouseOpen[MAX_PLAYERS] = false;
 new bool:IsDeath[MAX_PLAYERS] = false;
 new bool:IsSpawned[MAX_PLAYERS] = false;
 new bool:IsParticipant[MAX_PLAYERS] = false;
@@ -489,6 +504,8 @@ new CooperateMessages[MAX_COOPERATE_MSGS][64] = {
 
 new GlobalOCTop[MAX_PARTICIPANTS][TopItem];
 new LocalOCTop[MAX_PLAYERS][MAX_PARTICIPANTS / 2][TopItem];
+new GlobalLevelTop[MAX_PARTICIPANTS][TopLItem];
+new LocalLevelTop[MAX_PLAYERS][MAX_PARTICIPANTS / 2][TopLItem];
 
 new HexWalkerTypesColors[WALKER_TYPES][1] = {
 	{0x85200cff},
@@ -548,7 +565,7 @@ new PlayerText:ChrInfAccSlot2[MAX_PLAYERS];
 new PlayerText:ChrInfClose[MAX_PLAYERS];
 new PlayerText:ChrInfText1[MAX_PLAYERS];
 new PlayerText:ChrInfAllRate[MAX_PLAYERS];
-new PlayerText:ChrInfRate[MAX_PLAYERS];
+new PlayerText:ChrInfOC[MAX_PLAYERS];
 new PlayerText:ChrInfText2[MAX_PLAYERS];
 new PlayerText:ChrInfPersonalRate[MAX_PLAYERS];
 new PlayerText:ChrInfDelim3[MAX_PLAYERS];
@@ -559,6 +576,17 @@ new PlayerText:ChrInfButInfo[MAX_PLAYERS];
 new PlayerText:ChrInfButDel[MAX_PLAYERS];
 new PlayerText:ChrInfButMod[MAX_PLAYERS];
 new PlayerText:ChrInfDelim4[MAX_PLAYERS];
+
+new PlayerText:ChrInfCPLabel[MAX_PLAYERS];
+new PlayerText:ChrInfCPValue[MAX_PLAYERS];
+
+new PlayerText:WarehouseSlot[MAX_PLAYERS][MAX_WAREHOUSE_SLOTS];
+new PlayerText:WarehouseSlotCount[MAX_PLAYERS][MAX_WAREHOUSE_SLOTS];
+
+new PlayerText:LevelCircle[MAX_PLAYERS];
+new PlayerText:ExpLine[MAX_PLAYERS];
+new PlayerText:ExpPercents[MAX_PLAYERS];
+new PlayerText:LevelText[MAX_PLAYERS];
 
 new PlayerText:EqInfBox[MAX_PLAYERS];
 new PlayerText:EqInfTxt1[MAX_PLAYERS];
@@ -933,6 +961,10 @@ public OnPlayerLogin(playerid)
 		ResetPlayerMoney(playerid);
 		GivePlayerMoney(playerid, PlayerInfo[playerid][Cash]);
 		UpdatePlayerPost(playerid);
+		ShowCPInfo(playerid);
+		UpdatePlayerCP(playerid);
+		ShowLevelBar(playerid);
+		UpdateLevelBar(playerid);
 	}
 
 	PlayerConnect[playerid] = true;
@@ -1069,7 +1101,6 @@ stock SortPvpData()
 
 public UpdatePvpTable()
 {
-	//TODO
 	new score[64];
 	new name[512];
 	new id = -1;
@@ -1237,7 +1268,11 @@ public OnPlayerDisconnect(playerid, reason)
 		SavePlayer(playerid, !FCNPC_IsValid(playerid));
 
 	if(!FCNPC_IsValid(playerid))
+	{
+		HideCPInfo(playerid);
+		HideLevelBar(playerid);
 		DeletePlayerTextDraws(playerid);
+	}
 	
 	if(IsValidTimer(InvulnearableTimer[playerid]))
 		KillTimer(InvulnearableTimer[playerid]);
@@ -1308,7 +1343,37 @@ stock UpdatePlayerVisual(playerid)
 	SetPlayerColor(playerid, IsTourStarted ? HexTeamColors[PlayerInfo[playerid][TeamColor]][0] : GetTitleColorHex(PlayerInfo[playerid][Status], PlayerInfo[playerid][GlobalTopPosition]));
 	if(!FCNPC_IsValid(playerid))
 		UpdatePlayerWeapon(playerid);
-	//TODO
+	UpdatePlayerModEffects(playerid);
+}
+
+stock UpdatePlayerModEffects(playerid)
+{
+	switch(GetModLevel(PlayerInfo[playerid][WeaponMod]))
+	{
+	    case 5:
+	    {
+	        SetPlayerAttachedObject(playerid, 0, 18700, 5, 1.983503, 1.558882, -0.129482, 86.705787, 308.978118, 268.198822, 1.500000, 1.500000, 1.500000);
+   			SetPlayerAttachedObject(playerid, 1, 18700, 6, 1.983503, 1.558882, -0.129482, 86.705787, 308.978118, 268.198822, 1.500000, 1.500000, 1.500000);
+	    }
+	    case 6:
+	    {
+	        SetPlayerAttachedObject(playerid, 0, 18699, 5, 1.983503, 1.558882, -0.129482, 86.705787, 308.978118, 268.198822, 1.500000, 1.500000, 1.500000);
+   			SetPlayerAttachedObject(playerid, 1, 18699, 6, 1.983503, 1.558882, -0.129482, 86.705787, 308.978118, 268.198822, 1.500000, 1.500000, 1.500000);
+	    }
+	    case 7:
+	    {
+	        SetPlayerAttachedObject(playerid, 0, 18693, 5, 1.983503, 1.558882, -0.129482, 86.705787, 308.978118, 268.198822, 1.500000, 1.500000, 1.500000);
+   			SetPlayerAttachedObject(playerid, 1, 18693, 6, 1.983503, 1.558882, -0.129482, 86.705787, 308.978118, 268.198822, 1.500000, 1.500000, 1.500000);
+	    }
+		default:
+		{
+			for(new i = 0; i < 2; i++)
+			{
+				if(IsPlayerAttachedObjectSlotUsed(playerid, i))
+					RemovePlayerAttachedObject(playerid, i);
+			}
+		}
+	}
 }
 
 public OnPlayerDeath(playerid, killerid, reason)
@@ -1687,7 +1752,7 @@ public OnPlayerKeyStateChange(playerid, newkeys, oldkeys)
 		//доска почета
 		else if(IsPlayerInRangeOfPoint(playerid,1.2,-2171.3132,645.5896,1052.3817)) 
 		{
-			new listitems[] = "Общий рейтинг участников\nРейтинг моих участников";
+			new listitems[] = "Общий рейтинг участников (OC)\nОбщий рейтинг участников (опыт)\nРейтинг моих участников (OC)\nРейтинг моих участников (опыт)";
 			ShowPlayerDialog(playerid, 300, DIALOG_STYLE_TABLIST, "Доска почета", listitems, "Далее", "Закрыть");
         }
 		//оружейник
@@ -1973,7 +2038,15 @@ public OnDialogResponse(playerid, dialogid, response, listitem, inputtext[])
 					}
 					case 1:
 					{
-						ShowLocalRatingTop(playerid);
+						ShowGlobalLevelTop(playerid);
+					}
+					case 2:
+					{
+						ShowLocalOCTop(playerid);
+					}
+					case 3:
+					{
+						ShowLocalLevelTop(playerid);
 					}
 				}
 			}
@@ -3364,6 +3437,42 @@ public RegeneratePlayerHP(playerid)
 	GivePlayerHP(playerid, hp);
 }
 
+public GivePlayerOC(playerid, oc)
+{
+	PlayerInfo[playerid][OC] += oc;
+	if(PlayerInfo[playerid][OC] > MAX_OC)
+		PlayerInfo[playerid][OC] = MAX_OC;
+	if(PlayerInfo[playerid][OC] < 0)
+		PlayerInfo[playerid][OC] = 0;
+	
+	UpdateLocalOCTop(playerid);
+}
+
+public GivePlayerOCOffline(name[], oc)
+{
+	new query[255];
+	format(query, sizeof(query), "SELECT * FROM `players` WHERE `Name` = '%s' LIMIT 1", name);
+	new Cache:q_result = mysql_query(sql_handle, query);
+	new row_count = 0;
+	cache_get_row_count(row_count);
+	if(row_count <= 0)
+	{
+		print("Cannot give player rate offline.");
+		return;
+	}
+
+	new new_oc = 0;
+	cache_get_value_name_int(0, "OC", new_oc);
+	cache_delete(q_result);
+
+	new_oc += oc;
+	if(new_oc < 0) new_oc = 0;
+	if(new_oc > MAX_OC) new_oc = MAX_OC;
+	format(query, sizeof(query), "UPDATE `players` SET `OC` = '%d' WHERE `Name` = '%s' LIMIT 1", new_oc, name);
+	new Cache:result = mysql_query(sql_handle, query);
+	cache_delete(result);
+}
+
 public GivePlayerExp(playerid, exp)
 {
 	new string[255];
@@ -3379,7 +3488,7 @@ public GivePlayerExp(playerid, exp)
 	GivePlayerExpOffline(PlayerInfo[playerid][Name], exp);
 	UpdatePlayerLevel(playerid);
 	UpdateLevelBar(playerid);
-	UpdateLevelTop(playerid);
+	UpdateLocalLevelTop(playerid);
 }
 
 public GivePlayerMoneyOffline(name[], money)
@@ -3450,7 +3559,7 @@ public SetPlayerExp(playerid, exp)
 	SetPlayerExpOffline(PlayerInfo[playerid][Name], exp);
 	UpdatePlayerLevel(playerid);
 	UpdateLevelBar(playerid);
-	UpdateLevelTop(playerid);
+	UpdateLocalLevelTop(playerid);
 }
 
 /* Stock functions */
@@ -4885,6 +4994,12 @@ stock GiveTourExpAndOC(tour)
 	}
 }
 
+stock GetExpDifference(playerid, tour, pos)
+{
+	//TODO
+	return 1;
+}
+
 stock GetPlayerLevelOffline(name[])
 {
 	new level = 1;
@@ -4974,6 +5089,13 @@ stock AddPlayerMoney(playerid, money)
 
 	PlayerInfo[playerid][Cash] += money;
 	GivePlayerMoney(playerid, money);
+}
+
+stock UpdatePlayerCP(playerid)
+{
+	new value[32];
+	format(value, sizeof(value), "%d", PlayerInfo[playerid][CP]);
+	PlayerTextDrawSetStringRus(playerid, ChrInfCPValue[playerid], value);
 }
 
 stock UpdatePlayerPost(playerid)
@@ -5324,7 +5446,7 @@ stock GetOCDifference(playerid, tour, pos, mid_oc)
 		}
 	}
 
-	new oc_diff = mid_rate - PlayerInfo[playerid][OC];
+	new oc_diff = mid_oc - PlayerInfo[playerid][OC];
 	if(oc_diff > 0)
 		oc += oc_diff / 25;
 
@@ -5336,7 +5458,6 @@ stock GetOCDifference(playerid, tour, pos, mid_oc)
 
 stock SetPvpTableVisibility(playerid, bool:value)
 {
-	//TODO
 	if(value)
 	{
 		PlayerTextDrawShow(playerid, PvpPanelBox[playerid]);
@@ -5373,7 +5494,7 @@ stock SetPvpTableVisibility(playerid, bool:value)
 stock OpenLockbox(playerid, lockboxid)
 {
 	//TODO
-	new chance = random(10001);
+	/*new chance = random(10001);
 	new itemid = -1;
 	new count = 0;
 	new rank = PlayerInfo[playerid][Rank];
@@ -5507,7 +5628,7 @@ stock OpenLockbox(playerid, lockboxid)
 	format(string, sizeof(string), "Получено: {%s}[%s] {ffffff}x%d.", 
 		GetGradeColor(item[Grade]), item[Name], count
 	);
-	SendClientMessage(playerid, 0xFFFFFFFF, string);
+	SendClientMessage(playerid, 0xFFFFFFFF, string);*/
 }
 
 stock SwitchPlayer(playerid)
@@ -6260,7 +6381,7 @@ stock RollBossLoot()
 //TODO
 stock RollWalkerLootItem(rank, ownerid)
 {
-	new chance = random(10001);
+	/*new chance = random(10001);
 	new itemid = -1;
 	new count = 1;
 	switch(rank)
@@ -6382,19 +6503,19 @@ stock RollWalkerLootItem(rank, ownerid)
 				default: { itemid = 241; count = (rank * 5 - rank) + random(rank * 3); }
 			}
 		}
-	}
+	}*/
 
 	new loot[LootInfo];
-	loot[ItemID] = itemid;
-	loot[Count] = count;
-	loot[OwnerID] = ownerid;
+	//loot[ItemID] = itemid;
+	//loot[Count] = count;
+	//loot[OwnerID] = ownerid;
 	return loot;
 }
 
 //TODO
 stock RollBossLootItem(bossid)
 {
-	new chance = random(10001);
+	/*new chance = random(10001);
 	new itemid = -1;
 	new count = 1;
 	switch(bossid)
@@ -6461,12 +6582,12 @@ stock RollBossLootItem(bossid)
 				default: { itemid = 195; count = 28; }
 			}
 		}
-	}
+	}*/
 
 	new loot[LootInfo];
-	loot[ItemID] = itemid;
-	loot[Count] = count;
-	loot[OwnerID] = -1;
+	//loot[ItemID] = itemid;
+	//loot[Count] = count;
+	//loot[OwnerID] = -1;
 	return loot;
 }
 
@@ -6555,6 +6676,25 @@ stock UpdateHPBar(playerid)
 	}
 }
 
+stock UpdateLevelBar(playerid)
+{
+	new Float:proc = floatdiv(PlayerInfo[playerid][Exp], GetExpForLevel(PlayerInfo[playerid][Level]+1));
+	if(proc > 1.00) proc = 1.00;
+	if(proc < 0.00) proc = 0.00;
+
+	new Float:percents = floatmul(proc, 100);
+	new string[20];
+	format(string, sizeof(string), "%.2f%", percents);
+
+    PlayerTextDrawSetString(playerid, ExpPercents[playerid], string);
+    PlayerTextDrawHide(playerid, ExpLine[playerid]);
+    PlayerTextDrawTextSize(playerid, ExpLine[playerid], floatmul(percents, 6.4), 5.807403);
+    PlayerTextDrawShow(playerid, ExpLine[playerid]);
+
+	format(string, sizeof(string), "%d", PlayerInfo[playerid][Level]);
+	PlayerTextDrawSetString(playerid, LevelText[playerid], string);
+}
+
 stock UpdatePlayerLevel(playerid)
 {
 	new string[255];
@@ -6562,12 +6702,27 @@ stock UpdatePlayerLevel(playerid)
 
 	if(new_level > PlayerInfo[playerid][Level])
 	{
-		format(string, sizeof(string), "Новый уровень - %d!", new_level));
+		format(string, sizeof(string), "Новый уровень - %d!", new_level);
 		SendClientMessage(playerid, COLOR_GREEN, string);
 	}
 
 	PlayerInfo[playerid][Level] = new_level;
 	UpdatePlayerStats(playerid);
+}
+
+stock GetExpForLevel(level)
+{
+	if(level > MAX_LEVEL)
+		level = MAX_LEVEL;
+	
+	return 1;
+	//TODO
+}
+
+stock GetLevelByExp(exp)
+{
+	//TODO
+	return 1;
 }
 
 stock UpdatePlayerSkin(playerid)
@@ -6832,6 +6987,11 @@ stock IsInvSlotEmpty(playerid, slotid)
 	return PlayerInventory[playerid][slotid][ID] == -1;
 }
 
+stock IsWarSlotEmpty(playerid, slotid)
+{
+	return PlayerWarehouse[playerid][slotid][ID] == -1;
+}
+
 stock UpdateEquipSlots(playerid)
 {
 	PlayerTextDrawHide(playerid, ChrInfWeaponSlot[playerid]);
@@ -6938,6 +7098,38 @@ stock UpdateSlot(playerid, slotid)
 	}
 }
 
+stock UpdateWarehouseSlot(playerid, slotid)
+{
+	if (!IsWarehouseOpen[playerid]) return;
+
+    PlayerTextDrawHide(playerid, WarehouseSlot[playerid][slotid]);
+    PlayerTextDrawHide(playerid, WarehouseSlotCount[playerid][slotid]);
+
+	PlayerTextDrawBackgroundColor(playerid, WarehouseSlot[playerid][slotid], -1061109505);
+	if(IsWarSlotEmpty(playerid, slotid))
+	{
+		PlayerTextDrawSetPreviewRot(playerid, WarehouseSlot[playerid][slotid], 0.0, 0.0, 0.0, -1.0);
+		PlayerTextDrawShow(playerid, WarehouseSlot[playerid][slotid]);
+		return;
+	}
+
+	new item[BaseItem];
+	item = GetItem(PlayerWarehouse[playerid][slotid][ID]);
+
+	PlayerTextDrawBackgroundColor(playerid, WarehouseSlot[playerid][slotid], HexGradeColors[item[Grade]-1][0]);
+	PlayerTextDrawSetPreviewModel(playerid, WarehouseSlot[playerid][slotid], item[Model]);
+	PlayerTextDrawSetPreviewRot(playerid, WarehouseSlot[playerid][slotid], item[ModelRotX], item[ModelRotY], item[ModelRotZ], 1.0);
+	PlayerTextDrawShow(playerid, WarehouseSlot[playerid][slotid]);
+
+	new string[16];
+	if(!IsEquip(PlayerWarehouse[playerid][slotid][ID]))
+	{
+		format(string, sizeof(string), "%d", PlayerWarehouse[playerid][slotid][Count]);
+		PlayerTextDrawSetStringRus(playerid, WarehouseSlot[playerid][slotid], string);
+		PlayerTextDrawShow(playerid, WarehouseSlot[playerid][slotid]);
+	}
+}
+
 stock SetSlotSelection(playerid, slotid, bool:selection)
 {
 	if(IsInvSlotEmpty(playerid, slotid))
@@ -7014,6 +7206,19 @@ stock SaveInventorySlot(playerid, slot)
 	new query[255];
 	format(query, sizeof(query), "UPDATE `inventories` SET `ItemID` = '%d', `Count` = '%d', `SlotMod` = '%s' WHERE `PlayerName` = '%s' AND `SlotID` = '%d' LIMIT 1", 
 		PlayerInventory[playerid][slot][ID], PlayerInventory[playerid][slot][Count], ArrayToString(PlayerInventory[playerid][slot][Mod], MAX_MOD), name, slot
+	);
+	new Cache:q_result = mysql_query(sql_handle, query);
+	cache_delete(q_result);
+}
+
+stock SaveWarehouseSlot(playerid, slot)
+{
+	new name[255];
+	GetPlayerName(playerid, name, sizeof(name));
+
+	new query[255];
+	format(query, sizeof(query), "UPDATE `warehouses` SET `ItemID` = '%d', `Count` = '%d', `SlotMod` = '%s' WHERE `PlayerName` = '%s' AND `SlotID` = '%d' LIMIT 1", 
+		PlayerWarehouse[playerid][slot][ID], PlayerWarehouse[playerid][slot][Count], ArrayToString(PlayerWarehouse[playerid][slot][Mod], MAX_MOD), name, slot
 	);
 	new Cache:q_result = mysql_query(sql_handle, query);
 	cache_delete(q_result);
@@ -7108,6 +7313,24 @@ stock AddEquip(playerid, id, mod[])
 	if(IsInventoryOpen[playerid])
 		UpdateSlot(playerid, slot);
 
+	return true;
+}
+
+stock DeleteItemFromWarehouse(playerid, slotid, count = 1)
+{
+	if(slotid == -1) return false;
+
+	PlayerWarehouse[playerid][slotid][Count] -= count;
+	if(PlayerWarehouse[playerid][slotid][Count] <= 0)
+	{
+		for(new i = 0; i < MAX_MOD; i++)
+			PlayerWarehouse[playerid][slotid][Mod][i] = 0;
+		PlayerWarehouse[playerid][slotid][ID] = -1;
+		PlayerWarehouse[playerid][slotid][Count] = 0;
+	}
+
+	UpdateWarehouseSlot(playerid, slotid);
+	SaveWarehouseSlot(playerid, slotid);
 	return true;
 }
 
@@ -7449,6 +7672,34 @@ stock ConnectParticipants(playerid)
 	cache_delete(q_result);
 }
 
+stock ShowCPInfo(playerid)
+{
+	PlayerTextDrawShow(playerid, ChrInfCPLabel[playerid]);
+	PlayerTextDrawShow(playerid, ChrInfCPValue[playerid]);
+}
+
+stock HideCPInfo(playerid)
+{
+	PlayerTextDrawHide(playerid, ChrInfCPLabel[playerid]);
+	PlayerTextDrawHide(playerid, ChrInfCPValue[playerid]);
+}
+
+stock ShowLevelBar(playerid)
+{
+	PlayerTextDrawShow(playerid, LevelCircle[playerid]);
+	PlayerTextDrawShow(playerid, LevelText[playerid]);
+	PlayerTextDrawShow(playerid, ExpLine[playerid]);
+	PlayerTextDrawShow(playerid, ExpPercents[playerid]);
+}
+
+stock HideLevelBar(playerid)
+{
+	PlayerTextDrawHide(playerid, LevelCircle[playerid]);
+	PlayerTextDrawHide(playerid, LevelText[playerid]);
+	PlayerTextDrawHide(playerid, ExpLine[playerid]);
+	PlayerTextDrawHide(playerid, ExpPercents[playerid]);
+}
+
 stock ShowItemInfo(playerid, itemid)
 {
 	new item[BaseItem];
@@ -7660,13 +7911,11 @@ stock ShowMainMenu(playerid)
 
 stock ShowCharInfo(playerid)
 {
-	//TODO
-	/*
 	new string[255];
 
-	format(string, sizeof(string), "%d", PlayerInfo[playerid][Rate]);
-	PlayerTextDrawSetStringRus(playerid, ChrInfRate[playerid], string);
-	PlayerTextDrawColor(playerid, ChrInfRate[playerid], HexWalkerTypesColors[PlayerInfo[playerid][Rank]-1][0]);
+	format(string, sizeof(string), "%d", PlayerInfo[playerid][OC]);
+	PlayerTextDrawSetStringRus(playerid, ChrInfOC[playerid], string);
+	PlayerTextDrawColor(playerid, ChrInfOC[playerid], GetTitleColorHex(PlayerInfo[playerid][Status], PlayerInfo[playerid][GlobalTopPosition]));
 	format(string, sizeof(string), "%d", PlayerInfo[playerid][GlobalTopPosition]);
 	PlayerTextDrawSetStringRus(playerid, ChrInfAllRate[playerid], string);
 	PlayerTextDrawColor(playerid, ChrInfAllRate[playerid], GetHexPlaceColor(PlayerInfo[playerid][GlobalTopPosition]));
@@ -7694,7 +7943,7 @@ stock ShowCharInfo(playerid)
 	PlayerTextDrawShow(playerid, ChrInfText1[playerid]);
 	PlayerTextDrawShow(playerid, ChrInfText2[playerid]);
 	PlayerTextDrawShow(playerid, ChrInfAllRate[playerid]);
-	PlayerTextDrawShow(playerid, ChrInfRate[playerid]);
+	PlayerTextDrawShow(playerid, ChrInfOC[playerid]);
 	PlayerTextDrawShow(playerid, ChrInfPersonalRate[playerid]);
 	PlayerTextDrawShow(playerid, ChrInfButUse[playerid]);
 	PlayerTextDrawShow(playerid, ChrInfButInfo[playerid]);
@@ -7707,7 +7956,7 @@ stock ShowCharInfo(playerid)
 	
 	IsInventoryOpen[playerid] = true;
 	Windows[playerid][CharInfo] = true;
-	SelectTextDraw(playerid,0xCCCCFF65);*/
+	SelectTextDraw(playerid,0xCCCCFF65);
 }
 
 stock HideCharInfo(playerid)
@@ -7730,7 +7979,7 @@ stock HideCharInfo(playerid)
 	PlayerTextDrawHide(playerid, ChrInfText1[playerid]);
 	PlayerTextDrawHide(playerid, ChrInfText2[playerid]);
 	PlayerTextDrawHide(playerid, ChrInfAllRate[playerid]);
-	PlayerTextDrawHide(playerid, ChrInfRate[playerid]);
+	PlayerTextDrawHide(playerid, ChrInfOC[playerid]);
 	PlayerTextDrawHide(playerid, ChrInfPersonalRate[playerid]);
 	PlayerTextDrawHide(playerid, ChrInfButUse[playerid]);
 	PlayerTextDrawHide(playerid, ChrInfButInfo[playerid]);
@@ -9194,6 +9443,21 @@ stock SavePlayer(playerid, bool:with_pos = true)
 	SaveInventory(playerid);
 }
 
+stock CreateWarehouse(name[])
+{
+	new query[512];
+
+	for(new i = 0; i < MAX_WAREHOUSE_SLOTS; i++)
+	{
+		format(query, sizeof(query), "INSERT INTO `warehouses`(`PlayerName`, `SlotID`, `ItemID`, `SlotMod`, `Count`) VALUES ('%s','%d','%d','%s','%d')",
+			name, i, -1, "0 0 0 0 0 0 0", 0
+		);
+
+		new Cache:q_result = mysql_query(sql_handle, query);
+		cache_delete(q_result);
+	}
+}
+
 stock CreateInventory(name[])
 {
 	new query[512];
@@ -9493,6 +9757,68 @@ stock UpdateGlobalOCTop()
 	cache_delete(q_result);
 }
 
+stock UpdateLocalLevelTop(playerid)
+{
+	new name[255];
+	new query[255];
+	new string[255];
+	
+	GetPlayerName(playerid, name, sizeof(name));
+	format(query, sizeof(query), "SELECT * FROM `players` WHERE `Name` = '%s' LIMIT 1", name);
+	new Cache:q_result = mysql_query(sql_handle, query);
+
+	new row_count = 0;
+	cache_get_row_count(row_count);
+	if(row_count <= 0)
+	{
+		format(string, sizeof(string), "Local level update error. Player: %s", name);
+		print(string);
+		cache_delete(q_result);
+		return;
+	}
+
+	new owner[255];
+	cache_get_value_name(0, "Owner", owner);
+	cache_delete(q_result);
+
+	format(query, sizeof(query), "SELECT * FROM `players` WHERE `Owner` = '%s' ORDER BY `Exp` DESC LIMIT %d", owner, MAX_PARTICIPANTS / 2);
+	q_result = mysql_query(sql_handle, query);
+
+	row_count = 0;
+	cache_get_row_count(row_count);
+	if(row_count <= 0)
+	{
+		format(string, sizeof(string), "Local level update error. Player: %s", name);
+		print(string);
+		cache_delete(q_result);
+		return;
+	}
+
+	q_result = cache_save();
+	cache_unset_active();
+
+	for(new i = 0; i < row_count; i++)
+	{
+		new level;
+		new status;
+		new global_pos;
+
+		cache_set_active(q_result);
+		cache_get_value_name(i, "Name", name);
+		cache_get_value_name_int(i, "Level", level);
+		cache_get_value_name_int(i, "Status", status);
+		cache_get_value_name_int(i, "GlobalTopPos", global_pos);
+		cache_unset_active();
+
+		LocalLevelTop[playerid][i][Name] = name;
+		LocalLevelTop[playerid][i][Level] = level;
+		LocalLevelTop[playerid][i][Status] = status;
+		LocalLevelTop[playerid][i][GlobalTopPosition] = global_pos;
+	}
+
+	cache_delete(q_result);
+}
+
 stock UpdateLocalOCTop(playerid)
 {
 	new name[255];
@@ -9524,7 +9850,7 @@ stock UpdateLocalOCTop(playerid)
 	cache_get_row_count(row_count);
 	if(row_count <= 0)
 	{
-		format(string, sizeof(string), "Local rating update error. Player: %s", name);
+		format(string, sizeof(string), "Local OC update error. Player: %s", name);
 		print(string);
 		cache_delete(q_result);
 		return;
@@ -9574,10 +9900,10 @@ stock ShowGlobalOCTop(playerid)
 		);
 		strcat(top, string);
 	}
-	ShowPlayerDialog(playerid, 1, DIALOG_STYLE_TABLIST_HEADERS, "Общий рейтинг участников", top, "Закрыть", "");
+	ShowPlayerDialog(playerid, 1, DIALOG_STYLE_TABLIST_HEADERS, "Общий рейтинг участников (ОС)", top, "Закрыть", "");
 }
 
-stock ShowLocalRatingTop(playerid)
+stock ShowLocalOCTop(playerid)
 {
 	new top[4000] = "№ п\\п\tИмя\tOC";
 	new string[455];
@@ -9588,7 +9914,35 @@ stock ShowLocalRatingTop(playerid)
 		);
 		strcat(top, string);
 	}
-	ShowPlayerDialog(playerid, 1, DIALOG_STYLE_TABLIST_HEADERS, "Рейтинг моих участников", top, "Закрыть", "");
+	ShowPlayerDialog(playerid, 1, DIALOG_STYLE_TABLIST_HEADERS, "Рейтинг моих участников (ОС)", top, "Закрыть", "");
+}
+
+stock ShowGlobalLevelTop(playerid)
+{
+	new top[4000] = "№ п\\п\tИмя\tУровень";
+	new string[455];
+	for (new i = 0; i < MAX_PARTICIPANTS; i++) 
+	{
+		format(string, sizeof(string), "\n{%s}%d\t{%s}%s\t%d", 
+			GetPlaceColor(i+1), i+1, GetTitleColor(GlobalLevelTop[i][Status], i+1), GlobalLevelTop[i][Name], GlobalLevelTop[i][Level]
+		);
+		strcat(top, string);
+	}
+	ShowPlayerDialog(playerid, 1, DIALOG_STYLE_TABLIST_HEADERS, "Общий рейтинг участников (опыт)", top, "Закрыть", "");
+}
+
+stock ShowLocalLevelTop(playerid)
+{
+	new top[4000] = "№ п\\п\tИмя\tУровень";
+	new string[455];
+	for (new i = 0; i < MAX_PARTICIPANTS / 2; i++) 
+	{
+		format(string, sizeof(string), "\n{%s}%d\t{%s}%s\t%d", 
+			GetPlaceColor(i+1), i+1, GetTitleColor(LocalLevelTop[playerid][i][Status], LocalLevelTop[playerid][i][GlobalTopPosition]), LocalLevelTop[playerid][i][Name], LocalLevelTop[playerid][i][Level]
+		);
+		strcat(top, string);
+	}
+	ShowPlayerDialog(playerid, 1, DIALOG_STYLE_TABLIST_HEADERS, "Рейтинг моих участников (опыт)", top, "Закрыть", "");
 }
 
 stock IsTourParticipant(id)
@@ -9682,7 +10036,7 @@ stock ShowTournamentTab(playerid)
 
 		format(string, sizeof(string), "\n{%s}%d\t{%s}%s\t{00CC00}%d {ffffff}- {CC0000}%d\t{9900CC}%d {ffffff}({%s}%s{ffffff})", 
 			GetPlaceColor(i+1), i+1, GetTitleColor(TournamentTab[i][Status], TournamentTab[i][GlobalTopPosition]), TournamentTab[i][Name],
-			TournamentTab[i][Kills], TournamentTab[i][Deaths], TournamentTab[i][Score], oc_color, rate_str
+			TournamentTab[i][Kills], TournamentTab[i][Deaths], TournamentTab[i][Score], oc_color, oc_str
 		);
 		strcat(top, string);
 	}
@@ -10157,15 +10511,35 @@ stock InitPlayerTextDraws(playerid)
 	PlayerTextDrawFont(playerid, ChrInfAllRate[playerid], 1);
 	PlayerTextDrawSetProportional(playerid, ChrInfAllRate[playerid], 1);
 
-	ChrInfRate[playerid] = CreatePlayerTextDraw(playerid, 554.632568, 156.767410, "2319");
-	PlayerTextDrawLetterSize(playerid, ChrInfRate[playerid], 0.365332, 1.741037);
-	PlayerTextDrawAlignment(playerid, ChrInfRate[playerid], 2);
-	PlayerTextDrawColor(playerid, ChrInfRate[playerid], -1378294017);
-	PlayerTextDrawSetShadow(playerid, ChrInfRate[playerid], 0);
-	PlayerTextDrawSetOutline(playerid, ChrInfRate[playerid], 0);
-	PlayerTextDrawBackgroundColor(playerid, ChrInfRate[playerid], 51);
-	PlayerTextDrawFont(playerid, ChrInfRate[playerid], 1);
-	PlayerTextDrawSetProportional(playerid, ChrInfRate[playerid], 1);
+	ChrInfOC[playerid] = CreatePlayerTextDraw(playerid, 554.765869, 160.334808, "OC: 500000");
+	PlayerTextDrawLetterSize(playerid, ChrInfOC[playerid], 0.215332, 1.085629);
+	PlayerTextDrawAlignment(playerid, ChrInfOC[playerid], 2);
+	PlayerTextDrawColor(playerid, ChrInfOC[playerid], -1378294017);
+	PlayerTextDrawSetShadow(playerid, ChrInfOC[playerid], 0);
+	PlayerTextDrawSetOutline(playerid, ChrInfOC[playerid], 0);
+	PlayerTextDrawBackgroundColor(playerid, ChrInfOC[playerid], 51);
+	PlayerTextDrawFont(playerid, ChrInfOC[playerid], 1);
+	PlayerTextDrawSetProportional(playerid, ChrInfOC[playerid], 1);
+
+	ChrInfCPLabel[playerid] = CreatePlayerTextDraw(playerid, 498.933502, 97.025161, "CP:");
+	PlayerTextDrawLetterSize(playerid, ChrInfCPLabel[playerid], 0.202333, 0.836742);
+	PlayerTextDrawAlignment(playerid, ChrInfCPLabel[playerid], 1);
+	PlayerTextDrawColor(playerid, ChrInfCPLabel[playerid], -5963521);
+	PlayerTextDrawSetShadow(playerid, ChrInfCPLabel[playerid], 0);
+	PlayerTextDrawSetOutline(playerid, ChrInfCPLabel[playerid], 1);
+	PlayerTextDrawBackgroundColor(playerid, ChrInfCPLabel[playerid], 51);
+	PlayerTextDrawFont(playerid, ChrInfCPLabel[playerid], 1);
+	PlayerTextDrawSetProportional(playerid, ChrInfCPLabel[playerid], 1);
+
+	ChrInfCPValue[playerid] = CreatePlayerTextDraw(playerid, 607.932739, 97.236984, "0");
+	PlayerTextDrawLetterSize(playerid, ChrInfCPValue[playerid], 0.202333, 0.836742);
+	PlayerTextDrawAlignment(playerid, ChrInfCPValue[playerid], 3);
+	PlayerTextDrawColor(playerid, ChrInfCPValue[playerid], -5963521);
+	PlayerTextDrawSetShadow(playerid, ChrInfCPValue[playerid], 0);
+	PlayerTextDrawSetOutline(playerid, ChrInfCPValue[playerid], 1);
+	PlayerTextDrawBackgroundColor(playerid, ChrInfCPValue[playerid], 51);
+	PlayerTextDrawFont(playerid, ChrInfCPValue[playerid], 1);
+	PlayerTextDrawSetProportional(playerid, ChrInfCPValue[playerid], 1);
 
 	ChrInfText2[playerid] = CreatePlayerTextDraw(playerid, 589.599487, 156.638442, "Личный");
 	PlayerTextDrawLetterSize(playerid, ChrInfText2[playerid], 0.186000, 0.716444);
@@ -10200,6 +10574,59 @@ stock InitPlayerTextDraws(playerid)
 	PlayerTextDrawBackgroundColor(playerid, ChrInfDelim3[playerid], 0x00000000);
 	PlayerTextDrawSetPreviewModel(playerid, ChrInfDelim3[playerid], 18656);
 	PlayerTextDrawSetPreviewRot(playerid, ChrInfDelim3[playerid], 0.000000, 0.000000, 0.000000, 1.000000);
+
+	LevelCircle[playerid] = CreatePlayerTextDraw(playerid, 587.333251, 392.000152, "LevelCircle");
+	PlayerTextDrawLetterSize(playerid, LevelCircle[playerid], 0.000000, 2.866667);
+	PlayerTextDrawTextSize(playerid, LevelCircle[playerid], 70.000022, 70.933349);
+	PlayerTextDrawAlignment(playerid, LevelCircle[playerid], 1);
+	PlayerTextDrawColor(playerid, LevelCircle[playerid], -1378294017);
+	PlayerTextDrawUseBox(playerid, LevelCircle[playerid], true);
+	PlayerTextDrawBoxColor(playerid, LevelCircle[playerid], 0x00000000);
+	PlayerTextDrawBackgroundColor(playerid, LevelCircle[playerid], 0x00000000);
+	PlayerTextDrawSetShadow(playerid, LevelCircle[playerid], 0);
+	PlayerTextDrawSetOutline(playerid, LevelCircle[playerid], 0);
+	PlayerTextDrawFont(playerid, LevelCircle[playerid], 5);
+	PlayerTextDrawSetPreviewModel(playerid, LevelCircle[playerid], 2992);
+	PlayerTextDrawSetPreviewRot(playerid, LevelCircle[playerid], 90.000000, 0.000000, 0.000000, 1.000000);
+
+	ExpLine[playerid] = CreatePlayerTextDraw(playerid, 0.000037, 443.312683, "ExpLine");
+	PlayerTextDrawLetterSize(playerid, ExpLine[playerid], 0.000000, -3.700000);
+	PlayerTextDrawTextSize(playerid, ExpLine[playerid], 639.666625, 5.807403);
+	PlayerTextDrawAlignment(playerid, ExpLine[playerid], 1);
+	PlayerTextDrawColor(playerid, ExpLine[playerid], 16711935);
+	PlayerTextDrawUseBox(playerid, ExpLine[playerid], true);
+	PlayerTextDrawBoxColor(playerid, ExpLine[playerid], 0x00000000);
+	PlayerTextDrawBackgroundColor(playerid, ExpLine[playerid], 0x00000000);
+	PlayerTextDrawSetShadow(playerid, ExpLine[playerid], 37);
+	PlayerTextDrawSetOutline(playerid, ExpLine[playerid], 0);
+	PlayerTextDrawFont(playerid, ExpLine[playerid], 5);
+	PlayerTextDrawSetPreviewModel(playerid, ExpLine[playerid], 18656);
+	PlayerTextDrawSetPreviewRot(playerid, ExpLine[playerid], 0.000000, 0.000000, 0.000000, 1.000000);
+
+	ExpPercents[playerid] = CreatePlayerTextDraw(playerid, 310.666534, 441.777832, "100.00%");
+	PlayerTextDrawLetterSize(playerid, ExpPercents[playerid], 0.137666, 0.749628);
+	PlayerTextDrawTextSize(playerid, ExpPercents[playerid], -32.666656, 7.466667);
+	PlayerTextDrawAlignment(playerid, ExpPercents[playerid], 1);
+	PlayerTextDrawColor(playerid, ExpPercents[playerid], 255);
+	PlayerTextDrawUseBox(playerid, ExpPercents[playerid], true);
+	PlayerTextDrawBoxColor(playerid, ExpPercents[playerid], 0);
+	PlayerTextDrawSetShadow(playerid, ExpPercents[playerid], 0);
+	PlayerTextDrawSetOutline(playerid, ExpPercents[playerid], 0);
+	PlayerTextDrawBackgroundColor(playerid, ExpPercents[playerid], 51);
+	PlayerTextDrawFont(playerid, ExpPercents[playerid], 2);
+	PlayerTextDrawSetProportional(playerid, ExpPercents[playerid], 1);
+
+	LevelText[playerid] = CreatePlayerTextDraw(playerid, 622.666503, 418.962982, "1");
+	PlayerTextDrawLetterSize(playerid, LevelText[playerid], 0.338333, 1.583407);
+	PlayerTextDrawAlignment(playerid, LevelText[playerid], 2);
+	PlayerTextDrawColor(playerid, LevelText[playerid], -65281);
+	PlayerTextDrawUseBox(playerid, LevelText[playerid], true);
+	PlayerTextDrawBoxColor(playerid, LevelText[playerid], 0);
+	PlayerTextDrawSetShadow(playerid, LevelText[playerid], 0);
+	PlayerTextDrawSetOutline(playerid, LevelText[playerid], 1);
+	PlayerTextDrawBackgroundColor(playerid, LevelText[playerid], 51);
+	PlayerTextDrawFont(playerid, LevelText[playerid], 2);
+	PlayerTextDrawSetProportional(playerid, LevelText[playerid], 1);
 
 	new inv_slot_x = 501;
 	new inv_slot_y = 179;
@@ -11417,7 +11844,7 @@ stock DeletePlayerTextDraws(playerid)
 	PlayerTextDrawDestroy(playerid, ChrInfPersonalRate[playerid]);
 	PlayerTextDrawDestroy(playerid, ChrInfText1[playerid]);
 	PlayerTextDrawDestroy(playerid, ChrInfText2[playerid]);
-	PlayerTextDrawDestroy(playerid, ChrInfRate[playerid]);
+	PlayerTextDrawDestroy(playerid, ChrInfOC[playerid]);
 	PlayerTextDrawDestroy(playerid, ChrInfAllRate[playerid]);
 	PlayerTextDrawDestroy(playerid, ChrInfClose[playerid]);
 	PlayerTextDrawDestroy(playerid, ChrInfAccSlot2[playerid]);
