@@ -22,14 +22,14 @@
 
 //Mysql settings
 
-#define SQL_HOST "127.0.0.1"
+/*#define SQL_HOST "127.0.0.1"
 #define SQL_USER "tsar"
 #define SQL_DB "bcircus"
-#define SQL_PASS "2151"
-/*#define SQL_HOST "212.22.93.45"
-#define SQL_USER "gsvtqhss"
-#define SQL_DB "gsvtqhss_21809"
-#define SQL_PASS "21510055"*/
+#define SQL_PASS "2151"*/
+#define SQL_HOST "212.22.93.37"
+#define SQL_USER "wingsgmk"
+#define SQL_DB "wingsgmk_28012"
+#define SQL_PASS "21510055"
 
 //Data types
 #define TYPE_INT 0x01
