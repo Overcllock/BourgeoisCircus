@@ -1,4 +1,4 @@
-//Bourgeois Circus 2.01
+//Bourgeois Circus 2.02
 
 #include <a_samp>
 #include <a_mail>
@@ -18,7 +18,7 @@
 
 #pragma dynamic 31294
 
-#define VERSION 2.011
+#define VERSION 2.021
 
 //Mysql settings
 
@@ -76,8 +76,8 @@
 #define MAX_GRADES 5
 #define MAX_BOSSES 5
 #define MAX_ITEM_ID 1000
-#define MAX_LOOT 40
-#define MAX_WALKER_LOOT 10
+#define MAX_LOOT 30
+#define MAX_WALKER_LOOT 6
 #define MAX_PVP_PANEL_ITEMS 5
 #define MAX_RELIABLE_TARGETS 5
 #define MAX_TEAMCOLORS 2
@@ -92,7 +92,7 @@
 #define MAX_TOUR_TIME 180
 #define MAX_WALKERS 20
 #define MAX_COOPERATE_MSGS 10
-#define WALKERS_LIMIT 35
+#define WALKERS_LIMIT 20
 #define MAX_WALKERS_ONE_RANK 3
 #define MAX_WATCHERS_POSITIONS 4
 
@@ -1081,6 +1081,7 @@ public OnTourEnd(finished)
 			for(new j = 0; j < MAX_OWNERS; j++)
 				FCNPC_HideInTabListForPlayer(i, TourPlayers[j]);
 			FCNPC_Destroy(i);
+			ResetPlayerVariables(i);
 		}
 	}
 	for(new i = 0; i < MAX_OWNERS; i++)
@@ -1520,7 +1521,7 @@ stock UpdatePlayerVisual(playerid)
 
 stock DisableEffects(playerid)
 {
-    for(new i = 0; i < 4; i++)
+    for(new i = 0; i < 10; i++)
     {
     	if(IsPlayerAttachedObjectSlotUsed(playerid, i))
     		RemovePlayerAttachedObject(playerid, i);
@@ -2226,6 +2227,12 @@ public OnDialogResponse(playerid, dialogid, response, listitem, inputtext[])
 					}
                     case 3:
 					{
+						if(PlayerInfo[playerid][IsWatcher] != 0)
+						{
+							SendClientMessage(playerid, COLOR_GREY, "Данная функция недоступна для наблюдателя.");
+							return 1;
+						}
+
 						if(PlayerInfo[playerid][Simulations] == 0)
 						{
 							SendClientMessage(playerid, COLOR_LIGHTRED, "Для этого участника симуляция сейчас недоступна.");
@@ -2313,7 +2320,7 @@ public OnDialogResponse(playerid, dialogid, response, listitem, inputtext[])
 		{
 			if(response)
 			{
-				new listitems[] = "Информация о турнире\nТурнирная таблица\nУчастники текущего тура\nПодать сигнал готовности";
+				new listitems[] = "Информация о турнире\nТурнирная таблица\nУчастники следующего тура\nСимуляция автопрокачки\nПодать сигнал готовности";
 				ShowPlayerDialog(playerid, 200, DIALOG_STYLE_TABLIST, "Заведующий турнирами", listitems, "Далее", "Закрыть");
 			}
 			else
@@ -4115,14 +4122,25 @@ stock StartTour()
 stock GetScoreDiff(rate1, rate2, bool:is_killer)
 {
 	new diff = rate1 - rate2;
-	if(diff > 0)
-		diff = floatround(floatmul(diff, 0.16));
+	if(diff > 2500)
+		diff = floatround(floatmul(diff, 0.4));
+	else if(diff > 2000)
+		diff = floatround(floatmul(diff, 0.35));
+	else if(diff > 1500)
+		diff = floatround(floatmul(diff, 0.3));
+	else if(diff > 1000)
+		diff = floatround(floatmul(diff, 0.25));
+	else if(diff > 500)
+		diff = floatround(floatmul(diff, 0.2));
+	else if(diff > 0)
+		diff = floatround(floatmul(diff, 0.15));
 	else
 		diff = floatround(floatabs(floatmul(3001 - floatabs(diff), 0.007)));
+
 	if(is_killer)
 		diff += 50;
 	else
-		diff = floatround(floatmul(diff, 0.3));
+		diff = floatround(floatmul(diff, 0.5));
 	return diff;
 }
 
@@ -4347,6 +4365,13 @@ stock ParticipantBehaviour(id)
 		return 1;
 	}
 
+	//If NPC has a lot of aimers - run away
+	if(GetAimingPlayersCount(id) > 3 && GetPlayerHPPercent(id) < 50 && !FCNPC_IsMoving(id))
+	{
+		MoveAround(id, true);
+		return 1;
+	}
+
 	//Checking available target
 	if(!FCNPC_IsAiming(id) && !FCNPC_IsDead(id))
 	{
@@ -4369,8 +4394,20 @@ stock ParticipantBehaviour(id)
 	}
 
 	//If current target's HP > 20%, trying to find common target
+	new common_finded = -1;
 	if(fix_target == -1 && GetPlayerHPPercent(target) > 20 && GetAimingPlayersCount(target) < 5)
-		TryFindCommonTarget(id, target);
+		common_finded = TryFindCommonTarget(id, target);
+
+	//If there are targets with less HP beside player - change target
+	if(common_finded == -1 && fix_target == -1 && GetPlayerHPPercent(target) >= 20)
+	{
+		new potential_target = FindPlayerTarget(id, true);
+		if(potential_target != -1 && potential_target != target)
+		{
+			if(GetPlayerHPPercent(potential_target) < 20)
+				SetPlayerTarget(id, potential_target);
+		}
+	}
 
 	target = FCNPC_GetAimingPlayer(id);
 
@@ -4391,17 +4428,6 @@ stock ParticipantBehaviour(id)
 	}
 	else if(shotting_ticks > MAX_NPC_SHOT_TICKS)
 		FCNPC_AimAtPlayer(id, target, false);
-
-	//If there are targets with less HP beside player - change target
-	if(fix_target == -1 && GetPlayerHPPercent(target) >= 20)
-	{
-		new potential_target = FindPlayerTarget(id, true);
-		if(potential_target != -1 && potential_target != target)
-		{
-			if(GetPlayerHPPercent(potential_target) < 20)
-				SetPlayerTarget(id, potential_target);
-		}
-	}
 	
 	return 1;
 }
@@ -5777,52 +5803,52 @@ stock GetRateDifference(playerid, tour, pos, mid_rate)
 		{
 			switch(pos)
 			{
-				case 1: rate = 36;
-				case 2: rate = 32;
-				case 3: rate = 28;
-				case 4: rate = 25;
-				case 5: rate = 22;
-				case 6: rate = 18;
-				case 7: rate = 12;
+				case 1: rate = 32;
+				case 2: rate = 28;
+				case 3: rate = 25;
+				case 4: rate = 22;
+				case 5: rate = 17;
+				case 6: rate = 14;
+				case 7: rate = 11;
 				case 8: rate = 6;
-				case 9: rate = -2;
-				case 10: rate = -4;
-				case 11: rate = -6;
-				case 12: rate = -9;
-				case 13: rate = -12;
-				case 14: rate = -15;
-				case 15: rate = -18;
-				case 16: rate = -22;
+				case 9: rate = 1;
+				case 10: rate = -2;
+				case 11: rate = -4;
+				case 12: rate = -7;
+				case 13: rate = -11;
+				case 14: rate = -14;
+				case 15: rate = -16;
+				case 16: rate = -20;
 			}
 		}
 		case 3:
 		{
 			switch(pos)
 			{
-				case 1: rate = 43;
-				case 2: rate = 40;
-				case 3: rate = 36;
-				case 4: rate = 30;
-				case 5: rate = 24;
-				case 6: rate = 16;
+				case 1: rate = 36;
+				case 2: rate = 34;
+				case 3: rate = 32;
+				case 4: rate = 26;
+				case 5: rate = 20;
+				case 6: rate = 14;
 				case 7: rate = 7;
-				case 8: rate = -3;
-				case 9: rate = -5;
-				case 10: rate = -8;
-				case 11: rate = -12;
-				case 12: rate = -16;
+				case 8: rate = -1;
+				case 9: rate = -4;
+				case 10: rate = -7;
+				case 11: rate = -11;
+				case 12: rate = -15;
 			}
 		}
 		case 4:
 		{
 			switch(pos)
 			{
-				case 1: rate = 51;
-				case 2: rate = 46;
-				case 3: rate = 40;
-				case 4: rate = 32;
+				case 1: rate = 40;
+				case 2: rate = 37;
+				case 3: rate = 34;
+				case 4: rate = 28;
 				case 5: rate = 20;
-				case 6: rate = 8;
+				case 6: rate = 6;
 				case 7: rate = -4;
 				case 8: rate = -10;
 			}
@@ -5831,9 +5857,9 @@ stock GetRateDifference(playerid, tour, pos, mid_rate)
 		{
 			switch(pos)
 			{
-				case 1: rate = 65;
-				case 2: rate = 45;
-				case 3: rate = 25;
+				case 1: rate = 50;
+				case 2: rate = 35;
+				case 3: rate = 20;
 				case 4: rate = 0;
 			}
 		}
@@ -5843,8 +5869,8 @@ stock GetRateDifference(playerid, tour, pos, mid_rate)
 	if(rate_diff > 0)
 		rate += rate_diff / 25;
 
-	if(rate > 75) rate = 75;
-	if(rate < -75) rate = -75;
+	if(rate > 65) rate = 65;
+	if(rate < -65) rate = -65;
 
 	return rate;
 }
@@ -6167,12 +6193,12 @@ stock FindPlayerTarget(npcid, bool:by_minhp = false)
 	new Float:distances[MAX_PARTICIPANTS];
 	new Float:available_dist = 0;
 
-	for (new i = 0; i < MAX_RELIABLE_TARGETS; i++)
+	for(new i = 0; i < MAX_RELIABLE_TARGETS; i++)
 		nearest_targets[i] = -1;
-	for (new i = 0; i < MAX_PARTICIPANTS; i++)
+	for(new i = 0; i < MAX_PARTICIPANTS; i++)
 		distances[i] = 1000.0;
 
-	for (new i = 0; i < MAX_PARTICIPANTS; i++)
+	for(new i = 0; i < MAX_PARTICIPANTS; i++)
 	{
 		if(PvpInfo[i][ID] == -1) continue;
 		if(npcid == PvpInfo[i][ID]) continue;
@@ -6182,7 +6208,7 @@ stock FindPlayerTarget(npcid, bool:by_minhp = false)
 	SortArrayAscending(distances);
 	available_dist = distances[MAX_RELIABLE_TARGETS-1];
 
-    for (new i = 0; i < MAX_PARTICIPANTS; i++) 
+    for(new i = 0; i < MAX_PARTICIPANTS; i++) 
 	{
 		if(PvpInfo[i][ID] == -1) continue;
 		if(PvpInfo[i][ID] == npcid || FCNPC_IsDead(PvpInfo[i][ID]))
@@ -6211,9 +6237,9 @@ stock FindPlayerTarget(npcid, bool:by_minhp = false)
 	if(!by_minhp)
 		return nearest_targets[0];
 
-	for (new i = 0; i < MAX_RELIABLE_TARGETS; i++)
+	for(new i = 0; i < MAX_RELIABLE_TARGETS; i++)
 	{
-		new Float:min_hp = 1001;
+		new Float:min_hp = 50001;
 		if(nearest_targets[i] == -1)
 			break;
 		
@@ -6274,7 +6300,12 @@ stock TryFindCommonTarget(playerid, current_target)
 	}
 
 	if(target != current_target)
+	{
 		SetPlayerTarget(playerid, target);
+		return 1;
+	}
+
+	return -1;
 }
 
 stock SetPlayerTarget(playerid, target = -1)
@@ -6414,6 +6445,7 @@ stock DestroyBoss()
 {
 	IsBoss[BossNPC] = false;
 	FCNPC_Destroy(BossNPC);
+	ResetPlayerVariables(BossNPC);
 	BossNPC = -1;
 
 	for(new i = 0; i < MAX_PLAYERS; i++)
@@ -6675,10 +6707,13 @@ stock GiveKillScore(playerid, killerid)
         }
     }
 
-	for(new i = 1; i < MAX_PARTICIPANTS; i++)
+	for(new i = 0; i < MAX_PARTICIPANTS; i++)
 	{
+		if(damagers_ids[i] == killer_idx)
+			continue;
 		if(DmgInfo[playerid][i] <= 0)
 			break;
+
 		new part_id = PvpInfo[damagers_ids[i]][ID];
 		if(part_id == -1 || part_id == killerid || part_id == playerid || part_id == INVALID_PLAYER_ID || GetPlayerTourTeam(playerid) == GetPlayerTourTeam(part_id))
 			continue;
@@ -11162,6 +11197,32 @@ stock InitWalkers()
 	}
 }
 
+stock ResetPlayerVariables(playerid)
+{
+	PlayerInfo[playerid][ID] = 0;
+	PlayerInfo[playerid][Rate] = 0;
+	PlayerInfo[playerid][Rank] = 0;
+	PlayerInfo[playerid][Status] = 0;
+	PlayerInfo[playerid][IsWatcher] = 0;
+	PlayerInfo[playerid][Cash] = 0;
+	PlayerInfo[playerid][Sex] = 0;
+	PlayerInfo[playerid][WeaponSlotID] = 0;
+	PlayerInfo[playerid][ArmorSlotID] = 81;
+    PlayerInfo[playerid][HatSlotID] = 161;
+    PlayerInfo[playerid][GlassesSlotID] = -1;
+    PlayerInfo[playerid][WatchSlotID] = -1;
+	PlayerInfo[playerid][RingSlot1ID] = -1;
+	PlayerInfo[playerid][RingSlot2ID] = -1;
+    PlayerInfo[playerid][AmuletteSlot1ID] = -1;
+	PlayerInfo[playerid][AmuletteSlot2ID] = -1;
+	PlayerInfo[playerid][WeaponMod] = MOD_CLEAR;
+	PlayerInfo[playerid][ArmorMod] = MOD_CLEAR;
+    PlayerInfo[playerid][HatMod] = MOD_CLEAR;
+    PlayerInfo[playerid][GlassesMod] = MOD_CLEAR;
+    PlayerInfo[playerid][WatchMod] = MOD_CLEAR;
+	DisableEffects(playerid);
+}
+
 stock DestroyWalkers()
 {
 	for(new i = 0; i < MAX_WALKERS; i++)
@@ -11171,6 +11232,7 @@ stock DestroyWalkers()
 			KillTimer(WalkerRespawnTimer[Walkers[i][ID]]);
 		FCNPC_Destroy(Walkers[i][ID]);
 		IsWalker[Walkers[i][ID]] = false;
+		ResetPlayerVariables(Walkers[i][ID]);
 	}
 }
 
