@@ -1,4 +1,4 @@
-//Bourgeois Circus 2.02
+//Bourgeois Circus 2.03
 
 #include <a_samp>
 #include <a_mail>
@@ -18,7 +18,7 @@
 
 #pragma dynamic 31294
 
-#define VERSION 2.021
+#define VERSION 2.031
 
 //Mysql settings
 
@@ -76,7 +76,7 @@
 #define MAX_GRADES 5
 #define MAX_BOSSES 5
 #define MAX_ITEM_ID 1000
-#define MAX_LOOT 30
+#define MAX_LOOT 36
 #define MAX_WALKER_LOOT 6
 #define MAX_PVP_PANEL_ITEMS 5
 #define MAX_RELIABLE_TARGETS 5
@@ -182,15 +182,15 @@
 
 //Delays
 #define DEFAULT_SHOOT_DELAY 200
-#define COLT_SHOOT_DELAY 200
+#define COLT_SHOOT_DELAY 190
 #define DEAGLE_SHOOT_DELAY 290
-#define MP5_SHOOT_DELAY 140
-#define TEC_SHOOT_DELAY 115
+#define MP5_SHOOT_DELAY 130
+#define TEC_SHOOT_DELAY 75
 #define AK_SHOOT_DELAY 185
 #define M4_SHOOT_DELAY 175
 #define SHOTGUN_SHOOT_DELAY 520
-#define SAWNOFF_SHOOT_DELAY 430
-#define COMBAT_SHOOT_DELAY 360
+#define SAWNOFF_SHOOT_DELAY 450
+#define COMBAT_SHOOT_DELAY 390
 
 //Static items
 #define ITEM_GEN_HP_ID 			277
@@ -198,6 +198,11 @@
 #define ITEM_GEN_DEFENSE_ID 	279
 #define ITEM_LUCKY_CARD_ID 		280
 #define ITEM_SHAZOK_LETTER_ID 	281
+
+//Special abilites
+#define SPECIAL_AB_EFFECT_NONE 			0
+#define SPECIAL_AB_EFFECT_CONFUSION 	1
+#define SPECIAL_AB_EFFECT_SHAZOK_FORCE 	2
 
 /* Forwards */
 forward Time();
@@ -229,8 +234,8 @@ forward CheckDead(npcid);
 forward RespawnWalker(walkerid);
 forward TickMinute();
 forward RefreshWalkers();
-forward ResetPlayerInvulnearable(playerid);
 forward TickSecond(playerid);
+forward TickSecondGlobal();
 forward TickHour();
 
 /* Variables */
@@ -445,6 +450,14 @@ new TourTeam[MAX_PLAYERS] = NO_TEAM;
 new Walkers[MAX_WALKERS][wInfo];
 new WalkersDamagers[MAX_WALKERS][MAX_PLAYERS];
 
+new IsSpecialAbilityUsed = false;
+new IsNuclearBombExplodes = false;
+new IsTeamHealing = false;
+new SpecialAbilityDelay = 0;
+new SpecialAbilityEffect = SPECIAL_AB_EFFECT_NONE;
+new SpecialAbilityEffectTeam = NO_TEAM;
+new SpecialAbilityEffectTime = 0;
+
 //Pickups
 new home_enter = 0;
 new home_quit = 0;
@@ -471,7 +484,6 @@ new ParticipantsCount[MAX_PLAYERS];
 new Participants[MAX_PLAYERS][MAX_PARTICIPANTS][128];
 
 new WalkerRespawnTimer[MAX_PLAYERS] = -1;
-new InvulnearableTimer[MAX_PLAYERS] = -1;
 new SecondTimer[MAX_PLAYERS] = -1;
 
 //Arrays
@@ -937,6 +949,7 @@ public OnGameModeExit()
 	SaveTournamentInfo();
 	DeleteTextDraws();
 	ResetLoot();
+	ResetAllSpecialAbilites();
 	KillTimer(WorldTime_Timer);
 	KillTimer(WalkersRefreshTimer);
 	for (new i = 0; i < MAX_ACTORS; i++)
@@ -1034,7 +1047,9 @@ public OnPlayerLogin(playerid)
 	PlayerConnect[playerid] = true;
 	IsInventoryOpen[playerid] = false;
 	SelectedSlot[playerid] = -1;
+
 	SetPVarInt(playerid, "LastKill", -1);
+	SetPVarInt(playerid, "SpecialAbilityCooldown", 0);
 
 	UpdatePlayerMaxHP(playerid);
 	SetPlayerSkills(playerid);
@@ -1066,6 +1081,8 @@ public OnTourEnd(finished)
 		SendDeathMessage(-1, MAX_PLAYERS + 1, 0);
 
 	IsTourStarted = false;
+	ResetAllSpecialAbilites();
+
 	if(finished == 1)
 	{
 		GiveTourRates(Tournament[Tour]);
@@ -1359,9 +1376,13 @@ public OnPlayerGiveDamage(playerid, damagedid, Float:amount, weaponid, bodypart)
 	if(dodge < 0) dodge = 0;
 	if(dodge > 95) dodge = 95;
 	new bool:dodged = CheckChance(dodge);
+
 	new bool:is_crit = CheckChance(PlayerInfo[playerid][Crit]);
+	if(IsTourStarted && SpecialAbilityEffect == SPECIAL_AB_EFFECT_SHAZOK_FORCE && GetPlayerTourTeam(playerid) == SpecialAbilityEffectTeam)
+		is_crit = true;
+
 	new damage;
-	if(dodged || is_invulnearable == 1 || weaponid == 0)
+	if(dodged || is_invulnearable > 0 || weaponid == 0)
 		damage = 0;
 	else if(is_crit)
 		damage = PlayerInfo[playerid][DamageMax];
@@ -1370,6 +1391,9 @@ public OnPlayerGiveDamage(playerid, damagedid, Float:amount, weaponid, bodypart)
 	
 	new Float:defense_mul = GetDefenseMul(PlayerInfo[damagedid][Defense]);
 	damage = floatround(floatmul(damage, defense_mul));
+
+	if(IsTourStarted && SpecialAbilityEffect == SPECIAL_AB_EFFECT_SHAZOK_FORCE && GetPlayerTourTeam(playerid) == SpecialAbilityEffectTeam)
+		damage = damage * 2;
 
 	new real_damage;
 	if(floatsub(GetPlayerHP(damagedid), damage) < 0)
@@ -1397,7 +1421,7 @@ public OnPlayerGiveDamage(playerid, damagedid, Float:amount, weaponid, bodypart)
 
 	if(dodged)
 		SetPlayerChatBubble(damagedid, "Уклонение", 0x66CCCCFF, 80.0, 1200);
-	else if(is_invulnearable == 1)
+	else if(is_invulnearable > 0)
 		SetPlayerChatBubble(damagedid, "Неуязвимость", 0x9933FFFF, 80.0, 1200);
 	else
 	{
@@ -1410,6 +1434,8 @@ public OnPlayerGiveDamage(playerid, damagedid, Float:amount, weaponid, bodypart)
 	new_hp = GetPVarFloat(damagedid, "HP");
 	new_hp = floatsub(new_hp, damage);
 	SetPVarFloat(damagedid, "HP", new_hp);
+	if(IsNuclearBombExplodes || IsTeamHealing)
+		SetPlayerHP(damagedid, new_hp);
 
 	return 1;
 }
@@ -1430,11 +1456,8 @@ public OnPlayerDisconnect(playerid, reason)
 	if(!FCNPC_IsValid(playerid))
 		DeletePlayerTextDraws(playerid);
 	
-	if(IsValidTimer(InvulnearableTimer[playerid]))
-		KillTimer(InvulnearableTimer[playerid]);
 	if(IsValidTimer(SecondTimer[playerid]))
 		KillTimer(SecondTimer[playerid]);
-	InvulnearableTimer[playerid] = -1;
 	SecondTimer[playerid] = -1;
 
 	IsInventoryOpen[playerid] = false;
@@ -1446,6 +1469,8 @@ public OnPlayerDisconnect(playerid, reason)
 	IsDeath[playerid] = false;
 	IsSpawned[playerid] = false;
 	IsWalker[playerid] = false;
+
+	SetPVarInt(playerid, "SpecialAbilityCooldown", 0);
 
 	for (new i = 0; i < 10; i++)
 	    if (IsPlayerAttachedObjectSlotUsed(playerid, i))
@@ -1461,6 +1486,7 @@ public OnPlayerSpawn(playerid)
 	SetPVarFloat(playerid, "HP", MaxHP[playerid]);
 	SetPlayerHP(playerid, MaxHP[playerid]);
 	SetPVarInt(playerid, "Invulnearable", 0);
+	TogglePlayerControllable(playerid, 1);
 
 	if(IsDeath[playerid]) 
 	{
@@ -1470,6 +1496,8 @@ public OnPlayerSpawn(playerid)
 			ResetDamagersInfo(playerid);
 			TeleportToRandomArenaPos(playerid);
 			SetPlayerInvulnearable(playerid, TOUR_INVULNEARABLE_TIME);
+			if(SpecialAbilityEffect == SPECIAL_AB_EFFECT_CONFUSION && GetPlayerTourTeam(playerid) != SpecialAbilityEffectTeam)
+				TogglePlayerControllable(playerid, 0);
 		}
         else if(IsTourStarted && PlayerInfo[playerid][IsWatcher] != 0)
 		{
@@ -1574,12 +1602,6 @@ public OnPlayerDeath(playerid, killerid, reason)
 
 	IsDeath[playerid] = true; 
 	IsSpawned[playerid] = false;
-
-	if(IsValidTimer(InvulnearableTimer[playerid]))
-	{
-		KillTimer(InvulnearableTimer[playerid]);
-		InvulnearableTimer[playerid] = -1;
-	}
 
     if(PlayerInfo[playerid][IsWatcher] != 0)
 		return 0;
@@ -1941,6 +1963,31 @@ public OnPlayerKeyStateChange(playerid, newkeys, oldkeys)
 	}
 	else if(newkeys & 16)
 	{
+		//special ability
+		if(IsTourStarted && IsTourParticipant(PlayerInfo[playerid][ID]))
+		{
+			if(IsDeath[playerid])
+				return 1;
+
+			if(PlayerInfo[playerid][Status] == HIERARCHY_NONE)
+			{
+				SendClientMessage(playerid, COLOR_GREY, "Вы не состоите в Иерархии.");
+				return 1;
+			}
+
+			new sp_ab_cooldown = GetPVarInt(playerid, "SpecialAbilityCooldown");
+			if(sp_ab_cooldown > 0)
+			{
+				new str[64];
+				format(str, sizeof(str), "Повторите попытку через %d сек.", sp_ab_cooldown);
+				SendClientMessage(playerid, COLOR_GREY, str);
+			}
+			else
+				TryUseSpecialAbility(playerid, 100);
+			
+			return 1;
+		}
+
 		//буржуа
 		if(IsPlayerInRangeOfPoint(playerid, 2.0, 221.0985,-1838.1259,3.6268))
 		{
@@ -2689,7 +2736,8 @@ public OnDialogResponse(playerid, dialogid, response, listitem, inputtext[])
 				}
 
 				if((itemid != 281 && PlayerInfo[playerid][Cash] < item[Price] * count) || 
-				   (itemid == 281 && PlayerInfo[playerid][Cash] < (item[Price] + 1000 * PlayerInfo[playerid][Rank] * PlayerInfo[playerid][Rank]) * count))
+				   (itemid == 280 && PlayerInfo[playerid][Cash] < (item[Price] + 4000 * PlayerInfo[playerid][Rank] * PlayerInfo[playerid][Rank]) * count) ||
+				   (itemid == 281 && PlayerInfo[playerid][Cash] < (item[Price] + 2000 * PlayerInfo[playerid][Rank] * PlayerInfo[playerid][Rank]) * count))
 				{
 					ShowPlayerDialog(playerid, 1, DIALOG_STYLE_MSGBOX, "Ошибка", "Недостаточно денег.", "Закрыть", "");
 					return 0;
@@ -2718,8 +2766,10 @@ public OnDialogResponse(playerid, dialogid, response, listitem, inputtext[])
 				item = GetItem(itemid);
 
 				new price = 0;
-				if(itemid == 281)
-					price = (item[Price] + 1000 * PlayerInfo[playerid][Rank] * PlayerInfo[playerid][Rank]) * count;
+				if(itemid == 280)
+					price = (item[Price] + 4000 * PlayerInfo[playerid][Rank] * PlayerInfo[playerid][Rank]) * count;
+				else if(itemid == 281)
+					price = (item[Price] + 2000 * PlayerInfo[playerid][Rank] * PlayerInfo[playerid][Rank]) * count;
 				else
 					price = item[Price] * count;
 
@@ -3115,9 +3165,12 @@ public OnDialogResponse(playerid, dialogid, response, listitem, inputtext[])
 
 public FCNPC_OnUpdate(npcid)
 {
-	new Float:hp;
-	hp = GetPVarFloat(npcid, "HP");
-	SetPlayerHP(npcid, hp);
+	if(!IsNuclearBombExplodes && !IsTeamHealing)
+	{
+		new Float:hp;
+		hp = GetPVarFloat(npcid, "HP");
+		SetPlayerHP(npcid, hp);
+	}
 	
 	if(npcid == BossNPC && !IsTourStarted)
 	{
@@ -3152,9 +3205,13 @@ public OnPlayerUpdate(playerid)
 	if(FCNPC_IsValid(playerid)) return 0;
 	if(!IsSpawned[playerid]) return 0;
 
-	new Float:hp;
-	hp = GetPVarFloat(playerid, "HP");
-	SetPlayerHP(playerid, hp);
+	if(!IsNuclearBombExplodes && !IsTeamHealing)
+	{
+		new Float:hp;
+		hp = GetPVarFloat(playerid, "HP");
+		SetPlayerHP(playerid, hp);
+	}
+
 	UpdateHPBar(playerid);
 
 	if(IsTourStarted)
@@ -3657,6 +3714,7 @@ public Time()
 		format(string, 25, "%d:%d", hour, minute);
 	TextDrawSetString(WorldTime, string);
 
+	TickSecondGlobal();
 	if(minute == 0 && second == 0)
 		TickHour();
 	if(second == 0)
@@ -3672,7 +3730,7 @@ stock TryUseHealProp(playerid)
 	if(prop <= 0)
 		return;
 	
-	if(!CheckChance(11))
+	if(!CheckChance(7))
 		return;
 	
 	new Float:hp;
@@ -3689,17 +3747,144 @@ stock TryUseInvulProp(playerid)
 	if(prop <= 0)
 		return;
 	
-	if(!CheckChance(11))
+	if(!CheckChance(7))
 		return;
 	
 	SetPlayerInvulnearable(playerid, 2);
 }
 
+stock TryUseSpecialAbility(playerid, chance)
+{
+	if(!IsTourStarted) return;
+	if(SpecialAbilityDelay > 0) return;
+	if(IsSpecialAbilityUsed) return;
+	if(PlayerInfo[playerid][Status] == HIERARCHY_NONE) return;
+	if(GetPVarInt(playerid, "SpecialAbilityCooldown") > 0) return;
+	if(!CheckChance(chance)) return;
+
+	switch(PlayerInfo[playerid][Status])
+	{
+		case HIERARCHY_LEADER:
+		{
+			//растерянность
+			new team = GetPlayerTourTeam(playerid);
+
+			IsSpecialAbilityUsed = true;
+			SpecialAbilityEffect = SPECIAL_AB_EFFECT_CONFUSION;
+			SpecialAbilityEffectTime = 5;
+			SpecialAbilityEffectTeam = team;
+			ResetAllTeamTargets(team);
+
+			SetPVarInt(playerid, "SpecialAbilityCooldown", 50);
+
+			new string[255];
+			format(string, sizeof(string), "{cc0000}[Патриарх] {ffffff}%s использует {cc0000}<Растерянность>", PlayerInfo[playerid][Name]);
+			SendClientMessageToAll(COLOR_WHITE, string);
+		}
+		case HIERARCHY_ARCHONT:
+		{
+			//ядерная бомба
+			new team = GetPlayerTourTeam(playerid);
+			ExplodeNuclearBomb(team);
+			SetPVarInt(playerid, "SpecialAbilityCooldown", 30);
+
+			new string[255];
+			format(string, sizeof(string), "{674ea7}[Архонт] {ffffff}%s использует {674ea7}<Ядерная ракета>", PlayerInfo[playerid][Name]);
+			SendClientMessageToAll(COLOR_WHITE, string);
+		}
+		case HIERARCHY_ATTACK:
+		{
+			//сила великого Шажка
+			new team = GetPlayerTourTeam(playerid);
+			
+			IsSpecialAbilityUsed = true;
+			SpecialAbilityEffect = SPECIAL_AB_EFFECT_SHAZOK_FORCE;
+			SpecialAbilityEffectTime = 5;
+			SpecialAbilityEffectTeam = team;
+
+			SetPVarInt(playerid, "SpecialAbilityCooldown", 45);
+
+			new string[255];
+			format(string, sizeof(string), "{0000ff}[Атакующий] {ffffff}%s использует {0000ff}<Сила великого Шажка>", PlayerInfo[playerid][Name]);
+			SendClientMessageToAll(COLOR_WHITE, string);
+		}
+		case HIERARCHY_DEFENSE:
+		{
+			//доспехи Бога
+			new team = GetPlayerTourTeam(playerid);
+			SetAllTeamInvulnearable(team, 5);
+			SetPVarInt(playerid, "SpecialAbilityCooldown", 45);
+
+			new string[255];
+			format(string, sizeof(string), "{e69138}[Защитник] {ffffff}%s использует {e69138}<Доспехи Бога>", PlayerInfo[playerid][Name]);
+			SendClientMessageToAll(COLOR_WHITE, string);
+		}
+		case HIERARCHY_SUPPORT:
+		{
+			//целитель
+			new team = GetPlayerTourTeam(playerid);
+			HealAllTeam(team);
+			SetPVarInt(playerid, "SpecialAbilityCooldown", 45);
+
+			new string[255];
+			format(string, sizeof(string), "{c27ba0}[Поддержка] {ffffff}%s использует {c27ba0}<Целитель>", PlayerInfo[playerid][Name]);
+			SendClientMessageToAll(COLOR_WHITE, string);
+		}
+	}
+}
+
+stock ResetAllSpecialAbCooldowns()
+{
+	for(new i = 0; i < MAX_PLAYERS; i++)
+	{
+		if(!IsPlayerConnected(i))
+			continue;
+		SetPVarInt(i, "SpecialAbilityCooldown", 0);
+	}
+}
+
+stock ResetAllSpecialAbilites()
+{
+	IsSpecialAbilityUsed = false;
+	IsNuclearBombExplodes = false;
+	IsTeamHealing = false;
+
+	UnfreezeAll();
+	ResetAllSpecialAbCooldowns();
+
+	SpecialAbilityDelay = 0;
+	SpecialAbilityEffectTime = 0;
+	SpecialAbilityEffectTeam = NO_TEAM;
+	SpecialAbilityEffect = SPECIAL_AB_EFFECT_NONE;
+}
+
+stock UnfreezeAll()
+{
+	for(new i = 0; i < MAX_PLAYERS; i++)
+	{
+		if(!IsPlayerConnected(i) || FCNPC_IsValid(i))
+			continue;
+		TogglePlayerControllable(i, 1);
+	}
+}
+
 public TickSecond(playerid)
 {
-	RegeneratePlayerHP(playerid);
+	if(!IsTourStarted)
+		RegeneratePlayerHP(playerid);
+
 	TryUseHealProp(playerid);
 	TryUseInvulProp(playerid);
+
+	if(FCNPC_IsValid(playerid) && !FCNPC_IsDead(playerid))
+		TryUseSpecialAbility(playerid, 15);
+
+	new inv_time = GetPVarInt(playerid, "Invulnearable");
+	if(inv_time > 0)
+	{
+		inv_time--;
+		SetPVarInt(playerid, "Invulnearable", inv_time);
+	}
 
 	new coop_cooldown = GetPVarInt(playerid, "CooperateCooldown");
 	if(coop_cooldown > 0)
@@ -3713,6 +3898,34 @@ public TickSecond(playerid)
 	{
 		tp_cooldown--;
 		SetPVarInt(playerid, "TeleportCooldown", tp_cooldown);
+	}
+
+	new sp_cooldown = GetPVarInt(playerid, "SpecialAbilityCooldown");
+	if(sp_cooldown > 0)
+	{
+		sp_cooldown--;
+		SetPVarInt(playerid, "SpecialAbilityCooldown", sp_cooldown);
+	}
+}
+
+public TickSecondGlobal()
+{
+	if(SpecialAbilityDelay > 0)
+		SpecialAbilityDelay--;
+	
+	if(SpecialAbilityEffectTime > 0)
+	{
+		SpecialAbilityEffectTime--;
+		if(SpecialAbilityEffectTime <= 0)
+		{
+			if(SpecialAbilityEffect == SPECIAL_AB_EFFECT_CONFUSION)
+				UnfreezeAll();
+
+			SpecialAbilityEffectTime = 0;
+			SpecialAbilityEffectTeam = NO_TEAM;
+			SpecialAbilityEffect = SPECIAL_AB_EFFECT_NONE;
+			IsSpecialAbilityUsed = false;
+		}
 	}
 }
 
@@ -3759,11 +3972,6 @@ public RefreshWalkers()
 	DestroyWalkers();
 	InitWalkers();
 	return 1;
-}
-
-public ResetPlayerInvulnearable(playerid)
-{
-	SetPVarInt(playerid, "Invulnearable", 0);
 }
 
 public TeleportToHome(playerid)
@@ -4017,6 +4225,8 @@ stock StartTour()
 		PvpInfo[i][Deaths] = 0;
 	}
 
+	ResetAllSpecialAbilites();
+	SpecialAbilityDelay = 10;
 	IsTourStarted = true;
 
 	//teleport all
@@ -4224,6 +4434,15 @@ stock InitTourNPC(npcid)
 	UpdatePlayerWeapon(npcid);
 }
 
+stock SetPlayerHPPercent(playerid, percent)
+{
+	new Float:hp;
+	hp = floatmul(GetPlayerMaxHP(playerid), floatdiv(percent, 100));
+
+	SetPVarFloat(playerid, "HP", hp);
+	SetPlayerHP(playerid, hp);
+}
+
 stock GetPlayerHPPercent(playerid)
 {
 	new Float:hp = GetPlayerHP(playerid);
@@ -4235,12 +4454,11 @@ stock GetPlayerHPPercent(playerid)
 
 stock SetPlayerInvulnearable(playerid, time)
 {
-	SetPVarInt(playerid, "Invulnearable", 1);
+	new inv = GetPVarInt(playerid, "Invulnearable");
+	if(inv < 0) 
+		inv = 0;
 
-	if(IsValidTimer(InvulnearableTimer[playerid]))
-		KillTimer(InvulnearableTimer[playerid]);
-
-	InvulnearableTimer[playerid] = SetTimerEx("ResetPlayerInvulnearable", time * 1000, false, "i", playerid);
+	SetPVarInt(playerid, "Invulnearable", inv + time);
 }
 
 stock GetRandomCooperateMessage()
@@ -4393,9 +4611,9 @@ stock ParticipantBehaviour(id)
 		return 1;
 	}
 
-	//If current target's HP > 20%, trying to find common target
+	//If current target's HP > 30%, trying to find common target
 	new common_finded = -1;
-	if(fix_target == -1 && GetPlayerHPPercent(target) > 20 && GetAimingPlayersCount(target) < 5)
+	if(fix_target == -1 && GetPlayerHPPercent(target) > 30 && GetAimingPlayersCount(target) < 3)
 		common_finded = TryFindCommonTarget(id, target);
 
 	//If there are targets with less HP beside player - change target
@@ -5407,16 +5625,31 @@ stock GiveTourRates(tour)
 		new id = PvpInfo[i][ID];
 		if(id == -1) break;
 
-		new mid_rate = 0;
+		new down_mid_rate = 0;
 		for(new j = i + 1; j < TourParticipantsCount; j++)
-			mid_rate += PlayerInfo[PvpInfo[j][ID]][Rate];
+			down_mid_rate += PlayerInfo[PvpInfo[j][ID]][Rate];
+		
+		if(down_mid_rate == 0)
+			down_mid_rate = PlayerInfo[PvpInfo[i][ID]][Rate];
 		
 		new divider = TourParticipantsCount - i - 1;
 		if(divider <= 0)
 			divider = 1;
-		mid_rate /= divider;
+		down_mid_rate /= divider;
 
-		new rate = GetRateDifference(id, tour, i+1, mid_rate);
+		new up_mid_rate = 0;
+		if(i > 0)
+		{
+			for(new j = 0; j < i; j++)
+				up_mid_rate += PlayerInfo[PvpInfo[j][ID]][Rate];
+			
+			up_mid_rate /= i;
+		}
+
+		if(up_mid_rate == 0)
+			up_mid_rate = PlayerInfo[PvpInfo[i][ID]][Rate];
+
+		new rate = GetRateDifference(id, tour, i+1, up_mid_rate, down_mid_rate);
 		PvpInfo[i][RateDiff] = rate;
 
 		if(IsPlayerConnected(id) && !FCNPC_IsValid(id))
@@ -5768,7 +6001,7 @@ stock IsAnyPlayersInRangeOfPoint(max_count, Float:range, Float:x, Float:y, Float
 	return false;
 }
 
-stock GetRateDifference(playerid, tour, pos, mid_rate)
+stock GetRateDifference(playerid, tour, pos, up_mid_rate, down_mid_rate)
 {
 	new rate = 0;
 	switch(tour)
@@ -5865,9 +6098,12 @@ stock GetRateDifference(playerid, tour, pos, mid_rate)
 		}
 	}
 
-	new rate_diff = mid_rate - PlayerInfo[playerid][Rate];
-	if(rate_diff > 0)
-		rate += rate_diff / 25;
+	new up_rate_diff = up_mid_rate - PlayerInfo[playerid][Rate];
+	new down_rate_diff = down_mid_rate - PlayerInfo[playerid][Rate];
+	if(down_rate_diff > 0)
+		rate += down_rate_diff / 20;
+	if(up_rate_diff < 0)
+		rate += up_rate_diff / 25;
 
 	if(rate > 65) rate = 65;
 	if(rate < -65) rate = -65;
@@ -6155,9 +6391,82 @@ stock GetPlayerTourTeam(playerid)
 	return TourTeam[playerid];
 }
 
+stock ExplodeNuclearBomb(team)
+{
+	IsNuclearBombExplodes = true;
+
+	for(new i = 0; i < MAX_PARTICIPANTS; i++)
+	{
+		new id = PvpInfo[i][ID];
+		if(id == -1) continue;
+		if(FCNPC_IsDead(id) || GetPlayerHP(id) <= 0) continue;
+
+		new p_team = GetPlayerTourTeam(id);
+		if(p_team != NO_TEAM && team != p_team)
+			SetPlayerHPPercent(id, 1);
+	}
+
+	IsNuclearBombExplodes = false;
+}
+
+stock HealAllTeam(team)
+{
+	IsTeamHealing = true;
+
+	for(new i = 0; i < MAX_PARTICIPANTS; i++)
+	{
+		new id = PvpInfo[i][ID];
+		if(id == -1) continue;
+		if(FCNPC_IsDead(id) || GetPlayerHP(id) <= 0) continue;
+
+		new p_team = GetPlayerTourTeam(id);
+		if(p_team != NO_TEAM && team == p_team)
+		{
+			SetPVarFloat(id, "HP", MaxHP[id]);
+			SetPlayerHP(id, MaxHP[id]);
+		}
+	}
+
+	IsTeamHealing = false;
+}
+
+stock ResetAllTeamTargets(team)
+{
+	for(new i = 0; i < MAX_PARTICIPANTS; i++)
+	{
+		new id = PvpInfo[i][ID];
+		if(id == -1) continue;
+		if(FCNPC_IsDead(id) || GetPlayerHP(id) <= 0) continue;
+
+		new p_team = GetPlayerTourTeam(id);
+		if(p_team != NO_TEAM && team != p_team)
+		{
+			if(FCNPC_IsValid(id))
+				ResetPlayerTarget(id);
+			else
+				TogglePlayerControllable(id, 0);
+		}
+	}
+}
+
+stock SetAllTeamInvulnearable(team, second)
+{
+	for(new i = 0; i < MAX_PARTICIPANTS; i++)
+	{
+		new id = PvpInfo[i][ID];
+		if(id == -1) continue;
+
+		new p_team = GetPlayerTourTeam(id);
+		if(p_team != NO_TEAM && team == p_team)
+			SetPlayerInvulnearable(id, second);
+	}
+}
+
 stock FindPlayerNearestTarget(npcid)
 {
 	if(npcid == -1) return -1;
+	if(SpecialAbilityEffect == SPECIAL_AB_EFFECT_CONFUSION && GetPlayerTourTeam(npcid) != NO_TEAM && GetPlayerTourTeam(npcid) != SpecialAbilityEffectTeam) return -1;
+
 	new targetid = -1;
 	new Float:min_dist = 10000;
 
@@ -6166,11 +6475,12 @@ stock FindPlayerNearestTarget(npcid)
 		new id = PvpInfo[i][ID];
 		if(id == -1) continue;
 		if(npcid == id) continue;
+		if(FCNPC_IsDead(id) || GetPlayerHP(id) <= 0) continue;
 		if(GetPlayerTourTeam(id) != NO_TEAM && GetPlayerTourTeam(npcid) == GetPlayerTourTeam(id))
 			continue;
 		
 		new invulnearable = GetPVarInt(id, "Invulnearable");
-		if(invulnearable == 1)
+		if(invulnearable > 0)
 			continue;
 		
 		new Float:dist;
@@ -6187,6 +6497,9 @@ stock FindPlayerNearestTarget(npcid)
 
 stock FindPlayerTarget(npcid, bool:by_minhp = false)
 {
+	if(npcid == -1) return -1;
+	if(SpecialAbilityEffect == SPECIAL_AB_EFFECT_CONFUSION && GetPlayerTourTeam(npcid) != NO_TEAM && GetPlayerTourTeam(npcid) != SpecialAbilityEffectTeam) return -1;
+
 	new targetid = -1;
 	new nearest_targets[MAX_RELIABLE_TARGETS];
 	new targets_count = 0;
@@ -6202,6 +6515,7 @@ stock FindPlayerTarget(npcid, bool:by_minhp = false)
 	{
 		if(PvpInfo[i][ID] == -1) continue;
 		if(npcid == PvpInfo[i][ID]) continue;
+		if(FCNPC_IsDead(PvpInfo[i][ID]) || GetPlayerHP(PvpInfo[i][ID]) <= 0) continue;
 		distances[i] = GetDistanceBetweenPlayers(npcid, PvpInfo[i][ID]);
 	}
 	
@@ -6219,7 +6533,7 @@ stock FindPlayerTarget(npcid, bool:by_minhp = false)
 			continue;
 
 		new invulnearable = GetPVarInt(PvpInfo[i][ID], "Invulnearable");
-		if(invulnearable == 1)
+		if(invulnearable > 0)
 			continue;
 		
 		new Float:dist;
@@ -6284,8 +6598,10 @@ stock TryFindCommonTarget(playerid, current_target)
 		if(part_id == -1 || part_id == playerid || GetPlayerTourTeam(playerid) == GetPlayerTourTeam(part_id))
 			continue;
 
+		if(FCNPC_IsDead(part_id) || GetPlayerHP(part_id) <= 0) continue;
+
 		new invulnearable = GetPVarInt(part_id, "Invulnearable");
-		if(invulnearable == 1)
+		if(invulnearable > 0)
 			continue;
 		
 		if(GetDistanceBetweenPlayers(playerid, part_id) > 15.0)
@@ -6308,12 +6624,25 @@ stock TryFindCommonTarget(playerid, current_target)
 	return -1;
 }
 
+stock ResetPlayerTarget(playerid)
+{
+	if(FCNPC_IsAiming(playerid))
+		FCNPC_StopAim(playerid);
+
+	SetPVarInt(playerid, "FixTargetID", -1);
+
+	if(!FCNPC_IsMoving(playerid))
+		MoveAround(playerid);
+}
+
 stock SetPlayerTarget(playerid, target = -1)
 {
 	if(FCNPC_IsAiming(playerid))
 		FCNPC_StopAim(playerid);
 	new targetid;
-	if(target == -1)
+	if(SpecialAbilityEffect == SPECIAL_AB_EFFECT_CONFUSION && GetPlayerTourTeam(playerid) != NO_TEAM && GetPlayerTourTeam(playerid) != SpecialAbilityEffectTeam)
+		targetid = -1;
+	else if(target == -1)
 	{
 		SetPVarInt(playerid, "FixTargetID", -1);
 		targetid = FindPlayerTarget(playerid, true);
@@ -6547,8 +6876,10 @@ stock GetMaterialsSellerItemsList(playerid)
 		if(itemid == -1) continue;
 		new item[BaseItem];
 		item = GetItem(itemid);
-		if(itemid == 281)
-			format(iteminfo, sizeof(iteminfo), "\n{%s}%s\t{66CC00}%d$", GetGradeColor(item[Grade]), item[Name], item[Price] + 1000 * PlayerInfo[playerid][Rank] * PlayerInfo[playerid][Rank]);
+		if(itemid == 280)
+			format(iteminfo, sizeof(iteminfo), "\n{%s}%s\t{66CC00}%d$", GetGradeColor(item[Grade]), item[Name], item[Price] + 4000 * PlayerInfo[playerid][Rank] * PlayerInfo[playerid][Rank]);
+		else if(itemid == 281)
+			format(iteminfo, sizeof(iteminfo), "\n{%s}%s\t{66CC00}%d$", GetGradeColor(item[Grade]), item[Name], item[Price] + 2000 * PlayerInfo[playerid][Rank] * PlayerInfo[playerid][Rank]);
 		else
 			format(iteminfo, sizeof(iteminfo), "\n{%s}%s\t{66CC00}%d$", GetGradeColor(item[Grade]), item[Name], item[Price]);
 		strcat(listitems, iteminfo);
@@ -6948,7 +7279,6 @@ stock RollBossLootItem(bossid)
 				case 600..799: itemid = GetRandomWatch(1, 2);
 				case 800..1099: itemid = 317; //коробка с бижутерией
 				case 1100..1399: itemid = 314; //коробка с модификатором
-				case 1400..1449: itemid = 297; //часть оружия Шажка
 				case 1450..1549: itemid = 305; //инструкция Шажка
 				case 1550..1749: { itemid = 306; count = 1; } //катализатор
 				case 1750..2049: { itemid = 286; count = 1; } //эликсир удачи
@@ -6956,6 +7286,7 @@ stock RollBossLootItem(bossid)
 				case 2200..2239: { itemid = 288; count = 1; } //эликсир удачи мастера
 				case 2240..2249: { itemid = 289; count = 1; } //редкий эликсир удачи
 				case 2250..6149: { itemid = 290; count = 2; } //усилитель
+				case 6150..6349: itemid = 297; //часть оружия Шажка
 				default: { itemid = GetRandomBooster(); count = 2; } //случайный бустер
 			}
 		}
@@ -6968,8 +7299,6 @@ stock RollBossLootItem(bossid)
 				case 600..799: itemid = GetRandomWatch(2, 3);
 				case 800..1099: itemid = 317; //коробка с бижутерией
 				case 1100..1399: itemid = 314; //коробка с модификатором
-				case 1400..1424: itemid = 298; //часть оружия Шажка
-				case 1425..1449: itemid = 299; //часть оружия Шажка
 				case 1450..1579: itemid = 305; //инструкция Шажка
 				case 1580..1679: { itemid = 306; count = 2; } //катализатор
 				case 1680..2004: { itemid = 286; count = 1; } //эликсир удачи
@@ -6977,6 +7306,8 @@ stock RollBossLootItem(bossid)
 				case 2180..2234: { itemid = 288; count = 1; } //эликсир удачи мастера
 				case 2235..2249: { itemid = 289; count = 1; } //редкий эликсир удачи
 				case 2250..6149: { itemid = 290; count = 4; } //усилитель
+				case 6150..6249: itemid = 298; //часть оружия Шажка
+				case 6250..6349: itemid = 299; //часть оружия Шажка
 				default: { itemid = GetRandomBooster(); count = 4; } //случайный бустер
 			}
 		}
@@ -6989,8 +7320,6 @@ stock RollBossLootItem(bossid)
 				case 600..799: itemid = GetRandomWatch(4, 6);
 				case 800..1099: itemid = 318; //коробка с бижутерией
 				case 1100..1399: itemid = 315; //коробка с модификатором
-				case 1400..1424: itemid = 300; //часть оружия Шажка
-				case 1425..1449: itemid = 301; //часть оружия Шажка
 				case 1450..1599: itemid = 305; //инструкция Шажка
 				case 1600..1609: itemid = 308; //оружие Древних
 				case 1610..1699: itemid = 307; //печать Древних
@@ -7000,6 +7329,8 @@ stock RollBossLootItem(bossid)
 				case 2300..2374: { itemid = 288; count = 2; } //эликсир удачи мастера
 				case 2375..2399: { itemid = 289; count = 1; } //редкий эликсир удачи
 				case 2400..6199: { itemid = 290; count = 8; } //усилитель
+				case 6200..6299: itemid = 300; //часть оружия Шажка
+				case 6300..6399: itemid = 301; //часть оружия Шажка
 				default: { itemid = GetRandomBooster(); count = 8; } //случайный бустер
 			}
 		}
@@ -7012,8 +7343,6 @@ stock RollBossLootItem(bossid)
 				case 600..799: itemid = GetRandomWatch(7, 8);
 				case 800..1099: itemid = 319; //коробка с бижутерией
 				case 1100..1399: itemid = 315; //коробка с модификатором
-				case 1400..1424: itemid = 302; //часть оружия Шажка
-				case 1425..1449: itemid = 303; //часть оружия Шажка
 				case 1450..1679: itemid = 305; //инструкция Шажка
 				case 1680..1689: itemid = 309; //оружие Древних
 				case 1690..1699: itemid = 310; //оружие Древних
@@ -7026,6 +7355,8 @@ stock RollBossLootItem(bossid)
 				case 2550..2624: { itemid = 288; count = 2; } //эликсир удачи мастера
 				case 2625..2649: { itemid = 289; count = 1; } //редкий эликсир удачи
 				case 2650..6299: { itemid = 290; count = 14; } //усилитель
+				case 6300..6399: itemid = 302; //часть оружия Шажка
+				case 6400..6499: itemid = 303; //часть оружия Шажка
 				default: { itemid = GetRandomBooster(); count = 14; } //случайный бустер
 			}
 		}
@@ -7038,7 +7369,6 @@ stock RollBossLootItem(bossid)
 				case 600..799: itemid = GetRandomWatch(9, 9);
 				case 800..1099: itemid = 319; //коробка с бижутерией
 				case 1100..1399: { itemid = 315; count = 2; } //коробка с модификатором
-				case 1400..1449: itemid = 304; //часть оружия Шажка
 				case 1450..1679: itemid = 305; //инструкция Шажка
 				case 1680..1689: itemid = 311; //оружие Древних
 				case 1690..1699: itemid = GetRandomAccessory(5); //бижутерия Древних
@@ -7051,6 +7381,7 @@ stock RollBossLootItem(bossid)
 				case 2550..2624: { itemid = 288; count = 3; } //эликсир удачи мастера
 				case 2625..2649: { itemid = 289; count = 2; } //редкий эликсир удачи
 				case 2650..6299: { itemid = 290; count = 28; } //усилитель
+				case 6300..6599: itemid = 304; //часть оружия Шажка
 				default: { itemid = GetRandomBooster(); count = 28; } //случайный бустер
 			}
 		}
@@ -9770,8 +10101,8 @@ stock GetWeaponBaseDamage(weaponid)
 		case 58..64: { damage[0] = 379; damage[1] = 579; }
 		case 65: { damage[0] = 146; damage[1] = 312; }
 		case 66..72: { damage[0] = 197; damage[1] = 421; }
-		case 73: { damage[0] = 319; damage[1] = 534; }
-		case 74..80: { damage[0] = 431; damage[1] = 721; }
+		case 73: { damage[0] = 118; damage[1] = 355; }
+		case 74..80: { damage[0] = 151; damage[1] = 464; }
 
 		case 245..247: { damage[0] = 22; damage[1] = 56; }
 		case 248..250: { damage[0] = 71; damage[1] = 257; }
@@ -9780,12 +10111,12 @@ stock GetWeaponBaseDamage(weaponid)
         case 257..259: { damage[0] = 46; damage[1] = 124; }
         case 260..262: { damage[0] = 338; damage[1] = 721; }
         case 263..265: { damage[0] = 160; damage[1] = 596; }
-        case 266..268: { damage[0] = 387; damage[1] = 955; }
+        case 266..268: { damage[0] = 132; damage[1] = 550; }
 
         case 269: { damage[0] = 93; damage[1] = 141; }
         case 270: { damage[0] = 595; damage[1] = 906; }
         case 271: { damage[0] = 311; damage[1] = 786; }
-        case 272: { damage[0] = 677; damage[1] = 1118; }
+        case 272: { damage[0] = 245; damage[1] = 693; }
 
         case 275: { damage[0] = 310; damage[1] = 544; }
         case 276: { damage[0] = 69; damage[1] = 92; }
