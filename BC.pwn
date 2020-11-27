@@ -61,9 +61,14 @@
 #define DEFAULT_POS_Y 645.6729
 #define DEFAULT_POS_Z 1057.5938
 
+//Tweaks. 0 = off, 1 = on
+#define IS_BNS_MODE 0
+
 //Limits
+#define MAX_TOUR 5
 #define MAX_PARTICIPANTS 20
 #define MAX_OWNERS 2
+#define MAX_TEAMCOLORS 5
 #define MAX_SLOTS 125
 #define MAX_PAGE_SLOTS 25
 #define MAX_SLOTS_X 5
@@ -76,11 +81,14 @@
 #define MAX_GRADES 5
 #define MAX_BOSSES 5
 #define MAX_ITEM_ID 1000
-#define MAX_LOOT 36
-#define MAX_WALKER_LOOT 6
+
+//x1 - 36, x1.5 - 48, x2 - 54, x3 - 70
+#define MAX_LOOT 54
+//x1 - 6, x1.5 - 10, x2 - 12, x3 - 16
+#define MAX_WALKER_LOOT 12
+
 #define MAX_PVP_PANEL_ITEMS 5
 #define MAX_RELIABLE_TARGETS 5
-#define MAX_TEAMCOLORS 2
 #define MAX_RATE 3000
 #define MAX_DEATH_MESSAGES 5
 #define MAX_NPC_MOVING_TICKS 60
@@ -398,6 +406,8 @@ enum wInfo
 };
 
 //Global
+new is_bns_mode = IS_BNS_MODE;
+
 new WalkersRefreshTimer = -1;
 new WorldTime_Timer = -1;
 new PrepareBossAttackTimer = -1;
@@ -570,7 +580,10 @@ new HexGradeColors[MAX_GRADES][1] = {
 };
 new HexTeamColors[MAX_TEAMCOLORS][1] = {
 	{0x339999FF},
-	{0xFF0099FF}
+	{0xFF0099FF},
+	{0xFFCC00FF},
+	{0x33CC00FF},
+	{0xCC6600FF}
 };
 
 new Float:WatchersPositions[MAX_WATCHERS_POSITIONS][3] = {
@@ -855,6 +868,21 @@ cmd:createinv(playerid, params[])
 	return 1;
 }
 
+cmd:happybirthday(playerid, params[])
+{
+	if(PlayerInfo[playerid][Admin] == 0)
+		return 0;
+
+	new owner[64];
+
+	if(sscanf(params, "s[64]", owner))
+		return SendClientMessage(playerid, COLOR_GREY, "USAGE: /happybirthday [owner]");
+
+	HappyBirthday(owner);
+	SendClientMessage(playerid, COLOR_GREY, "Done");
+	return 1;
+}
+
 cmd:reloadinv(playerid, params[])
 {
 	if(PlayerInfo[playerid][Admin] == 0)
@@ -1119,7 +1147,7 @@ public OnTourEnd(finished)
 		Tournament[Tour]++;
 		for(new i = 0; i < MAX_OWNERS; i++)
 			ShowTournamentTab(TourPlayers[i]);
-		if(Tournament[Tour] > 5)
+		if(Tournament[Tour] > MAX_TOUR)
 			OnTournamentEnd();
 		else
 		{
@@ -4333,22 +4361,22 @@ stock GetScoreDiff(rate1, rate2, bool:is_killer)
 {
 	new diff = rate1 - rate2;
 	if(diff > 2500)
-		diff = floatround(floatmul(diff, 0.4));
+		diff = floatround(floatmul(diff, 0.5));
 	else if(diff > 2000)
-		diff = floatround(floatmul(diff, 0.35));
+		diff = floatround(floatmul(diff, 0.45));
 	else if(diff > 1500)
-		diff = floatround(floatmul(diff, 0.3));
+		diff = floatround(floatmul(diff, 0.4));
 	else if(diff > 1000)
-		diff = floatround(floatmul(diff, 0.25));
+		diff = floatround(floatmul(diff, 0.35));
 	else if(diff > 500)
-		diff = floatround(floatmul(diff, 0.2));
+		diff = floatround(floatmul(diff, 0.3));
 	else if(diff > 0)
-		diff = floatround(floatmul(diff, 0.15));
+		diff = floatround(floatmul(diff, 0.2));
 	else
 		diff = floatround(floatabs(floatmul(3001 - floatabs(diff), 0.007)));
 
 	if(is_killer)
-		diff += 50;
+		diff += 40;
 	else
 		diff = floatround(floatmul(diff, 0.5));
 	return diff;
@@ -4966,6 +4994,37 @@ stock GiveTournamentRewards()
 				AddPlayerMoney(id, reward[Money]);
 		}
 	}
+}
+
+stock HappyBirthday(owner[])
+{
+	new query[255];
+	format(query, sizeof(query), "SELECT * FROM `players` WHERE `Owner` <> 'Admin' AND `Owner` = '%s' AND `IsWatcher`=0 LIMIT %d", owner, MAX_PARTICIPANTS);
+	new Cache:q_result = mysql_query(sql_handle, query);
+	new row_count = 0;
+	cache_get_row_count(row_count);
+	if(row_count <= 0)
+	{
+		print("Cannot get player list.");
+		return;
+	}
+
+	q_result = cache_save();
+	cache_unset_active();
+
+	for(new i = 0; i < row_count; i++)
+	{
+		new name[255];
+		new place;
+		cache_set_active(q_result);
+		cache_get_value_name(i, "Name", name);
+		cache_get_value_name_int(i, "LocalTopPos", place);
+		cache_unset_active();
+
+		PendingItem(name, 367, MOD_CLEAR, MAX_PARTICIPANTS / 2 + 1 - place, "С Днем рождения!");
+	}
+
+	cache_delete(q_result);
 }
 
 stock UpdateBossesCooldowns()
@@ -5900,7 +5959,8 @@ stock UpdateTourParticipants()
 	}
 	else
 	{
-		new p_count = MAX_PARTICIPANTS - (4 * (Tournament[Tour]-1));
+		new ejected_count = is_bns_mode > 0 ? 5 : 4;
+		new p_count = MAX_PARTICIPANTS - (ejected_count * (Tournament[Tour]-1));
 		new query[255] = "SELECT * FROM `accounts` WHERE `admin` = '0'";
 		new Cache:q_result = mysql_query(sql_handle, query);
 
@@ -6264,6 +6324,20 @@ stock OpenLockbox(playerid, lockboxid)
 				case 1500..1699: itemid = 288;
 				case 1700..1704: itemid = 289;
 				default: itemid = 286;
+			}
+		}
+		case 367:
+		{
+			count = 1;
+			switch(chance)
+			{
+				case 0..2499: { itemid = 320; count = 5; }
+				case 2500..3999: itemid = 314;
+				case 4000..4799: itemid = 315;
+				case 4800..5199: itemid = 316;
+				case 5200..7999: { itemid = 313; count = 5; }
+				case 8000..8999: itemid = 288;
+				default: itemid = GetRandomShazokPart(rank);
 			}
 		}
 	}
@@ -7428,6 +7502,13 @@ stock GetRandomWatch(minrank, maxrank)
 {
 	new rank = minrank + random(maxrank-minrank+1) - 1;
 	return 200 + rank;
+}
+
+stock GetRandomShazokPart(rank)
+{
+	if(rank > 3)
+		return 299 + rank - 4;
+	return 297 + rank - 1;
 }
 
 stock GetRandomAccessory(type)
@@ -10924,14 +11005,14 @@ stock PatriarchPayday()
 	new money;
 	new name[255];
 	cache_get_value_name_int(0, "Money", money);
-	cache_get_value_name(0, "Name", name);
+	cache_get_value_name(0, "LeaderName", name);
 	cache_delete(q_result);
 
 	if(money <= 0)
 		return;
 
 	new msg[255];
-	format(query, sizeof(query), "{00CC00}Накопленная комиссия с рынка составила: %d$", money);
+	format(msg, sizeof(msg), "{00CC00}Накопленная комиссия с рынка составила: %d$", money);
 	PendingMessage(name, msg);
 	
 	new playerid = GetPlayerID(name);
