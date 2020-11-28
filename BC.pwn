@@ -1,4 +1,4 @@
-//Bourgeois Circus 2.03
+//Bourgeois Circus 2.04
 
 #include <a_samp>
 #include <a_mail>
@@ -18,7 +18,7 @@
 
 #pragma dynamic 31294
 
-#define VERSION 2.031
+#define VERSION 2.041
 
 //Mysql settings
 
@@ -54,9 +54,9 @@
 #define DEFAULT_DAMAGE_MIN 13
 #define DEFAULT_DAMAGE_MAX 15
 #define DEFAULT_DEFENSE 100
-#define DEFAULT_CRIT 5
+#define DEFAULT_CRIT 10
 #define DEFAULT_DODGE 0
-#define DEFAULT_ACCURACY 10
+#define DEFAULT_ACCURACY 20
 #define DEFAULT_POS_X -2170.3948
 #define DEFAULT_POS_Y 645.6729
 #define DEFAULT_POS_Z 1057.5938
@@ -83,9 +83,9 @@
 #define MAX_ITEM_ID 1000
 
 //x1 - 36, x1.5 - 48, x2 - 54, x3 - 70
-#define MAX_LOOT 54
+#define MAX_LOOT 36
 //x1 - 6, x1.5 - 10, x2 - 12, x3 - 16
-#define MAX_WALKER_LOOT 12
+#define MAX_WALKER_LOOT 6
 
 #define MAX_PVP_PANEL_ITEMS 5
 #define MAX_RELIABLE_TARGETS 5
@@ -190,26 +190,26 @@
 
 //Delays
 #define DEFAULT_SHOOT_DELAY 200
-#define COLT_SHOOT_DELAY 190
-#define DEAGLE_SHOOT_DELAY 290
-#define MP5_SHOOT_DELAY 130
-#define TEC_SHOOT_DELAY 75
-#define AK_SHOOT_DELAY 185
-#define M4_SHOOT_DELAY 175
-#define SHOTGUN_SHOOT_DELAY 520
-#define SAWNOFF_SHOOT_DELAY 450
-#define COMBAT_SHOOT_DELAY 390
+#define COLT_SHOOT_DELAY 		190
+#define DEAGLE_SHOOT_DELAY 	270
+#define MP5_SHOOT_DELAY 		130
+#define TEC_SHOOT_DELAY 		75
+#define AK_SHOOT_DELAY 			185
+#define M4_SHOOT_DELAY 			175
+#define SHOTGUN_SHOOT_DELAY 440
+#define SAWNOFF_SHOOT_DELAY 410
+#define COMBAT_SHOOT_DELAY 	360
 
 //Static items
-#define ITEM_GEN_HP_ID 			277
+#define ITEM_GEN_HP_ID 				277
 #define ITEM_GEN_ATTACK_ID 		278
 #define ITEM_GEN_DEFENSE_ID 	279
 #define ITEM_LUCKY_CARD_ID 		280
-#define ITEM_SHAZOK_LETTER_ID 	281
+#define ITEM_SHAZOK_LETTER_ID 281
 
 //Special abilites
-#define SPECIAL_AB_EFFECT_NONE 			0
-#define SPECIAL_AB_EFFECT_CONFUSION 	1
+#define SPECIAL_AB_EFFECT_NONE 					0
+#define SPECIAL_AB_EFFECT_CONFUSION 		1
 #define SPECIAL_AB_EFFECT_SHAZOK_FORCE 	2
 
 /* Forwards */
@@ -5063,7 +5063,7 @@ stock UpdateBossesCooldowns()
 	cache_delete(q_result);
 }
 
-stock UpdateTempItems()
+stock UpdateTempHierarchyItems()
 {
 	new query[255] = "UPDATE `players` SET `WeaponSlotID` = '0', `WeaponMod` = '0 0 0 0 0 0 0' WHERE `Status` = '0' AND `WeaponSlotID`='275'";
 	new Cache:q_result = mysql_query(sql_handle, query);
@@ -5078,10 +5078,6 @@ stock UpdateTempItems()
 	cache_delete(q_result);
 
 	query = "UPDATE `players` SET `ArmorSlotID` = '81', `ArmorMod` = '0 0 0 0 0 0 0' WHERE `Status` <> '1' AND `ArmorSlotID` = '274'";
-	q_result = mysql_query(sql_handle, query);
-	cache_delete(q_result);
-
-	query = "UPDATE `inventories` SET `ItemID` = '-1', `Count` = '0' WHERE `ItemID` >= '273' AND `ItemID` <= '281'";
 	q_result = mysql_query(sql_handle, query);
 	cache_delete(q_result);
 
@@ -5104,6 +5100,21 @@ stock UpdateTempItems()
 				PlayerInfo[i][ArmorMod] = MOD_CLEAR;
 				UpdatePlayerStats(i);
 			}
+		}
+	}
+}
+
+stock UpdateTempItems()
+{
+	new query[255] = "UPDATE `inventories` SET `ItemID` = '-1', `Count` = '0' WHERE `ItemID` >= '273' AND `ItemID` <= '281'";
+	new Cache:q_result = mysql_query(sql_handle, query);
+	cache_delete(q_result);
+
+	for(new i = 0; i < MAX_PLAYERS; i++)
+	{
+		if(!IsPlayerConnected(i)) continue;
+		for(new j = 0; j < MAX_SLOTS; j++)
+		{
 			if(PlayerInventory[i][j][ID] >= 277 && PlayerInventory[i][j][ID] <= 281)
 			{
 				DeleteItem(i, j);
@@ -5512,18 +5523,18 @@ stock ShowMarketMenu(playerid)
 
 stock ShowMarketSellingItems(playerid, category, content[])
 {
-	new listitems[2048];
+	new listitems[4096];
 	if(category == MARKET_CATEGORY_MATERIAL)
 		listitems = "Предмет\tЦена за 1 шт\tВладелец\tВремя регистрации";
 	else
-		listitems = "Предмет (улучшения)\tЦена\tВладелец\tВремя регистрации";
+		listitems = "[Предмет](улучшения)\t[Ранг] цена\tВладелец\tВремя регистрации";
 	strcat(listitems, content);
 	ShowPlayerDialog(playerid, 1101, DIALOG_STYLE_TABLIST_HEADERS, "Рынок", listitems, "Купить", "Назад");
 }
 
 stock ShowMarketMyItems(playerid, content[])
 {
-	new listitems[2048] = "Предмет\tЦена за 1 шт\tВремя регистрации";
+	new listitems[4096] = "Предмет\tЦена за 1 шт\tВремя регистрации";
 	strcat(listitems, content);
 	ShowPlayerDialog(playerid, 1102, DIALOG_STYLE_TABLIST_HEADERS, "Рынок", listitems, "Снять", "Назад");
 }
@@ -5612,8 +5623,8 @@ stock ShowMarketBuyList(playerid, category)
 		}
 		else
 		{
-			format(buf, sizeof(buf), "\n{%s}[%s]%s\t{00CC00}%d$\t{ffffff}%s\t{ffffff}%d",
-				GetGradeColor(item[Grade]), item[Name], GetModString(m_item[Mod]), m_item[Price], m_item[Owner], m_item[rTime]
+			format(buf, sizeof(buf), "\n{%s}[%s]%s\t{ffffff}[{%s}%s{ffffff}] {00CC00}%d$\t{ffffff}%s\t{ffffff}%d",
+				GetGradeColor(item[Grade]), item[Name], GetModString(m_item[Mod]), GetColorByRank(item[MinRank]), GetRankInterval(item[MinRank]), m_item[Price], m_item[Owner], m_item[rTime]
 			);
 		}
 
@@ -7739,8 +7750,8 @@ stock UpdatePlayerStats(playerid)
 	}
 
 	PlayerInfo[playerid][Defense] = armor_defense + hat_defense + glasses_defense + watch_defense;
-	PlayerInfo[playerid][Accuracy] = DEFAULT_ACCURACY + GetPlayerPropValue(playerid, PROPERTY_ACCURACY) + PlayerInfo[playerid][Rank] * 10;
-	PlayerInfo[playerid][Dodge] = DEFAULT_DODGE + GetPlayerPropValue(playerid, PROPERTY_DODGE) + PlayerInfo[playerid][Rank] * 5;
+	PlayerInfo[playerid][Accuracy] = DEFAULT_ACCURACY + GetPlayerPropValue(playerid, PROPERTY_ACCURACY);
+	PlayerInfo[playerid][Dodge] = DEFAULT_DODGE + GetPlayerPropValue(playerid, PROPERTY_DODGE);
 	PlayerInfo[playerid][Crit] = DEFAULT_CRIT + GetPlayerPropValue(playerid, PROPERTY_CRIT) + PlayerInfo[playerid][Rank] * 2;
 
 	new damage_multiplier = 100 + GetPlayerPropValue(playerid, PROPERTY_DAMAGE);
@@ -10166,8 +10177,8 @@ stock GetWeaponBaseDamage(weaponid)
 	{
 		case 1: { damage[0] = 19; damage[1] = 24; }
 		case 2..8: { damage[0] = 25; damage[1] = 31; }
-		case 9: { damage[0] = 70; damage[1] = 101; }
-		case 10..16: { damage[0] = 91; damage[1] = 131; }
+		case 9: { damage[0] = 101; damage[1] = 149; }
+		case 10..16: { damage[0] = 135; damage[1] = 186; }
 		case 17: { damage[0] = 9; damage[1] = 18; }
 		case 18..24: { damage[0] = 12; damage[1] = 24; }
 		case 25: { damage[0] = 12; damage[1] = 26; }
@@ -10186,21 +10197,21 @@ stock GetWeaponBaseDamage(weaponid)
 		case 74..80: { damage[0] = 151; damage[1] = 464; }
 
 		case 245..247: { damage[0] = 22; damage[1] = 56; }
-		case 248..250: { damage[0] = 71; damage[1] = 257; }
-        case 251..253: { damage[0] = 16; damage[1] = 79; }
-        case 254..256: { damage[0] = 24; damage[1] = 92; }
-        case 257..259: { damage[0] = 46; damage[1] = 124; }
-        case 260..262: { damage[0] = 338; damage[1] = 721; }
-        case 263..265: { damage[0] = 160; damage[1] = 596; }
-        case 266..268: { damage[0] = 132; damage[1] = 550; }
+		case 248..250: { damage[0] = 132; damage[1] = 361; }
+		case 251..253: { damage[0] = 16; damage[1] = 79; }
+		case 254..256: { damage[0] = 24; damage[1] = 92; }
+		case 257..259: { damage[0] = 46; damage[1] = 124; }
+		case 260..262: { damage[0] = 338; damage[1] = 721; }
+		case 263..265: { damage[0] = 160; damage[1] = 596; }
+		case 266..268: { damage[0] = 132; damage[1] = 550; }
 
-        case 269: { damage[0] = 93; damage[1] = 141; }
-        case 270: { damage[0] = 595; damage[1] = 906; }
-        case 271: { damage[0] = 311; damage[1] = 786; }
-        case 272: { damage[0] = 245; damage[1] = 693; }
+		case 269: { damage[0] = 93; damage[1] = 141; }
+		case 270: { damage[0] = 595; damage[1] = 906; }
+		case 271: { damage[0] = 311; damage[1] = 786; }
+		case 272: { damage[0] = 245; damage[1] = 693; }
 
-        case 275: { damage[0] = 310; damage[1] = 544; }
-        case 276: { damage[0] = 69; damage[1] = 92; }
+		case 275: { damage[0] = 310; damage[1] = 544; }
+		case 276: { damage[0] = 69; damage[1] = 92; }
 
 		default: { damage[0] = 13; damage[1] = 15; }
 	}
@@ -10957,16 +10968,35 @@ stock IsPlayerBesideNPC(playerid)
 stock GetColorByRate(rate) 
 {
 	new color[16];
-	switch (rate) {
-	    case 501..1000: color = RateColors[1];
-	    case 1001..1200: color = RateColors[2];
-	    case 1201..1400: color = RateColors[3];
-	    case 1401..1600: color = RateColors[4];
-	    case 1601..2000: color = RateColors[5];
-	    case 2001..2300: color = RateColors[6];
-	    case 2301..2700: color = RateColors[7];
-	    case 2701..3000: color = RateColors[8];
-	    default: color = RateColors[0];
+	switch(rate) 
+	{
+		case 501..1000: color = RateColors[1];
+		case 1001..1200: color = RateColors[2];
+		case 1201..1400: color = RateColors[3];
+		case 1401..1600: color = RateColors[4];
+		case 1601..2000: color = RateColors[5];
+		case 2001..2300: color = RateColors[6];
+		case 2301..2700: color = RateColors[7];
+		case 2701..3000: color = RateColors[8];
+		default: color = RateColors[0];
+	}
+	return color;
+}
+
+stock GetColorByRank(rank) 
+{
+	new color[16];
+	switch(rank) 
+	{
+		case 2: color = RateColors[1];
+		case 3: color = RateColors[2];
+		case 4: color = RateColors[3];
+		case 5: color = RateColors[4];
+		case 6: color = RateColors[5];
+		case 7: color = RateColors[6];
+		case 8: color = RateColors[7];
+		case 9: color = RateColors[8];
+		default: color = RateColors[0];
 	}
 	return color;
 }
@@ -11025,6 +11055,7 @@ stock PatriarchPayday()
 stock UpdateHierarchy()
 {
 	PatriarchPayday();
+	UpdateTempHierarchyItems();
 
 	UpdateGlobalRatingTop();
 	ResetHierarchy();
