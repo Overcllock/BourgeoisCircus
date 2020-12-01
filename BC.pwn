@@ -1,4 +1,4 @@
-//Bourgeois Circus 2.04
+//Bourgeois Circus 2.1
 
 #include <a_samp>
 #include <a_mail>
@@ -18,7 +18,7 @@
 
 #pragma dynamic 31294
 
-#define VERSION 2.041
+#define VERSION 2.101
 
 //Mysql settings
 
@@ -79,13 +79,13 @@
 #define MAX_PROPERTIES 3
 #define MAX_DESCRIPTION_SIZE 40
 #define MAX_GRADES 5
-#define MAX_BOSSES 5
+#define MAX_BOSSES 6
 #define MAX_ITEM_ID 1000
 
 //x1 - 36, x1.5 - 48, x2 - 54, x3 - 70
-#define MAX_LOOT 36
+#define MAX_LOOT 48
 //x1 - 6, x1.5 - 10, x2 - 12, x3 - 16
-#define MAX_WALKER_LOOT 6
+#define MAX_WALKER_LOOT 10
 
 #define MAX_PVP_PANEL_ITEMS 5
 #define MAX_RELIABLE_TARGETS 5
@@ -156,6 +156,7 @@
 #define PROPERTY_LOOT 7
 #define PROPERTY_HEAL 8
 #define PROPERTY_INVUL 9
+#define PROPERTY_MAXHP 10
 
 //Modifiers variations
 #define MOD_DAMAGE 1
@@ -199,6 +200,7 @@
 #define SHOTGUN_SHOOT_DELAY 440
 #define SAWNOFF_SHOOT_DELAY 410
 #define COMBAT_SHOOT_DELAY 	360
+#define RIFLE_SHOOT_DELAY		450
 
 //Static items
 #define ITEM_GEN_HP_ID 				277
@@ -212,13 +214,21 @@
 #define SPECIAL_AB_EFFECT_CONFUSION 		1
 #define SPECIAL_AB_EFFECT_SHAZOK_FORCE 	2
 
+//Special activites
+#define SPECIAL_ACTIVITY_NONE 			0
+#define SPECIAL_ACTIVITY_S_DELIVERY 1
+
+#define SPECIAL_ACTIVITY_COOLDOWN 	10
+
 /* Forwards */
 forward Time();
 forward OnPlayerLogin(playerid);
 forward OnTourEnd(finished);
 forward OnTournamentEnd();
 forward OnPhaseChanged(oldphase, newphase);
+forward Float:GetDistanceBetweenPoints(Float:p1_x,Float:p1_y,Float:p1_z,Float:p2_x,Float:p2_y,Float:p2_z);
 forward Float:GetDistanceBetweenPlayers(p1, p2);
+forward Float:GetDistanceBetweenPlayerAndVeh(playerid, vehicleid);
 forward Float:GetPlayerMaxHP(playerid);
 forward Float:GetPlayerHP(playerid);
 forward Float:GetDefenseMul(defense);
@@ -245,6 +255,8 @@ forward RefreshWalkers();
 forward TickSecond(playerid);
 forward TickSecondGlobal();
 forward TickHour();
+forward OnSpecialActivityStart(activityid);
+forward OnSpecialActivityEnd(win);
 
 /* Variables */
 
@@ -422,6 +434,11 @@ new Tournament[tInfo];
 new TourParticipantsCount = 0;
 new TournamentTab[MAX_PARTICIPANTS][TopItem];
 
+new SpecialActivity = SPECIAL_ACTIVITY_NONE;
+new SpecialActivityDelay = 0;
+new SpecialActivityTimer = 0;
+new SpecialActivityVehicleID = -1;
+
 new AttackedBoss = -1;
 new bool:IsBossAttacker[MAX_PLAYERS] = false;
 new BossAttackersCount = 0;
@@ -517,13 +534,15 @@ new BossesNames[MAX_BOSSES][128] = {
 	{"BOSS_FactoryWorker"},
 	{"BOSS_Maximus"},
 	{"BOSS_ShazokVsemog"},
-	{"BOSS_Bourgeois"}
+	{"BOSS_Bourgeois"},
+	{"BOSS_NewYearShazok"}
 };
 new BossesSkins[MAX_BOSSES][1] = {
 	{78},
 	{8},
 	{119},
 	{149},
+	{249},
 	{5}
 };
 new BossesWeapons[MAX_BOSSES][1] = {
@@ -531,7 +550,8 @@ new BossesWeapons[MAX_BOSSES][1] = {
 	{32},
 	{30},
 	{25},
-	{26}
+	{26},
+	{33}
 };
 new CooperateMessages[MAX_COOPERATE_MSGS][64] = {
 	{"Есть!"},
@@ -939,6 +959,7 @@ public OnGameModeInit()
 	ShowPlayerMarkers(PLAYER_MARKERS_MODE_GLOBAL);
 	DisableNameTagLOS();
 	SetNameTagDrawDistance(300.0);
+	SetWorldTime(1);
 
 	CreateMap();
 	CreatePickups();
@@ -1096,6 +1117,57 @@ public OnPlayerLogin(playerid)
 	UpdatePlayerEffects(playerid);
 	
 	SecondTimer[playerid] = SetTimerEx("TickSecond", 1000, true, "i", playerid);
+}
+
+public OnUnoccupiedVehicleUpdate(vehicleid, playerid, passenger_seat, Float:new_x, Float:new_y, Float:new_z, Float:vel_x, Float:vel_y, Float:vel_z)
+{
+	if(SpecialActivity == SPECIAL_ACTIVITY_S_DELIVERY && vehicleid == SpecialActivityVehicleID)
+	{
+		if(GetDistanceBetweenPoints(new_x,new_y,new_z,221.0985,-1838.1259,3.6268) < 4)
+			OnSpecialActivityEnd(1);
+	}
+
+	return 1;
+}
+
+public OnSpecialActivityStart(activityid)
+{
+	if(activityid == SPECIAL_ACTIVITY_NONE) return;
+	if(activityid == SPECIAL_ACTIVITY_S_DELIVERY)
+	{
+		//spawn S
+		SpecialActivityVehicleID = CreateVehicle(466,282.7999900,-1872.8000000,2.4000000,0.0000000,0,0,-1); //S
+		SetVehicleParamsEx(SpecialActivityVehicleID, 0, 0, 0, 1, 0, 0, 0);
+
+		SendClientMessageToAll(COLOR_YELLOW, "Обнаружен S! Доставьте его скорее Буржуа и вас ждут награды!");
+		SendClientMessageToAll(COLOR_YELLOW, "У вас есть 100 секунд! Поторопитесь!");
+	}
+
+	SpecialActivity = activityid;
+	SpecialActivityTimer = 100;
+}
+
+public OnSpecialActivityEnd(win)
+{
+	if(SpecialActivity == SPECIAL_ACTIVITY_NONE) return;
+	if(SpecialActivity == SPECIAL_ACTIVITY_S_DELIVERY)
+	{
+		DestroyVehicle(SpecialActivityVehicleID);
+		SpecialActivityVehicleID = -1;
+		ResetAllWalkersTargets();
+
+		if(win)
+		{
+			SendClientMessageToAll(COLOR_GREEN, "S успешно доставлен получателю! Буржуа щедро одарил помощников, проверьте почту!");
+			GiveSpecialActivityRewards(SpecialActivity);
+		}
+		else
+			SendClientMessageToAll(COLOR_RED, "S не был доставлен в срок! Буржуа сильно недоволен...");
+	}
+
+	SpecialActivity = SPECIAL_ACTIVITY_NONE;
+	SpecialActivityDelay = SPECIAL_ACTIVITY_COOLDOWN;
+	SpecialActivityTimer = 0;
 }
 
 public OnTourEnd(finished)
@@ -1393,7 +1465,7 @@ public OnPlayerGiveDamage(playerid, damagedid, Float:amount, weaponid, bodypart)
 
 	if(PlayerInfo[playerid][IsWatcher] <= 0 && IsWalker[damagedid] && FCNPC_GetAimingPlayer(damagedid) == INVALID_PLAYER_ID)
 	{
-		if(PlayerInfo[playerid][WalkersLimit] > 0)
+		if(PlayerInfo[playerid][WalkersLimit] > 0 || SpecialActivity == SPECIAL_ACTIVITY_S_DELIVERY)
 			SetPlayerTarget(damagedid, playerid);
 		else 
 			return 0;
@@ -1505,6 +1577,12 @@ public OnPlayerDisconnect(playerid, reason)
 	        RemovePlayerAttachedObject(playerid, i);
 
 	PlayerConnect[playerid] = false;
+	return 1;
+}
+
+public OnVehicleDeath(vehicleid, killerid)
+{
+	SetVehicleToRespawn(vehicleid);
 	return 1;
 }
 
@@ -1708,7 +1786,8 @@ public OnPlayerDeath(playerid, killerid, reason)
 				if(PlayerInfo[killerid][WalkersLimit] <= 0)
 				{
 					PlayerInfo[killerid][WalkersLimit] = 0;
-					SendClientMessage(killerid, COLOR_LIGHTRED, "Достигнут лимит прохожих.");
+					if(SpecialActivity != SPECIAL_ACTIVITY_S_DELIVERY)
+						SendClientMessage(killerid, COLOR_LIGHTRED, "Достигнут лимит прохожих.");
 				}
 			}
 
@@ -2019,7 +2098,7 @@ public OnPlayerKeyStateChange(playerid, newkeys, oldkeys)
 		//буржуа
 		if(IsPlayerInRangeOfPoint(playerid, 2.0, 221.0985,-1838.1259,3.6268))
 		{
-            if(PlayerInfo[playerid][IsWatcher] != 0)
+			if(PlayerInfo[playerid][IsWatcher] != 0)
 			{
 				SendClientMessage(playerid, COLOR_GREY, "Данная функция недоступна для наблюдателя.");
 				return 1;
@@ -2027,10 +2106,21 @@ public OnPlayerKeyStateChange(playerid, newkeys, oldkeys)
 
 			ShowCmbWindow(playerid);
 		}
+		//коллекционер
+		else if(IsPlayerInRangeOfPoint(playerid, 2.0, 218.1786,-1835.7053,3.7114))
+		{
+			if(PlayerInfo[playerid][IsWatcher] != 0)
+			{
+				SendClientMessage(playerid, COLOR_GREY, "Данная функция недоступна для наблюдателя.");
+				return 1;
+			}
+
+			ShowPlayerDialog(playerid, 920, DIALOG_STYLE_MSGBOX, "Коллекционер", "Вы уверены, что хотите продать весь хлам?", "Продать", "Закрыть");
+		}
 		//рынок
 		else if(IsPlayerInRangeOfPoint(playerid, 3.0, 231.7, -1840.6, 2.5))
 		{
-            if(PlayerInfo[playerid][IsWatcher] != 0)
+			if(PlayerInfo[playerid][IsWatcher] != 0)
 			{
 				SendClientMessage(playerid, COLOR_GREY, "Данная функция недоступна для наблюдателя.");
 				return 1;
@@ -2041,7 +2131,7 @@ public OnPlayerKeyStateChange(playerid, newkeys, oldkeys)
 		//почта
 		else if(IsPlayerInRangeOfPoint(playerid, 2.0, 211.7733,-1838.2538,3.6687))
 		{
-            if(PlayerInfo[playerid][IsWatcher] != 0)
+			if(PlayerInfo[playerid][IsWatcher] != 0)
 			{
 				SendClientMessage(playerid, COLOR_GREY, "Данная функция недоступна для наблюдателя.");
 				return 1;
@@ -2060,11 +2150,11 @@ public OnPlayerKeyStateChange(playerid, newkeys, oldkeys)
 		{
 			new listitems[] = "Иерархия\nОбщий рейтинг участников\nРейтинг моих участников";
 			ShowPlayerDialog(playerid, 300, DIALOG_STYLE_TABLIST, "Доска почета", listitems, "Далее", "Закрыть");
-        }
+		}
 		//оружейник
 		else if(IsPlayerInRangeOfPoint(playerid,1.8,189.2644,-1825.4902,4.1411))
 		{
-            if(PlayerInfo[playerid][IsWatcher] != 0)
+			if(PlayerInfo[playerid][IsWatcher] != 0)
 			{
 				SendClientMessage(playerid, COLOR_GREY, "Данная функция недоступна для наблюдателя.");
 				return 1;
@@ -2077,7 +2167,7 @@ public OnPlayerKeyStateChange(playerid, newkeys, oldkeys)
 		//портной
 		else if(IsPlayerInRangeOfPoint(playerid,1.8,262.6658,-1825.2792,3.9126))
 		{
-            if(PlayerInfo[playerid][IsWatcher] != 0)
+			if(PlayerInfo[playerid][IsWatcher] != 0)
 			{
 				SendClientMessage(playerid, COLOR_GREY, "Данная функция недоступна для наблюдателя.");
 				return 1;
@@ -2090,7 +2180,7 @@ public OnPlayerKeyStateChange(playerid, newkeys, oldkeys)
 		//расходники
 		else if(IsPlayerInRangeOfPoint(playerid,1.8,-2166.7527,646.0400,1052.3750))
 		{
-            if(PlayerInfo[playerid][IsWatcher] != 0)
+			if(PlayerInfo[playerid][IsWatcher] != 0)
 			{
 				SendClientMessage(playerid, COLOR_GREY, "Данная функция недоступна для наблюдателя.");
 				return 1;
@@ -2100,10 +2190,23 @@ public OnPlayerKeyStateChange(playerid, newkeys, oldkeys)
 			listitems = GetMaterialsSellerItemsList(playerid);
 			ShowPlayerDialog(playerid, 700, DIALOG_STYLE_TABLIST_HEADERS, "Торговец расходниками", listitems, "Купить", "Закрыть");
 		}
+		//новогодний Шажок
+		else if(IsPlayerInRangeOfPoint(playerid,1.8,198.3415,-1854.9188,3.2889))
+		{
+			if(PlayerInfo[playerid][IsWatcher] != 0)
+			{
+				SendClientMessage(playerid, COLOR_GREY, "Данная функция недоступна для наблюдателя.");
+				return 1;
+			}
+
+			new listitems[2048];
+			listitems = GetNYShazokItemsList();
+			ShowPlayerDialog(playerid, 710, DIALOG_STYLE_TABLIST_HEADERS, "Новогодний Шажок", listitems, "Купить", "Закрыть");
+		}
 		//боссы
 		else if(IsPlayerInRangeOfPoint(playerid,1.8,243.1539,-1831.6542,3.9772))
 		{
-            if(PlayerInfo[playerid][IsWatcher] != 0)
+			if(PlayerInfo[playerid][IsWatcher] != 0)
 			{
 				SendClientMessage(playerid, COLOR_GREY, "Данная функция недоступна для наблюдателя.");
 				return 1;
@@ -2812,6 +2915,130 @@ public OnDialogResponse(playerid, dialogid, response, listitem, inputtext[])
 			}
 			return 1;
 		}
+		//новогодий Шажок
+		case 710:
+		{
+			if(response)
+			{
+				new itemid = -1;
+				new price = 0;
+
+				new query[255];
+				format(query, sizeof(query), "SELECT * FROM `ny_shazok_seller` WHERE `ID` = '%d' LIMIT 1", listitem);
+				new Cache:q_result = mysql_query(sql_handle, query);
+
+				new row_count = 0;
+				cache_get_row_count(row_count);
+				if(row_count <= 0)
+				{
+					cache_delete(q_result);
+					ShowPlayerDialog(playerid, 1, DIALOG_STYLE_MSGBOX, "Ошибка", "Не удалось купить предмет.", "Закрыть", "");
+					return 0;
+				}
+
+				cache_get_value_name_int(0, "ItemID", itemid);
+				cache_get_value_name_int(0, "Price", price);
+				cache_delete(q_result);
+
+				if(itemid == -1)
+				{
+					ShowPlayerDialog(playerid, 1, DIALOG_STYLE_MSGBOX, "Ошибка", "Не удалось купить предмет.", "Закрыть", "");
+					return 0;
+				}
+
+				new item[BaseItem];
+				item = GetItem(itemid);
+				
+				if(item[Type] == ITEMTYPE_PASSIVE && HasItem(playerid, itemid))
+				{
+					ShowPlayerDialog(playerid, 1, DIALOG_STYLE_MSGBOX, "Ошибка", "У вас уже есть этот предмет.", "Закрыть", "");
+					return 0;
+				}
+
+				SetPVarInt(playerid, "BuyedItemID", itemid);
+				SetPVarInt(playerid, "BuyedItemPrice", price);
+
+				new player_noses = GetItemsCount(playerid, 370);
+				new available_count = player_noses / price;
+				if(item[Type] == ITEMTYPE_PASSIVE)
+					available_count = available_count >= 1 ? 1 : 0;
+
+				new text[255];
+				format(text, sizeof(text), "Укажите количество.\nВы можете купить: %d", available_count);
+				ShowPlayerDialog(playerid, 711, DIALOG_STYLE_INPUT, "Покупка", text, "Купить", "Отмена");
+			}	
+			return 1;
+		}
+		case 711:
+		{
+			if(response)
+			{
+				new itemid = GetPVarInt(playerid, "BuyedItemID");
+				if(itemid == -1)
+				{
+					ShowPlayerDialog(playerid, 1, DIALOG_STYLE_MSGBOX, "Ошибка", "Не удалось купить предмет.", "Закрыть", "");
+					return 0;
+				}
+
+				new price = GetPVarInt(playerid, "BuyedItemPrice");
+				new count = strval(inputtext);
+				if(count <= 0)
+				{
+					ShowPlayerDialog(playerid, 1, DIALOG_STYLE_MSGBOX, "Ошибка", "Неверное количество.", "Закрыть", "");
+					return 0;
+				}
+
+				new item[BaseItem];
+				item = GetItem(itemid);
+
+				if(item[Type] == ITEMTYPE_PASSIVE && count > 1)
+				{
+					ShowPlayerDialog(playerid, 1, DIALOG_STYLE_MSGBOX, "Ошибка", "Можно иметь только один предмет.", "Закрыть", "");
+					return 0;
+				}
+
+				new player_noses = GetItemsCount(playerid, 370);
+				if(player_noses < price * count)
+				{
+					ShowPlayerDialog(playerid, 1, DIALOG_STYLE_MSGBOX, "Ошибка", "Недостаточно носов.", "Закрыть", "");
+					return 0;
+				}
+
+				SetPVarInt(playerid, "BuyedItemCount", count);
+
+				new text[255];
+				format(text, sizeof(text), "{ffffff}[{%s}%s{ffffff}] x%d - купить?", GetGradeColor(item[Grade]), item[Name], count);
+				ShowPlayerDialog(playerid, 712, DIALOG_STYLE_MSGBOX, "Подтверждение", text, "ОК", "Отмена");
+			}	
+			return 1;
+		}
+		case 712:
+		{
+			if(response)
+			{
+				if(IsInventoryFull(playerid))
+				{
+					ShowPlayerDialog(playerid, 1, DIALOG_STYLE_MSGBOX, "Ошибка", "Инвентарь полон.", "Закрыть", "");
+					return 0;
+				}
+				new itemid = GetPVarInt(playerid, "BuyedItemID");
+				new count = GetPVarInt(playerid, "BuyedItemCount");
+				new item[BaseItem];
+				item = GetItem(itemid);
+
+				new price = GetPVarInt(playerid, "BuyedItemPrice") * count;
+				new noses_slot = FindItem(playerid, 370);
+
+				DeleteItem(playerid, noses_slot, price);
+
+				AddItem(playerid, itemid, count);
+				ShowPlayerDialog(playerid, 1, DIALOG_STYLE_MSGBOX, "Покупка", "{66CC00}Предмет куплен.", "Закрыть", "");
+
+				if(item[Type] == ITEMTYPE_PASSIVE)
+					UpdatePlayerStats(playerid);
+			}
+			return 1;
+		}
 		//боссы
 		case 800:
 		{
@@ -2897,6 +3124,15 @@ public OnDialogResponse(playerid, dialogid, response, listitem, inputtext[])
 				}
 
 				SetCmbItem(playerid, cmbslot, cmbinvslot, cmbitem, count);
+			}
+		}
+
+		//коллекционер
+		case 920:
+		{
+			if(response)
+			{
+				SellAllUselessItems(playerid);
 			}
 		}
 
@@ -3615,6 +3851,13 @@ public OnPlayerClickPlayerTextDraw(playerid, PlayerText:playertextid)
 	}
 	else if(playertextid == UpgStoneSlot[playerid])
 	{
+		if(ModStone[playerid] != -1)
+		{
+			ModStone[playerid] = -1;
+			UpdateModWindow(playerid);
+			return 0;
+		}
+
 		if(SelectedSlot[playerid] == -1) return 0;
 		new itemid = PlayerInventory[playerid][SelectedSlot[playerid]][ID];
 		if(itemid == -1) return 0;
@@ -3644,6 +3887,13 @@ public OnPlayerClickPlayerTextDraw(playerid, PlayerText:playertextid)
 	}
 	else if(playertextid == UpgPotionSlot[playerid])
 	{
+		if(ModPotion[playerid] != -1)
+		{
+			ModPotion[playerid] = -1;
+			UpdateModWindow(playerid);
+			return 0;
+		}
+
 		if(SelectedSlot[playerid] == -1) return 0;
 		new itemid = PlayerInventory[playerid][SelectedSlot[playerid]][ID];
 		if(itemid == -1) return 0;
@@ -3779,6 +4029,33 @@ stock TryUseInvulProp(playerid)
 		return;
 	
 	SetPlayerInvulnearable(playerid, 2);
+}
+
+stock IsAllOwnersConnected()
+{
+	new connected_owners = 0;
+	for(new i = 0; i < MAX_PLAYERS; i++)
+	{
+		if(!IsPlayerConnected(i)) continue;
+		if(FCNPC_IsValid(i)) continue;
+		if(!PlayerConnect[i]) continue;
+		connected_owners++;
+	}
+
+	if(connected_owners >= MAX_OWNERS)
+		return true;
+	return false;
+}
+
+stock TryRunSpecialActivity(activityid)
+{
+	if(Tournament[Phase] != PHASE_PEACE) return;
+	if(SpecialActivityDelay > 0) return;
+	if(!IsAllOwnersConnected())	return;
+	if(AttackedBoss != -1) return;
+	if(!CheckChance(5)) return;
+
+	OnSpecialActivityStart(activityid);
 }
 
 stock TryUseSpecialAbility(playerid, chance)
@@ -3938,6 +4215,21 @@ public TickSecond(playerid)
 
 public TickSecondGlobal()
 {
+	if(SpecialActivity == SPECIAL_ACTIVITY_NONE)
+		TryRunSpecialActivity(SPECIAL_ACTIVITY_S_DELIVERY);
+	else if(SpecialActivityTimer > 0)
+	{
+		SpecialActivityTimer--;
+		if(SpecialActivityTimer <= 0)
+			OnSpecialActivityEnd(0);
+		else
+		{
+			new text[64];
+			format(text, sizeof(text), "~y~%d", SpecialActivityTimer);
+			GameTextForAll(text, 1000, 6);
+		}
+	}
+
 	if(SpecialAbilityDelay > 0)
 		SpecialAbilityDelay--;
 	
@@ -3982,6 +4274,8 @@ public bool:CheckChance(chance)
 public TickMinute()
 {
 	UpdateBossesCooldowns();
+	if(SpecialActivityDelay > 0)
+		SpecialActivityDelay--;
 }
 
 public RefreshWalkers()
@@ -4062,6 +4356,7 @@ public UpdatePlayerMaxHP(playerid)
 {
 	new Float:max_hp = 1000.0;
 	max_hp = floatadd(max_hp, floatmul(100.0, PlayerInfo[playerid][Rank] - 1));
+	max_hp = floatadd(max_hp, GetPlayerPropValue(playerid, PROPERTY_MAXHP));
 	if(max_hp < 1000)
 	    max_hp = 1000.0;
 	MaxHP[playerid] = max_hp;
@@ -4086,6 +4381,12 @@ public Float:GetPlayerMaxHP(playerid)
 	return MaxHP[playerid];
 }
 
+public Float:GetDistanceBetweenPoints(Float:p1_x,Float:p1_y,Float:p1_z,Float:p2_x,Float:p2_y,Float:p2_z)
+{
+	return floatsqroot(floatpower(floatabs(floatsub(p2_x,p1_x)),2)+floatpower(floatabs(floatsub(p2_y,
+		p1_y)),2)+floatpower(floatabs(floatsub(p2_z,p1_z)),2));
+}
+
 public Float:GetDistanceBetweenPlayers(p1,p2)
 {
 	new Float:x1,Float:y1,Float:z1,Float:x2,Float:y2,Float:z2;
@@ -4093,6 +4394,17 @@ public Float:GetDistanceBetweenPlayers(p1,p2)
 		return -1.0;
 	GetPlayerPos(p1,x1,y1,z1);
 	GetPlayerPos(p2,x2,y2,z2);
+	return floatsqroot(floatpower(floatabs(floatsub(x2,x1)),2)+floatpower(floatabs(floatsub(y2,
+		y1)),2)+floatpower(floatabs(floatsub(z2,z1)),2));
+}
+
+public Float:GetDistanceBetweenPlayerAndVeh(playerid, vehicleid)
+{
+	new Float:x1,Float:y1,Float:z1,Float:x2,Float:y2,Float:z2;
+	if(!IsPlayerConnected(playerid) || vehicleid == -1)
+		return -1.0;
+	GetPlayerPos(playerid,x1,y1,z1);
+	GetVehiclePos(vehicleid,x2,y2,z2);
 	return floatsqroot(floatpower(floatabs(floatsub(x2,x1)),2)+floatpower(floatabs(floatsub(y2,
 		y1)),2)+floatpower(floatabs(floatsub(z2,z1)),2));
 }
@@ -4395,6 +4707,7 @@ stock GetWeaponDelay(weaponid)
 		case 29: return MP5_SHOOT_DELAY;
 		case 30: return AK_SHOOT_DELAY;
 		case 31: return M4_SHOOT_DELAY;
+		case 33: return RIFLE_SHOOT_DELAY;
 	}
 	return DEFAULT_SHOOT_DELAY;
 }
@@ -4743,6 +5056,28 @@ stock ResetWalkerTarget(id)
 	SetWalkerDestPoint(id);
 }
 
+stock ResetAllWalkersTargets()
+{
+	for(new i = 0; i < MAX_PLAYERS; i++)
+	{
+		if(!IsPlayerConnected(i) || !FCNPC_IsValid(i)) continue;
+		if(IsWalker[i] && !IsTourStarted)
+			ResetWalkerTarget(i);
+	}
+}
+
+stock FindWalkerNearestTarget(id, radius)
+{
+	for(new i = 0; i < MAX_PLAYERS; i++)
+	{
+		if(!IsPlayerConnected(i) || FCNPC_IsValid(i)) continue;
+		if(GetDistanceBetweenPlayers(id, i) <= radius)
+			return i;
+	}
+
+	return -1;
+}
+
 stock WalkerBehaviour(id)
 {
 	if(id == -1 || id == INVALID_PLAYER_ID) return;
@@ -4756,6 +5091,12 @@ stock WalkerBehaviour(id)
 	SetPVarInt(id, "ShotTicks", shotting_ticks);
 
 	new target = FCNPC_GetAimingPlayer(id);
+	if(SpecialActivity == SPECIAL_ACTIVITY_S_DELIVERY && SpecialActivityVehicleID != -1 && GetDistanceBetweenPlayerAndVeh(id, SpecialActivityVehicleID) < 5)
+	{
+		new new_target = FindWalkerNearestTarget(id, 6);
+		if(new_target != -1)
+			target = new_target;
+	}
 
 	new Float:x, Float:y, Float:z;
 	FCNPC_GetPosition(id, x, y, z);
@@ -4777,7 +5118,7 @@ stock WalkerBehaviour(id)
 		return;
 	}
 
-	if(IsDeath[target] || PlayerInfo[target][WalkersLimit] <= 0)
+	if(IsDeath[target] || (PlayerInfo[target][WalkersLimit] <= 0 && SpecialActivity != SPECIAL_ACTIVITY_S_DELIVERY))
 	{
 		if(FCNPC_IsAiming(id))
 			FCNPC_StopAim(id);
@@ -4874,6 +5215,23 @@ stock BossBehaviour(id)
 	}
 	else if(shotting_ticks > MAX_NPC_SHOT_TICKS)
 		FCNPC_AimAtPlayer(id, target, false);
+}
+
+stock GiveSpecialActivityRewards(activityid)
+{
+	if(activityid == SPECIAL_ACTIVITY_NONE) return;
+	if(activityid == SPECIAL_ACTIVITY_S_DELIVERY)
+	{
+		new count = 0;
+		for(new i = 0; i < MAX_PLAYERS; i++)
+		{
+			if(count >= MAX_OWNERS) break;
+			if(!IsPlayerConnected(i) || FCNPC_IsValid(i)) continue;
+
+			PendingItem(PlayerInfo[i][Name], 368, MOD_CLEAR, random(6) + 5, "Награда за доставку S-а");
+			count++;
+		}
+	}
 }
 
 stock GiveTournamentRewards()
@@ -4993,7 +5351,45 @@ stock GiveTournamentRewards()
 			if(reward[Money] > 0)
 				AddPlayerMoney(id, reward[Money]);
 		}
+
+		PendingItem(name, 368, MOD_CLEAR, 1, "С Новым годом!");
 	}
+}
+
+stock SellAllUselessItems(playerid)
+{
+	new money = 0;
+	new items = 0;
+
+	for(new i = 0; i < MAX_SLOTS; i++)
+	{
+		new itemid = PlayerInventory[playerid][i][ID];
+		new item[BaseItem];
+		item = GetItem(itemid);
+		if(PlayerInventory[playerid][i][ID] == 366)
+		{
+			money += PlayerInventory[playerid][i][Count] * (item[Price] / 5);
+			items++;
+			DeleteItem(playerid, i, PlayerInventory[playerid][i][Count]);
+			continue;
+		}
+		if(item[Grade] == GRADE_N && IsModifiableEquip(itemid) && GetModLevel(PlayerInventory[playerid][i][Mod]) == 0)
+		{
+			money += item[Price] / 5;
+			items++;
+			DeleteItem(playerid, i);
+			continue;
+		}
+	}
+
+	PlayerInfo[playerid][Cash] += money;
+	GivePlayerMoney(playerid, money);
+
+	new string[255];
+	format(string, sizeof(string), "Продано предметов: %d", items);
+	SendClientMessage(playerid, COLOR_WHITE, string);
+	format(string, sizeof(string), "Получено: %d$", money);
+	SendClientMessage(playerid, COLOR_GREEN, string);
 }
 
 stock HappyBirthday(owner[])
@@ -6351,6 +6747,35 @@ stock OpenLockbox(playerid, lockboxid)
 				default: itemid = GetRandomShazokPart(rank);
 			}
 		}
+		case 368:
+		{
+			count = 1;
+			switch(chance)
+			{
+				case 0..3499: { itemid = 320; count = random(3) + 1; }
+				case 3500..4199: itemid = 314;
+				case 4200..4299: itemid = 315;
+				case 4300..4349: itemid = 316;
+				case 4350..4999: itemid = 369;
+				case 5000..8999: { itemid = 370; count = 3; }
+				case 9000..9399: itemid = 288;
+				default: { itemid = 287; count = 10; }
+			}
+		}
+		case 369:
+		{
+			count = 1;
+			switch(chance)
+			{
+				case 0..3499: { itemid = 320; count = random(2) + 1; }
+				case 3500..4699: itemid = 314;
+				case 4700..5099: itemid = 315;
+				case 5100..5199: itemid = 316;
+				case 5200..8999: { itemid = 370; count = 2; }
+				case 9000..9399: itemid = 288;
+				default: itemid = GetRandomShazokPart(rank);
+			}
+		}
 	}
 	if(itemid == -1) return;
 
@@ -6923,6 +7348,7 @@ stock SetBossCooldown(bossid)
 		case 2: resp_time = 15;
 		case 3: resp_time = 20;
 		case 4: resp_time = 30;
+		case 5: resp_time = 10;
 		default: resp_time = 5;
 	}
 
@@ -6930,6 +7356,45 @@ stock SetBossCooldown(bossid)
 	format(query, sizeof(query), "UPDATE `bosses` SET `RespawnTime` = '%d' WHERE `ID` = '%d' LIMIT 1", resp_time, bossid);
 	new Cache:q_result = mysql_query(sql_handle, query);
 	cache_delete(q_result);
+}
+
+stock GetNYShazokItemsList()
+{
+	new listitems[2048] = "Предмет\tЦена (красных носов)";
+	new query[255] = "SELECT * FROM `ny_shazok_seller`";
+	new Cache:q_result = mysql_query(sql_handle, query);
+
+	new row_count = 0;
+	cache_get_row_count(row_count);
+	
+	if(row_count <= 0)
+	{
+		cache_delete(q_result);
+		return listitems;
+	}
+
+	q_result = cache_save();
+	cache_unset_active();
+
+	new iteminfo[255];
+	for(new i = 0; i < row_count; i++)
+	{
+		new itemid = -1;
+		new price = 0;
+		cache_set_active(q_result);
+		cache_get_value_name_int(i, "ItemID", itemid);
+		cache_get_value_name_int(i, "Price", price);
+		cache_unset_active();
+
+		if(itemid == -1) continue;
+		new item[BaseItem];
+		item = GetItem(itemid);
+		format(iteminfo, sizeof(iteminfo), "\n{%s}%s\t{66CC00}%d", GetGradeColor(item[Grade]), item[Name], price);
+		strcat(listitems, iteminfo);
+	}
+
+	cache_delete(q_result);
+	return listitems;
 }
 
 stock GetMaterialsSellerItemsList(playerid)
@@ -7468,6 +7933,14 @@ stock RollBossLootItem(bossid)
 				case 2650..6299: { itemid = 290; count = 28; } //усилитель
 				case 6300..6599: itemid = 304; //часть оружия Шажка
 				default: { itemid = GetRandomBooster(); count = 28; } //случайный бустер
+			}
+		}
+		case 5:
+		{
+			switch(chance)
+			{
+				case 0..1499: itemid = 369;
+				default: itemid = 370; //красный нос
 			}
 		}
 	}
@@ -8577,6 +9050,21 @@ stock FindItem(playerid, itemid)
 				return i;
 	}
 	return -1;
+}
+
+stock GetItemsCount(playerid, id)
+{
+	if(id == -1) return 0;
+
+	if(IsPlayerConnected(playerid))
+	{
+		for(new i = 0; i < MAX_SLOTS; i++)
+			if(PlayerInventory[playerid][i][ID] == id)
+				return PlayerInventory[playerid][i][Count];
+		return 0;
+	}
+
+	return 0;
 }
 
 stock HasItem(playerid, id, count = 1)
@@ -9984,6 +10472,12 @@ stock CombineItems(playerid)
 	{
 		if(!success && IsEquip(CmbItem[playerid][i]))
 			continue;
+		
+		if(!success && CmbItem[playerid][i] >= 308 && CmbItem[playerid][i] <= 311)
+			continue;
+		
+		if(!success && CmbItem[playerid][i] >= 297 && CmbItem[playerid][i] <= 304)
+			continue;
 
 		DeleteItem(playerid, CmbItemInvSlot[playerid][i], CmbItemCount[playerid][i]);
 	}
@@ -10464,16 +10958,17 @@ stock GetItemEffectString(effect, value)
 	new string[128];
 	switch(effect) 
 	{
-	    case 1: format(string, sizeof(string), "Урон +%d%%", value);
-	    case 2: format(string, sizeof(string), "Защита +%d%%", value);
-	    case 3: format(string, sizeof(string), "Уклонение +%d", value);
-	    case 4: format(string, sizeof(string), "Точность +%d", value);
-	    case 5: format(string, sizeof(string), "HP +%d%%", value);
-	    case 6: format(string, sizeof(string), "Шанс крита +%d%%", value);
+		case 1: format(string, sizeof(string), "Урон +%d%%", value);
+		case 2: format(string, sizeof(string), "Защита +%d%%", value);
+		case 3: format(string, sizeof(string), "Уклонение +%d", value);
+		case 4: format(string, sizeof(string), "Точность +%d", value);
+		case 5: format(string, sizeof(string), "HP +%d%%", value);
+		case 6: format(string, sizeof(string), "Шанс крита +%d%%", value);
 		case 7: format(string, sizeof(string), "Лут с боссов X%d", value);
 		case 8: string = "Исцеление";
 		case 9: string = "Неуязвимость";
-	    default: string = "";
+		case 10: format(string, sizeof(string), "HP +%d", value);
+		default: string = "";
 	}
 
 	return string;
@@ -11573,7 +12068,7 @@ stock SetWalkerDestPoint(walkerid)
 	new Float:x, Float:y, Float:z;
 	FCNPC_GetPosition(walkerid, x, y, z);
 
-	x = 184 + random(115);
+	x = 200 + random(99);
 	y = -1868 + random(27);
 
 	FCNPC_GoTo(walkerid, x, y, z, FCNPC_MOVE_TYPE_WALK, FCNPC_MOVE_SPEED_WALK);
@@ -11582,7 +12077,7 @@ stock SetWalkerDestPoint(walkerid)
 stock SetRandomWalkerPos(walkerid)
 {
 	new Float:x, Float:y, Float:z;
-	x = 184 + random(115);
+	x = 200 + random(99);
 	y = -1868 + random(27);
 	z = 3.2866;
 
@@ -13581,14 +14076,16 @@ stock CreatePickups()
     arena_tp = CreatePickup(19607,23,204.7617,-1831.6539,3.3772);
 	health_pickup = CreatePickup(1240,2,-2160.0583,638.8598,1057.5861);
     
-    Create3DTextLabel("Дом клоунов",0xf2622bFF,224.0201,-1837.3518,4.2787,70.0,0,1);
-    Create3DTextLabel("К боссам",0xeaeaeaFF,243.1539,-1831.6542,3.9772,70.0,0,1);
-    Create3DTextLabel("На арену",0xeaeaeaFF,204.7617,-1831.6539,4.1772,70.0,0,1);
-    Create3DTextLabel("Доска почета",0xFFCC00FF,-2171.3132,645.5896,1053.3817,10.0,0,1);
-    Create3DTextLabel("Торговец расходниками",0xFFCC00FF,-2166.7527,646.0400,1052.3750,55.0,0,1);
+	Create3DTextLabel("Дом клоунов",0xf2622bFF,224.0201,-1837.3518,4.2787,70.0,0,1);
+	Create3DTextLabel("К боссам",0xeaeaeaFF,243.1539,-1831.6542,3.9772,70.0,0,1);
+	Create3DTextLabel("На арену",0xeaeaeaFF,204.7617,-1831.6539,4.1772,70.0,0,1);
+	Create3DTextLabel("Доска почета",0xFFCC00FF,-2171.3132,645.5896,1053.3817,10.0,0,1);
+	Create3DTextLabel("Торговец расходниками",0xFFCC00FF,-2166.7527,646.0400,1052.3750,55.0,0,1);
 	Create3DTextLabel("Оружейник",0xFFCC00FF,189.2644,-1825.4902,4.1411,55.0,0,1);
 	Create3DTextLabel("Портной",0xFFCC00FF,262.6658,-1825.2792,3.9126,55.0,0,1);
 	Create3DTextLabel("Буржуа",0x9933CCFF,221.0985,-1838.1259,3.6268,55.0,0,1);
+	Create3DTextLabel("Коллекционер",0x99CC00FF,218.1786,-1835.7053,3.7114,55.0,0,1);
+	Create3DTextLabel("Новогодний Шажок",0xFF0000FF,198.3415,-1854.9188,3.2889,55.0,0,1);
 	Create3DTextLabel("Заведующий турнирами",0x3366FFFF,226.7674,-1837.6835,3.6120,55.0,0,1);
 	Create3DTextLabel("Почта",0x3366CCFF,212.3999,-1838.2000,3.0000,55.0,0,0);
 	Create3DTextLabel("Рынок",0xFF9900FF,231.7,-1840.6,4.2,55.0,0,0);
@@ -13596,8 +14093,10 @@ stock CreatePickups()
 	Actors[0] =	CreateActor(26,-2166.7527,646.0400,1052.3750,179.9041);
 	Actors[1] =	CreateActor(6,189.2644,-1825.4902,4.1411,185.0134);
 	Actors[2] =	CreateActor(60,262.6658,-1825.2792,3.9126,181.2770);
-	Actors[3] =	CreateActor(5,221.0985,-1838.1259,3.6268,177.8066);
+	Actors[3] =	CreateActor(249,221.0985,-1838.1259,3.6268,177.8066);
 	Actors[4] =	CreateActor(61,226.7674,-1837.6835,3.6120,188.3151);
+	Actors[5] =	CreateActor(1,218.1786,-1835.7053,3.7114,178.7002);
+	Actors[6] =	CreateActor(5,198.3415,-1854.9188,3.2889,271.9724);
 }
 
 stock CreateMap()
@@ -13766,4 +14265,17 @@ stock CreateMap()
 	CreateObject(2611,-2171.6001000,645.5999800,1053.3000000,0.0000000,0.0000000,90.0000000); //object(police_nb1) (1)
 	CreateObject(1291,212.3999900,-1838.2000000,3.0000000,0.0000000,0.0000000,270.0000000); //object(postbox1) (1)
 	CreateObject(3077,231.7000000,-1840.6000000,2.5000000,0.0000000,0.0000000,0.0000000); //object(nf_blackboard) (1)
+	CreateObject(1344,218.9003900,-1834.4004000,3.6000000,0.0000000,0.0000000,0.0000000); //object(cj_dumpster2) (1)
+	CreateObject(1343,217.2998000,-1834.2998000,3.5000000,0.0000000,0.0000000,0.0000000); //object(cj_dumpster3) (1)
+
+	CreateObject(19076,195.8000000,-1854.9000000,2.3000000,0.0000000,0.0000000,0.0000000); //object(xmas) (1)
+	CreateObject(19054,195.6082,-1856.1352,2.7000000,0.0000000,0.0000000,20.0000000); //object(xmas) (1)
+	CreateObject(19056,195.5078,-1853.9680,2.7000000,0.0000000,0.0000000,30.0000000); //object(xmas) (1)
+	CreateObject(19057,197.0055,-1854.7861,2.7000000,0.0000000,0.0000000,40.0000000); //object(xmas) (1)
+
+	new cola_veh_id = CreateVehicle(515,183.7026,-1861.7371,3.9194,359.9408,39,47,3); //Roadtrain
+	new cola_trailer_veh_id = CreateVehicle(435,183.7002000,-1872.4004000,3.4000000,0.0000000,245,245,3); //Trailer 1
+
+	SetVehicleParamsEx(cola_veh_id, 0, 0, 0, 1, 0, 0, 0);
+	SetVehicleParamsEx(cola_trailer_veh_id, 0, 0, 0, 1, 0, 0, 0);
 }

@@ -612,3 +612,10 @@ INSERT INTO `items`(`ID`, `IsTradeble`, `Name`, `Type`, `Grade`, `MinRank`, `Des
 VALUES (365, 1, "[Тип C] Крупный модификатор 6-7", 11, 3, 1, "При комбинации с экипировкой тип C может вставить от 6 до 7 камней", "0 0 0", "0 0 0", 1500000, 2976, 0, 0, 0);
 INSERT INTO `items`(`ID`, `IsTradeble`, `Name`, `Type`, `Grade`, `MinRank`, `Description`, `Property`, `PropertyVal`, `Price`, `Model`, `ModelRotX`, `ModelRotY`, `ModelRotZ`) 
 VALUES (366, 1, "Хлам", 9, 1, 1, "Можно продать торговцу", "0 0 0", "0 0 0", 100, 2866, 0, 0, 0);
+
+INSERT INTO `items`(`ID`, `IsTradeble`, `Name`, `Type`, `Grade`, `MinRank`, `Description`, `Property`, `PropertyVal`, `Price`, `Model`, `ModelRotX`, `ModelRotY`, `ModelRotZ`) 
+VALUES (368, 0, "Новогодний подарок", 10, 3, 1, "С Новым годом!", "0 0 0", "0 0 0", 0, 19054, 0, 0, 0);
+INSERT INTO `items`(`ID`, `IsTradeble`, `Name`, `Type`, `Grade`, `MinRank`, `Description`, `Property`, `PropertyVal`, `Price`, `Model`, `ModelRotX`, `ModelRotY`, `ModelRotZ`) 
+VALUES (369, 0, "Шажковый новогодний подарок", 10, 3, 1, "Этот подарок должен был быть изъят Шажком", "0 0 0", "0 0 0", 0, 19054, 0, 0, 0);
+INSERT INTO `items`(`ID`, `IsTradeble`, `Name`, `Type`, `Grade`, `MinRank`, `Description`, `Property`, `PropertyVal`, `Price`, `Model`, `ModelRotX`, `ModelRotY`, `ModelRotZ`) 
+VALUES (370, 0, "Красный нос", 9, 3, 1, "Можно обменять у Новогоднего Шажка", "0 0 0", "0 0 0", 5000, 3101, 0, 0, 0);
