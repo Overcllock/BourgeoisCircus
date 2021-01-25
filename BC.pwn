@@ -1,4 +1,4 @@
-//Bourgeois Circus 1.1
+//Bourgeois Circus 3.0
 
 #include <a_samp>
 #include <a_mail>
@@ -18,7 +18,7 @@
 
 #pragma dynamic 31294
 
-#define VERSION 1.101
+#define VERSION 3.001
 
 //Mysql settings
 
@@ -26,9 +26,9 @@
 #define SQL_USER "tsar"
 #define SQL_DB "bcircus"
 #define SQL_PASS "2151"*/
-#define SQL_HOST "212.22.93.37"
-#define SQL_USER "wingsgmk"
-#define SQL_DB "wingsgmk_28012"
+#define SQL_HOST "212.22.93.13"
+#define SQL_USER "nilzjciu"
+#define SQL_DB "nilzjciu_33518"
 #define SQL_PASS "21510055"
 
 //Data types
@@ -54,59 +54,76 @@
 #define DEFAULT_DAMAGE_MIN 13
 #define DEFAULT_DAMAGE_MAX 15
 #define DEFAULT_DEFENSE 100
-#define DEFAULT_CRIT 5
+#define DEFAULT_CRIT 10
 #define DEFAULT_DODGE 0
-#define DEFAULT_ACCURACY 5
+#define DEFAULT_ACCURACY 20
 #define DEFAULT_POS_X -2170.3948
 #define DEFAULT_POS_Y 645.6729
 #define DEFAULT_POS_Z 1057.5938
 
+//Tweaks. 0 = off, 1 = on
+#define IS_BNS_MODE 0
+
 //Limits
+#define MAX_TOUR 5
 #define MAX_PARTICIPANTS 20
-#define MAX_OWNERS 2
-#define MAX_INVENTORY_SLOTS 25
-#define MAX_INVENTORY_SLOTS_X 5
-#define MAX_INVENTORY_SLOTS_Y 5
-#define MAX_WAREHOUSE_SLOTS 25
-#define MAX_LEVEL 55
-#define MAX_OC 500000
-#define WALKER_TYPES 9
+#define MAX_OWNERS 1
+#define MAX_TEAMCOLORS 5
+#define MAX_SLOTS 125
+#define MAX_PAGE_SLOTS 25
+#define MAX_SLOTS_X 5
+#define MAX_SLOTS_Y 5
+#define MAX_INV_PAGES 5
+#define MAX_RANK 9
 #define MAX_MOD 7
-#define MAX_PROPERTIES 2
-#define MAX_DESCRIPTION_SIZE 45
-#define MAX_GRADES 5
-#define MAX_BOSSES 5
-#define MAX_ITEM_ID 500
-#define MAX_LOOT 28
-#define MAX_WALKER_LOOT 12
+#define MAX_PROPERTIES 3
+#define MAX_DESCRIPTION_SIZE 40
+#define MAX_GRADES 6
+#define MAX_BOSSES 8
+#define MAX_ITEM_ID 1000
+
+//x1 - 36, x1.5 - 48, x2 - 54, x3 - 70
+#define MAX_LOOT 36
+//x1 - 6, x1.5 - 10, x2 - 12, x3 - 16
+#define MAX_WALKER_LOOT 6
+//x1 - 20, x1.5 - 28, x2 - 36, x3 - 48
+#define MAX_DUNGEON_LOOT 20
+
 #define MAX_PVP_PANEL_ITEMS 5
 #define MAX_RELIABLE_TARGETS 5
-#define MAX_TEAMCOLORS 2
+#define MAX_RATE 3000
 #define MAX_DEATH_MESSAGES 5
 #define MAX_NPC_MOVING_TICKS 60
 #define MAX_NPC_IDLE_TICKS 30
 #define MAX_NPC_SHOT_TICKS 60
 #define MAX_CMB_ITEMS 3
 #define MAX_MARKET_CATEGORIES 4
-#define MAX_MARKET_ITEMS 15
+#define MAX_MARKET_ITEMS 20
 #define MAX_TOUR_TIME 180
-#define MAX_WALKERS 30
+#define MAX_WALKERS 20
 #define MAX_COOPERATE_MSGS 10
-#define WALKERS_LIMIT 35
-#define MAX_BOURGEOIS_REWARDS 5
-#define MAX_WALKERS_ONE_TYPE 4
-//TODO
-#define MAX_EXP 100000
+#define WALKERS_LIMIT 20
+#define MAX_WALKERS_ONE_RANK 3
+#define MAX_WATCHERS_POSITIONS 4
+#define MAX_DUNGEONS 50
+#define MAX_DUNGEON_MOBS 3
+#define MAX_DUNGEON_BOSSES 2
+#define MAX_DUNGEON_REWARDS 13
 
 //Market
 #define MARKET_CATEGORY_WEAPON 0
 #define MARKET_CATEGORY_ARMOR 1
-#define MARKET_CATEGORY_MATERIAL 2
-#define MARKET_CATEGORY_MYLOTS 3
+#define MARKET_CATEGORY_HAT 2
+#define MARKET_CATEGORY_GLASSES 3
+#define MARKET_CATEGORY_WATCH 4
+#define MARKET_CATEGORY_ACCESSORY 5
+#define MARKET_CATEGORY_MATERIAL 6
+#define MARKET_CATEGORY_MYLOTS 7
 
 //Phases
 #define PHASE_PEACE 0
 #define PHASE_WAR 1
+#define PHASE_BATTLE 2
 
 //Player params
 #define PARAM_DAMAGE 1
@@ -118,18 +135,23 @@
 //Item types
 #define ITEMTYPE_WEAPON 1
 #define ITEMTYPE_ARMOR 2
-#define ITEMTYPE_ACCESSORY 3
-#define ITEMTYPE_PASSIVE 4
-#define ITEMTYPE_MATERIAL 5
-#define ITEMTYPE_BOX 6
-#define ITEMTYPE_MODIFIER 7
+#define ITEMTYPE_HAT 3
+#define ITEMTYPE_GLASSES 4
+#define ITEMTYPE_WATCH 5
+#define ITEMTYPE_RING 6
+#define ITEMTYPE_AMULETTE 7
+#define ITEMTYPE_PASSIVE 8
+#define ITEMTYPE_MATERIAL 9
+#define ITEMTYPE_BOX 10
+#define ITEMTYPE_MODIFIER 11
 
 //Item grades
 #define GRADE_N 1
 #define GRADE_B 2
 #define GRADE_C 3
-#define GRADE_D 4
+#define GRADE_L 4
 #define GRADE_R 5
+#define GRADE_S	6
 
 //Props
 #define PROPERTY_NONE 0
@@ -140,6 +162,11 @@
 #define PROPERTY_HP 5
 #define PROPERTY_CRIT 6
 #define PROPERTY_LOOT 7
+#define PROPERTY_HEAL 8
+#define PROPERTY_INVUL 9
+#define PROPERTY_MAXHP 10
+#define PROPERTY_VAMP 11
+#define PROPERTY_REGEN 12
 
 //Modifiers variations
 #define MOD_DAMAGE 1
@@ -152,26 +179,64 @@
 #define MOD_RESULT_RESET 2
 #define MOD_RESULT_DESTROY 3
 
+//Hierarchy
+#define HIERARCHY_STATUSES_COUNT 5
+#define HIERARCHY_NONE 0
+#define HIERARCHY_LEADER 1
+#define HIERARCHY_ARCHONT 2
+#define HIERARCHY_ATTACK 3
+#define HIERARCHY_DEFENSE 4
+#define HIERARCHY_SUPPORT 5
+
 //Other
-#define DEFENSE_DIVIDER 7000
 #define RND_EQUIP_TYPE_WEAPON 0
 #define RND_EQUIP_TYPE_ARMOR 1
-#define RND_EQUIP_TYPE_RANDOM 2
+#define RND_EQUIP_TYPE_ARMORHAT 2
+#define RND_EQUIP_TYPE_WATCH 3
+#define RND_EQUIP_TYPE_GLASSES 4
+#define RND_EQUIP_TYPE_RANDOM 5
 #define RND_EQUIP_GRADE_RANDOM 11
 #define TOUR_INVULNEARABLE_TIME 5
 #define COOPERATE_COOLDOWN 10
 
 //Delays
-#define DEFAULT_SHOOT_DELAY 200
-#define COLT_SHOOT_DELAY 200
-#define DEAGLE_SHOOT_DELAY 290
-#define MP5_SHOOT_DELAY 140
-#define TEC_SHOOT_DELAY 115
-#define AK_SHOOT_DELAY 185
-#define M4_SHOOT_DELAY 175
-#define SHOTGUN_SHOOT_DELAY 520
-#define SAWNOFF_SHOOT_DELAY 430
-#define COMBAT_SHOOT_DELAY 360
+#define DEFAULT_SHOOT_DELAY 	200
+#define COLT_SHOOT_DELAY 		190
+#define DEAGLE_SHOOT_DELAY 		260
+#define MP5_SHOOT_DELAY 		130
+#define TEC_SHOOT_DELAY 		70
+#define AK_SHOOT_DELAY 			185
+#define M4_SHOOT_DELAY 			175
+#define SHOTGUN_SHOOT_DELAY 	410
+#define SAWNOFF_SHOOT_DELAY 	380
+#define COMBAT_SHOOT_DELAY 		350
+#define RIFLE_SHOOT_DELAY		420
+
+//Static items
+#define ITEM_GEN_HP_ID 			277
+#define ITEM_GEN_ATTACK_ID 		278
+#define ITEM_GEN_DEFENSE_ID 	279
+#define ITEM_LUCKY_CARD_ID 		280
+#define ITEM_SHAZOK_LETTER_ID 	281
+
+//Special abilites
+#define SPECIAL_AB_EFFECT_NONE 			0
+#define SPECIAL_AB_EFFECT_CONFUSION 	1
+#define SPECIAL_AB_EFFECT_SHAZOK_FORCE 	2
+
+//Special activites
+#define SPECIAL_ACTIVITY_NONE 		0
+#define SPECIAL_ACTIVITY_S_DELIVERY 1
+#define SPECIAL_ACTIVITY_COOLDOWN 	10
+
+//Special effects
+#define SPECIAL_EFFECT_NONE					0
+#define SPECIAL_EFFECT_VICTORY_FLAG_I 		1
+#define SPECIAL_EFFECT_VICTORY_FLAG_II 		2
+#define SPECIAL_EFFECT_VICTORY_FLAG_III 	3
+#define SPECIAL_EFFECT_SCAR_OF_DEFEAT_I 	4
+#define SPECIAL_EFFECT_SCAR_OF_DEFEAT_II 	5
+#define SPECIAL_EFFECT_SCAR_OF_DEFEAT_III 	6
 
 /* Forwards */
 forward Time();
@@ -179,19 +244,20 @@ forward OnPlayerLogin(playerid);
 forward OnTourEnd(finished);
 forward OnTournamentEnd();
 forward OnPhaseChanged(oldphase, newphase);
+forward Float:GetDistanceBetweenPoints(Float:p1_x,Float:p1_y,Float:p1_z,Float:p2_x,Float:p2_y,Float:p2_z);
 forward Float:GetDistanceBetweenPlayers(p1, p2);
+forward Float:GetDistanceBetweenPlayerAndVeh(playerid, vehicleid);
 forward Float:GetPlayerMaxHP(playerid);
 forward Float:GetPlayerHP(playerid);
+forward Float:GetDefenseMul(defense);
 forward SetPlayerHP(playerid, Float:hp);
 forward GivePlayerHP(playerid, Float:hp);
 forward SetPlayerMaxHP(playerid, Float:hp, bool:give_hp);
-forward SetPlayerExp(playerid, exp);
-forward SetPlayerExpOffline(name[], exp);
-forward GivePlayerExp(playerid, exp);
-forward GivePlayerExpOffline(name[], exp);
+forward SetPlayerRate(playerid, rate);
+forward SetPlayerRateOffline(name[], rate);
+forward GivePlayerRate(playerid, rate);
+forward GivePlayerRateOffline(name[], rate);
 forward GivePlayerMoneyOffline(name[], money);
-forward GivePlayerOC(playerid, oc);
-forward GivePlayerOCOffline(name[], oc);
 forward UpdatePlayerMaxHP(playerid);
 forward CancelBossAttack();
 forward FinishBossAttack();
@@ -204,9 +270,12 @@ forward CheckDead(npcid);
 forward RespawnWalker(walkerid);
 forward TickMinute();
 forward RefreshWalkers();
-forward ResetPlayerInvulnearable(playerid);
 forward TickSecond(playerid);
+forward TickSecondGlobal();
 forward TickHour();
+forward OnSpecialActivityStart(activityid);
+forward OnSpecialActivityEnd(win);
+forward bool:IsPlayerInDungeon(playerid);
 
 /* Variables */
 
@@ -218,17 +287,8 @@ enum TopItem
 	Kills,
 	Deaths,
 	Score,
-	GlobalTopPosition,
-	Status,
-	OC
-};
-enum TopLItem
-{
-	Pos,
-	Name[255],
-	GlobalTopPosition,
-	Status,
-	Level
+	Rate,
+	RateDiff
 };
 enum MarketItem
 {
@@ -279,7 +339,7 @@ enum pvpInf
 	Kills,
 	Deaths,
 	Score,
-	OC
+	RateDiff
 };
 enum TWindow
 {
@@ -299,9 +359,10 @@ enum iInfo
 enum BaseItem 
 {
 	ID,
+	IsTradeble,
 	Name[255],
 	Description[255],
-	MinLevel,
+	MinRank,
 	Type,
 	Grade,
 	Price,
@@ -312,16 +373,36 @@ enum BaseItem
 	ModelRotY,
 	ModelRotZ
 };
+enum BaseDungeon
+{
+	ID,
+	KeyID,
+	Rank,
+	Type,
+	Damage,
+	Defense,
+	MobsCount,
+	MobsTypesCount,
+	BossesCount,
+	BossesTypesCount,
+	Mobs[MAX_DUNGEON_MOBS],
+	Bosses[MAX_DUNGEON_BOSSES]
+};
+enum pDungeon
+{
+	Mobs[MAX_PLAYERS],
+	Bosses[MAX_PLAYERS],
+	BossesIds[MAX_PLAYERS]
+};
 enum pInfo 
 {
 	ID,
 	Name[255],
 	Owner[255],
-	Exp,
-	Level,
-	OC,
-	CP,
+	Rate,
+	Rank,
 	Status,
+	Simulations,
 	IsWatcher,
 	TeamColor,
 	Cash,
@@ -340,23 +421,32 @@ enum pInfo
 	Defense,
 	Dodge,
 	Accuracy,
+	Vamp,
 	GlobalTopPosition,
 	LocalTopPosition,
 	WalkersLimit,
 	Crit,
 	WeaponSlotID,
 	ArmorSlotID,
-	AccSlot1ID,
-	AccSlot2ID,
+    HatSlotID,
+    GlassesSlotID,
+    WatchSlotID,
+	RingSlot1ID,
+	RingSlot2ID,
+    AmuletteSlot1ID,
+	AmuletteSlot2ID,
 	WeaponMod[MAX_MOD],
-	ArmorMod[MAX_MOD]
+	ArmorMod[MAX_MOD],
+    HatMod[MAX_MOD],
+    GlassesMod[MAX_MOD],
+    WatchMod[MAX_MOD]
 };
 enum wInfo
 {
 	ID,
 	Text3D:LabelID,
 	Name[255],
-	Type,
+	Rank,
 	Skin,
 	HP,
 	DamageMin,
@@ -369,6 +459,8 @@ enum wInfo
 };
 
 //Global
+new is_bns_mode = IS_BNS_MODE;
+
 new WalkersRefreshTimer = -1;
 new WorldTime_Timer = -1;
 new PrepareBossAttackTimer = -1;
@@ -383,6 +475,11 @@ new Tournament[tInfo];
 new TourParticipantsCount = 0;
 new TournamentTab[MAX_PARTICIPANTS][TopItem];
 
+new SpecialActivity = SPECIAL_ACTIVITY_NONE;
+new SpecialActivityDelay = 0;
+new SpecialActivityTimer = 0;
+new SpecialActivityVehicleID = -1;
+
 new AttackedBoss = -1;
 new bool:IsBossAttacker[MAX_PLAYERS] = false;
 new BossAttackersCount = 0;
@@ -393,6 +490,9 @@ new BossLootItems[MAX_LOOT][LootInfo];
 
 new WalkerLootPickups[MAX_PLAYERS][MAX_WALKER_LOOT];
 new WalkerLootItems[MAX_PLAYERS][MAX_WALKER_LOOT][LootInfo];
+
+new DungeonLootPickups[MAX_PLAYERS][MAX_DUNGEON_LOOT];
+new DungeonLootItems[MAX_PLAYERS][MAX_DUNGEON_LOOT][LootInfo];
 
 new ModItemSlot[MAX_PLAYERS] = -1;
 new ModStone[MAX_PLAYERS] = -1;
@@ -421,26 +521,37 @@ new TourTeam[MAX_PLAYERS] = NO_TEAM;
 new Walkers[MAX_WALKERS][wInfo];
 new WalkersDamagers[MAX_WALKERS][MAX_PLAYERS];
 
+new IsSpecialAbilityUsed = false;
+new IsNuclearBombExplodes = false;
+new IsTeamHealing = false;
+new SpecialAbilityDelay = 0;
+new SpecialAbilityEffect = SPECIAL_AB_EFFECT_NONE;
+new SpecialAbilityEffectTeam = NO_TEAM;
+new SpecialAbilityEffectTime = 0;
+
 //Pickups
 new home_enter = 0;
 new home_quit = 0;
 new boss_tp = 0;
 new arena_tp = 0;
+new war_tp = 0;
 new health_pickup = 0;
 
 //Player
-new PlayerInventory[MAX_PLAYERS][MAX_INVENTORY_SLOTS][iInfo];
-new PlayerWarehouse[MAX_PLAYERS][MAX_WAREHOUSE_SLOTS][iInfo];
+new PlayerInventory[MAX_PLAYERS][MAX_SLOTS][iInfo];
 new PlayerInfo[MAX_PLAYERS][pInfo];
+new AvailableDungeons[MAX_PLAYERS][MAX_DUNGEONS];
+new PlayerDungeon[MAX_PLAYERS][pDungeon];
 new PlayerHPMultiplicator[MAX_PLAYERS];
 new bool:PlayerConnect[MAX_PLAYERS] = false;
 new Float:MaxHP[MAX_PLAYERS];
 new bool:IsInventoryOpen[MAX_PLAYERS] = false;
-new bool:IsWarehouseOpen[MAX_PLAYERS] = false;
 new bool:IsDeath[MAX_PLAYERS] = false;
 new bool:IsSpawned[MAX_PLAYERS] = false;
 new bool:IsParticipant[MAX_PLAYERS] = false;
 new bool:IsWalker[MAX_PLAYERS] = false;
+new bool:IsDungeonBoss[MAX_PLAYERS] = false;
+new bool:IsDungeonMob[MAX_PLAYERS] = false;
 new bool:IsEasyMod[MAX_PLAYERS] = false;
 new SelectedSlot[MAX_PLAYERS] = -1;
 
@@ -449,7 +560,6 @@ new ParticipantsCount[MAX_PLAYERS];
 new Participants[MAX_PLAYERS][MAX_PARTICIPANTS][128];
 
 new WalkerRespawnTimer[MAX_PLAYERS] = -1;
-new InvulnearableTimer[MAX_PLAYERS] = -1;
 new SecondTimer[MAX_PLAYERS] = -1;
 
 //Arrays
@@ -473,21 +583,30 @@ new BossesNames[MAX_BOSSES][128] = {
 	{"BOSS_FactoryWorker"},
 	{"BOSS_Maximus"},
 	{"BOSS_ShazokVsemog"},
-	{"BOSS_Bourgeois"}
+	{"BOSS_Bourgeois"},
+	{"BOSS_Priest"},
+	{"BOSS_MadGrandfather"},
+	{"BOSS_CJ"}
 };
 new BossesSkins[MAX_BOSSES][1] = {
 	{78},
 	{8},
 	{119},
 	{149},
-	{5}
+	{249},
+	{1},
+	{161},
+	{0}
 };
 new BossesWeapons[MAX_BOSSES][1] = {
 	{22},
 	{32},
 	{30},
 	{25},
-	{26}
+	{26},
+	{25},
+	{25},
+	{30}
 };
 new CooperateMessages[MAX_COOPERATE_MSGS][64] = {
 	{"Есть!"},
@@ -502,12 +621,21 @@ new CooperateMessages[MAX_COOPERATE_MSGS][64] = {
 	{"АРРРР!"}
 };
 
-new GlobalOCTop[MAX_PARTICIPANTS][TopItem];
-new LocalOCTop[MAX_PLAYERS][MAX_PARTICIPANTS / 2][TopItem];
-new GlobalLevelTop[MAX_PARTICIPANTS][TopLItem];
-new LocalLevelTop[MAX_PLAYERS][MAX_PARTICIPANTS / 2][TopLItem];
+new GlobalRatingTop[MAX_PARTICIPANTS][TopItem];
+new LocalRatingTop[MAX_PLAYERS][MAX_PARTICIPANTS / 2][TopItem];
 
-new HexWalkerTypesColors[WALKER_TYPES][1] = {
+new RateColors[MAX_RANK][16] = {
+	{"85200c"},
+	{"666666"},
+	{"4c1130"},
+	{"a61c00"},
+	{"999999"},
+	{"bf9000"},
+	{"b7b7b7"},
+	{"76a5af"},
+	{"6d9eeb"}
+};
+new HexRateColors[MAX_RANK][1] = {
 	{0x85200cff},
 	{0x666666ff},
 	{0x4c1130ff},
@@ -522,12 +650,23 @@ new HexGradeColors[MAX_GRADES][1] = {
 	{0xCCCCCCFF},
 	{0xFFCC00FF},
 	{0xCC6600FF},
-	{0x9966FFFF},
-	{0x3399FFFF}
+	{0x6AA84FFF},
+	{0x1C4587FF},
+	{0x9900FFFF}
 };
 new HexTeamColors[MAX_TEAMCOLORS][1] = {
 	{0x339999FF},
-	{0xFF0099FF}
+	{0xFF0099FF},
+	{0xFFCC00FF},
+	{0x33CC00FF},
+	{0xCC6600FF}
+};
+
+new Float:WatchersPositions[MAX_WATCHERS_POSITIONS][3] = {
+	{-2352.5862,-1676.3812,724.5875},
+	{-2396.7134,-1631.7484,724.5875},
+	{-2353.7573,-1586.3749,724.1573},
+	{-2306.6067,-1626.8363,724.5875}
 };
 
 ///Textdraws
@@ -551,42 +690,42 @@ new PlayerText:PvpPanelMyScore[MAX_PLAYERS];
 
 new PlayerText:ChrInfoBox[MAX_PLAYERS];
 new PlayerText:ChrInfoHeader[MAX_PLAYERS];
-new PlayerText:ChrInfoDelim1[MAX_PLAYERS];
 new PlayerText:ChrInfMaxHP[MAX_PLAYERS];
+new PlayerText:ChrInfInvSlot[MAX_PLAYERS][MAX_PAGE_SLOTS];
+new PlayerText:ChrInfInvSlotCount[MAX_PLAYERS][MAX_PAGE_SLOTS];
 new PlayerText:ChrInfDamage[MAX_PLAYERS];
 new PlayerText:ChrInfDefense[MAX_PLAYERS];
 new PlayerText:ChrInfAccuracy[MAX_PLAYERS];
 new PlayerText:ChrInfDodge[MAX_PLAYERS];
-new PlayerText:ChrInfDelim2[MAX_PLAYERS];
+new PlayerText:ChrInfCrit[MAX_PLAYERS];
+new PlayerText:ChrInfHatSlot[MAX_PLAYERS];
 new PlayerText:ChrInfArmorSlot[MAX_PLAYERS];
+new PlayerText:ChrInfWatchSlot[MAX_PLAYERS];
+new PlayerText:ChrInfGlassesSlot[MAX_PLAYERS];
+new PlayerText:ChrInfAmuletteSlot1[MAX_PLAYERS];
+new PlayerText:ChrInfAmuletteSlot2[MAX_PLAYERS];
+new PlayerText:ChrInfRingSlot2[MAX_PLAYERS];
+new PlayerText:ChrInfRingSlot1[MAX_PLAYERS];
 new PlayerText:ChrInfWeaponSlot[MAX_PLAYERS];
-new PlayerText:ChrInfAccSlot1[MAX_PLAYERS];
-new PlayerText:ChrInfAccSlot2[MAX_PLAYERS];
-new PlayerText:ChrInfClose[MAX_PLAYERS];
-new PlayerText:ChrInfText1[MAX_PLAYERS];
-new PlayerText:ChrInfAllRate[MAX_PLAYERS];
-new PlayerText:ChrInfOC[MAX_PLAYERS];
-new PlayerText:ChrInfText2[MAX_PLAYERS];
-new PlayerText:ChrInfPersonalRate[MAX_PLAYERS];
+new PlayerText:ChrInfDelim1[MAX_PLAYERS];
+new PlayerText:ChrInfDelim2[MAX_PLAYERS];
 new PlayerText:ChrInfDelim3[MAX_PLAYERS];
-new PlayerText:ChrInfInvSlot[MAX_PLAYERS][MAX_INVENTORY_SLOTS];
-new PlayerText:ChrInfInvSlotCount[MAX_PLAYERS][MAX_INVENTORY_SLOTS];
-new PlayerText:ChrInfButUse[MAX_PLAYERS];
-new PlayerText:ChrInfButInfo[MAX_PLAYERS];
-new PlayerText:ChrInfButDel[MAX_PLAYERS];
-new PlayerText:ChrInfButMod[MAX_PLAYERS];
 new PlayerText:ChrInfDelim4[MAX_PLAYERS];
-
-new PlayerText:ChrInfCPLabel[MAX_PLAYERS];
-new PlayerText:ChrInfCPValue[MAX_PLAYERS];
-
-new PlayerText:WarehouseSlot[MAX_PLAYERS][MAX_WAREHOUSE_SLOTS];
-new PlayerText:WarehouseSlotCount[MAX_PLAYERS][MAX_WAREHOUSE_SLOTS];
-
-new PlayerText:LevelCircle[MAX_PLAYERS];
-new PlayerText:ExpLine[MAX_PLAYERS];
-new PlayerText:ExpPercents[MAX_PLAYERS];
-new PlayerText:LevelText[MAX_PLAYERS];
+new PlayerText:ChrInfDelim5[MAX_PLAYERS];
+new PlayerText:ChrInfClose[MAX_PLAYERS];
+new PlayerText:ChrInfRate[MAX_PLAYERS];
+new PlayerText:ChrInfText2[MAX_PLAYERS];
+new PlayerText:ChrInfText1[MAX_PLAYERS];
+new PlayerText:ChrInfPersonalRate[MAX_PLAYERS];
+new PlayerText:ChrInfAllRate[MAX_PLAYERS];
+new PlayerText:ChrInfNextInvBtn[MAX_PLAYERS];
+new PlayerText:ChrInfPrevInvBtn[MAX_PLAYERS];
+new PlayerText:ChrInfCurInv[MAX_PLAYERS];
+new PlayerText:ChrInfButUse[MAX_PLAYERS];
+new PlayerText:ChrInfButMod[MAX_PLAYERS];
+new PlayerText:ChrInfButDel[MAX_PLAYERS];
+new PlayerText:ChrInfButInfo[MAX_PLAYERS];
+new PlayerText:ChrInfButSort[MAX_PLAYERS];
 
 new PlayerText:EqInfBox[MAX_PLAYERS];
 new PlayerText:EqInfTxt1[MAX_PLAYERS];
@@ -595,16 +734,20 @@ new PlayerText:EqInfDelim1[MAX_PLAYERS];
 new PlayerText:EqInfItemName[MAX_PLAYERS];
 new PlayerText:EqInfItemIcon[MAX_PLAYERS];
 new PlayerText:EqInfMainStat[MAX_PLAYERS];
-new PlayerText:EqInfBonusStat[MAX_PLAYERS][2];
+new PlayerText:EqInfBonusStat[MAX_PLAYERS][3];
 new PlayerText:EqInfDelim2[MAX_PLAYERS];
 new PlayerText:EqInfDelim3[MAX_PLAYERS];
 new PlayerText:EqInfTxt2[MAX_PLAYERS];
 new PlayerText:EqInfMod[MAX_PLAYERS][MAX_MOD];
-new PlayerText:EqInfModStat[MAX_PLAYERS][4];
+new PlayerText:EqInfModStat[MAX_PLAYERS][2];
 new PlayerText:EqInfDelim4[MAX_PLAYERS];
 new PlayerText:EqInfDescriptionStr[MAX_PLAYERS][3];
 new PlayerText:EqInfDelim5[MAX_PLAYERS];
 new PlayerText:EqInfPrice[MAX_PLAYERS];
+new PlayerText:EqInfItemType[MAX_PLAYERS];
+new PlayerText:EqInfItemMinRank[MAX_PLAYERS];
+new PlayerText:EqInfItemGrade[MAX_PLAYERS];
+new PlayerText:EqInfTrading[MAX_PLAYERS];
 
 new PlayerText:InfBox[MAX_PLAYERS];
 new PlayerText:InfTxt1[MAX_PLAYERS];
@@ -612,7 +755,7 @@ new PlayerText:InfDelim1[MAX_PLAYERS];
 new PlayerText:InfItemIcon[MAX_PLAYERS];
 new PlayerText:InfItemName[MAX_PLAYERS];
 new PlayerText:InfItemType[MAX_PLAYERS];
-new PlayerText:InfItemEffect[MAX_PLAYERS][2];
+new PlayerText:InfItemEffect[MAX_PLAYERS][3];
 new PlayerText:InfDelim2[MAX_PLAYERS];
 new PlayerText:InfDescriptionStr[MAX_PLAYERS][3];
 new PlayerText:InfDelim3[MAX_PLAYERS];
@@ -670,14 +813,54 @@ main()
 
 /* Commands */
 //GM commands
+cmd:tp1(playerid, params[])
+{
+	if(PlayerInfo[playerid][Admin] == 0)
+		return 0;
+	
+	RemoveWorldBounds(playerid);
+	SetPlayerPos(playerid, 1435.2000000,1504.6000000,12.9000000);
+	SetPlayerInterior(playerid, 0);
+	return SendClientMessage(playerid, COLOR_GREY, "Done.");
+}
+cmd:tp2(playerid, params[])
+{
+	if(PlayerInfo[playerid][Admin] == 0)
+		return 0;
+	
+	RemoveWorldBounds(playerid);
+	SetPlayerPos(playerid, -60.7000000,1516.9000000,12.9000000);
+	SetPlayerInterior(playerid, 0);
+	return SendClientMessage(playerid, COLOR_GREY, "Done.");
+}
 cmd:tests(playerid, params[])
 {
 	if(PlayerInfo[playerid][Admin] == 0)
 		return 0;
 	
-	GiveBourgeoisRewards();
 	TickHour();
 	return SendClientMessage(playerid, COLOR_GREY, "Done.");
+}
+cmd:sort(playerid, params[])
+{
+	if(PlayerInfo[playerid][Admin] == 0)
+		return 0;
+	
+	SortInventory(playerid);
+	return SendClientMessage(playerid, COLOR_GREY, "Done.");
+}
+cmd:setrate(playerid, params[])
+{
+	if(PlayerInfo[playerid][Admin] == 0)
+		return 0;
+		
+	new rate;
+	if(sscanf(params, "i", rate))
+		return SendClientMessage(playerid, COLOR_GREY, "USAGE: /setrate [rate]");
+	if(rate < 0 || rate > 3000)
+		return SendClientMessage(playerid, COLOR_GREY, "Value should be between 0 and 3000.");
+	SetPlayerRate(playerid, rate);
+	return SendClientMessage(playerid, COLOR_GREY, "Rate changed succesfully.");
 }
 
 cmd:givemoney(playerid, params[])
@@ -790,23 +973,38 @@ cmd:createinv(playerid, params[])
 	return 1;
 }
 
-cmd:createwarehouse(playerid, params[])
+cmd:happybirthday(playerid, params[])
 {
 	if(PlayerInfo[playerid][Admin] == 0)
 		return 0;
 
-	new name[64];
-	new id;
+	new owner[64];
 
-	if(sscanf(params, "i", id))
-		return SendClientMessage(playerid, COLOR_GREY, "USAGE: /createwarehouse [playerid]");
+	if(sscanf(params, "s[64]", owner))
+		return SendClientMessage(playerid, COLOR_GREY, "USAGE: /happybirthday [owner]");
 
-	if(!IsPlayerConnected(id))
-		return SendClientMessage(playerid, COLOR_GREY, "Player in not connected.");
+	HappyBirthday(owner);
+	SendClientMessage(playerid, COLOR_GREY, "Done");
+	return 1;
+}
 
-	GetPlayerName(id, name, sizeof(name));
-	CreateWarehouse(name);
-	SendClientMessage(playerid, COLOR_GREEN, "Warehouse created");
+cmd:reloadinv(playerid, params[])
+{
+	if(PlayerInfo[playerid][Admin] == 0)
+		return 0;
+		
+	SendClientMessage(playerid, COLOR_GREY, "Reloading...");
+	LoadInventory(playerid);
+	SendClientMessage(playerid, COLOR_GREEN, "Inventory reloading completed.");
+	return 1;
+}
+
+cmd:updhier(playerid, params[])
+{
+	if(PlayerInfo[playerid][Admin] == 0)
+		return 0;
+		
+	UpdateHierarchy();
 	return 1;
 }
 
@@ -824,7 +1022,7 @@ cmd:arena(playerid, params[])
 	if(PlayerInfo[playerid][Admin] == 0)
 		return 0;
 	
-	SetPlayerWorldBounds(playerid, -2313.0295, -2390.5017, -1593.6758, -1669.8492);
+	RemoveWorldBounds(playerid);
 	SetPlayerPos(playerid, -2353.16186,-1630.952,723.561);
 	SetPlayerInterior(playerid, 0);
 	return 1;
@@ -846,6 +1044,7 @@ public OnGameModeInit()
 	ShowPlayerMarkers(PLAYER_MARKERS_MODE_GLOBAL);
 	DisableNameTagLOS();
 	SetNameTagDrawDistance(300.0);
+	//SetWorldTime(1);
 
 	CreateMap();
 	CreatePickups();
@@ -874,7 +1073,7 @@ public OnGameModeInit()
 	if(Tournament[Phase] == PHASE_PEACE)
 		InitWalkers();
 
-	UpdateGlobalOCTop();
+	UpdateGlobalRatingTop();
 
 	return 1;
 }
@@ -884,6 +1083,7 @@ public OnGameModeExit()
 	SaveTournamentInfo();
 	DeleteTextDraws();
 	ResetLoot();
+	ResetAllSpecialAbilites();
 	KillTimer(WorldTime_Timer);
 	KillTimer(WalkersRefreshTimer);
 	for (new i = 0; i < MAX_ACTORS; i++)
@@ -900,6 +1100,20 @@ public OnPlayerLeaveDynamicArea(playerid, areaid)
 	if(IsTourStarted && !IsDeath[playerid] && areaid == arena_area && IsPlayerParticipant(playerid))
 	{
 		TeleportToRandomArenaPos(playerid);
+		UpdatePlayerVisual(playerid);
+	}
+
+	return 1;
+}
+
+public OnPlayerEnterDynamicArea(playerid, areaid)
+{
+	if(FCNPC_IsValid(playerid)) return 0;
+	if(PlayerInfo[playerid][IsWatcher] <= 0) return 0;
+
+	if(IsTourStarted && !IsDeath[playerid] && areaid == arena_area)
+	{
+		TeleportToRandomWatcherPos(playerid);
 		UpdatePlayerVisual(playerid);
 	}
 
@@ -961,16 +1175,18 @@ public OnPlayerLogin(playerid)
 		ResetPlayerMoney(playerid);
 		GivePlayerMoney(playerid, PlayerInfo[playerid][Cash]);
 		UpdatePlayerPost(playerid);
-		ShowCPInfo(playerid);
-		UpdatePlayerCP(playerid);
-		ShowLevelBar(playerid);
-		UpdateLevelBar(playerid);
+		SetPVarInt(playerid, "InvPage", 1);
 	}
 
 	PlayerConnect[playerid] = true;
 	IsInventoryOpen[playerid] = false;
 	SelectedSlot[playerid] = -1;
+
 	SetPVarInt(playerid, "LastKill", -1);
+	SetPVarInt(playerid, "SpecialAbilityCooldown", 0);
+	SetPVarInt(playerid, "ActiveDungeon", -1);
+	SetPVarInt(playerid, "DungeonEnemiesKilled", 0);
+	SetPVarInt(playerid, "DungeonEnemiesRequired", 0);
 
 	UpdatePlayerMaxHP(playerid);
 	SetPlayerSkills(playerid);
@@ -984,10 +1200,62 @@ public OnPlayerLogin(playerid)
 
 	UpdatePlayerStats(playerid);
 	if(!FCNPC_IsValid(playerid))
-		UpdateLocalOCTop(playerid);
+		UpdateLocalRatingTop(playerid);
 	UpdatePlayerSkin(playerid);
+	UpdatePlayerEffects(playerid);
 	
 	SecondTimer[playerid] = SetTimerEx("TickSecond", 1000, true, "i", playerid);
+}
+
+public OnUnoccupiedVehicleUpdate(vehicleid, playerid, passenger_seat, Float:new_x, Float:new_y, Float:new_z, Float:vel_x, Float:vel_y, Float:vel_z)
+{
+	if(SpecialActivity == SPECIAL_ACTIVITY_S_DELIVERY && vehicleid == SpecialActivityVehicleID)
+	{
+		if(GetDistanceBetweenPoints(new_x,new_y,new_z,221.0985,-1838.1259,3.6268) < 4)
+			OnSpecialActivityEnd(1);
+	}
+
+	return 1;
+}
+
+public OnSpecialActivityStart(activityid)
+{
+	if(activityid == SPECIAL_ACTIVITY_NONE) return;
+	if(activityid == SPECIAL_ACTIVITY_S_DELIVERY)
+	{
+		//spawn S
+		SpecialActivityVehicleID = CreateVehicle(466,282.7999900,-1872.8000000,2.4000000,0.0000000,0,0,-1); //S
+		SetVehicleParamsEx(SpecialActivityVehicleID, 0, 0, 0, 1, 0, 0, 0);
+
+		SendClientMessageToAll(COLOR_YELLOW, "Обнаружен S! Доставьте его скорее Буржуа и вас ждут награды!");
+		SendClientMessageToAll(COLOR_YELLOW, "У вас есть 100 секунд! Поторопитесь!");
+	}
+
+	SpecialActivity = activityid;
+	SpecialActivityTimer = 100;
+}
+
+public OnSpecialActivityEnd(win)
+{
+	if(SpecialActivity == SPECIAL_ACTIVITY_NONE) return;
+	if(SpecialActivity == SPECIAL_ACTIVITY_S_DELIVERY)
+	{
+		DestroyVehicle(SpecialActivityVehicleID);
+		SpecialActivityVehicleID = -1;
+		ResetAllWalkersTargets();
+
+		if(win)
+		{
+			SendClientMessageToAll(COLOR_GREEN, "S успешно доставлен получателю! Буржуа щедро одарил помощников, проверьте почту!");
+			GiveSpecialActivityRewards(SpecialActivity);
+		}
+		else
+			SendClientMessageToAll(COLOR_RED, "S не был доставлен в срок! Буржуа сильно недоволен...");
+	}
+
+	SpecialActivity = SPECIAL_ACTIVITY_NONE;
+	SpecialActivityDelay = SPECIAL_ACTIVITY_COOLDOWN;
+	SpecialActivityTimer = 0;
 }
 
 public OnTourEnd(finished)
@@ -1001,9 +1269,11 @@ public OnTourEnd(finished)
 		SendDeathMessage(-1, MAX_PLAYERS + 1, 0);
 
 	IsTourStarted = false;
+	ResetAllSpecialAbilites();
+
 	if(finished == 1)
 	{
-		GiveTourExpAndOC(Tournament[Tour]);
+		GiveTourRates(Tournament[Tour]);
 		UpdateTournamentTable();
 	}
 
@@ -1016,13 +1286,14 @@ public OnTourEnd(finished)
 			for(new j = 0; j < MAX_OWNERS; j++)
 				FCNPC_HideInTabListForPlayer(i, TourPlayers[j]);
 			FCNPC_Destroy(i);
+			ResetPlayerVariables(i);
 		}
 	}
 	for(new i = 0; i < MAX_OWNERS; i++)
 	{
 		SetPvpTableVisibility(TourPlayers[i], false);
 		TeleportToHome(TourPlayers[i]);
-		SetPlayerColor(TourPlayers[i], GetTitleColorHex(PlayerInfo[TourPlayers[i]][Status], PlayerInfo[TourPlayers[i]][GlobalTopPosition]));
+		UpdatePlayerVisual(TourPlayers[i]);
 		SetPVarFloat(TourPlayers[i], "HP", MaxHP[TourPlayers[i]]);
 		SetPlayerHP(TourPlayers[i], MaxHP[TourPlayers[i]]);
 	}
@@ -1036,20 +1307,22 @@ public OnTourEnd(finished)
 		Tournament[Tour]++;
 		for(new i = 0; i < MAX_OWNERS; i++)
 			ShowTournamentTab(TourPlayers[i]);
-		if(Tournament[Tour] > 5)
+		if(Tournament[Tour] > MAX_TOUR)
 			OnTournamentEnd();
 		else
 		{
 			UpdateTourParticipants();
 			for(new i = 0; i < MAX_OWNERS; i++)
 			{
+                if(PlayerInfo[TourPlayers[i]][IsWatcher] != 0)
+					continue;
 				if(IsTourParticipant(PlayerInfo[TourPlayers[i]][ID]))
 					SendClientMessage(TourPlayers[i], COLOR_GREEN, "Вы прошли в следующий тур.");
 				else
 					SendClientMessage(TourPlayers[i], COLOR_LIGHTRED, "Вы выбываете из турнира.");
 			}
 		}
-		UpdateGlobalOCTop();
+		UpdateGlobalRatingTop();
 	}
 	else
 		SendClientMessageToAll(COLOR_LIGHTRED, "Тур прерван.");
@@ -1068,18 +1341,35 @@ public OnTournamentEnd()
 	new string[255];
 	format(string, sizeof(string), "%d турнир завершен!", Tournament[Number]);
 	SendClientMessageToAll(COLOR_LIGHTRED, string);
-	SendClientMessageToAll(COLOR_LIGHTRED, "Начинается фаза мира.");
+
+	if(Tournament[Number] % 10 == 0)
+		UpdateHierarchy();
 
 	Tournament[Tour] = 1;
 	Tournament[Number]++;
 	Tournament[Phase] = PHASE_PEACE;
-	OnPhaseChanged(PHASE_WAR, PHASE_PEACE);
 
-	GiveTournamentRewards();
-	GiveBourgeoisRewards();
-	UpdateTourParticipants();
 	UpdateMarketItems();
 	UpdateTempItems();
+	GiveTournamentRewards();
+	UpdateTourParticipants();
+	AddSimulationLimit();
+
+	OnPhaseChanged(PHASE_WAR, PHASE_PEACE);
+	SendClientMessageToAll(COLOR_LIGHTRED, "Начинается фаза мира.");
+}
+
+stock AddSimulationLimit()
+{
+	new query[512] = "UPDATE `players` SET `Simulations` = Simulations+1";
+	new Cache:result = mysql_query(sql_handle, query);
+	cache_delete(result);
+
+	for(new i = 0; i < MAX_PLAYERS; i++)
+	{
+		if(!IsPlayerConnected(i)) continue;
+		PlayerInfo[i][Simulations]++;
+	}
 }
 
 stock SortPvpData()
@@ -1129,23 +1419,35 @@ public UpdatePvpTable()
 			if(id == -1) continue;
 			format(name, sizeof(name), "%d. %s", i+1, PvpInfo[i][Name]);
 			PlayerTextDrawSetStringRus(InitID, PvpPanelNameLabels[InitID][i], name);
-			PlayerTextDrawColor(InitID, PvpPanelNameLabels[InitID][i], GetTitleColorHex(PlayerInfo[id][Status], PlayerInfo[id][GlobalTopPosition]));
+			PlayerTextDrawColor(InitID, PvpPanelNameLabels[InitID][i], HexRateColors[PlayerInfo[id][Rank]-1][0]);
 			format(score, sizeof(score), "%d", PvpInfo[i][Score]);
 			PlayerTextDrawSetStringRus(InitID, PvpPanelScoreLabels[InitID][i], score);
 			PlayerTextDrawShow(InitID, PvpPanelNameLabels[InitID][i]);
 		}
 
-		new myplace = GetPvpIndex(InitID);
-		if(myplace == -1)
-			myplace = MAX_PARTICIPANTS-1;
+        if(PlayerInfo[InitID][IsWatcher] <= 0)
+		{
+			new myplace = GetPvpIndex(InitID);
+			if(myplace == -1)
+				myplace = MAX_PARTICIPANTS-1;
 
-		format(name, sizeof(name), "%d. %s", myplace+1, PvpInfo[myplace][Name]);
-		PlayerTextDrawSetStringRus(InitID, PvpPanelMyName[InitID], name);
-		format(score, sizeof(score), "%d", PvpInfo[myplace][Score]);
-		PlayerTextDrawSetStringRus(InitID, PvpPanelMyScore[InitID], score);
+			format(name, sizeof(name), "%d. %s", myplace+1, PvpInfo[myplace][Name]);
+			PlayerTextDrawSetStringRus(InitID, PvpPanelMyName[InitID], name);
+			format(score, sizeof(score), "%d", PvpInfo[myplace][Score]);
+			PlayerTextDrawSetStringRus(InitID, PvpPanelMyScore[InitID], score);
+		}
 
 		PlayerTextDrawSetStringRus(InitID, PvpPanelTimer[InitID], string);
 	}
+}
+
+public Float:GetDefenseMul(defense)
+{
+    new Float:mul = 1.0;
+    mul = floatsub(1.0, floatdiv(floatmul(3.086,floatlog(floatadd(floatmul(0.0006227, defense), 1), 1.139)), 100));
+	if(mul < 0)
+		mul = 0.05;
+	return mul;
 }
 
 public FCNPC_OnGiveDamage(npcid, damagedid, Float:amount, weaponid, bodypart)
@@ -1155,7 +1457,8 @@ public FCNPC_OnGiveDamage(npcid, damagedid, Float:amount, weaponid, bodypart)
 
 public OnPlayerGiveDamage(playerid, damagedid, Float:amount, weaponid, bodypart)
 {
-	if(!IsBoss[damagedid] && !IsWalker[damagedid] && GetPlayerTourTeam(damagedid) != NO_TEAM && GetPlayerTourTeam(playerid) == GetPlayerTourTeam(damagedid))
+	if(!IsBoss[damagedid] && !IsWalker[damagedid] && !IsDungeonBoss[damagedid] && !IsDungeonMob[damagedid] && 
+		GetPlayerTourTeam(damagedid) != NO_TEAM && GetPlayerTourTeam(playerid) == GetPlayerTourTeam(damagedid))
 	{
 		if(FCNPC_IsValid(damagedid))
 			FCNPC_GiveHealth(damagedid, amount);
@@ -1176,6 +1479,18 @@ public OnPlayerGiveDamage(playerid, damagedid, Float:amount, weaponid, bodypart)
 		return 0;
 	}
 
+	if(IsDungeonMob[playerid] && (IsDungeonMob[damagedid] || IsDungeonBoss[damagedid]))
+	{
+		FCNPC_GiveHealth(damagedid, amount);
+		return 0;
+	}
+
+	if(IsDungeonBoss[playerid] && (IsDungeonMob[damagedid] || IsDungeonBoss[damagedid]))
+	{
+		FCNPC_GiveHealth(damagedid, amount);
+		return 0;
+	}
+
 	if(FCNPC_IsValid(damagedid))
 		FCNPC_GiveHealth(damagedid, amount);
 	else
@@ -1185,29 +1500,42 @@ public OnPlayerGiveDamage(playerid, damagedid, Float:amount, weaponid, bodypart)
 		SetPlayerHealth(damagedid, floatadd(amount, c_hp));
 	}
 
-	if(IsWalker[damagedid] && FCNPC_GetAimingPlayer(damagedid) == INVALID_PLAYER_ID)
+	if(PlayerInfo[playerid][IsWatcher] <= 0 && IsWalker[damagedid] && FCNPC_GetAimingPlayer(damagedid) == INVALID_PLAYER_ID)
 	{
-		if(PlayerInfo[playerid][WalkersLimit] > 0)
+		if(PlayerInfo[playerid][WalkersLimit] > 0 || SpecialActivity == SPECIAL_ACTIVITY_S_DELIVERY)
 			SetPlayerTarget(damagedid, playerid);
 		else 
 			return 0;
 	}
 
+	if(IsPlayerInDungeon(playerid) && (IsDungeonBoss[damagedid] || IsDungeonMob[damagedid]) && FCNPC_GetAimingPlayer(damagedid) == INVALID_PLAYER_ID)
+	{
+		SetPlayerTarget(damagedid, playerid);
+	}
+
 	new is_invulnearable = GetPVarInt(damagedid, "Invulnearable");
-	new dodge = (PlayerInfo[damagedid][Dodge] - PlayerInfo[playerid][Accuracy]) / 2;
+	new dodge = (PlayerInfo[damagedid][Dodge] - PlayerInfo[playerid][Accuracy]) / 3;
 	if(dodge < 0) dodge = 0;
+	if(dodge > 95) dodge = 95;
 	new bool:dodged = CheckChance(dodge);
+
 	new bool:is_crit = CheckChance(PlayerInfo[playerid][Crit]);
+	if(IsTourStarted && SpecialAbilityEffect == SPECIAL_AB_EFFECT_SHAZOK_FORCE && GetPlayerTourTeam(playerid) == SpecialAbilityEffectTeam)
+		is_crit = true;
+
 	new damage;
-	if(dodged || is_invulnearable == 1 || weaponid == 0)
+	if(dodged || is_invulnearable > 0 || weaponid == 0)
 		damage = 0;
 	else if(is_crit)
 		damage = PlayerInfo[playerid][DamageMax];
 	else
 		damage = PlayerInfo[playerid][DamageMin] + random(PlayerInfo[playerid][DamageMax]-PlayerInfo[playerid][DamageMin]+1);
 	
-	new Float:defense_mul = floatsub(1.0, floatdiv(PlayerInfo[damagedid][Defense], DEFENSE_DIVIDER));
+	new Float:defense_mul = GetDefenseMul(PlayerInfo[damagedid][Defense]);
 	damage = floatround(floatmul(damage, defense_mul));
+
+	if(IsTourStarted && SpecialAbilityEffect == SPECIAL_AB_EFFECT_SHAZOK_FORCE && GetPlayerTourTeam(playerid) == SpecialAbilityEffectTeam)
+		damage = damage * 2;
 
 	new real_damage;
 	if(floatsub(GetPlayerHP(damagedid), damage) < 0)
@@ -1218,6 +1546,12 @@ public OnPlayerGiveDamage(playerid, damagedid, Float:amount, weaponid, bodypart)
 	}
 	else
 		real_damage = damage;
+	
+	if(PlayerInfo[playerid][Vamp] > 0 && real_damage > 0)
+	{
+		new Float:vamp_hp = floatmul(floatdiv(PlayerInfo[playerid][Vamp], 100), real_damage);
+		GivePlayerHP(playerid, vamp_hp);
+	}
 
 	if(IsTourStarted)
 	{
@@ -1235,7 +1569,7 @@ public OnPlayerGiveDamage(playerid, damagedid, Float:amount, weaponid, bodypart)
 
 	if(dodged)
 		SetPlayerChatBubble(damagedid, "Уклонение", 0x66CCCCFF, 80.0, 1200);
-	else if(is_invulnearable == 1)
+	else if(is_invulnearable > 0)
 		SetPlayerChatBubble(damagedid, "Неуязвимость", 0x9933FFFF, 80.0, 1200);
 	else
 	{
@@ -1247,9 +1581,9 @@ public OnPlayerGiveDamage(playerid, damagedid, Float:amount, weaponid, bodypart)
 	new Float:new_hp;
 	new_hp = GetPVarFloat(damagedid, "HP");
 	new_hp = floatsub(new_hp, damage);
-	if(new_hp < 0) 
-		new_hp = 0;
 	SetPVarFloat(damagedid, "HP", new_hp);
+	if(IsNuclearBombExplodes || IsTeamHealing)
+		SetPlayerHP(damagedid, new_hp);
 
 	return 1;
 }
@@ -1264,21 +1598,19 @@ public OnPlayerDisconnect(playerid, reason)
 		if(BossAttackersCount <= 0)
 			FinishBossAttack();
 	}
-	if(!IsWalker[playerid] && (IsPlayerParticipant(playerid) || PlayerInfo[playerid][Admin] > 0))
+	if(IsPlayerInDungeon(playerid))
+	{
+		CompleteDungeon(playerid, false);
+		TeleportToHome(playerid);
+	}
+	if(!IsWalker[playerid] && !IsDungeonBoss[playerid] && !IsDungeonMob[playerid] && (IsPlayerParticipant(playerid) || PlayerInfo[playerid][Admin] > 0))
 		SavePlayer(playerid, !FCNPC_IsValid(playerid));
 
 	if(!FCNPC_IsValid(playerid))
-	{
-		HideCPInfo(playerid);
-		HideLevelBar(playerid);
 		DeletePlayerTextDraws(playerid);
-	}
 	
-	if(IsValidTimer(InvulnearableTimer[playerid]))
-		KillTimer(InvulnearableTimer[playerid]);
 	if(IsValidTimer(SecondTimer[playerid]))
 		KillTimer(SecondTimer[playerid]);
-	InvulnearableTimer[playerid] = -1;
 	SecondTimer[playerid] = -1;
 
 	IsInventoryOpen[playerid] = false;
@@ -1290,6 +1622,13 @@ public OnPlayerDisconnect(playerid, reason)
 	IsDeath[playerid] = false;
 	IsSpawned[playerid] = false;
 	IsWalker[playerid] = false;
+	IsDungeonBoss[playerid] = false;
+	IsDungeonMob[playerid] = false;
+
+	SetPVarInt(playerid, "SpecialAbilityCooldown", 0);
+	SetPVarInt(playerid, "ActiveDungeon", -1);
+	SetPVarInt(playerid, "DungeonEnemiesKilled", 0);
+	SetPVarInt(playerid, "DungeonEnemiesRequired", 0);
 
 	for (new i = 0; i < 10; i++)
 	    if (IsPlayerAttachedObjectSlotUsed(playerid, i))
@@ -1299,12 +1638,19 @@ public OnPlayerDisconnect(playerid, reason)
 	return 1;
 }
 
+public OnVehicleDeath(vehicleid, killerid)
+{
+	SetVehicleToRespawn(vehicleid);
+	return 1;
+}
+
 public OnPlayerSpawn(playerid)
 {
 	SetPlayerTeam(playerid, 10);
 	SetPVarFloat(playerid, "HP", MaxHP[playerid]);
 	SetPlayerHP(playerid, MaxHP[playerid]);
 	SetPVarInt(playerid, "Invulnearable", 0);
+	TogglePlayerControllable(playerid, 1);
 
 	if(IsDeath[playerid]) 
 	{
@@ -1314,6 +1660,12 @@ public OnPlayerSpawn(playerid)
 			ResetDamagersInfo(playerid);
 			TeleportToRandomArenaPos(playerid);
 			SetPlayerInvulnearable(playerid, TOUR_INVULNEARABLE_TIME);
+			if(SpecialAbilityEffect == SPECIAL_AB_EFFECT_CONFUSION && GetPlayerTourTeam(playerid) != SpecialAbilityEffectTeam)
+				TogglePlayerControllable(playerid, 0);
+		}
+        else if(IsTourStarted && PlayerInfo[playerid][IsWatcher] != 0)
+		{
+			TeleportToRandomWatcherPos(playerid);
 		}
 		else
 		{
@@ -1338,18 +1690,46 @@ public OnPlayerSpawn(playerid)
 
 stock UpdatePlayerVisual(playerid)
 {
-	SetCameraBehindPlayer(playerid);
 	SetPlayerSkin(playerid, PlayerInfo[playerid][Skin]);
-	SetPlayerColor(playerid, IsTourStarted ? HexTeamColors[PlayerInfo[playerid][TeamColor]][0] : GetTitleColorHex(PlayerInfo[playerid][Status], PlayerInfo[playerid][GlobalTopPosition]));
+
+    if(PlayerInfo[playerid][IsWatcher] != 0)
+		SetPlayerColor(playerid, HexTeamColors[PlayerInfo[playerid][TeamColor]][0]);
+	else if(PlayerInfo[playerid][Status] != HIERARCHY_NONE && !IsTourStarted)
+		SetPlayerColor(playerid, 0x0066FFFF);
+	else
+		SetPlayerColor(playerid, IsTourStarted ? HexTeamColors[PlayerInfo[playerid][TeamColor]][0] : HexRateColors[PlayerInfo[playerid][Rank]-1][0]);
+
+    UpdatePlayerEffects(playerid);
+
 	if(!FCNPC_IsValid(playerid))
+    {
+        SetCameraBehindPlayer(playerid);
 		UpdatePlayerWeapon(playerid);
-	UpdatePlayerModEffects(playerid);
+		UpdatePlayerHat(playerid);
+		UpdatePlayerGlasses(playerid);
+		UpdatePlayerWatch(playerid);
+    }
 }
 
-stock UpdatePlayerModEffects(playerid)
+stock DisableEffects(playerid)
 {
-	switch(GetModLevel(PlayerInfo[playerid][WeaponMod]))
+    for(new i = 0; i < 10; i++)
+    {
+    	if(IsPlayerAttachedObjectSlotUsed(playerid, i))
+    		RemovePlayerAttachedObject(playerid, i);
+    }
+}
+
+stock UpdatePlayerEffects(playerid)
+{
+    new mod_level = GetModLevel(PlayerInfo[playerid][WeaponMod]);
+	switch(mod_level)
 	{
+	    case 0..4:
+	    {
+			RemovePlayerAttachedObject(playerid, 0);
+			RemovePlayerAttachedObject(playerid, 1);
+	    }
 	    case 5:
 	    {
 	        SetPlayerAttachedObject(playerid, 0, 18700, 5, 1.983503, 1.558882, -0.129482, 86.705787, 308.978118, 268.198822, 1.500000, 1.500000, 1.500000);
@@ -1365,14 +1745,17 @@ stock UpdatePlayerModEffects(playerid)
 	        SetPlayerAttachedObject(playerid, 0, 18693, 5, 1.983503, 1.558882, -0.129482, 86.705787, 308.978118, 268.198822, 1.500000, 1.500000, 1.500000);
    			SetPlayerAttachedObject(playerid, 1, 18693, 6, 1.983503, 1.558882, -0.129482, 86.705787, 308.978118, 268.198822, 1.500000, 1.500000, 1.500000);
 	    }
-		default:
-		{
-			for(new i = 0; i < 2; i++)
-			{
-				if(IsPlayerAttachedObjectSlotUsed(playerid, i))
-					RemovePlayerAttachedObject(playerid, i);
-			}
-		}
+	}
+
+	if(PlayerInfo[playerid][Status] == HIERARCHY_LEADER)
+	{
+		SetPlayerAttachedObject(playerid,2,18728,17,3.547008,-1.172998,-1.610998,0.000000,0.000000,0.000000,1.000000,1.000000,1.000000);
+		SetPlayerAttachedObject(playerid,3,18741,1,-1.177999,0.087000,-2.082005,0.000000,0.000000,0.000000,1.654000,1.481000,1.257000);
+	}
+	else
+	{
+		RemovePlayerAttachedObject(playerid, 2);
+		RemovePlayerAttachedObject(playerid, 3);
 	}
 }
 
@@ -1384,11 +1767,8 @@ public OnPlayerDeath(playerid, killerid, reason)
 	IsDeath[playerid] = true; 
 	IsSpawned[playerid] = false;
 
-	if(IsValidTimer(InvulnearableTimer[playerid]))
-	{
-		KillTimer(InvulnearableTimer[playerid]);
-		InvulnearableTimer[playerid] = -1;
-	}
+    if(PlayerInfo[playerid][IsWatcher] != 0)
+		return 0;
 
 	if(IsTourStarted)
 	{
@@ -1431,7 +1811,12 @@ public OnPlayerDeath(playerid, killerid, reason)
 		PvpInfo[player_idx][Deaths]++;
 		
 		GiveKillScore(playerid, _killerid);
-		GiveDeathScore(playerid, _killerid);
+		if((PlayerInfo[_killerid][Rate] - PlayerInfo[playerid][Rate]) < 100)
+		{
+			PvpInfo[player_idx][Score] -= GetScoreDiff(PlayerInfo[playerid][Rate], PlayerInfo[_killerid][Rate], false);
+			if(PvpInfo[player_idx][Score] < 0)
+				PvpInfo[player_idx][Score] = 0;
+		}
 	}
 	else
 	{
@@ -1448,7 +1833,7 @@ public OnPlayerDeath(playerid, killerid, reason)
 			new idx = GetWalkerIdx(playerid);
 			if(idx != -1)
 				DestroyDynamic3DTextLabel(Walkers[idx][LabelID]);
-			WalkerRespawnTimer[playerid] = SetTimerEx("RespawnWalker", GetWalkerRespawnTime(PlayerInfo[playerid][Level]), false, "i", playerid);
+			WalkerRespawnTimer[playerid] = SetTimerEx("RespawnWalker", GetWalkerRespawnTime(PlayerInfo[playerid][Rank]), false, "i", playerid);
 
 			if(killerid != -1 && killerid != INVALID_PLAYER_ID)
 			{
@@ -1459,8 +1844,30 @@ public OnPlayerDeath(playerid, killerid, reason)
 				if(PlayerInfo[killerid][WalkersLimit] <= 0)
 				{
 					PlayerInfo[killerid][WalkersLimit] = 0;
-					SendClientMessage(killerid, COLOR_LIGHTRED, "Достигнут лимит прохожих.");
+					if(SpecialActivity != SPECIAL_ACTIVITY_S_DELIVERY)
+						SendClientMessage(killerid, COLOR_LIGHTRED, "Достигнут лимит прохожих.");
 				}
+			}
+
+			return 1;
+		}
+		if((IsDungeonMob[playerid] || IsDungeonBoss[playerid]) && IsPlayerInDungeon(killerid))
+		{
+			if(killerid != -1 && killerid != INVALID_PLAYER_ID)
+			{
+				RollDungeonLoot(playerid, killerid);
+				new killed = GetPVarInt(killerid, "DungeonEnemiesKilled");
+				new required = GetPVarInt(killerid, "DungeonEnemiesRequired");
+
+				killed++;
+				SetPVarInt(killerid, "DungeonEnemiesKilled", killed);
+				
+				new dinfstr[255];
+				format(dinfstr, sizeof(dinfstr), "Убито: %d/%d", killed, required);
+				SendClientMessage(killerid, COLOR_YELLOW, dinfstr);
+
+				if(killed >= required)
+					CompleteDungeon(killerid, true);
 			}
 
 			return 1;
@@ -1472,6 +1879,10 @@ public OnPlayerDeath(playerid, killerid, reason)
 				PlayerInfo[playerid][WalkersLimit]--;
 				if(PlayerInfo[playerid][WalkersLimit] < 0)
 					PlayerInfo[playerid][WalkersLimit] = 0;
+			}
+			if((IsDungeonMob[killerid] || IsDungeonBoss[killerid]) && IsPlayerInDungeon(playerid))
+			{
+				CompleteDungeon(playerid, false);
 			}
 		}
 	}
@@ -1489,6 +1900,10 @@ public FCNPC_OnSpawn(npcid)
 
 	UpdatePlayerWeapon(npcid);
 	UpdatePlayerSkin(npcid);
+	UpdatePlayerHat(npcid);
+	UpdatePlayerGlasses(npcid);
+	UpdatePlayerWatch(npcid);
+    UpdatePlayerEffects(npcid);
 	if(IsTourStarted && IsTourParticipant(PlayerInfo[npcid][ID]))
 	{
 		SetPVarInt(npcid, "MovingTicks", 0);
@@ -1537,17 +1952,17 @@ public RespawnWalker(walkerid)
 	new i = GetWalkerIdx(walkerid);
 	if(i == -1) return;
 
-	new type = random(WALKER_TYPES) + 1;
-	new w_count = GetWalkersCountByType(type);
+	new rank = random(MAX_RANK) + 1;
+	new w_count = GetWalkersCountByRank(rank);
 	new iterations = 0;
-	while(w_count >= MAX_WALKERS_ONE_TYPE && iterations < 30)
+	while(w_count >= MAX_WALKERS_ONE_RANK && iterations < 30)
 	{
-		type = random(WALKER_TYPES) + 1;
-		w_count = GetWalkersCountByType(type);
+		rank = random(MAX_RANK) + 1;
+		w_count = GetWalkersCountByRank(rank);
 		iterations++;
 	}
 
-	Walkers[i] = GetWalker(type);
+	Walkers[i] = GetWalker(rank);
 	Walkers[i][ID] = walkerid;
 
 	ResetWalkerDamagersInfo(walkerid);
@@ -1556,7 +1971,7 @@ public RespawnWalker(walkerid)
 	MaxHP[Walkers[i][ID]] = Walkers[i][HP];
 	SetPlayerMaxHP(Walkers[i][ID], Walkers[i][HP], false);
 
-	PlayerInfo[walkerid][Level] = 10 + type * 5;
+	PlayerInfo[walkerid][Rank] = rank;
 	PlayerInfo[walkerid][DamageMin] = Walkers[i][DamageMin];
 	PlayerInfo[walkerid][DamageMax] = Walkers[i][DamageMax];
 	PlayerInfo[walkerid][Defense] = Walkers[i][Defense];
@@ -1568,8 +1983,8 @@ public RespawnWalker(walkerid)
 	PlayerInfo[walkerid][WeaponSlotID] = Walkers[i][WeaponID];
 
 	new name[255];
-	format(name, sizeof(name), "[LV%d] %s", PlayerInfo[walkerid][Level], Walkers[i][Name]);
-	Walkers[i][LabelID] = CreateDynamic3DTextLabel(name, HexWalkerTypesColors[Walkers[i][Type]-1][0], 0, 0, 0.15, 40, Walkers[i][ID]);
+	format(name, sizeof(name), "[LV%d] %s", Walkers[i][Rank], Walkers[i][Name]);
+	Walkers[i][LabelID] = CreateDynamic3DTextLabel(name, HexRateColors[Walkers[i][Rank]-1][0], 0, 0, 0.15, 40, Walkers[i][ID]);
 
 	FCNPC_Respawn(walkerid);
 	FCNPC_SetSkin(walkerid, Walkers[i][Skin]);
@@ -1587,10 +2002,20 @@ public OnPlayerText(playerid, text[])
 		format(message, sizeof(message), "[Администратор]: %s", text);
 		SendClientMessageToAll(COLOR_LIGHTRED, message);
 	}
+    else if(PlayerInfo[playerid][IsWatcher] != 0)
+	{
+		format(message, sizeof(message), "[Наблюдатель][%s]: %s", AccountLogin[playerid], text);
+		SendClientMessageToAll(HexTeamColors[PlayerInfo[playerid][TeamColor]][0], message);
+	}
+	else if(PlayerInfo[playerid][Status] != HIERARCHY_NONE)
+	{
+		format(message, sizeof(message), "[Основатель][%s]: %s", name, text);
+		SendClientMessageToAll(0x0066FFFF, message);
+	}
 	else
 	{
 		format(message, sizeof(message), "[%s]: %s", name, text);
-		SendClientMessageToAll(GetTitleColorHex(PlayerInfo[playerid][Status], PlayerInfo[playerid][GlobalTopPosition]), message);
+		SendClientMessageToAll(HexRateColors[PlayerInfo[playerid][Rank]-1][0], message);
 	}
 	return 0;
 }
@@ -1640,7 +2065,7 @@ public OnPlayerPickUpPickup(playerid, pickupid)
 				if(item[Grade] >= GRADE_C)
 				{
 					format(string, sizeof(string), "{%s}%s {ffffff}приобрел {%s}[%s]{ffffff}.", 
-						GetTitleColor(PlayerInfo[playerid][Status], PlayerInfo[playerid][GlobalTopPosition]), PlayerInfo[playerid][Name], GetGradeColor(item[Grade]), item[Name]
+						GetColorByRate(PlayerInfo[playerid][Rate]), PlayerInfo[playerid][Name], GetGradeColor(item[Grade]), item[Name]
 					);
 					SendClientMessageToAll(0xFFFFFFFF, string);
 				}
@@ -1680,7 +2105,7 @@ public OnPlayerPickUpPickup(playerid, pickupid)
 					if(item[Grade] >= GRADE_C)
 					{
 						format(string, sizeof(string), "{%s}%s {ffffff}приобрел {%s}[%s]{ffffff}.", 
-							GetTitleColor(PlayerInfo[playerid][Status], PlayerInfo[playerid][GlobalTopPosition]), PlayerInfo[playerid][Name], GetGradeColor(item[Grade]), item[Name]
+							GetColorByRate(PlayerInfo[playerid][Rate]), PlayerInfo[playerid][Name], GetGradeColor(item[Grade]), item[Name]
 						);
 						SendClientMessageToAll(0xFFFFFFFF, string);
 					}
@@ -1703,6 +2128,49 @@ public OnPlayerPickUpPickup(playerid, pickupid)
 				SendClientMessage(playerid, COLOR_GREY, "Вы не имеете прав на этот предмет.");
 				break;
 			}
+		}
+	}
+	for(new j = 0; j < MAX_PLAYERS; j++)
+	{
+		if(!IsPlayerConnected(j) || (!IsDungeonBoss[j] && !IsDungeonMob[j])) continue;
+		for(new i = 0; i < MAX_DUNGEON_LOOT; i++)
+		{
+			if(pickupid != DungeonLootPickups[j][i]) continue;
+			if(IsInventoryFull(playerid))
+			{
+				SendClientMessage(playerid, COLOR_GREY, "Инвентарь полон.");
+				continue;
+			}
+			SafeDestroyPickup(DungeonLootPickups[j][i]);
+			if(DungeonLootItems[j][i][ItemID] == -1) continue;
+
+			new string[255];
+			new item[BaseItem];
+			item = GetItem(DungeonLootItems[j][i][ItemID]);
+
+			if(IsEquip(DungeonLootItems[j][i][ItemID]))
+			{
+				AddEquip(playerid, DungeonLootItems[j][i][ItemID], MOD_CLEAR);
+				if(item[Grade] >= GRADE_C)
+				{
+					format(string, sizeof(string), "{%s}%s {ffffff}приобрел {%s}[%s]{ffffff}.", 
+						GetColorByRate(PlayerInfo[playerid][Rate]), PlayerInfo[playerid][Name], GetGradeColor(item[Grade]), item[Name]
+					);
+					SendClientMessageToAll(0xFFFFFFFF, string);
+				}
+			}
+			else
+				AddItem(playerid, DungeonLootItems[j][i][ItemID], DungeonLootItems[j][i][Count]);
+			
+			format(string, sizeof(string), "Подобрано: {%s}[%s] {ffffff}x%d.", 
+				GetGradeColor(item[Grade]), item[Name], DungeonLootItems[j][i][Count]
+			);
+			SendClientMessage(playerid, 0xFFFFFFFF, string);
+
+			DungeonLootItems[j][i][ItemID] = -1;
+			DungeonLootItems[j][i][Count] = 0;
+			DungeonLootItems[j][i][OwnerID] = -1;
+			DungeonLootPickups[j][i] = 0;
 		}
 	}
 	return 1;
@@ -1728,36 +2196,96 @@ public OnPlayerKeyStateChange(playerid, newkeys, oldkeys)
 	}
 	else if(newkeys & 16)
 	{
+		//special ability
+		if(IsTourStarted && IsTourParticipant(PlayerInfo[playerid][ID]))
+		{
+			if(IsDeath[playerid])
+				return 1;
+
+			if(PlayerInfo[playerid][Status] == HIERARCHY_NONE)
+			{
+				SendClientMessage(playerid, COLOR_GREY, "Вы не состоите в Иерархии.");
+				return 1;
+			}
+
+			new sp_ab_cooldown = GetPVarInt(playerid, "SpecialAbilityCooldown");
+			if(sp_ab_cooldown > 0)
+			{
+				new str[64];
+				format(str, sizeof(str), "Повторите попытку через %d сек.", sp_ab_cooldown);
+				SendClientMessage(playerid, COLOR_GREY, str);
+			}
+			else
+				TryUseSpecialAbility(playerid, 100);
+			
+			return 1;
+		}
+
 		//буржуа
 		if(IsPlayerInRangeOfPoint(playerid, 2.0, 221.0985,-1838.1259,3.6268))
 		{
+			if(PlayerInfo[playerid][IsWatcher] != 0)
+			{
+				SendClientMessage(playerid, COLOR_GREY, "Данная функция недоступна для наблюдателя.");
+				return 1;
+			}
+
 			ShowCmbWindow(playerid);
+		}
+		//коллекционер
+		else if(IsPlayerInRangeOfPoint(playerid, 2.0, 218.1786,-1835.7053,3.7114))
+		{
+			if(PlayerInfo[playerid][IsWatcher] != 0)
+			{
+				SendClientMessage(playerid, COLOR_GREY, "Данная функция недоступна для наблюдателя.");
+				return 1;
+			}
+
+			ShowPlayerDialog(playerid, 920, DIALOG_STYLE_MSGBOX, "Коллекционер", "Вы уверены, что хотите продать весь хлам?", "Продать", "Закрыть");
 		}
 		//рынок
 		else if(IsPlayerInRangeOfPoint(playerid, 3.0, 231.7, -1840.6, 2.5))
 		{
+			if(PlayerInfo[playerid][IsWatcher] != 0)
+			{
+				SendClientMessage(playerid, COLOR_GREY, "Данная функция недоступна для наблюдателя.");
+				return 1;
+			}
+
 			ShowMarketMenu(playerid);
 		}
 		//почта
 		else if(IsPlayerInRangeOfPoint(playerid, 2.0, 211.7733,-1838.2538,3.6687))
 		{
+			if(PlayerInfo[playerid][IsWatcher] != 0)
+			{
+				SendClientMessage(playerid, COLOR_GREY, "Данная функция недоступна для наблюдателя.");
+				return 1;
+			}
+
 			ShowPlayerPost(playerid);
 		}
 		//заведующий турнирами
 		else if(IsPlayerInRangeOfPoint(playerid, 2.0, 226.7674,-1837.6835,3.6120))
 		{
-			new listitems[] = "Информация о турнире\nТурнирная таблица\nУчастники следующего тура\nПодать сигнал готовности";
+			new listitems[] = "Информация о турнире\nТурнирная таблица\nУчастники следующего тура\nСимуляция автопрокачки\nПодать сигнал готовности";
 			ShowPlayerDialog(playerid, 200, DIALOG_STYLE_TABLIST, "Заведующий турнирами", listitems, "Далее", "Закрыть");
 		}
 		//доска почета
 		else if(IsPlayerInRangeOfPoint(playerid,1.2,-2171.3132,645.5896,1052.3817)) 
 		{
-			new listitems[] = "Общий рейтинг участников (OC)\nОбщий рейтинг участников (опыт)\nРейтинг моих участников (OC)\nРейтинг моих участников (опыт)";
+			new listitems[] = "Иерархия\nОбщий рейтинг участников\nРейтинг моих участников";
 			ShowPlayerDialog(playerid, 300, DIALOG_STYLE_TABLIST, "Доска почета", listitems, "Далее", "Закрыть");
-        }
+		}
 		//оружейник
 		else if(IsPlayerInRangeOfPoint(playerid,1.8,189.2644,-1825.4902,4.1411))
 		{
+			if(PlayerInfo[playerid][IsWatcher] != 0)
+			{
+				SendClientMessage(playerid, COLOR_GREY, "Данная функция недоступна для наблюдателя.");
+				return 1;
+			}
+
 			new listitems[2048];
 			listitems = GetWeaponSellerItemsList();
 			ShowPlayerDialog(playerid, 500, DIALOG_STYLE_TABLIST_HEADERS, "Оружейник", listitems, "Купить", "Закрыть");
@@ -1765,6 +2293,12 @@ public OnPlayerKeyStateChange(playerid, newkeys, oldkeys)
 		//портной
 		else if(IsPlayerInRangeOfPoint(playerid,1.8,262.6658,-1825.2792,3.9126))
 		{
+			if(PlayerInfo[playerid][IsWatcher] != 0)
+			{
+				SendClientMessage(playerid, COLOR_GREY, "Данная функция недоступна для наблюдателя.");
+				return 1;
+			}
+
 			new listitems[2048];
 			listitems = GetArmorSellerItemsList();
 			ShowPlayerDialog(playerid, 600, DIALOG_STYLE_TABLIST_HEADERS, "Портной", listitems, "Купить", "Закрыть");
@@ -1772,13 +2306,81 @@ public OnPlayerKeyStateChange(playerid, newkeys, oldkeys)
 		//расходники
 		else if(IsPlayerInRangeOfPoint(playerid,1.8,-2166.7527,646.0400,1052.3750))
 		{
+			if(PlayerInfo[playerid][IsWatcher] != 0)
+			{
+				SendClientMessage(playerid, COLOR_GREY, "Данная функция недоступна для наблюдателя.");
+				return 1;
+			}
+
 			new listitems[2048];
 			listitems = GetMaterialsSellerItemsList(playerid);
 			ShowPlayerDialog(playerid, 700, DIALOG_STYLE_TABLIST_HEADERS, "Торговец расходниками", listitems, "Купить", "Закрыть");
 		}
+		//новогодний Шажок
+		/*else if(IsPlayerInRangeOfPoint(playerid,1.8,198.3415,-1854.9188,3.2889))
+		{
+			if(PlayerInfo[playerid][IsWatcher] != 0)
+			{
+				SendClientMessage(playerid, COLOR_GREY, "Данная функция недоступна для наблюдателя.");
+				return 1;
+			}
+
+			new listitems[2048];
+			listitems = GetNYShazokItemsList();
+			ShowPlayerDialog(playerid, 710, DIALOG_STYLE_TABLIST_HEADERS, "Новогодний Шажок", listitems, "Купить", "Закрыть");
+		}*/
+		//поставщик
+		else if(IsPlayerInRangeOfPoint(playerid,1.8,237.1899,-1827.0797,3.8839))
+		{
+			if(PlayerInfo[playerid][IsWatcher] != 0)
+			{
+				SendClientMessage(playerid, COLOR_GREY, "Данная функция недоступна для наблюдателя.");
+				return 1;
+			}
+
+			new listitems[2048];
+			listitems = GetKeysSellerItemsList();
+			ShowPlayerDialog(playerid, 720, DIALOG_STYLE_TABLIST_HEADERS, "Поставщик территории войны", listitems, "Купить", "Закрыть");
+		}
+		//данжи
+		else if(IsPlayerInRangeOfPoint(playerid, 1.8, 243.0740,-1824.2559,4.1772))
+		{
+			if(PlayerInfo[playerid][IsWatcher] != 0)
+			{
+				SendClientMessage(playerid, COLOR_GREY, "Данная функция недоступна для наблюдателя.");
+				return 1;
+			}
+
+			if(Tournament[Phase] != PHASE_PEACE)
+			{
+				ShowPlayerDialog(playerid, 1, DIALOG_STYLE_MSGBOX, "Территория войны", "Территория войны недоступна во время этой фазы.", "Закрыть", "");
+				return 1;
+			}
+
+			new listitems[2048];
+			listitems = GetAvailableDungeonsList(playerid);
+			if(strlen(listitems) == 0)
+			{
+				ShowPlayerDialog(playerid, 1, DIALOG_STYLE_MSGBOX, "Территория войны", "Нет доступных территорий войны.", "Закрыть", "");
+				return 1;
+			}
+
+			ShowPlayerDialog(playerid, 810, DIALOG_STYLE_TABLIST_HEADERS, "Территория войны", listitems, "Войти", "Закрыть");
+		}
+		//возврат из данжа
+		else if(IsPlayerInRangeOfPoint(playerid, 1.8, -66.2243,1516.9169,12.9772))
+		{
+			ShowPlayerDialog(playerid, 1200, DIALOG_STYLE_MSGBOX, "Территория войны", "Покинуть территорию войны?", "Да", "Закрыть");
+		}
 		//боссы
 		else if(IsPlayerInRangeOfPoint(playerid,1.8,243.1539,-1831.6542,3.9772))
 		{
+			if(PlayerInfo[playerid][IsWatcher] != 0)
+			{
+				SendClientMessage(playerid, COLOR_GREY, "Данная функция недоступна для наблюдателя.");
+				return 1;
+			}
+
 			if(Tournament[Phase] == PHASE_WAR)
 			{
 				ShowPlayerDialog(playerid, 1, DIALOG_STYLE_MSGBOX, "Боссы", "Сражения с боссами недоступны во время фазы войны.", "Закрыть", "");
@@ -1832,6 +2434,7 @@ public OnDialogResponse(playerid, dialogid, response, listitem, inputtext[])
 	//1 - пустой
 	//100-102 - регистрация/авторизация
 	//103 - выбор перса
+    //200 - симуляция прокачки
 	//1000 - основное меню
 	switch (dialogid) 
 	{
@@ -1969,7 +2572,55 @@ public OnDialogResponse(playerid, dialogid, response, listitem, inputtext[])
 					{
 						ShowTourParticipants(playerid);
 					}
-					case 3:
+                    case 3:
+					{
+						if(PlayerInfo[playerid][IsWatcher] != 0)
+						{
+							SendClientMessage(playerid, COLOR_GREY, "Данная функция недоступна для наблюдателя.");
+							return 1;
+						}
+
+						if(PlayerInfo[playerid][Simulations] == 0)
+						{
+							SendClientMessage(playerid, COLOR_LIGHTRED, "Для этого участника симуляция сейчас недоступна.");
+							return 1;
+						}
+
+						new rank = PlayerInfo[playerid][Rank];
+						for(new i = 0; i < MAX_WALKERS; i++)
+						{
+							rank = PlayerInfo[playerid][Rank] - 1 + random(4);
+							if(rank < PlayerInfo[playerid][Rank]) rank = PlayerInfo[playerid][Rank];
+							if(rank > MAX_RANK) rank = MAX_RANK;
+
+							for(new j = 0; j < MAX_WALKER_LOOT; j++)
+							{
+								new w_loot[LootInfo];
+								w_loot = RollWalkerLootItem(rank, playerid);
+								if(w_loot[ItemID] == -1) continue;
+								
+								if(IsInventoryFull(playerid))
+								{
+									if(IsEquip(w_loot[ItemID]))
+										PendingItem(PlayerInfo[playerid][Name], w_loot[ItemID], MOD_CLEAR, w_loot[Count], "Награда симуляции");
+									continue;
+								}
+
+								if(IsEquip(w_loot[ItemID]))
+									AddEquip(playerid, w_loot[ItemID], MOD_CLEAR);
+								else
+									AddItem(playerid, w_loot[ItemID], w_loot[Count]);
+							}
+						}
+
+						PlayerInfo[playerid][Simulations]--;
+						SendClientMessage(playerid, COLOR_GREEN, "Симуляция завершена, награды выданы.");
+
+						new str[128];
+						format(str, sizeof(str), "Осталось попыток: %d.", PlayerInfo[playerid][Simulations]);
+						SendClientMessage(playerid, COLOR_YELLOW, str);
+					}
+					case 4:
 					{
 						if(Tournament[Phase] == PHASE_WAR)
 						{
@@ -2016,7 +2667,7 @@ public OnDialogResponse(playerid, dialogid, response, listitem, inputtext[])
 		{
 			if(response)
 			{
-				new listitems[] = "Информация о турнире\nТурнирная таблица\nУчастники текущего тура\nПодать сигнал готовности";
+				new listitems[] = "Информация о турнире\nТурнирная таблица\nУчастники следующего тура\nСимуляция автопрокачки\nПодать сигнал готовности";
 				ShowPlayerDialog(playerid, 200, DIALOG_STYLE_TABLIST, "Заведующий турнирами", listitems, "Далее", "Закрыть");
 			}
 			else
@@ -2034,19 +2685,15 @@ public OnDialogResponse(playerid, dialogid, response, listitem, inputtext[])
 				{
 					case 0:
 					{
-						ShowGlobalOCTop(playerid);
+						ShowHierarchy(playerid);
 					}
 					case 1:
 					{
-						ShowGlobalLevelTop(playerid);
+						ShowGlobalRatingTop(playerid);
 					}
 					case 2:
 					{
-						ShowLocalOCTop(playerid);
-					}
-					case 3:
-					{
-						ShowLocalLevelTop(playerid);
+						ShowLocalRatingTop(playerid);
 					}
 				}
 			}
@@ -2104,9 +2751,10 @@ public OnDialogResponse(playerid, dialogid, response, listitem, inputtext[])
 					{
 						new item[BaseItem];
 						item = GetItem(itemid);
-						new price = item[Price] / 5;
+						new price = item[Price] / 7;
+						price -= price / 99;
 						new string[255];
-						format(string, sizeof(string), "{ffffff}Вы продали: [{%s}%s{ffffff}].\n{66CC00}Получено: %d$.", GetGradeColor(item[Grade]), item[Name], price);
+						format(string, sizeof(string), "{ffffff}Вы продали: [{%s}%s{ffffff}].\n{66CC00}Получено: %s$.", GetGradeColor(item[Grade]), item[Name], FormatMoney(price));
 						ShowPlayerDialog(playerid, 1, DIALOG_STYLE_MSGBOX, "Инвентарь", string, "Закрыть", "");
 					}
 				}
@@ -2177,7 +2825,7 @@ public OnDialogResponse(playerid, dialogid, response, listitem, inputtext[])
 				
 				new string[255];
 				new price = (item[Price] * count) / 5;	
-				format(string, sizeof(string), "{ffffff}Вы продали: [{%s}%s{ffffff}] (x%d).\n{66CC00}Получено: %d$.", GetGradeColor(item[Grade]), item[Name], count, price);
+				format(string, sizeof(string), "{ffffff}Вы продали: [{%s}%s{ffffff}] (x%d).\n{66CC00}Получено: %s$.", GetGradeColor(item[Grade]), item[Name], count, FormatMoney(price));
 				ShowPlayerDialog(playerid, 1, DIALOG_STYLE_MSGBOX, "Инвентарь", string, "Закрыть", "");
 			}
 			return 1;
@@ -2388,8 +3036,9 @@ public OnDialogResponse(playerid, dialogid, response, listitem, inputtext[])
 					return 0;
 				}
 
-				if((itemid != 186 && PlayerInfo[playerid][Cash] < item[Price] * count) || 
-				   (itemid == 186 && PlayerInfo[playerid][Cash] < (item[Price] + 1000 * PlayerInfo[playerid][Level] * 5) * count))
+				if((itemid != 281 && PlayerInfo[playerid][Cash] < item[Price] * count) || 
+				   (itemid == 280 && PlayerInfo[playerid][Cash] < (item[Price] + 4000 * PlayerInfo[playerid][Rank] * PlayerInfo[playerid][Rank]) * count) ||
+				   (itemid == 281 && PlayerInfo[playerid][Cash] < (item[Price] + 2000 * PlayerInfo[playerid][Rank] * PlayerInfo[playerid][Rank]) * count))
 				{
 					ShowPlayerDialog(playerid, 1, DIALOG_STYLE_MSGBOX, "Ошибка", "Недостаточно денег.", "Закрыть", "");
 					return 0;
@@ -2418,10 +3067,258 @@ public OnDialogResponse(playerid, dialogid, response, listitem, inputtext[])
 				item = GetItem(itemid);
 
 				new price = 0;
-				if(itemid == 186)
-					price = (item[Price] + 1000 * PlayerInfo[playerid][Level] * 5) * count;
+				if(itemid == 280)
+					price = (item[Price] + 4000 * PlayerInfo[playerid][Rank] * PlayerInfo[playerid][Rank]) * count;
+				else if(itemid == 281)
+					price = (item[Price] + 2000 * PlayerInfo[playerid][Rank] * PlayerInfo[playerid][Rank]) * count;
 				else
 					price = item[Price] * count;
+
+				PlayerInfo[playerid][Cash] -= price;
+				GivePlayerMoney(playerid, -price);
+
+				AddItem(playerid, itemid, count);
+				ShowPlayerDialog(playerid, 1, DIALOG_STYLE_MSGBOX, "Покупка", "{66CC00}Предмет куплен.", "Закрыть", "");
+
+				if(item[Type] == ITEMTYPE_PASSIVE)
+					UpdatePlayerStats(playerid);
+			}
+			return 1;
+		}
+		//новогодий Шажок
+		/*case 710:
+		{
+			if(response)
+			{
+				new itemid = -1;
+				new price = 0;
+
+				new query[255];
+				format(query, sizeof(query), "SELECT * FROM `ny_shazok_seller` WHERE `ID` = '%d' LIMIT 1", listitem);
+				new Cache:q_result = mysql_query(sql_handle, query);
+
+				new row_count = 0;
+				cache_get_row_count(row_count);
+				if(row_count <= 0)
+				{
+					cache_delete(q_result);
+					ShowPlayerDialog(playerid, 1, DIALOG_STYLE_MSGBOX, "Ошибка", "Не удалось купить предмет.", "Закрыть", "");
+					return 0;
+				}
+
+				cache_get_value_name_int(0, "ItemID", itemid);
+				cache_get_value_name_int(0, "Price", price);
+				cache_delete(q_result);
+
+				if(itemid == -1)
+				{
+					ShowPlayerDialog(playerid, 1, DIALOG_STYLE_MSGBOX, "Ошибка", "Не удалось купить предмет.", "Закрыть", "");
+					return 0;
+				}
+
+				new item[BaseItem];
+				item = GetItem(itemid);
+				
+				if(item[Type] == ITEMTYPE_PASSIVE && HasItem(playerid, itemid))
+				{
+					ShowPlayerDialog(playerid, 1, DIALOG_STYLE_MSGBOX, "Ошибка", "У вас уже есть этот предмет.", "Закрыть", "");
+					return 0;
+				}
+
+				SetPVarInt(playerid, "BuyedItemID", itemid);
+				SetPVarInt(playerid, "BuyedItemPrice", price);
+
+				new player_noses = GetItemsCount(playerid, 370);
+				new available_count = player_noses / price;
+				if(item[Type] == ITEMTYPE_PASSIVE)
+					available_count = available_count >= 1 ? 1 : 0;
+
+				new text[255];
+				format(text, sizeof(text), "Укажите количество.\nВы можете купить: %d", available_count);
+				ShowPlayerDialog(playerid, 711, DIALOG_STYLE_INPUT, "Покупка", text, "Купить", "Отмена");
+			}	
+			return 1;
+		}
+		case 711:
+		{
+			if(response)
+			{
+				new itemid = GetPVarInt(playerid, "BuyedItemID");
+				if(itemid == -1)
+				{
+					ShowPlayerDialog(playerid, 1, DIALOG_STYLE_MSGBOX, "Ошибка", "Не удалось купить предмет.", "Закрыть", "");
+					return 0;
+				}
+
+				new price = GetPVarInt(playerid, "BuyedItemPrice");
+				new count = strval(inputtext);
+				if(count <= 0)
+				{
+					ShowPlayerDialog(playerid, 1, DIALOG_STYLE_MSGBOX, "Ошибка", "Неверное количество.", "Закрыть", "");
+					return 0;
+				}
+
+				new item[BaseItem];
+				item = GetItem(itemid);
+
+				if(item[Type] == ITEMTYPE_PASSIVE && count > 1)
+				{
+					ShowPlayerDialog(playerid, 1, DIALOG_STYLE_MSGBOX, "Ошибка", "Можно иметь только один предмет.", "Закрыть", "");
+					return 0;
+				}
+
+				new player_noses = GetItemsCount(playerid, 370);
+				if(player_noses < price * count)
+				{
+					ShowPlayerDialog(playerid, 1, DIALOG_STYLE_MSGBOX, "Ошибка", "Недостаточно носов.", "Закрыть", "");
+					return 0;
+				}
+
+				SetPVarInt(playerid, "BuyedItemCount", count);
+
+				new text[255];
+				format(text, sizeof(text), "{ffffff}[{%s}%s{ffffff}] x%d - купить?", GetGradeColor(item[Grade]), item[Name], count);
+				ShowPlayerDialog(playerid, 712, DIALOG_STYLE_MSGBOX, "Подтверждение", text, "ОК", "Отмена");
+			}	
+			return 1;
+		}
+		case 712:
+		{
+			if(response)
+			{
+				if(IsInventoryFull(playerid))
+				{
+					ShowPlayerDialog(playerid, 1, DIALOG_STYLE_MSGBOX, "Ошибка", "Инвентарь полон.", "Закрыть", "");
+					return 0;
+				}
+				new itemid = GetPVarInt(playerid, "BuyedItemID");
+				new count = GetPVarInt(playerid, "BuyedItemCount");
+				new item[BaseItem];
+				item = GetItem(itemid);
+
+				new price = GetPVarInt(playerid, "BuyedItemPrice") * count;
+				new noses_slot = FindItem(playerid, 370);
+
+				DeleteItem(playerid, noses_slot, price);
+
+				AddItem(playerid, itemid, count);
+				ShowPlayerDialog(playerid, 1, DIALOG_STYLE_MSGBOX, "Покупка", "{66CC00}Предмет куплен.", "Закрыть", "");
+
+				if(item[Type] == ITEMTYPE_PASSIVE)
+					UpdatePlayerStats(playerid);
+			}
+			return 1;
+		}*/
+		//поставщик
+		case 720:
+		{
+			if(response)
+			{
+				new itemid = -1;
+				new price = 0;
+
+				new query[255];
+				format(query, sizeof(query), "SELECT * FROM `keys_seller` WHERE `ID` = '%d' LIMIT 1", listitem);
+				new Cache:q_result = mysql_query(sql_handle, query);
+
+				new row_count = 0;
+				cache_get_row_count(row_count);
+				if(row_count <= 0)
+				{
+					cache_delete(q_result);
+					ShowPlayerDialog(playerid, 1, DIALOG_STYLE_MSGBOX, "Ошибка", "Не удалось купить предмет.", "Закрыть", "");
+					return 0;
+				}
+
+				cache_get_value_name_int(0, "ItemID", itemid);
+				cache_get_value_name_int(0, "Price", price);
+				cache_delete(q_result);
+
+				if(itemid == -1)
+				{
+					ShowPlayerDialog(playerid, 1, DIALOG_STYLE_MSGBOX, "Ошибка", "Не удалось купить предмет.", "Закрыть", "");
+					return 0;
+				}
+
+				new item[BaseItem];
+				item = GetItem(itemid);
+				SetPVarInt(playerid, "BuyedItemID", itemid);
+
+				new available_count = PlayerInfo[playerid][Cash] / price;
+
+				new text[255];
+				format(text, sizeof(text), "Укажите количество.\nВы можете купить: %d", available_count);
+				ShowPlayerDialog(playerid, 721, DIALOG_STYLE_INPUT, "Покупка", text, "Купить", "Отмена");
+			}	
+			return 1;
+		}
+		case 721:
+		{
+			if(response)
+			{
+				new itemid = GetPVarInt(playerid, "BuyedItemID");
+				if(itemid == -1)
+				{
+					ShowPlayerDialog(playerid, 1, DIALOG_STYLE_MSGBOX, "Ошибка", "Не удалось купить предмет.", "Закрыть", "");
+					return 0;
+				}
+
+				new price = 0;
+				new query[255];
+				format(query, sizeof(query), "SELECT * FROM `keys_seller` WHERE `ItemID` = '%d' LIMIT 1", itemid);
+				new Cache:q_result = mysql_query(sql_handle, query);
+
+				new row_count = 0;
+				cache_get_row_count(row_count);
+				if(row_count <= 0)
+				{
+					cache_delete(q_result);
+					ShowPlayerDialog(playerid, 1, DIALOG_STYLE_MSGBOX, "Ошибка", "Не удалось купить предмет.", "Закрыть", "");
+					return 0;
+				}
+
+				cache_get_value_name_int(0, "Price", price);
+				cache_delete(q_result);
+
+				new count = strval(inputtext);
+				if(count <= 0)
+				{
+					ShowPlayerDialog(playerid, 1, DIALOG_STYLE_MSGBOX, "Ошибка", "Неверное количество.", "Закрыть", "");
+					return 0;
+				}
+
+				new item[BaseItem];
+				item = GetItem(itemid);
+
+				if(PlayerInfo[playerid][Cash] < price * count)
+				{
+					ShowPlayerDialog(playerid, 1, DIALOG_STYLE_MSGBOX, "Ошибка", "Недостаточно денег.", "Закрыть", "");
+					return 0;
+				}
+
+				SetPVarInt(playerid, "BuyedItemCount", count);
+				SetPVarInt(playerid, "BuyedItemPrice", price * count);
+
+				new text[255];
+				format(text, sizeof(text), "{ffffff}[{%s}%s{ffffff}] x%d - купить?", GetGradeColor(item[Grade]), item[Name], count);
+				ShowPlayerDialog(playerid, 722, DIALOG_STYLE_MSGBOX, "Подтверждение", text, "ОК", "Отмена");
+			}	
+			return 1;
+		}
+		case 722:
+		{
+			if(response)
+			{
+				if(IsInventoryFull(playerid))
+				{
+					ShowPlayerDialog(playerid, 1, DIALOG_STYLE_MSGBOX, "Ошибка", "Инвентарь полон.", "Закрыть", "");
+					return 0;
+				}
+				new itemid = GetPVarInt(playerid, "BuyedItemID");
+				new count = GetPVarInt(playerid, "BuyedItemCount");
+				new price = GetPVarInt(playerid, "BuyedItemPrice");
+				new item[BaseItem];
+				item = GetItem(itemid);
 
 				PlayerInfo[playerid][Cash] -= price;
 				GivePlayerMoney(playerid, -price);
@@ -2478,6 +3375,20 @@ public OnDialogResponse(playerid, dialogid, response, listitem, inputtext[])
 			}
 			return 1;
 		}
+		//данжи
+		case 810:
+		{
+			if(response)
+			{
+				if(AvailableDungeons[playerid][listitem] != -1)
+					EnterToDungeon(playerid, AvailableDungeons[playerid][listitem]);
+				else
+				{
+					ShowPlayerDialog(playerid, 1, DIALOG_STYLE_MSGBOX, "Ошибка", "Ошибка получения списка территорий.", "Закрыть", "");
+					return 1;
+				}
+			}
+		}
 		//почта
 		case 900:
 		{
@@ -2519,6 +3430,15 @@ public OnDialogResponse(playerid, dialogid, response, listitem, inputtext[])
 			}
 		}
 
+		//коллекционер
+		case 920:
+		{
+			if(response)
+			{
+				SellAllUselessItems(playerid);
+			}
+		}
+
 		//Основное меню
 		case 1000:
 		{
@@ -2534,16 +3454,20 @@ public OnDialogResponse(playerid, dialogid, response, listitem, inputtext[])
 					{
 						SwitchPlayer(playerid);
 					}
-					case 2:
+                    case 2:
 					{
-						if(IsTourStarted || IsBossAttacker[playerid])
+						SwitchToWatcher(playerid);
+					}
+					case 3:
+					{
+						if(IsTourStarted || IsBossAttacker[playerid] || IsPlayerInDungeon(playerid))
 						{
 							SendClientMessage(playerid, COLOR_GREY, "Быстрое перемещение сейчас недоступно.");
 							return 0;
 						}
 
 						new cooldown = GetPVarInt(playerid, "TeleportCooldown");
-						if(cooldown <= 0)
+						if(cooldown <= 0 || PlayerInfo[playerid][IsWatcher] != 0)
 						{
 							new listitems[] = "Вход в дом\nОружейник\nПортной\nТорговец расходниками\nДоска почета\nГостиная\nБуржуа\nЗаведующий турнирами\nВход на арену\nПроход к боссам";
 							ShowPlayerDialog(playerid, 1001, DIALOG_STYLE_TABLIST, "Быстрое перемещение", listitems, "Выбрать", "Назад");
@@ -2568,11 +3492,12 @@ public OnDialogResponse(playerid, dialogid, response, listitem, inputtext[])
 		{
 			if(response)
 			{
+				TeleportToHome(playerid);
 				switch(listitem)
 				{			
 					case 0:
 					{
-						TeleportToHome(playerid);
+						//do nothing
 					}
 					case 1:
 					{
@@ -2637,6 +3562,23 @@ public OnDialogResponse(playerid, dialogid, response, listitem, inputtext[])
 				ShowMainMenu(playerid);
 		}
 
+		//создание наблюдателя
+		case 1002:
+		{
+			if(response)
+			{
+				if(CreateWatcher(AccountLogin[playerid]))
+				{
+					SendClientMessage(playerid, COLOR_GREEN, "Наблюдатель создан успешно. Переключение...");
+					SwitchToWatcher(playerid);
+				}
+				else
+					SendClientMessage(playerid, COLOR_LIGHTRED, "Ошибка при создании наблюдателя.");
+			}
+			else
+				return 1;
+		}
+
 		//рынок
 		case 1100:
 		{
@@ -2644,7 +3586,7 @@ public OnDialogResponse(playerid, dialogid, response, listitem, inputtext[])
 			{
 				switch(listitem)
 				{
-					case 0:	ShowPlayerDialog(playerid, 1103, DIALOG_STYLE_TABLIST, "Рынок", "Оружие\nДоспехи\nРасходные материалы", "Далее", "Назад");
+					case 0:	ShowPlayerDialog(playerid, 1103, DIALOG_STYLE_TABLIST, "Рынок", "Оружие\nДоспехи\nГоловные уборы\nОчки\nЧасы\nБижутерия\nРасходные материалы", "Далее", "Назад");
 					case 1:	ShowMarketSellWindow(playerid);
 					case 2:	ShowMarketMyLotList(playerid);
 				}
@@ -2683,7 +3625,7 @@ public OnDialogResponse(playerid, dialogid, response, listitem, inputtext[])
 				}
 			}
 			else
-				ShowPlayerDialog(playerid, 1103, DIALOG_STYLE_TABLIST, "Рынок", "Оружие\nДоспехи\nРасходные материалы", "Далее", "Назад");
+				ShowPlayerDialog(playerid, 1103, DIALOG_STYLE_TABLIST, "Рынок", "Оружие\nДоспехи\nГоловные уборы\nОчки\nЧасы\nБижутерия\nРасходные материалы", "Далее", "Назад");
 		}
 		case 1102:
 		{
@@ -2785,19 +3727,39 @@ public OnDialogResponse(playerid, dialogid, response, listitem, inputtext[])
 				UpdateMarketSellWindow(playerid);
 			}
 		}
+		//возврат из данжа
+		case 1200:
+		{
+			if(response)
+			{
+				if(IsPlayerInDungeon(playerid))
+					CompleteDungeon(playerid, false);
+
+				TeleportToHome(playerid);
+			}
+		}
 	}
 	return 1;
 }
 
 public FCNPC_OnUpdate(npcid)
 {
-	new Float:hp;
-	hp = GetPVarFloat(npcid, "HP");
-	SetPlayerHP(npcid, hp);
+	if(!IsNuclearBombExplodes && !IsTeamHealing)
+	{
+		new Float:hp;
+		hp = GetPVarFloat(npcid, "HP");
+		SetPlayerHP(npcid, hp);
+	}
 	
 	if(npcid == BossNPC && !IsTourStarted)
 	{
 		BossBehaviour(npcid);
+		return 1;
+	}
+
+	if(IsDungeonMob[npcid] || IsDungeonBoss[npcid])
+	{
+		DungeonEnemyBehaviour(npcid);
 		return 1;
 	}
 
@@ -2827,20 +3789,19 @@ public OnPlayerUpdate(playerid)
 {
 	if(FCNPC_IsValid(playerid)) return 0;
 	if(!IsSpawned[playerid]) return 0;
-	if(GetPlayerPing(playerid) > 300)
+
+	if(!IsNuclearBombExplodes && !IsTeamHealing)
 	{
-		SendClientMessage(playerid, COLOR_LIGHTRED, "[SERVER] Non-stable ping detected: unable to execute player update function.");
-		return 0;
+		new Float:hp;
+		hp = GetPVarFloat(playerid, "HP");
+		SetPlayerHP(playerid, hp);
 	}
 
-	new Float:hp;
-	hp = GetPVarFloat(playerid, "HP");
-	SetPlayerHP(playerid, hp);
 	UpdateHPBar(playerid);
 
 	if(IsTourStarted)
 	{
-		if(IsValidDynamicArea(arena_area) && !IsPlayerInDynamicArea(playerid, arena_area))
+		if(PlayerInfo[playerid][IsWatcher] <= 0 && IsValidDynamicArea(arena_area) && !IsPlayerInDynamicArea(playerid, arena_area))
 		{
 			TeleportToRandomArenaPos(playerid);
 			UpdatePlayerVisual(playerid);
@@ -2908,7 +3869,7 @@ public OnPlayerClickPlayerTextDraw(playerid, PlayerText:playertextid)
 		new item[BaseItem];
 		item = GetItem(itemid);
 
-		if(item[Type] == ITEMTYPE_BOX || item[Type] == ITEMTYPE_PASSIVE || item[Type] == ITEMTYPE_MODIFIER)
+		if(item[IsTradeble] == 0)
 		{
 			ShowPlayerDialog(playerid, 1, DIALOG_STYLE_MSGBOX, "Ошибка", "Этот предмет нельзя продать.", "Закрыть", "");
 			return 0;
@@ -2919,7 +3880,7 @@ public OnPlayerClickPlayerTextDraw(playerid, PlayerText:playertextid)
 			MarketSellingItem[playerid][Mod][i] = PlayerInventory[playerid][SelectedSlot[playerid]][Mod][i];
 		MarketSellingItem[playerid][Count] = 1;
 		MarketSellingItem[playerid][Price] = item[Price] / 2;
-		MarketSellingItem[playerid][rTime] = 3;
+		MarketSellingItem[playerid][rTime] = 10;
 		sscanf(PlayerInfo[playerid][Name], "s[255]", MarketSellingItem[playerid][Owner]);
 		MarketSellingItem[playerid][LotID] = GetMarketNextLotID();
 		SetPVarInt(playerid, "MarketSellingItemInvSlot", SelectedSlot[playerid]);
@@ -2950,9 +3911,9 @@ public OnPlayerClickPlayerTextDraw(playerid, PlayerText:playertextid)
 
 		UndressEquip(playerid, ITEMTYPE_ARMOR);
 	}
-	else if(playertextid == ChrInfAccSlot1[playerid])
+	else if(playertextid == ChrInfHatSlot[playerid])
 	{
-		if(PlayerInfo[playerid][AccSlot1ID] == -1) return 0;
+		if(PlayerInfo[playerid][HatSlotID] == 136) return 0;
 		if(IsSlotsBlocked[playerid]) return 0;
 		if(IsInventoryFull(playerid))
 		{
@@ -2960,16 +3921,52 @@ public OnPlayerClickPlayerTextDraw(playerid, PlayerText:playertextid)
 			return 0;
 		}
 
-		AddEquip(playerid, PlayerInfo[playerid][AccSlot1ID], MOD_CLEAR);
-		PlayerInfo[playerid][AccSlot1ID] = -1;
+		UndressEquip(playerid, ITEMTYPE_HAT);
+	}
+	else if(playertextid == ChrInfWatchSlot[playerid])
+	{
+		if(PlayerInfo[playerid][WatchSlotID] == -1) return 0;
+		if(IsSlotsBlocked[playerid]) return 0;
+		if(IsInventoryFull(playerid))
+		{
+			ShowPlayerDialog(playerid, 1, DIALOG_STYLE_MSGBOX, "Ошибка", "Инвентарь полон.", "Закрыть", "");
+			return 0;
+		}
+
+		UndressEquip(playerid, ITEMTYPE_WATCH);
+	}
+	else if(playertextid == ChrInfGlassesSlot[playerid])
+	{
+		if(PlayerInfo[playerid][ArmorSlotID] == -1) return 0;
+		if(IsSlotsBlocked[playerid]) return 0;
+		if(IsInventoryFull(playerid))
+		{
+			ShowPlayerDialog(playerid, 1, DIALOG_STYLE_MSGBOX, "Ошибка", "Инвентарь полон.", "Закрыть", "");
+			return 0;
+		}
+
+		UndressEquip(playerid, ITEMTYPE_GLASSES);
+	}
+	else if(playertextid == ChrInfRingSlot1[playerid])
+	{
+		if(PlayerInfo[playerid][RingSlot1ID] == -1) return 0;
+		if(IsSlotsBlocked[playerid]) return 0;
+		if(IsInventoryFull(playerid))
+		{
+			ShowPlayerDialog(playerid, 1, DIALOG_STYLE_MSGBOX, "Ошибка", "Инвентарь полон.", "Закрыть", "");
+			return 0;
+		}
+
+		AddEquip(playerid, PlayerInfo[playerid][RingSlot1ID], MOD_CLEAR);
+		PlayerInfo[playerid][RingSlot1ID] = -1;
 		UpdatePlayerStats(playerid);
 
 		if(IsInventoryOpen[playerid])
 			UpdateEquipSlots(playerid);
 	}
-	else if(playertextid == ChrInfAccSlot2[playerid])
+	else if(playertextid == ChrInfRingSlot2[playerid])
 	{
-		if(PlayerInfo[playerid][AccSlot2ID] == -1) return 0;
+		if(PlayerInfo[playerid][RingSlot2ID] == -1) return 0;
 		if(IsSlotsBlocked[playerid]) return 0;
 		if(IsInventoryFull(playerid))
 		{
@@ -2977,12 +3974,78 @@ public OnPlayerClickPlayerTextDraw(playerid, PlayerText:playertextid)
 			return 0;
 		}
 
-		AddEquip(playerid, PlayerInfo[playerid][AccSlot2ID], MOD_CLEAR);
-		PlayerInfo[playerid][AccSlot2ID] = -1;
+		AddEquip(playerid, PlayerInfo[playerid][RingSlot2ID], MOD_CLEAR);
+		PlayerInfo[playerid][RingSlot2ID] = -1;
 		UpdatePlayerStats(playerid);
 
 		if(IsInventoryOpen[playerid])
 			UpdateEquipSlots(playerid);
+	}
+	else if(playertextid == ChrInfAmuletteSlot1[playerid])
+	{
+		if(PlayerInfo[playerid][AmuletteSlot1ID] == -1) return 0;
+		if(IsSlotsBlocked[playerid]) return 0;
+		if(IsInventoryFull(playerid))
+		{
+			ShowPlayerDialog(playerid, 1, DIALOG_STYLE_MSGBOX, "Ошибка", "Инвентарь полон.", "Закрыть", "");
+			return 0;
+		}
+
+		AddEquip(playerid, PlayerInfo[playerid][AmuletteSlot1ID], MOD_CLEAR);
+		PlayerInfo[playerid][AmuletteSlot1ID] = -1;
+		UpdatePlayerStats(playerid);
+
+		if(IsInventoryOpen[playerid])
+			UpdateEquipSlots(playerid);
+	}
+	else if(playertextid == ChrInfAmuletteSlot2[playerid])
+	{
+		if(PlayerInfo[playerid][AmuletteSlot2ID] == -1) return 0;
+		if(IsSlotsBlocked[playerid]) return 0;
+		if(IsInventoryFull(playerid))
+		{
+			ShowPlayerDialog(playerid, 1, DIALOG_STYLE_MSGBOX, "Ошибка", "Инвентарь полон.", "Закрыть", "");
+			return 0;
+		}
+
+		AddEquip(playerid, PlayerInfo[playerid][AmuletteSlot2ID], MOD_CLEAR);
+		PlayerInfo[playerid][AmuletteSlot2ID] = -1;
+		UpdatePlayerStats(playerid);
+
+		if(IsInventoryOpen[playerid])
+			UpdateEquipSlots(playerid);
+	}
+	else if(playertextid == ChrInfNextInvBtn[playerid])
+	{
+		new page = GetPVarInt(playerid, "InvPage");
+		page++;
+
+		if(page < 1)
+			page = 1;
+		else if(page > MAX_INV_PAGES)
+			page = MAX_INV_PAGES;
+
+		if(GetPVarInt(playerid, "InvPage") != page)
+		{
+			SetPVarInt(playerid, "InvPage", page);
+			UpdateInventory(playerid);
+		}
+	}
+	else if(playertextid == ChrInfPrevInvBtn[playerid])
+	{
+		new page = GetPVarInt(playerid, "InvPage");
+		page--;
+
+		if(page < 1)
+			page = 1;
+		else if(page > MAX_INV_PAGES)
+			page = MAX_INV_PAGES;
+
+		if(GetPVarInt(playerid, "InvPage") != page)
+		{
+			SetPVarInt(playerid, "InvPage", page);
+			UpdateInventory(playerid);
+		}
 	}
 	else if(playertextid == ChrInfButUse[playerid])
 	{
@@ -2997,11 +4060,23 @@ public OnPlayerClickPlayerTextDraw(playerid, PlayerText:playertextid)
 		{
 			new equip[BaseItem];
 			equip = GetItem(itemid);
-			if((HasItem(playerid, 186, 1) ? PlayerInfo[playerid][Level] + 5 : PlayerInfo[playerid][Level]) < equip[MinLevel])
+			if((HasItem(playerid, ITEM_SHAZOK_LETTER_ID, 1) ? PlayerInfo[playerid][Rank] + 1 : PlayerInfo[playerid][Rank]) < equip[MinRank])
 			{
 				new string[255];
-				format(string, sizeof(string), "{ffffff}Ваш уровень не соответствует минимальному для этого предмета.\nМинимальный уровень - %d", equip[MinLevel]);
+				format(string, sizeof(string), "{ffffff}Ваш ранг не соответствует минимальному для этого предмета.\nМинимальный ранг - {%s}%s", 
+					RateColors[equip[MinRank]-1], GetRankInterval(equip[MinRank])
+				);
 				ShowPlayerDialog(playerid, 1, DIALOG_STYLE_MSGBOX, "Инвентарь", string, "Закрыть", "");
+				return 0;
+			}
+			if((itemid == 274 || itemid == 276) && PlayerInfo[playerid][Status] != HIERARCHY_LEADER)
+			{
+				ShowPlayerDialog(playerid, 1, DIALOG_STYLE_MSGBOX, "Инвентарь", "{ffffff}Данная экипировка доступна только Патриарху.", "Закрыть", "");
+				return 0;
+			}
+			if((itemid == 273 || itemid == 275) && PlayerInfo[playerid][Status] == HIERARCHY_NONE)
+			{
+				ShowPlayerDialog(playerid, 1, DIALOG_STYLE_MSGBOX, "Инвентарь", "{ffffff}Данная экипировка доступна только лидерам Цирка.", "Закрыть", "");
 				return 0;
 			}
 			EquipItem(playerid, equip[Type], SelectedSlot[playerid]);
@@ -3017,6 +4092,11 @@ public OnPlayerClickPlayerTextDraw(playerid, PlayerText:playertextid)
 			DeleteItem(playerid, SelectedSlot[playerid], 1);
 			OpenLockbox(playerid, itemid);
 		}
+	}
+	else if(playertextid == ChrInfButSort[playerid])
+	{
+		if(IsSlotsBlocked[playerid]) return 0;
+		SortInventory(playerid);
 	}
 	else if(playertextid == ChrInfButInfo[playerid])
 	{
@@ -3097,6 +4177,13 @@ public OnPlayerClickPlayerTextDraw(playerid, PlayerText:playertextid)
 	}
 	else if(playertextid == UpgStoneSlot[playerid])
 	{
+		if(ModStone[playerid] != -1)
+		{
+			ModStone[playerid] = -1;
+			UpdateModWindow(playerid);
+			return 0;
+		}
+
 		if(SelectedSlot[playerid] == -1) return 0;
 		new itemid = PlayerInventory[playerid][SelectedSlot[playerid]][ID];
 		if(itemid == -1) return 0;
@@ -3109,8 +4196,11 @@ public OnPlayerClickPlayerTextDraw(playerid, PlayerText:playertextid)
 
 		new equip[BaseItem];
 		equip = GetItem(PlayerInventory[playerid][ModItemSlot[playerid]][ID]);
-		if( ((itemid == 187 || itemid == 189) && equip[Type] == ITEMTYPE_WEAPON) ||
-			((itemid == 188 || itemid == 190) && equip[Type] == ITEMTYPE_ARMOR) )
+		if( ((itemid == 282 || itemid == 284) && equip[Type] == ITEMTYPE_WEAPON) ||
+			((itemid == 283 || itemid == 285) && equip[Type] == ITEMTYPE_ARMOR) ||
+			((itemid == 283 || itemid == 285) && equip[Type] == ITEMTYPE_HAT) ||
+			((itemid == 283 || itemid == 284 || itemid == 285) && equip[Type] == ITEMTYPE_GLASSES) || 
+			((itemid == 283 || itemid == 284 || itemid == 285) && equip[Type] == ITEMTYPE_WATCH) )
 		{
 			ModStone[playerid] = itemid;
 			UpdateModWindow(playerid);
@@ -3123,6 +4213,13 @@ public OnPlayerClickPlayerTextDraw(playerid, PlayerText:playertextid)
 	}
 	else if(playertextid == UpgPotionSlot[playerid])
 	{
+		if(ModPotion[playerid] != -1)
+		{
+			ModPotion[playerid] = -1;
+			UpdateModWindow(playerid);
+			return 0;
+		}
+
 		if(SelectedSlot[playerid] == -1) return 0;
 		new itemid = PlayerInventory[playerid][SelectedSlot[playerid]][ID];
 		if(itemid == -1) return 0;
@@ -3181,24 +4278,27 @@ public OnPlayerClickPlayerTextDraw(playerid, PlayerText:playertextid)
 
 	if(IsInventoryOpen[playerid])
 	{
-		for (new i = 0; i < MAX_INVENTORY_SLOTS; i++) {
-			if (playertextid == ChrInfInvSlot[playerid][i]) {
-				if (SelectedSlot[playerid] != -1) 
+		for(new i = 0; i < MAX_PAGE_SLOTS; i++) 
+		{
+			if(playertextid == ChrInfInvSlot[playerid][i]) 
+			{
+				new inv_slotid = GetSlotIdByPage(playerid, i);
+				if(SelectedSlot[playerid] != -1) 
 				{
-					if(!IsSlotsBlocked[playerid] && PlayerInventory[playerid][SelectedSlot[playerid]][ID] != -1 && PlayerInventory[playerid][i][ID] == -1) 
+					if(!IsSlotsBlocked[playerid] && PlayerInventory[playerid][SelectedSlot[playerid]][ID] != -1 && PlayerInventory[playerid][inv_slotid][ID] == -1) 
 					{
-						PlayerInventory[playerid][i] = PlayerInventory[playerid][SelectedSlot[playerid]];
+						PlayerInventory[playerid][inv_slotid] = PlayerInventory[playerid][SelectedSlot[playerid]];
 						PlayerInventory[playerid][SelectedSlot[playerid]] = EmptyInvItem;
 						new oldslot = SelectedSlot[playerid];
 						SelectedSlot[playerid] = -1;
 						UpdateSlot(playerid, oldslot);
-						UpdateSlot(playerid, i);
+						UpdateSlot(playerid, inv_slotid);
 						break;
 					}
 					SetSlotSelection(playerid, SelectedSlot[playerid], false);
 				}
-				SelectedSlot[playerid] = i;
-				SetSlotSelection(playerid, i, true);
+				SelectedSlot[playerid] = inv_slotid;
+				SetSlotSelection(playerid, inv_slotid, true);
 				break;
 			}
 		}
@@ -3218,15 +4318,221 @@ public Time()
 		format(string, 25, "%d:%d", hour, minute);
 	TextDrawSetString(WorldTime, string);
 
+	TickSecondGlobal();
 	if(minute == 0 && second == 0)
 		TickHour();
 	if(second == 0)
 		TickMinute();
 }
 
+stock TryUseHealProp(playerid)
+{
+	if(IsDeath[playerid]) return;
+	if(FCNPC_IsValid(playerid) && FCNPC_IsDead(playerid)) return;
+
+	new prop = GetPlayerPropValue(playerid, PROPERTY_HEAL);
+	if(prop <= 0)
+		return;
+	
+	if(!CheckChance(8))
+		return;
+	
+	new Float:hp;
+	hp = floatmul(GetPlayerMaxHP(playerid), floatmul(0.1, prop));
+	GivePlayerHP(playerid, hp);
+}
+
+stock TryUseRegenProp(playerid)
+{
+	if(IsDeath[playerid]) return;
+	if(FCNPC_IsValid(playerid) && FCNPC_IsDead(playerid)) return;
+
+	new prop = GetPlayerPropValue(playerid, PROPERTY_REGEN);
+	if(prop <= 0)
+		return;
+	
+	if(!CheckChance(prop * 3))
+		return;
+	
+	new Float:hp = GetPlayerMaxHP(playerid);
+	GivePlayerHP(playerid, hp);
+}
+
+stock TryUseInvulProp(playerid)
+{
+	if(IsDeath[playerid]) return;
+	if(FCNPC_IsValid(playerid) && FCNPC_IsDead(playerid)) return;
+
+	new prop = GetPlayerPropValue(playerid, PROPERTY_INVUL);
+	if(prop <= 0)
+		return;
+	
+	if(!CheckChance(8))
+		return;
+	
+	SetPlayerInvulnearable(playerid, 2 * prop);
+}
+
+stock IsAllOwnersConnected()
+{
+	new connected_owners = 0;
+	for(new i = 0; i < MAX_PLAYERS; i++)
+	{
+		if(!IsPlayerConnected(i)) continue;
+		if(FCNPC_IsValid(i)) continue;
+		if(!PlayerConnect[i]) continue;
+		connected_owners++;
+	}
+
+	if(connected_owners >= MAX_OWNERS)
+		return true;
+	return false;
+}
+
+stock TryRunSpecialActivity(activityid)
+{
+	if(Tournament[Phase] != PHASE_PEACE) return;
+	if(SpecialActivityDelay > 0) return;
+	if(!IsAllOwnersConnected())	return;
+	if(AttackedBoss != -1) return;
+	if(!CheckChance(5)) return;
+
+	OnSpecialActivityStart(activityid);
+}
+
+stock TryUseSpecialAbility(playerid, chance)
+{
+	if(!IsTourStarted) return;
+	if(SpecialAbilityDelay > 0) return;
+	if(IsSpecialAbilityUsed) return;
+	if(PlayerInfo[playerid][Status] == HIERARCHY_NONE) return;
+	if(GetPVarInt(playerid, "SpecialAbilityCooldown") > 0) return;
+	if(!CheckChance(chance)) return;
+
+	switch(PlayerInfo[playerid][Status])
+	{
+		case HIERARCHY_LEADER:
+		{
+			//растерянность
+			new team = GetPlayerTourTeam(playerid);
+
+			IsSpecialAbilityUsed = true;
+			SpecialAbilityEffect = SPECIAL_AB_EFFECT_CONFUSION;
+			SpecialAbilityEffectTime = 7;
+			SpecialAbilityEffectTeam = team;
+			ResetAllTeamTargets(team);
+
+			SetPVarInt(playerid, "SpecialAbilityCooldown", 40);
+
+			new string[255];
+			format(string, sizeof(string), "{cc0000}[Патриарх] {ffffff}%s использует {cc0000}<Растерянность>", PlayerInfo[playerid][Name]);
+			SendClientMessageToAll(COLOR_WHITE, string);
+		}
+		case HIERARCHY_ARCHONT:
+		{
+			//ядерная бомба
+			new team = GetPlayerTourTeam(playerid);
+			ExplodeNuclearBomb(team);
+			SetPVarInt(playerid, "SpecialAbilityCooldown", 40);
+
+			new string[255];
+			format(string, sizeof(string), "{674ea7}[Архонт] {ffffff}%s использует {674ea7}<Ядерная ракета>", PlayerInfo[playerid][Name]);
+			SendClientMessageToAll(COLOR_WHITE, string);
+		}
+		case HIERARCHY_ATTACK:
+		{
+			//сила великого Шажка
+			new team = GetPlayerTourTeam(playerid);
+			
+			IsSpecialAbilityUsed = true;
+			SpecialAbilityEffect = SPECIAL_AB_EFFECT_SHAZOK_FORCE;
+			SpecialAbilityEffectTime = 5;
+			SpecialAbilityEffectTeam = team;
+
+			SetPVarInt(playerid, "SpecialAbilityCooldown", 45);
+
+			new string[255];
+			format(string, sizeof(string), "{0000ff}[Атакующий] {ffffff}%s использует {0000ff}<Сила великого Шажка>", PlayerInfo[playerid][Name]);
+			SendClientMessageToAll(COLOR_WHITE, string);
+		}
+		case HIERARCHY_DEFENSE:
+		{
+			//доспехи Бога
+			new team = GetPlayerTourTeam(playerid);
+			SetAllTeamInvulnearable(team, 5);
+			SetPVarInt(playerid, "SpecialAbilityCooldown", 45);
+
+			new string[255];
+			format(string, sizeof(string), "{e69138}[Защитник] {ffffff}%s использует {e69138}<Доспехи Бога>", PlayerInfo[playerid][Name]);
+			SendClientMessageToAll(COLOR_WHITE, string);
+		}
+		case HIERARCHY_SUPPORT:
+		{
+			//целитель
+			new team = GetPlayerTourTeam(playerid);
+			HealAllTeam(team);
+			SetPVarInt(playerid, "SpecialAbilityCooldown", 40);
+
+			new string[255];
+			format(string, sizeof(string), "{c27ba0}[Поддержка] {ffffff}%s использует {c27ba0}<Целитель>", PlayerInfo[playerid][Name]);
+			SendClientMessageToAll(COLOR_WHITE, string);
+		}
+	}
+}
+
+stock ResetAllSpecialAbCooldowns()
+{
+	for(new i = 0; i < MAX_PLAYERS; i++)
+	{
+		if(!IsPlayerConnected(i))
+			continue;
+		SetPVarInt(i, "SpecialAbilityCooldown", 0);
+	}
+}
+
+stock ResetAllSpecialAbilites()
+{
+	IsSpecialAbilityUsed = false;
+	IsNuclearBombExplodes = false;
+	IsTeamHealing = false;
+
+	UnfreezeAll();
+	ResetAllSpecialAbCooldowns();
+
+	SpecialAbilityDelay = 0;
+	SpecialAbilityEffectTime = 0;
+	SpecialAbilityEffectTeam = NO_TEAM;
+	SpecialAbilityEffect = SPECIAL_AB_EFFECT_NONE;
+}
+
+stock UnfreezeAll()
+{
+	for(new i = 0; i < MAX_PLAYERS; i++)
+	{
+		if(!IsPlayerConnected(i) || FCNPC_IsValid(i))
+			continue;
+		TogglePlayerControllable(i, 1);
+	}
+}
+
 public TickSecond(playerid)
 {
-	RegeneratePlayerHP(playerid);
+	if(!IsTourStarted)
+		RegeneratePlayerHP(playerid);
+
+	TryUseHealProp(playerid);
+	TryUseInvulProp(playerid);
+	TryUseRegenProp(playerid);
+
+	if(FCNPC_IsValid(playerid) && !FCNPC_IsDead(playerid))
+		TryUseSpecialAbility(playerid, 15);
+
+	new inv_time = GetPVarInt(playerid, "Invulnearable");
+	if(inv_time > 0)
+	{
+		inv_time--;
+		SetPVarInt(playerid, "Invulnearable", inv_time);
+	}
 
 	new coop_cooldown = GetPVarInt(playerid, "CooperateCooldown");
 	if(coop_cooldown > 0)
@@ -3240,6 +4546,49 @@ public TickSecond(playerid)
 	{
 		tp_cooldown--;
 		SetPVarInt(playerid, "TeleportCooldown", tp_cooldown);
+	}
+
+	new sp_cooldown = GetPVarInt(playerid, "SpecialAbilityCooldown");
+	if(sp_cooldown > 0)
+	{
+		sp_cooldown--;
+		SetPVarInt(playerid, "SpecialAbilityCooldown", sp_cooldown);
+	}
+}
+
+public TickSecondGlobal()
+{
+	if(SpecialActivity == SPECIAL_ACTIVITY_NONE) {}
+		//TryRunSpecialActivity(SPECIAL_ACTIVITY_S_DELIVERY);
+	else if(SpecialActivityTimer > 0)
+	{
+		SpecialActivityTimer--;
+		if(SpecialActivityTimer <= 0)
+			OnSpecialActivityEnd(0);
+		else
+		{
+			new text[64];
+			format(text, sizeof(text), "~y~%d", SpecialActivityTimer);
+			GameTextForAll(text, 1000, 6);
+		}
+	}
+
+	if(SpecialAbilityDelay > 0)
+		SpecialAbilityDelay--;
+	
+	if(SpecialAbilityEffectTime > 0)
+	{
+		SpecialAbilityEffectTime--;
+		if(SpecialAbilityEffectTime <= 0)
+		{
+			if(SpecialAbilityEffect == SPECIAL_AB_EFFECT_CONFUSION)
+				UnfreezeAll();
+
+			SpecialAbilityEffectTime = 0;
+			SpecialAbilityEffectTeam = NO_TEAM;
+			SpecialAbilityEffect = SPECIAL_AB_EFFECT_NONE;
+			IsSpecialAbilityUsed = false;
+		}
 	}
 }
 
@@ -3268,6 +4617,8 @@ public bool:CheckChance(chance)
 public TickMinute()
 {
 	UpdateBossesCooldowns();
+	//if(SpecialActivityDelay > 0)
+		//SpecialActivityDelay--;
 }
 
 public RefreshWalkers()
@@ -3288,17 +4639,13 @@ public RefreshWalkers()
 	return 1;
 }
 
-public ResetPlayerInvulnearable(playerid)
-{
-	SetPVarInt(playerid, "Invulnearable", 0);
-}
-
 public TeleportToHome(playerid)
 {
 	ResetWorldBounds(playerid);
 	SetPlayerPos(playerid, 224.0761,-1839.8217,3.6037);
 	SetPlayerInterior(playerid, 0);
 	SetPlayerTourTeam(playerid, NO_TEAM);
+	DestroyDungeonEnemies(playerid);
 }
 
 public CancelBossAttack()
@@ -3352,7 +4699,8 @@ public TeleportBossAttackersToHome()
 public UpdatePlayerMaxHP(playerid)
 {
 	new Float:max_hp = 1000.0;
-	max_hp = floatadd(max_hp, floatmul(25.0, PlayerInfo[playerid][Level] - 1));
+	max_hp = floatadd(max_hp, floatmul(100.0, PlayerInfo[playerid][Rank] - 1));
+	max_hp = floatadd(max_hp, GetPlayerPropValue(playerid, PROPERTY_MAXHP));
 	if(max_hp < 1000)
 	    max_hp = 1000.0;
 	MaxHP[playerid] = max_hp;
@@ -3377,6 +4725,12 @@ public Float:GetPlayerMaxHP(playerid)
 	return MaxHP[playerid];
 }
 
+public Float:GetDistanceBetweenPoints(Float:p1_x,Float:p1_y,Float:p1_z,Float:p2_x,Float:p2_y,Float:p2_z)
+{
+	return floatsqroot(floatpower(floatabs(floatsub(p2_x,p1_x)),2)+floatpower(floatabs(floatsub(p2_y,
+		p1_y)),2)+floatpower(floatabs(floatsub(p2_z,p1_z)),2));
+}
+
 public Float:GetDistanceBetweenPlayers(p1,p2)
 {
 	new Float:x1,Float:y1,Float:z1,Float:x2,Float:y2,Float:z2;
@@ -3384,6 +4738,17 @@ public Float:GetDistanceBetweenPlayers(p1,p2)
 		return -1.0;
 	GetPlayerPos(p1,x1,y1,z1);
 	GetPlayerPos(p2,x2,y2,z2);
+	return floatsqroot(floatpower(floatabs(floatsub(x2,x1)),2)+floatpower(floatabs(floatsub(y2,
+		y1)),2)+floatpower(floatabs(floatsub(z2,z1)),2));
+}
+
+public Float:GetDistanceBetweenPlayerAndVeh(playerid, vehicleid)
+{
+	new Float:x1,Float:y1,Float:z1,Float:x2,Float:y2,Float:z2;
+	if(!IsPlayerConnected(playerid) || vehicleid == -1)
+		return -1.0;
+	GetPlayerPos(playerid,x1,y1,z1);
+	GetVehiclePos(vehicleid,x2,y2,z2);
 	return floatsqroot(floatpower(floatabs(floatsub(x2,x1)),2)+floatpower(floatabs(floatsub(y2,
 		y1)),2)+floatpower(floatabs(floatsub(z2,z1)),2));
 }
@@ -3431,68 +4796,35 @@ public RegeneratePlayerHP(playerid)
 	if(FCNPC_IsValid(playerid) && FCNPC_IsDead(playerid)) return;
 	new Float:hp;
 	if(FCNPC_IsValid(playerid))
-		hp = floatmul(GetPlayerMaxHP(playerid), 0.01);
+		hp = floatmul(GetPlayerMaxHP(playerid), 0.02);
 	else
-		hp = floatmul(GetPlayerMaxHP(playerid), HasItem(playerid, 182, 1) ? 0.02 : 0.01);
+		hp = floatmul(GetPlayerMaxHP(playerid), HasItem(playerid, ITEM_GEN_HP_ID, 1) ? 0.04 : 0.02);
 	GivePlayerHP(playerid, hp);
 }
 
-public GivePlayerOC(playerid, oc)
-{
-	PlayerInfo[playerid][OC] += oc;
-	if(PlayerInfo[playerid][OC] > MAX_OC)
-		PlayerInfo[playerid][OC] = MAX_OC;
-	if(PlayerInfo[playerid][OC] < 0)
-		PlayerInfo[playerid][OC] = 0;
-	
-	UpdateLocalOCTop(playerid);
-}
-
-public GivePlayerOCOffline(name[], oc)
-{
-	new query[255];
-	format(query, sizeof(query), "SELECT * FROM `players` WHERE `Name` = '%s' LIMIT 1", name);
-	new Cache:q_result = mysql_query(sql_handle, query);
-	new row_count = 0;
-	cache_get_row_count(row_count);
-	if(row_count <= 0)
-	{
-		print("Cannot give player rate offline.");
-		return;
-	}
-
-	new new_oc = 0;
-	cache_get_value_name_int(0, "OC", new_oc);
-	cache_delete(q_result);
-
-	new_oc += oc;
-	if(new_oc < 0) new_oc = 0;
-	if(new_oc > MAX_OC) new_oc = MAX_OC;
-	format(query, sizeof(query), "UPDATE `players` SET `OC` = '%d' WHERE `Name` = '%s' LIMIT 1", new_oc, name);
-	new Cache:result = mysql_query(sql_handle, query);
-	cache_delete(result);
-}
-
-public GivePlayerExp(playerid, exp)
+public GivePlayerRate(playerid, rate)
 {
 	new string[255];
-	if(exp > 0)
-		format(string, sizeof(string), "{66CC00}Получен опыт: %d", exp);
+	if(rate > 0)
+		format(string, sizeof(string), "{66CC00}Получен рейтинг: %d", rate);
 	else
-		format(string, sizeof(string), "{CC0000}Потерян опыт: %d", exp);
+		format(string, sizeof(string), "{CC0000}Потерян рейтинг: %d", rate);
 	SendClientMessage(playerid, COLOR_LIGHTRED, string);
 
-	PlayerInfo[playerid][Exp] += exp;
-	if(PlayerInfo[playerid][Exp] < 0) PlayerInfo[playerid][Exp] = 0;
-	if(PlayerInfo[playerid][Exp] > MAX_EXP) PlayerInfo[playerid][Exp] = MAX_EXP;
-	GivePlayerExpOffline(PlayerInfo[playerid][Name], exp);
-	UpdatePlayerLevel(playerid);
-	UpdateLevelBar(playerid);
-	UpdateLocalLevelTop(playerid);
+	PlayerInfo[playerid][Rate] += rate;
+	if(PlayerInfo[playerid][Rate] < 0) PlayerInfo[playerid][Rate] = 0;
+	if(PlayerInfo[playerid][Rate] > MAX_RATE) PlayerInfo[playerid][Rate] = MAX_RATE;
+	GivePlayerRateOffline(PlayerInfo[playerid][Name], rate);
+	UpdatePlayerRank(playerid);
+	UpdateLocalRatingTop(playerid);
 }
 
 public GivePlayerMoneyOffline(name[], money)
 {
+	new tax = money / 99;
+	money -= tax;
+	GivePatriarchMoney(tax);
+
 	new query[255];
 	format(query, sizeof(query), "SELECT * FROM `players` WHERE `Name` = '%s' LIMIT 1", name);
 	new Cache:q_result = mysql_query(sql_handle, query);
@@ -3515,7 +4847,7 @@ public GivePlayerMoneyOffline(name[], money)
 	cache_delete(result);
 }
 
-public GivePlayerExpOffline(name[], exp)
+public GivePlayerRateOffline(name[], rate)
 {
 	new query[255];
 	format(query, sizeof(query), "SELECT * FROM `players` WHERE `Name` = '%s' LIMIT 1", name);
@@ -3528,38 +4860,37 @@ public GivePlayerExpOffline(name[], exp)
 		return;
 	}
 
-	new new_exp = 0;
-	cache_get_value_name_int(0, "Exp", new_exp);
+	new new_rate = 0;
+	cache_get_value_name_int(0, "Rate", new_rate);
 	cache_delete(q_result);
 
-	new_exp += exp;
-	if(new_exp < 0) new_exp = 0;
-	if(new_exp > MAX_EXP) new_exp = MAX_EXP;
-	format(query, sizeof(query), "UPDATE `players` SET `Exp` = '%d' WHERE `Name` = '%s' LIMIT 1", new_exp, name);
+	new_rate += rate;
+	if(new_rate < 0) new_rate = 0;
+	if(new_rate > MAX_RATE) new_rate = MAX_RATE;
+	format(query, sizeof(query), "UPDATE `players` SET `Rate` = '%d' WHERE `Name` = '%s' LIMIT 1", new_rate, name);
 	new Cache:result = mysql_query(sql_handle, query);
 	cache_delete(result);
 }
 
-public SetPlayerExpOffline(name[], exp)
+public SetPlayerRateOffline(name[], rate)
 {
-	new new_exp = exp;
-	if(new_exp < 0) new_exp = 0;
-	if(new_exp > MAX_EXP) new_exp = MAX_EXP;
+	new new_rate = rate;
+	if(new_rate < 0) new_rate = 0;
+	if(new_rate > MAX_RATE) new_rate = MAX_RATE;
 	new query[255];
-	format(query, sizeof(query), "UPDATE `players` SET `Exp` = '%d' WHERE `Name` = '%s' LIMIT 1", new_exp, name);
+	format(query, sizeof(query), "UPDATE `players` SET `Rate` = '%d' WHERE `Name` = '%s' LIMIT 1", new_rate, name);
 	new Cache:result = mysql_query(sql_handle, query);
 	cache_delete(result);
 }
 
-public SetPlayerExp(playerid, exp)
+public SetPlayerRate(playerid, rate)
 {
-	PlayerInfo[playerid][Exp] = exp;
-	if(PlayerInfo[playerid][Exp] < 0) PlayerInfo[playerid][Exp] = 0;
-	if(PlayerInfo[playerid][Exp] > MAX_EXP) PlayerInfo[playerid][Exp] = MAX_EXP;
-	SetPlayerExpOffline(PlayerInfo[playerid][Name], exp);
-	UpdatePlayerLevel(playerid);
-	UpdateLevelBar(playerid);
-	UpdateLocalLevelTop(playerid);
+	PlayerInfo[playerid][Rate] = rate;
+	if(PlayerInfo[playerid][Rate] < 0) PlayerInfo[playerid][Rate] = 0;
+	if(PlayerInfo[playerid][Rate] > MAX_RATE) PlayerInfo[playerid][Rate] = MAX_RATE;
+	SetPlayerRateOffline(PlayerInfo[playerid][Name], rate);
+	UpdatePlayerRank(playerid);
+	UpdateLocalRatingTop(playerid);
 }
 
 /* Stock functions */
@@ -3580,9 +4911,10 @@ stock StartTour()
 		PvpInfo[i][Score] = 0;
 		PvpInfo[i][Kills] = 0;
 		PvpInfo[i][Deaths] = 0;
-		PvpInfo[i][OC] = 0;
 	}
 
+	ResetAllSpecialAbilites();
+	SpecialAbilityDelay = 10;
 	IsTourStarted = true;
 
 	//teleport all
@@ -3595,7 +4927,6 @@ stock StartTour()
 		if(playerid != -1 && !FCNPC_IsValid(playerid))
 		{
 			PvpInfo[i][ID] = playerid;
-			PvpInfo[i][OC] = player[OC];
 			format(PvpInfo[i][Name], 255, "%s", player[Name]);
 			TeleportToRandomArenaPos(playerid);
 			SetPlayerColor(playerid, HexTeamColors[PlayerInfo[playerid][TeamColor]][0]);
@@ -3615,9 +4946,17 @@ stock StartTour()
 
 		InitTourNPC(npcid);
 		PvpInfo[i][ID] = npcid;
-		PvpInfo[i][OC] = player[OC];
 		format(PvpInfo[i][Name], 255, "%s", player[Name]);
 		TeleportToRandomArenaPos(npcid);
+	}
+
+    for(new i = 0; i < MAX_PLAYERS; i++)
+	{
+		if(PlayerInfo[i][IsWatcher] <= 0)
+			continue;
+		
+		TeleportToRandomWatcherPos(i);
+		SetPvpTableVisibility(i, true);
 	}
 
 	//set teams
@@ -3635,7 +4974,7 @@ stock StartTour()
 		cache_get_value_name(i, "login", owner);
 		cache_unset_active();
 
-		format(query, sizeof(query), "SELECT * FROM `players` WHERE `Owner` = '%s'", owner);
+        format(query, sizeof(query), "SELECT * FROM `players` WHERE `Owner` = '%s' AND `IsWatcher`=0", owner);
 		new Cache:result = mysql_query(sql_handle, query);
 		
 		new rows = 0;
@@ -3678,32 +5017,29 @@ stock StartTour()
 	print("Tour started.");
 }
 
-stock GetScoreDiff(killer_pos, killed_pos, bool:for_killer)
+stock GetScoreDiff(rate1, rate2, bool:is_killer)
 {
-	new place_mult;
-	new base_score = 50;
-	new score = 0;
-
-	if(for_killer)
-	{
-		if(killed_pos < killer_pos)
-		{
-			place_mult = killer_pos - killed_pos;
-			score = base_score + (base_score * place_mult);
-		}
-		else
-			score = base_score;
-	}
+	new diff = rate1 - rate2;
+	if(diff > 2500)
+		diff = floatround(floatmul(diff, 0.5));
+	else if(diff > 2000)
+		diff = floatround(floatmul(diff, 0.45));
+	else if(diff > 1500)
+		diff = floatround(floatmul(diff, 0.4));
+	else if(diff > 1000)
+		diff = floatround(floatmul(diff, 0.35));
+	else if(diff > 500)
+		diff = floatround(floatmul(diff, 0.3));
+	else if(diff > 0)
+		diff = floatround(floatmul(diff, 0.2));
 	else
-	{
-		if(killed_pos > killer_pos)
-		{
-			place_mult = killed_pos - killer_pos;
-			score = (place_mult * base_score) / 2;
-		}
-	}
+		diff = floatround(floatabs(floatmul(3001 - floatabs(diff), 0.007)));
 
-	return score;
+	if(is_killer)
+		diff += 40;
+	else
+		diff = floatround(floatmul(diff, 0.5));
+	return diff;
 }
 
 stock GetWeaponDelay(weaponid)
@@ -3719,6 +5055,7 @@ stock GetWeaponDelay(weaponid)
 		case 29: return MP5_SHOOT_DELAY;
 		case 30: return AK_SHOOT_DELAY;
 		case 31: return M4_SHOOT_DELAY;
+		case 33: return RIFLE_SHOOT_DELAY;
 	}
 	return DEFAULT_SHOOT_DELAY;
 }
@@ -3737,12 +5074,12 @@ stock GetPlayerInGameID(global_id)
 	return -1;
 }
 
-stock GetWalkersCountByType(type)
+stock GetWalkersCountByRank(rank)
 {
 	new count = 0;
 	for(new i = 0; i < MAX_WALKERS; i++)
 	{
-		if(Walkers[i][Type] == type)
+		if(Walkers[i][Rank] == rank)
 			count++;
 	}
 
@@ -3786,6 +5123,15 @@ stock InitTourNPC(npcid)
 	UpdatePlayerWeapon(npcid);
 }
 
+stock SetPlayerHPPercent(playerid, percent)
+{
+	new Float:hp;
+	hp = floatmul(GetPlayerMaxHP(playerid), floatdiv(percent, 100));
+
+	SetPVarFloat(playerid, "HP", hp);
+	SetPlayerHP(playerid, hp);
+}
+
 stock GetPlayerHPPercent(playerid)
 {
 	new Float:hp = GetPlayerHP(playerid);
@@ -3797,12 +5143,11 @@ stock GetPlayerHPPercent(playerid)
 
 stock SetPlayerInvulnearable(playerid, time)
 {
-	SetPVarInt(playerid, "Invulnearable", 1);
+	new inv = GetPVarInt(playerid, "Invulnearable");
+	if(inv < 0) 
+		inv = 0;
 
-	if(IsValidTimer(InvulnearableTimer[playerid]))
-		KillTimer(InvulnearableTimer[playerid]);
-
-	InvulnearableTimer[playerid] = SetTimerEx("ResetPlayerInvulnearable", time * 1000, false, "i", playerid);
+	SetPVarInt(playerid, "Invulnearable", inv + time);
 }
 
 stock GetRandomCooperateMessage()
@@ -3927,6 +5272,13 @@ stock ParticipantBehaviour(id)
 		return 1;
 	}
 
+	//If NPC has a lot of aimers - run away
+	if(GetAimingPlayersCount(id) > 3 && GetPlayerHPPercent(id) < 50 && !FCNPC_IsMoving(id))
+	{
+		MoveAround(id, true);
+		return 1;
+	}
+
 	//Checking available target
 	if(!FCNPC_IsAiming(id) && !FCNPC_IsDead(id))
 	{
@@ -3948,9 +5300,21 @@ stock ParticipantBehaviour(id)
 		return 1;
 	}
 
-	//If current target's HP > 20%, trying to find common target
-	if(fix_target == -1 && GetPlayerHPPercent(target) > 20 && GetAimingPlayersCount(target) < 5)
-		TryFindCommonTarget(id, target);
+	//If current target's HP > 30%, trying to find common target
+	new common_finded = -1;
+	if(fix_target == -1 && GetPlayerHPPercent(target) > 30 && GetAimingPlayersCount(target) < 3)
+		common_finded = TryFindCommonTarget(id, target);
+
+	//If there are targets with less HP beside player - change target
+	if(common_finded == -1 && fix_target == -1 && GetPlayerHPPercent(target) >= 20)
+	{
+		new potential_target = FindPlayerTarget(id, true);
+		if(potential_target != -1 && potential_target != target)
+		{
+			if(GetPlayerHPPercent(potential_target) < 20)
+				SetPlayerTarget(id, potential_target);
+		}
+	}
 
 	target = FCNPC_GetAimingPlayer(id);
 
@@ -3971,17 +5335,6 @@ stock ParticipantBehaviour(id)
 	}
 	else if(shotting_ticks > MAX_NPC_SHOT_TICKS)
 		FCNPC_AimAtPlayer(id, target, false);
-
-	//If there are targets with less HP beside player - change target
-	if(fix_target == -1 && GetPlayerHPPercent(target) >= 20)
-	{
-		new potential_target = FindPlayerTarget(id, true);
-		if(potential_target != -1 && potential_target != target)
-		{
-			if(GetPlayerHPPercent(potential_target) < 20)
-				SetPlayerTarget(id, potential_target);
-		}
-	}
 	
 	return 1;
 }
@@ -4040,6 +5393,16 @@ stock GetWalkerAvailableTarget(walkerid, oldtarget)
 	return target;
 }
 
+stock ResetDungeonEnemyTarget(id)
+{
+	if(FCNPC_IsMoving(id))
+		FCNPC_Stop(id);
+	if(FCNPC_IsAiming(id))
+		FCNPC_StopAim(id);
+	SetPVarFloat(id, "HP", MaxHP[id]);
+	SetMobDestPoint(id);
+}
+
 stock ResetWalkerTarget(id)
 {
 	ResetWalkerDamagersInfo(id);
@@ -4049,6 +5412,88 @@ stock ResetWalkerTarget(id)
 		FCNPC_StopAim(id);
 	SetPVarFloat(id, "HP", MaxHP[id]);
 	SetWalkerDestPoint(id);
+}
+
+stock ResetAllWalkersTargets()
+{
+	for(new i = 0; i < MAX_PLAYERS; i++)
+	{
+		if(!IsPlayerConnected(i) || !FCNPC_IsValid(i)) continue;
+		if(IsWalker[i] && !IsTourStarted)
+			ResetWalkerTarget(i);
+	}
+}
+
+stock FindWalkerNearestTarget(id, radius)
+{
+	for(new i = 0; i < MAX_PLAYERS; i++)
+	{
+		if(!IsPlayerConnected(i) || FCNPC_IsValid(i)) continue;
+		if(GetDistanceBetweenPlayers(id, i) <= radius)
+			return i;
+	}
+
+	return -1;
+}
+
+stock DungeonEnemyBehaviour(id)
+{
+	if(id == -1 || id == INVALID_PLAYER_ID) return;
+	if(!FCNPC_IsValid(id)) return;
+
+	new shotting_ticks = GetPVarInt(id, "ShotTicks");
+	if(FCNPC_IsShooting(id))
+		shotting_ticks++;
+	else
+		shotting_ticks = 0;
+	SetPVarInt(id, "ShotTicks", shotting_ticks);
+
+	new target = FCNPC_GetAimingPlayer(id);
+
+	if(target == -1 || target == INVALID_PLAYER_ID)
+	{
+		if(FCNPC_IsAiming(id))
+			FCNPC_StopAim(id);
+		if(!FCNPC_IsMoving(id))
+			SetMobDestPoint(id);
+		return;
+	}
+
+	if(IsDeath[target])
+	{
+		if(FCNPC_IsAiming(id))
+			FCNPC_StopAim(id);
+		if(FCNPC_IsMoving(id))
+			FCNPC_Stop(id);
+			
+		SetPVarFloat(id, "HP", MaxHP[id]);
+		SetMobDestPoint(id);
+		return;
+	}
+
+	new Float:dist = GetDistanceBetweenPlayers(id, target);
+	if(dist > 35)
+	{
+		ResetDungeonEnemyTarget(id);
+		return;
+	}
+
+	if(!FCNPC_IsMovingAtPlayer(id, target) && dist > 14.0)
+	{
+		if(!FCNPC_IsShooting(id) || shotting_ticks > MAX_NPC_SHOT_TICKS)
+			FCNPC_GoToPlayer(id, target);
+	}
+
+	//If npc so close to target - attack it
+	if(dist <= 14)
+	{
+		if(FCNPC_IsMoving(id))
+			FCNPC_Stop(id);
+		if(!FCNPC_IsShooting(id))
+			FCNPC_AimAtPlayer(id, target, true, GetWeaponDelay(FCNPC_GetWeapon(id)));
+	}
+	else if(shotting_ticks > MAX_NPC_SHOT_TICKS)
+		FCNPC_AimAtPlayer(id, target, false);
 }
 
 stock WalkerBehaviour(id)
@@ -4064,6 +5509,12 @@ stock WalkerBehaviour(id)
 	SetPVarInt(id, "ShotTicks", shotting_ticks);
 
 	new target = FCNPC_GetAimingPlayer(id);
+	if(SpecialActivity == SPECIAL_ACTIVITY_S_DELIVERY && SpecialActivityVehicleID != -1 && GetDistanceBetweenPlayerAndVeh(id, SpecialActivityVehicleID) < 5)
+	{
+		new new_target = FindWalkerNearestTarget(id, 6);
+		if(new_target != -1)
+			target = new_target;
+	}
 
 	new Float:x, Float:y, Float:z;
 	FCNPC_GetPosition(id, x, y, z);
@@ -4085,7 +5536,7 @@ stock WalkerBehaviour(id)
 		return;
 	}
 
-	if(IsDeath[target] || PlayerInfo[target][WalkersLimit] <= 0)
+	if(IsDeath[target] || (PlayerInfo[target][WalkersLimit] <= 0 && SpecialActivity != SPECIAL_ACTIVITY_S_DELIVERY))
 	{
 		if(FCNPC_IsAiming(id))
 			FCNPC_StopAim(id);
@@ -4184,50 +5635,27 @@ stock BossBehaviour(id)
 		FCNPC_AimAtPlayer(id, target, false);
 }
 
-stock GiveBourgeoisRewards()
+stock GiveSpecialActivityRewards(activityid)
 {
-	new query[255];
-	format(query, sizeof(query), "SELECT * FROM `players` WHERE `Owner` <> 'Admin' LIMIT %d", MAX_PARTICIPANTS);
-	new Cache:q_result = mysql_query(sql_handle, query);
-	new row_count = 0;
-	cache_get_row_count(row_count);
-	if(row_count <= 0)
+	if(activityid == SPECIAL_ACTIVITY_NONE) return;
+	if(activityid == SPECIAL_ACTIVITY_S_DELIVERY)
 	{
-		print("Cannot give bourgeois rewards.");
-		return;
+		new count = 0;
+		for(new i = 0; i < MAX_PLAYERS; i++)
+		{
+			if(count >= MAX_OWNERS) break;
+			if(!IsPlayerConnected(i) || FCNPC_IsValid(i)) continue;
+
+			PendingItem(PlayerInfo[i][Name], 368, MOD_CLEAR, random(6) + 5, "Награда за доставку S-а");
+			count++;
+		}
 	}
-
-	q_result = cache_save();
-	cache_unset_active();
-
-	new idxes[MAX_BOURGEOIS_REWARDS];
-	ArraySetDefaultValue(idxes, MAX_BOURGEOIS_REWARDS, -1);
-	for(new i = 0; i < MAX_BOURGEOIS_REWARDS; i++)
-	{
-		new idx = random(row_count);
-		while(ArrayValueExist(idxes, MAX_BOURGEOIS_REWARDS, idx))
-			idx = random(row_count);
-		idxes[i] = idx;
-	}
-
-	for(new i = 0; i < MAX_BOURGEOIS_REWARDS; i++)
-	{
-		new idx = idxes[i];
-		new name[255];
-		cache_set_active(q_result);
-		cache_get_value_name(idx, "Name", name);
-		cache_unset_active();
-
-		PendingItem(name, 314, MOD_CLEAR, 2 + random(4), "Награда от Буржуа");
-	}
-
-	cache_delete(q_result);
 }
 
 stock GiveTournamentRewards()
 {
 	new query[255];
-	format(query, sizeof(query), "SELECT * FROM `players` WHERE `Owner` <> 'Admin' LIMIT %d", MAX_PARTICIPANTS);
+	format(query, sizeof(query), "SELECT * FROM `players` WHERE `Owner` <> 'Admin' AND `IsWatcher`=0 LIMIT %d", MAX_PARTICIPANTS);
 	new Cache:q_result = mysql_query(sql_handle, query);
 	new row_count = 0;
 	cache_get_row_count(row_count);
@@ -4243,13 +5671,13 @@ stock GiveTournamentRewards()
 	for(new i = 0; i < row_count; i++)
 	{
 		new name[255];
-		new level = 1;
+		new rank = 1;
 		new place = MAX_PARTICIPANTS;
 		new money = 0;
 
 		cache_set_active(q_result);
 		cache_get_value_name(i, "Name", name);
-		cache_get_value_name_int(i, "Level", level);
+		cache_get_value_name_int(i, "Rank", rank);
 		cache_get_value_name_int(i, "GlobalTopPos", place);
 		cache_unset_active();
 
@@ -4258,55 +5686,55 @@ stock GiveTournamentRewards()
 		{
 			case 1:
 			{
-				reward[ItemID] = 203;
+				reward[ItemID] = 313;
 				reward[ItemsCount] = 15;
 				money = 4000;
 			}
 			case 2:
 			{
-				reward[ItemID] = 203;
+				reward[ItemID] = 313;
 				reward[ItemsCount] = 13;
 				money = 3800;
 			}
 			case 3:
 			{
-				reward[ItemID] = 203;
+				reward[ItemID] = 313;
 				reward[ItemsCount] = 11;
 				money = 3500;
 			}
 			case 4..5:
 			{
-				reward[ItemID] = 203;
+				reward[ItemID] = 313;
 				reward[ItemsCount] = 7;
 				money = 2750;
 			}
 			case 6..8:
 			{
-				reward[ItemID] = 202;
+				reward[ItemID] = 312;
 				reward[ItemsCount] = 10;
 				money = 2200;
 			}
 			case 9..12:
 			{
-				reward[ItemID] = 202;
+				reward[ItemID] = 312;
 				reward[ItemsCount] = 8;
 				money = 1600;
 			}
 			case 13..16:
 			{
-				reward[ItemID] = 202;
+				reward[ItemID] = 312;
 				reward[ItemsCount] = 6;
 				money = 1350;
 			}
 			default:
 			{
-				reward[ItemID] = 202;
+				reward[ItemID] = 312;
 				reward[ItemsCount] = 4;
 				money = 1000;
 			}
 		}
 
-		money = money * floatround(floatpower(floatround(floatdiv(level, 5)), 2));
+		money = money * floatround(floatpower(rank, 2));
 		reward[Money] = money;
 
 		new id = GetPlayerID(name);
@@ -4341,7 +5769,79 @@ stock GiveTournamentRewards()
 			if(reward[Money] > 0)
 				AddPlayerMoney(id, reward[Money]);
 		}
+
+		//PendingItem(name, 368, MOD_CLEAR, 1, "С Новым годом!");
 	}
+}
+
+stock SellAllUselessItems(playerid)
+{
+	new money = 0;
+	new items = 0;
+
+	for(new i = 0; i < MAX_SLOTS; i++)
+	{
+		new itemid = PlayerInventory[playerid][i][ID];
+		new item[BaseItem];
+		item = GetItem(itemid);
+		if(PlayerInventory[playerid][i][ID] == 366)
+		{
+			money += PlayerInventory[playerid][i][Count] * (item[Price] / 7);
+			items++;
+			DeleteItem(playerid, i, PlayerInventory[playerid][i][Count]);
+			continue;
+		}
+		if(item[Grade] == GRADE_N && IsModifiableEquip(itemid) && GetModLevel(PlayerInventory[playerid][i][Mod]) == 0)
+		{
+			money += item[Price] / 7;
+			items++;
+			DeleteItem(playerid, i);
+			continue;
+		}
+	}
+	
+	new tax = money / 99;
+	money -= tax;
+	PlayerInfo[playerid][Cash] += money;
+	GivePlayerMoney(playerid, money);
+	GivePatriarchMoney(tax);
+
+	new string[255];
+	format(string, sizeof(string), "Продано предметов: %d", items);
+	SendClientMessage(playerid, COLOR_WHITE, string);
+	format(string, sizeof(string), "Получено: %s$", FormatMoney(money));
+	SendClientMessage(playerid, COLOR_GREEN, string);
+}
+
+stock HappyBirthday(owner[])
+{
+	new query[255];
+	format(query, sizeof(query), "SELECT * FROM `players` WHERE `Owner` <> 'Admin' AND `Owner` = '%s' AND `IsWatcher`=0 LIMIT %d", owner, MAX_PARTICIPANTS);
+	new Cache:q_result = mysql_query(sql_handle, query);
+	new row_count = 0;
+	cache_get_row_count(row_count);
+	if(row_count <= 0)
+	{
+		print("Cannot get player list.");
+		return;
+	}
+
+	q_result = cache_save();
+	cache_unset_active();
+
+	for(new i = 0; i < row_count; i++)
+	{
+		new name[255];
+		new place;
+		cache_set_active(q_result);
+		cache_get_value_name(i, "Name", name);
+		cache_get_value_name_int(i, "LocalTopPos", place);
+		cache_unset_active();
+
+		PendingItem(name, 367, MOD_CLEAR, MAX_PARTICIPANTS / 2 + 1 - place, "С Днем рождения!");
+	}
+
+	cache_delete(q_result);
 }
 
 stock UpdateBossesCooldowns()
@@ -4380,31 +5880,63 @@ stock UpdateBossesCooldowns()
 	cache_delete(q_result);
 }
 
-stock UpdateTempItems()
+stock UpdateTempHierarchyItems()
 {
-	new query[255] = "UPDATE `inventories` SET `ItemID` = '-1', `Count` = '0' WHERE `ItemID` >= '182' AND `ItemID` <= '186'";
+	new query[255] = "UPDATE `players` SET `WeaponSlotID` = '0', `WeaponMod` = '0 0 0 0 0 0 0' WHERE `Status` = '0' AND `WeaponSlotID`='275'";
 	new Cache:q_result = mysql_query(sql_handle, query);
 	cache_delete(q_result);
 
-	query = "UPDATE `warehouses` SET `ItemID` = '-1', `Count` = '0' WHERE `ItemID` >= '182' AND `ItemID` <= '186'";
+	query = "UPDATE `players` SET `WeaponSlotID` = '0', `WeaponMod` = '0 0 0 0 0 0 0' WHERE `Status` <> '1' AND `WeaponSlotID` = '276'";
+	q_result = mysql_query(sql_handle, query);
+	cache_delete(q_result);
+
+	query = "UPDATE `players` SET `ArmorSlotID` = '81', `ArmorMod` = '0 0 0 0 0 0 0' WHERE `Status` = '0' AND `ArmorSlotID` = '273'";
+	q_result = mysql_query(sql_handle, query);
+	cache_delete(q_result);
+
+	query = "UPDATE `players` SET `ArmorSlotID` = '81', `ArmorMod` = '0 0 0 0 0 0 0' WHERE `Status` <> '1' AND `ArmorSlotID` = '274'";
 	q_result = mysql_query(sql_handle, query);
 	cache_delete(q_result);
 
 	for(new i = 0; i < MAX_PLAYERS; i++)
 	{
 		if(!IsPlayerConnected(i)) continue;
-		for(new j = 0; j < MAX_INVENTORY_SLOTS; j++)
+		for(new j = 0; j < MAX_SLOTS; j++)
 		{
-			if(PlayerInventory[i][j][ID] >= 182 && PlayerInventory[i][j][ID] <= 186)
+			if((PlayerInfo[i][WeaponSlotID] == 275 && PlayerInfo[i][Status] == HIERARCHY_NONE) ||
+			   (PlayerInfo[i][WeaponSlotID] == 276 && PlayerInfo[i][Status] != HIERARCHY_LEADER))
+			{
+				PlayerInfo[i][WeaponSlotID] = 0;
+				PlayerInfo[i][WeaponMod] = MOD_CLEAR;
+				UpdatePlayerStats(i);
+			}
+			if((PlayerInfo[i][ArmorSlotID] == 273 && PlayerInfo[i][Status] == HIERARCHY_NONE) ||
+			   (PlayerInfo[i][ArmorSlotID] == 274 && PlayerInfo[i][Status] != HIERARCHY_LEADER))
+			{
+				PlayerInfo[i][ArmorSlotID] = 81;
+				PlayerInfo[i][ArmorMod] = MOD_CLEAR;
+				UpdatePlayerStats(i);
+			}
+		}
+	}
+}
+
+stock UpdateTempItems()
+{
+	new query[255] = "UPDATE `inventories` SET `ItemID` = '-1', `Count` = '0' WHERE `ItemID` >= '277' AND `ItemID` <= '281'";
+	new Cache:q_result = mysql_query(sql_handle, query);
+	cache_delete(q_result);
+
+	for(new i = 0; i < MAX_PLAYERS; i++)
+	{
+		if(!IsPlayerConnected(i)) continue;
+		for(new j = 0; j < MAX_SLOTS; j++)
+		{
+			if(PlayerInventory[i][j][ID] >= 277 && PlayerInventory[i][j][ID] <= 281)
 			{
 				DeleteItem(i, j);
 				UpdatePlayerStats(i);
 			}
-		}
-		for(new j = 0; j < MAX_WAREHOUSE_SLOTS; j++)
-		{
-			if(PlayerWarehouse[i][j][ID] >= 182 && PlayerWarehouse[i][j][ID] <= 186)
-				DeleteItemFromWarehouse(i, j);
 		}
 	}
 }
@@ -4660,8 +6192,12 @@ stock GetMarketCategoryByItem(itemid)
 
 	switch(item[Type])
 	{
-		case ITEMTYPE_ACCESSORY, ITEMTYPE_ARMOR: category = MARKET_CATEGORY_ARMOR;
+		case ITEMTYPE_ARMOR: category = MARKET_CATEGORY_ARMOR;
 		case ITEMTYPE_WEAPON: category = MARKET_CATEGORY_WEAPON;
+        case ITEMTYPE_HAT: category = MARKET_CATEGORY_HAT;
+        case ITEMTYPE_GLASSES: category = MARKET_CATEGORY_GLASSES;
+        case ITEMTYPE_WATCH: category = MARKET_CATEGORY_WATCH;
+        case ITEMTYPE_RING, ITEMTYPE_AMULETTE: category = MARKET_CATEGORY_ACCESSORY;
 	}
 
 	return category;
@@ -4711,8 +6247,12 @@ stock BuyItem(playerid, lotid, count = 1)
 	DeleteItemFromMarket(item[LotID], count);
 
 	new amount = item[Price] * count;
+	new comission = floatround(floatmul(amount, 0.05));
+	
 	PlayerInfo[playerid][Cash] -= amount;
 	GivePlayerMoney(playerid, -amount);
+
+	amount -= comission;
 
 	if(IsEquip(item[ID]))
 		AddEquip(playerid, item[ID], item[Mod]);
@@ -4738,9 +6278,19 @@ stock BuyItem(playerid, lotid, count = 1)
 		PendingMessage(item[Owner], string);
 		GivePlayerMoneyOffline(item[Owner], amount);
 	}
+
+	GivePatriarchMoney(comission);
 	
 	SendClientMessage(playerid, COLOR_GREEN, "Предмет куплен.");
 	ShowMarketBuyList(playerid, category);
+}
+
+stock GivePatriarchMoney(value)
+{
+	new query[255];
+	format(query, sizeof(query), "UPDATE `hierarchy` SET `Money` = Money+%d LIMIT 1", value);
+	new Cache:temp_result = mysql_query(sql_handle, query);
+	cache_delete(temp_result);
 }
 
 stock CancelItem(playerid, listitem)
@@ -4795,18 +6345,18 @@ stock ShowMarketMenu(playerid)
 
 stock ShowMarketSellingItems(playerid, category, content[])
 {
-	new listitems[2048];
+	new listitems[4096];
 	if(category == MARKET_CATEGORY_MATERIAL)
 		listitems = "Предмет\tЦена за 1 шт\tВладелец\tВремя регистрации";
 	else
-		listitems = "Предмет (улучшения)\tЦена\tВладелец\tВремя регистрации";
+		listitems = "[Предмет](улучшения)\t[Ранг] цена\tВладелец\tВремя регистрации";
 	strcat(listitems, content);
 	ShowPlayerDialog(playerid, 1101, DIALOG_STYLE_TABLIST_HEADERS, "Рынок", listitems, "Купить", "Назад");
 }
 
 stock ShowMarketMyItems(playerid, content[])
 {
-	new listitems[2048] = "Предмет\tЦена за 1 шт\tВремя регистрации";
+	new listitems[4096] = "Предмет\tЦена за 1 шт\tВремя регистрации";
 	strcat(listitems, content);
 	ShowPlayerDialog(playerid, 1102, DIALOG_STYLE_TABLIST_HEADERS, "Рынок", listitems, "Снять", "Назад");
 }
@@ -4860,7 +6410,7 @@ stock ShowMarketBuyList(playerid, category)
 	{
 		cache_delete(q_result);
 		SendClientMessage(playerid, COLOR_GREY, "В этой категории нет лотов.");
-		ShowPlayerDialog(playerid, 1103, DIALOG_STYLE_TABLIST, "Рынок", "Оружие\nДоспехи\nРасходные материалы", "Далее", "Назад");
+		ShowPlayerDialog(playerid, 1103, DIALOG_STYLE_TABLIST, "Рынок", "Оружие\nДоспехи\nГоловные уборы\nОчки\nЧасы\nБижутерия\nРасходные материалы", "Далее", "Назад");
 		return;
 	}
 
@@ -4889,14 +6439,14 @@ stock ShowMarketBuyList(playerid, category)
 
 		if(category == MARKET_CATEGORY_MATERIAL)
 		{
-			format(buf, sizeof(buf), "\n{%s}[%s]{ffffff}[x%d]\t{00CC00}%d$\t{ffffff}%s\t{ffffff}%d",
-				GetGradeColor(item[Grade]), item[Name], m_item[Count], m_item[Price], m_item[Owner], m_item[rTime]
+			format(buf, sizeof(buf), "\n{%s}[%s]{ffffff}[x%d]\t{00CC00}%s$\t{ffffff}%s\t{ffffff}%d",
+				GetGradeColor(item[Grade]), item[Name], m_item[Count], FormatMoney(m_item[Price]), m_item[Owner], m_item[rTime]
 			);
 		}
 		else
 		{
-			format(buf, sizeof(buf), "\n{%s}[%s]%s\t{00CC00}%d$\t{ffffff}%s\t{ffffff}%d",
-				GetGradeColor(item[Grade]), item[Name], GetModString(m_item[Mod]), m_item[Price], m_item[Owner], m_item[rTime]
+			format(buf, sizeof(buf), "\n{%s}[%s]%s\t{ffffff}[{%s}%s{ffffff}] {00CC00}%s$\t{ffffff}%s\t{ffffff}%d",
+				GetGradeColor(item[Grade]), item[Name], GetModString(m_item[Mod]), GetColorByRank(item[MinRank]), GetRankInterval(item[MinRank]), FormatMoney(m_item[Price]), m_item[Owner], m_item[rTime]
 			);
 		}
 
@@ -4949,8 +6499,8 @@ stock ShowMarketMyLotList(playerid)
 		m_item = GetMarketItemByLotID(m_id);
 		item = GetItem(m_item[ID]);
 
-		format(buf, sizeof(buf), "\n{%s}[%s]{ffffff}[x%d]\t{00CC00}%d$\t{ffffff}%d",
-			GetGradeColor(item[Grade]), item[Name], m_item[Count], m_item[Price], m_item[rTime]
+		format(buf, sizeof(buf), "\n{%s}[%s]{ffffff}[x%d]\t{00CC00}%s$\t{ffffff}%d",
+			GetGradeColor(item[Grade]), item[Name], m_item[Count], FormatMoney(m_item[Price]), m_item[rTime]
 		);
 
 		strcat(content, buf);
@@ -4960,49 +6510,50 @@ stock ShowMarketMyLotList(playerid)
 	ShowMarketMyItems(playerid, content);
 }
 
-stock GiveTourExpAndOC(tour)
+stock GiveTourRates(tour)
 {
 	for(new i = 0; i < TourParticipantsCount; i++)
 	{
 		new id = PvpInfo[i][ID];
 		if(id == -1) break;
 
-		new mid_oc = 0;
+		new down_mid_rate = 0;
 		for(new j = i + 1; j < TourParticipantsCount; j++)
-			mid_oc += PlayerInfo[PvpInfo[j][ID]][OC];
+			down_mid_rate += PlayerInfo[PvpInfo[j][ID]][Rate];
+		
+		if(down_mid_rate == 0)
+			down_mid_rate = PlayerInfo[PvpInfo[i][ID]][Rate];
 		
 		new divider = TourParticipantsCount - i - 1;
 		if(divider <= 0)
 			divider = 1;
-		mid_oc /= divider;
+		down_mid_rate /= divider;
 
-		new oc = GetOCDifference(id, tour, i+1, mid_oc);
-		PvpInfo[i][OC] = oc;
+		new up_mid_rate = 0;
+		if(i > 0)
+		{
+			for(new j = 0; j < i; j++)
+				up_mid_rate += PlayerInfo[PvpInfo[j][ID]][Rate];
+			
+			up_mid_rate /= i;
+		}
 
-		new exp = GetExpDifference(id, tour, i+1);
+		if(up_mid_rate == 0)
+			up_mid_rate = PlayerInfo[PvpInfo[i][ID]][Rate];
+
+		new rate = GetRateDifference(id, tour, i+1, up_mid_rate, down_mid_rate);
+		PvpInfo[i][RateDiff] = rate;
 
 		if(IsPlayerConnected(id) && !FCNPC_IsValid(id))
-		{
-			GivePlayerOC(id, oc);
-			GivePlayerExp(id, exp);
-		}
+			GivePlayerRate(id, rate);
 		else
-		{
-			GivePlayerOCOffline(PvpInfo[i][Name], oc);
-			GivePlayerExpOffline(PvpInfo[i][Name], exp);
-		}
+			GivePlayerRateOffline(PvpInfo[i][Name], rate);
 	}
 }
 
-stock GetExpDifference(playerid, tour, pos)
+stock GetPlayerRankOffline(name[])
 {
-	//TODO
-	return 1;
-}
-
-stock GetPlayerLevelOffline(name[])
-{
-	new level = 1;
+	new rank = 1;
 	new query[255];
 	format(query, sizeof(query), "SELECT * FROM `players` WHERE `Name` = '%s' LIMIT 1", name);
 	new Cache:q_result = mysql_query(sql_handle, query);
@@ -5011,12 +6562,12 @@ stock GetPlayerLevelOffline(name[])
 	if(row_count <= 0)
 	{
 		print("Cannot get player rank offline.");
-		return level;
+		return rank;
 	}
 
-	cache_get_value_name_int(0, "Level", level);
+	cache_get_value_name_int(0, "Rank", rank);
 	cache_delete(q_result);
-	return level;
+	return rank;
 }
 
 stock GetTourReward(tour, place, name[])
@@ -5026,19 +6577,19 @@ stock GetTourReward(tour, place, name[])
 	reward[ItemsCount] = 0;
 	
 	new money = 0;
-	new level = GetPlayerLevelOffline(name);
+	new rank = GetPlayerRankOffline(name);
 	switch(place)
 	{
-		case 1: money = 200;
-		case 2: money = 160; 
-		case 3: money = 120;
-		case 4..5: money = 70;
-		case 6..8: money = 60;
-		case 9..12: money = 40;
-		case 13..16: money = 20;
-		case 17..20: money = 10;
+		case 1: money = 400;
+		case 2: money = 320; 
+		case 3: money = 240;
+		case 4..5: money = 140;
+		case 6..8: money = 120;
+		case 9..12: money = 80;
+		case 13..16: money = 40;
+		case 17..20: money = 20;
 	}
-	money = money * floatround(floatpower(floatround(floatdiv(level, 5)) + tour, 2));
+	money = money * floatround(floatpower(rank + tour, 2));
 	reward[Money] = money;
 	return reward;
 }
@@ -5083,19 +6634,16 @@ stock GiveTourRewards(tour)
 
 stock AddPlayerMoney(playerid, money)
 {
+	new tax = money / 99;
+	money -= tax;
+
 	new string[255];
-	format(string, sizeof(string), "Получено %d$.", money);
+	format(string, sizeof(string), "Получено %s$.", FormatMoney(money));
 	SendClientMessage(playerid, 0x00CC00FF, string);
 
 	PlayerInfo[playerid][Cash] += money;
 	GivePlayerMoney(playerid, money);
-}
-
-stock UpdatePlayerCP(playerid)
-{
-	new value[32];
-	format(value, sizeof(value), "%d", PlayerInfo[playerid][CP]);
-	PlayerTextDrawSetStringRus(playerid, ChrInfCPValue[playerid], value);
+	GivePatriarchMoney(tax);
 }
 
 stock UpdatePlayerPost(playerid)
@@ -5218,7 +6766,7 @@ stock UpdateTourParticipants()
 	if(Tournament[Tour] == 1)
 	{
 		new query[255];
-		format(query, sizeof(query), "SELECT * FROM `players` WHERE `Owner` <> 'Admin' LIMIT %d", MAX_PARTICIPANTS);
+        format(query, sizeof(query), "SELECT * FROM `players` WHERE `Owner` <> 'Admin' AND `IsWatcher`=0 LIMIT %d", MAX_PARTICIPANTS);
 		new Cache:q_result = mysql_query(sql_handle, query);
 
 		new row_count = 0;
@@ -5248,7 +6796,8 @@ stock UpdateTourParticipants()
 	}
 	else
 	{
-		new p_count = MAX_PARTICIPANTS - (MAX_OWNERS * 2 * (Tournament[Tour]-1));
+		new ejected_count = is_bns_mode > 0 ? 5 : 4;
+		new p_count = MAX_PARTICIPANTS - (ejected_count * (Tournament[Tour]-1));
 		new query[255] = "SELECT * FROM `accounts` WHERE `admin` = '0'";
 		new Cache:q_result = mysql_query(sql_handle, query);
 
@@ -5312,8 +6861,8 @@ stock UpdateTournamentTable()
 		new id = PvpInfo[i][ID];
 		if(id == -1) break;
 		
-		format(query, sizeof(query), "INSERT INTO `tournament_tab`(`ID`, `Name`, `Score`, `Kills`, `Deaths`, `Owner`, `OC`) VALUES ('%d','%s','%d','%d','%d','%s','%d')",
-			PlayerInfo[id][ID], PlayerInfo[id][Name], PvpInfo[i][Score], PvpInfo[i][Kills], PvpInfo[i][Deaths], PlayerInfo[id][Owner], PvpInfo[i][OC]
+		format(query, sizeof(query), "INSERT INTO `tournament_tab`(`ID`, `Name`, `Score`, `Kills`, `Deaths`, `Owner`, `RateDiff`) VALUES ('%d','%s','%d','%d','%d','%s','%d')",
+			PlayerInfo[id][ID], PlayerInfo[id][Name], PvpInfo[i][Score], PvpInfo[i][Kills], PvpInfo[i][Deaths], PlayerInfo[id][Owner], PvpInfo[i][RateDiff]
 		);
 		new Cache:q_res = mysql_query(sql_handle, query);
 		cache_delete(q_res);
@@ -5325,7 +6874,7 @@ stock FillTourPlayers()
 	new i, j;
 	for(i = 0, j = 0; i < MAX_PLAYERS && j < MAX_OWNERS; i++)
 	{
-		if(IsPlayerInRangeOfPoint(i,3.0,204.7617,-1831.6539,4.1772) && IsTourParticipant(PlayerInfo[i][ID]))
+		if(IsPlayerInRangeOfPoint(i,3.0,204.7617,-1831.6539,4.1772) && (IsTourParticipant(PlayerInfo[i][ID]) || PlayerInfo[i][IsWatcher] != 0))
 		{
 			TourPlayers[j] = i;
 			j++;
@@ -5349,111 +6898,114 @@ stock IsAnyPlayersInRangeOfPoint(max_count, Float:range, Float:x, Float:y, Float
 	return false;
 }
 
-stock GetOCDifference(playerid, tour, pos, mid_oc)
+stock GetRateDifference(playerid, tour, pos, up_mid_rate, down_mid_rate)
 {
-	new oc = 0;
+	new rate = 0;
 	switch(tour)
 	{
 		case 1:
 		{
 			switch(pos)
 			{
-				case 1: oc = 3000;
-				case 2: oc = 2700;
-				case 3: oc = 2400;
-				case 4: oc = 2100;
-				case 5: oc = 1600;
-				case 6: oc = 1300;
-				case 7: oc = 1000;
-				case 8: oc = 700;
-				case 9: oc = 500;
-				case 10: oc = 200;
-				case 11: oc = -200;
-				case 12: oc = -500;
-				case 13: oc = -700;
-				case 14: oc = -1000;
-				case 15: oc = -1300;
-				case 16: oc = -1600;
-				case 17: oc = -2100;
-				case 18: oc = -2400;
-				case 19: oc = -2700;
-				case 20: oc = -3000;
+				case 1: rate = 30;
+				case 2: rate = 27;
+				case 3: rate = 24;
+				case 4: rate = 21;
+				case 5: rate = 16;
+				case 6: rate = 13;
+				case 7: rate = 10;
+				case 8: rate = 7;
+				case 9: rate = 5;
+				case 10: rate = 2;
+				case 11: rate = -2;
+				case 12: rate = -5;
+				case 13: rate = -7;
+				case 14: rate = -10;
+				case 15: rate = -13;
+				case 16: rate = -16;
+				case 17: rate = -21;
+				case 18: rate = -24;
+				case 19: rate = -27;
+				case 20: rate = -30;
 			}
 		}
 		case 2:
 		{
 			switch(pos)
 			{
-				case 1: oc = 3600;
-				case 2: oc = 3200;
-				case 3: oc = 2800;
-				case 4: oc = 2500;
-				case 5: oc = 2200;
-				case 6: oc = 1800;
-				case 7: oc = 1200;
-				case 8: oc = 600;
-				case 9: oc = 400;
-				case 10: oc = 200;
-				case 11: oc = -200;
-				case 12: oc = -400;
-				case 13: oc = -900;
-				case 14: oc = -1200;
-				case 15: oc = -1500;
-				case 16: oc = -1800;
+				case 1: rate = 32;
+				case 2: rate = 28;
+				case 3: rate = 25;
+				case 4: rate = 22;
+				case 5: rate = 17;
+				case 6: rate = 14;
+				case 7: rate = 11;
+				case 8: rate = 6;
+				case 9: rate = 1;
+				case 10: rate = -2;
+				case 11: rate = -4;
+				case 12: rate = -7;
+				case 13: rate = -11;
+				case 14: rate = -14;
+				case 15: rate = -16;
+				case 16: rate = -20;
 			}
 		}
 		case 3:
 		{
 			switch(pos)
 			{
-				case 1: oc = 4300;
-				case 2: oc = 4000;
-				case 3: oc = 3600;
-				case 4: oc = 3000;
-				case 5: oc = 2400;
-				case 6: oc = 1600;
-				case 7: oc = 700;
-				case 8: oc = 400;
-				case 9: oc = 100;
-				case 10: oc = -300;
-				case 11: oc = -600;
-				case 12: oc = -900;
+				case 1: rate = 36;
+				case 2: rate = 34;
+				case 3: rate = 32;
+				case 4: rate = 26;
+				case 5: rate = 20;
+				case 6: rate = 14;
+				case 7: rate = 7;
+				case 8: rate = -1;
+				case 9: rate = -4;
+				case 10: rate = -7;
+				case 11: rate = -11;
+				case 12: rate = -15;
 			}
 		}
 		case 4:
 		{
 			switch(pos)
 			{
-				case 1: oc = 5100;
-				case 2: oc = 4600;
-				case 3: oc = 4000;
-				case 4: oc = 3200;
-				case 5: oc = 2000;
-				case 6: oc = 800;
-				case 7: oc = 400;
-				case 8: oc = 200;
+				case 1: rate = 40;
+				case 2: rate = 37;
+				case 3: rate = 34;
+				case 4: rate = 28;
+				case 5: rate = 20;
+				case 6: rate = 6;
+				case 7: rate = -4;
+				case 8: rate = -10;
 			}
 		}
 		case 5:
 		{
 			switch(pos)
 			{
-				case 1: oc = 6500;
-				case 2: oc = 4500;
-				case 3: oc = 2500;
-				case 4: oc = 1000;
+				case 1: rate = 50;
+				case 2: rate = 35;
+				case 3: rate = 20;
+				case 4: rate = 0;
 			}
 		}
 	}
 
-	new oc_diff = mid_oc - PlayerInfo[playerid][OC];
-	if(oc_diff > 0)
-		oc += oc_diff / 25;
+	new up_rate_diff = up_mid_rate - PlayerInfo[playerid][Rate];
+	new down_rate_diff = down_mid_rate - PlayerInfo[playerid][Rate];
+	if(down_rate_diff > 0)
+		rate += down_rate_diff / 20;
+	if(up_rate_diff < 0)
+		rate += up_rate_diff / 25;
 
-	if(oc > 10000) oc = 10000;
-	if(oc < -10000) oc = -10000;
+	if(rate > 65) rate = 65;
+	if(rate < -65) rate = -65;
 
-	return oc;
+	return rate;
 }
 
 stock SetPvpTableVisibility(playerid, bool:value)
@@ -5463,7 +7015,6 @@ stock SetPvpTableVisibility(playerid, bool:value)
 		PlayerTextDrawShow(playerid, PvpPanelBox[playerid]);
 		PlayerTextDrawShow(playerid, PvpPanelHeader[playerid]);
 		PlayerTextDrawShow(playerid, PvpPanelTimer[playerid]);
-		PlayerTextDrawShow(playerid, PvpPanelDelim[playerid]);
 		for(new i = 0; i < MAX_PVP_PANEL_ITEMS; i++)
 		{
 			PlayerTextDrawSetStringRus(playerid, PvpPanelNameLabels[playerid][i], " ");
@@ -5471,9 +7022,14 @@ stock SetPvpTableVisibility(playerid, bool:value)
 			PlayerTextDrawShow(playerid, PvpPanelNameLabels[playerid][i]);
 			PlayerTextDrawShow(playerid, PvpPanelScoreLabels[playerid][i]);
 		}
-		PlayerTextDrawColor(playerid, PvpPanelMyName[playerid], GetTitleColorHex(PlayerInfo[playerid][Status], PlayerInfo[playerid][GlobalTopPosition]));
-		PlayerTextDrawShow(playerid, PvpPanelMyName[playerid]);
-		PlayerTextDrawShow(playerid, PvpPanelMyScore[playerid]);
+
+		if(PlayerInfo[playerid][IsWatcher] <= 0)
+		{
+			PlayerTextDrawShow(playerid, PvpPanelDelim[playerid]);
+			PlayerTextDrawColor(playerid, PvpPanelMyName[playerid], HexRateColors[PlayerInfo[playerid][Rank]-1][0]);
+			PlayerTextDrawShow(playerid, PvpPanelMyName[playerid]);
+			PlayerTextDrawShow(playerid, PvpPanelMyScore[playerid]);
+		}
 	}
 	else
 	{
@@ -5493,126 +7049,162 @@ stock SetPvpTableVisibility(playerid, bool:value)
 
 stock OpenLockbox(playerid, lockboxid)
 {
-	//TODO
-	/*new chance = random(10001);
+	new chance = random(10001);
 	new itemid = -1;
 	new count = 0;
 	new rank = PlayerInfo[playerid][Rank];
 	switch(lockboxid)
 	{
-		case 202:
-		{
-			switch(chance)
-			{
-				case 0..1299: { itemid = 196; count = 2; }
-				case 1300..2599: { itemid = 197; count = 2; }
-				case 2600..3899: { itemid = 198; count = 2; }
-				case 3900..5199: { itemid = 199; count = 2; }
-				case 5200..6499: { itemid = 200; count = 2; }
-				case 6500..7799: { itemid = 201; count = 2; }
-				case 7800..8399: { itemid = 191; count = 1; }
-				case 8400..8699: { itemid = 195; count = 1; }
-				case 8700..9099: { itemid = GetRandomEquip(rank, rank, RND_EQUIP_TYPE_WEAPON, GRADE_N); count = 1; }
-				case 9100..9499: { itemid = GetRandomEquip(rank, rank, RND_EQUIP_TYPE_ARMOR, GRADE_N); count = 1; }
-				case 9500..9699: { itemid = GetRandomEquip(rank, rank, RND_EQUIP_TYPE_WEAPON, GRADE_B); count = 1; }
-				case 9700..9899: { itemid = GetRandomEquip(rank, rank, RND_EQUIP_TYPE_ARMOR, GRADE_B); count = 1; }
-				case 9900..9989: { itemid = 192; count = 1; }
-				default: { itemid = 193; count = 1; }
-			}
-		}
-		case 203:
-		{
-			switch(chance)
-			{
-				case 0..1299: { itemid = 196; count = 5; }
-				case 1300..2599: { itemid = 197; count = 5; }
-				case 2600..3899: { itemid = 198; count = 5; }
-				case 3900..5199: { itemid = 199; count = 5; }
-				case 5200..6499: { itemid = 200; count = 5; }
-				case 6500..7799: { itemid = 201; count = 5; }
-				case 7800..8299: { itemid = 191; count = 2; }
-				case 8400..8699: { itemid = 195; count = 2; }
-				case 8700..9099: { itemid = GetRandomEquip(rank, rank, RND_EQUIP_TYPE_WEAPON, GRADE_N); count = 1; }
-				case 9100..9499: { itemid = GetRandomEquip(rank, rank, RND_EQUIP_TYPE_ARMOR, GRADE_N); count = 1; }
-				case 9500..9699: { itemid = GetRandomEquip(rank, rank, RND_EQUIP_TYPE_WEAPON, GRADE_B); count = 1; }
-				case 9700..9899: { itemid = GetRandomEquip(rank, rank, RND_EQUIP_TYPE_ARMOR, GRADE_B); count = 1; }
-				case 9900..9928: { itemid = 193; count = 1; }
-				case 9929: { itemid = 194; count = 1; }
-				default: { itemid = 192; count = 1; }
-			}
-		}
-		case 310:
-		{
-			count = 1;
-			switch(chance)
-			{
-				case 0..3999: itemid = 250 + 6 * random(4);
-				case 4000..6999: itemid = 251 + 6 * random(4);
-				case 7000..8299: itemid = 252 + 6 * random(4);
-				case 8300..8999: itemid = 253 + 6 * random(4);
-				case 9000..9599: itemid = 254 + 6 * random(4);
-				default: itemid = 255 + 6 * random(4);
-			}
-		}
-		case 311:
-		{
-			count = 1;
-			switch(chance)
-			{
-				case 0..3999: itemid = 274 + 5 * random(4);
-				case 4000..6999: itemid = 275 + 5 * random(4);
-				case 7000..8299: itemid = 276 + 5 * random(4);
-				case 8300..9199: itemid = 277 + 5 * random(4);
-				default: itemid = 278 + 5 * random(4);
-			}
-		}
 		case 312:
 		{
-			count = 1;
 			switch(chance)
 			{
-				case 0..5999: itemid = 294 + 4 * random(4);
-				case 6000..9499: itemid = 295 + 4 * random(4);
-				case 9500..9899: itemid = 296 + 4 * random(4);
-				default: itemid = 297 + 4 * random(4);
+				case 0..1299: { itemid = 291; count = 2; }
+				case 1300..2599: { itemid = 292; count = 2; }
+				case 2600..3899: { itemid = 293; count = 2; }
+				case 3900..5199: { itemid = 294; count = 2; }
+				case 5200..6499: { itemid = 295; count = 2; }
+				case 6500..7799: { itemid = 296; count = 2; }
+				case 7800..8299: { itemid = 286; count = 1; }
+				case 8300..8699: { itemid = GetRandomEquip(rank, rank, RND_EQUIP_TYPE_WEAPON, GRADE_N); count = 1; }
+				case 8700..9099: { itemid = GetRandomEquip(rank, rank, RND_EQUIP_TYPE_ARMORHAT, GRADE_N); count = 1; }
+				case 9100..9299: { itemid = GetRandomEquip(rank, rank, RND_EQUIP_TYPE_WEAPON, GRADE_B); count = 1; }
+				case 9300..9499: { itemid = GetRandomEquip(rank, rank, RND_EQUIP_TYPE_ARMORHAT, GRADE_B); count = 1; }
+				case 9500..9799: { itemid = 290; count = 1; }
+				case 9800..9889: { itemid = 287; count = 1; }
+				case 9890..9899: { itemid = 288; count = 1; }
+				default: { itemid = 306; count = 1; }
 			}
 		}
 		case 313:
 		{
-			count = 1;
-			itemid = 205 + random(4) * 9;
+			switch(chance)
+			{
+				case 0..1199: { itemid = 291; count = 5; }
+				case 1200..2399: { itemid = 292; count = 5; }
+				case 2400..3599: { itemid = 293; count = 5; }
+				case 3600..4799: { itemid = 294; count = 5; }
+				case 4800..5999: { itemid = 295; count = 5; }
+				case 6000..7199: { itemid = 296; count = 5; }
+				case 7200..7699: { itemid = 286; count = 2; }
+				case 7700..8099: { itemid = GetRandomEquip(rank, rank, RND_EQUIP_TYPE_WEAPON, GRADE_N); count = 1; }
+				case 8100..8499: { itemid = GetRandomEquip(rank, rank, RND_EQUIP_TYPE_ARMORHAT, GRADE_N); count = 1; }
+				case 8500..8699: { itemid = GetRandomEquip(rank, rank, RND_EQUIP_TYPE_WEAPON, GRADE_B); count = 1; }
+				case 8700..8899: { itemid = GetRandomEquip(rank, rank, RND_EQUIP_TYPE_ARMORHAT, GRADE_B); count = 1; }
+				case 8900..9299: { itemid = 290; count = 2; }
+				case 9300..9469: { itemid = 287; count = 1; }
+				case 9470..9499: { itemid = 288; count = 1; }
+				case 9500..9599: { itemid = GetRandomWatch(rank, rank); count = 1; }
+				case 9600..9679: { itemid = 305; count = 1; }
+				case 9680..9699: { itemid = 307; count = 1; }
+				case 9700: { itemid = 289; count = 1; }
+				default: { itemid = 306; count = 2; }
+			}
 		}
 		case 314:
 		{
 			count = 1;
 			switch(chance)
 			{
-				case 0,1: itemid = 313;
-				case 2,3: itemid = 194;
-				case 4..153: itemid = 310;
-				case 154..253: itemid = 311;
-				case 254..256: itemid = 312;
-				case 257..1256: { itemid = 191; count = 5; }
-				case 1257..1656: { itemid = 192; count = 3; }
-				case 1657..1756: itemid = 193;
-				case 1757..2761: itemid = GetRandomEquip(rank, rank);
-				default: { itemid = 195; count = 10; }
+				case 0..3999: itemid = 321 + 6 * random(3);
+				case 4000..6999: itemid = 322 + 6 * random(3);
+				case 7000..8299: itemid = 323 + 6 * random(3);
+				case 8300..8999: itemid = 324 + 6 * random(3);
+				case 9000..9599: itemid = 325 + 6 * random(3);
+				default: itemid = 326 + 6 * random(3);
 			}
 		}
 		case 315:
 		{
 			count = 1;
-			itemid = 154 + random(7);
+			switch(chance)
+			{
+				case 0..3999: itemid = 339 + 5 * random(3);
+				case 4000..6999: itemid = 340 + 5 * random(3);
+				case 7000..8299: itemid = 341 + 5 * random(3);
+				case 8300..9199: itemid = 342 + 5 * random(3);
+				default: itemid = 343 + 5 * random(3);
+			}
 		}
 		case 316:
 		{
 			count = 1;
-			itemid = 161 + random(7);
+			switch(chance)
+			{
+				case 0..5999: itemid = 354 + 4 * random(3);
+				case 6000..9499: itemid = 355 + 4 * random(3);
+				case 9500..9899: itemid = 356 + 4 * random(3);
+				default: itemid = 357 + 4 * random(3);
+			}
 		}
 		case 317:
 		{
 			count = 1;
-			itemid = 168 + random(14);
+			itemid = 209 + random(7);
+		}
+		case 318:
+		{
+			count = 1;
+			itemid = 216 + random(7);
+		}
+		case 319:
+		{
+			count = 1;
+			itemid = 223 + random(14);
+		}
+		case 320:
+		{
+			count = 1;
+			switch(chance)
+			{
+				case 0..1499: itemid = 287;
+				case 1500..1699: itemid = 288;
+				case 1700..1704: itemid = 289;
+				default: itemid = 286;
+			}
+		}
+		case 367:
+		{
+			count = 1;
+			switch(chance)
+			{
+				case 0..2499: { itemid = 320; count = 5; }
+				case 2500..3999: itemid = 314;
+				case 4000..4799: itemid = 315;
+				case 4800..5199: itemid = 316;
+				case 5200..7999: { itemid = 313; count = 5; }
+				case 8000..8999: itemid = 288;
+				default: itemid = GetRandomShazokPart(rank);
+			}
+		}
+		case 368:
+		{
+			count = 1;
+			switch(chance)
+			{
+				case 0..3499: { itemid = 320; count = random(3) + 1; }
+				case 3500..4199: itemid = 314;
+				case 4200..4299: itemid = 315;
+				case 4300..4349: itemid = 316;
+				case 4350..4999: itemid = 369;
+				case 5000..8999: { itemid = 370; count = 3; }
+				case 9000..9399: itemid = 288;
+				default: { itemid = 287; count = 10; }
+			}
+		}
+		case 369:
+		{
+			count = 1;
+			switch(chance)
+			{
+				case 0..3499: { itemid = 320; count = random(2) + 1; }
+				case 3500..4699: itemid = 314;
+				case 4700..5099: itemid = 315;
+				case 5100..5199: itemid = 316;
+				case 5200..8999: { itemid = 370; count = 2; }
+				case 9000..9399: itemid = 288;
+				default: itemid = GetRandomShazokPart(rank);
+			}
 		}
 	}
 	if(itemid == -1) return;
@@ -5628,12 +7220,45 @@ stock OpenLockbox(playerid, lockboxid)
 	format(string, sizeof(string), "Получено: {%s}[%s] {ffffff}x%d.", 
 		GetGradeColor(item[Grade]), item[Name], count
 	);
-	SendClientMessage(playerid, 0xFFFFFFFF, string);*/
+	SendClientMessage(playerid, 0xFFFFFFFF, string);
+}
+
+stock SwitchToWatcher(playerid)
+{
+	if(PlayerInfo[playerid][IsWatcher] != 0)
+	{
+		SendClientMessage(playerid, COLOR_LIGHTRED, "Вы уже переключились на наблюдателя.");
+		return;
+	}
+
+	new query[512];
+	format(query, sizeof(query), "SELECT * FROM `players` WHERE `Owner` = '%s' AND `IsWatcher` > 0 LIMIT 1", AccountLogin[playerid]);
+	new Cache:q_result = mysql_query(sql_handle, query);
+
+	new row_count = 0;
+	cache_get_row_count(row_count);
+	if(row_count <= 0)
+	{
+		cache_delete(q_result);
+		ShowPlayerDialog(playerid, 1002, DIALOG_STYLE_MSGBOX, "Наблюдатель", "{ffffff}На вашем аккаунте отсутствует наблюдатель.\nСоздать его и переключиться?", "Да", "Нет");
+		return;
+	}
+
+	new name[255];
+	cache_get_value_name(0, "Name", name);
+	cache_delete(q_result);
+
+	if(PlayerConnect[playerid])
+		OnPlayerDisconnect(playerid, 1);
+	SetPlayerName(playerid, name);
+	IsParticipant[playerid] = false;
+	LoadPlayer(playerid);
+	OnPlayerLogin(playerid);
 }
 
 stock SwitchPlayer(playerid)
 {
-	new listitems[1024] = "Имя\tЗвание\tOC";
+	new listitems[1024] = "Имя\tРейтинг";
 	new string[255];
 	new query[255];
 
@@ -5650,17 +7275,11 @@ stock SwitchPlayer(playerid)
 			return;
 		}
 
-		new pos;
-		new oc;
-		new status;
-
-		cache_get_value_name_int(0, "GlobalTopPos", pos);
-		cache_get_value_name_int(0, "OC", oc);
-		cache_get_value_name_int(0, "Status", status);
-
+		new rate;
+		cache_get_value_name_int(0, "Rate", rate);
 		cache_delete(q_result);
 
-		format(string, sizeof(string), "\n{%s}%s\t%s\t{ffffff}%d", GetTitleColor(status, pos), Participants[playerid][i], GetTitle(status, pos), oc);
+		format(string, sizeof(string), "\n{%s}%s\t%d", GetColorByRate(rate), Participants[playerid][i], rate);
 		strcat(listitems, string);
 	}
 	ShowPlayerDialog(playerid, 103, DIALOG_STYLE_TABLIST_HEADERS, "Выбор участника", listitems, "Войти", "Закрыть");
@@ -5712,9 +7331,82 @@ stock GetPlayerTourTeam(playerid)
 	return TourTeam[playerid];
 }
 
+stock ExplodeNuclearBomb(team)
+{
+	IsNuclearBombExplodes = true;
+
+	for(new i = 0; i < MAX_PARTICIPANTS; i++)
+	{
+		new id = PvpInfo[i][ID];
+		if(id == -1) continue;
+		if(FCNPC_IsDead(id) || GetPlayerHP(id) <= 0) continue;
+
+		new p_team = GetPlayerTourTeam(id);
+		if(p_team != NO_TEAM && team != p_team)
+			SetPlayerHPPercent(id, 1);
+	}
+
+	IsNuclearBombExplodes = false;
+}
+
+stock HealAllTeam(team)
+{
+	IsTeamHealing = true;
+
+	for(new i = 0; i < MAX_PARTICIPANTS; i++)
+	{
+		new id = PvpInfo[i][ID];
+		if(id == -1) continue;
+		if(FCNPC_IsDead(id) || GetPlayerHP(id) <= 0) continue;
+
+		new p_team = GetPlayerTourTeam(id);
+		if(p_team != NO_TEAM && team == p_team)
+		{
+			SetPVarFloat(id, "HP", MaxHP[id]);
+			SetPlayerHP(id, MaxHP[id]);
+		}
+	}
+
+	IsTeamHealing = false;
+}
+
+stock ResetAllTeamTargets(team)
+{
+	for(new i = 0; i < MAX_PARTICIPANTS; i++)
+	{
+		new id = PvpInfo[i][ID];
+		if(id == -1) continue;
+		if(FCNPC_IsDead(id) || GetPlayerHP(id) <= 0) continue;
+
+		new p_team = GetPlayerTourTeam(id);
+		if(p_team != NO_TEAM && team != p_team)
+		{
+			if(FCNPC_IsValid(id))
+				ResetPlayerTarget(id);
+			else
+				TogglePlayerControllable(id, 0);
+		}
+	}
+}
+
+stock SetAllTeamInvulnearable(team, second)
+{
+	for(new i = 0; i < MAX_PARTICIPANTS; i++)
+	{
+		new id = PvpInfo[i][ID];
+		if(id == -1) continue;
+
+		new p_team = GetPlayerTourTeam(id);
+		if(p_team != NO_TEAM && team == p_team)
+			SetPlayerInvulnearable(id, second);
+	}
+}
+
 stock FindPlayerNearestTarget(npcid)
 {
 	if(npcid == -1) return -1;
+	if(SpecialAbilityEffect == SPECIAL_AB_EFFECT_CONFUSION && GetPlayerTourTeam(npcid) != NO_TEAM && GetPlayerTourTeam(npcid) != SpecialAbilityEffectTeam) return -1;
+
 	new targetid = -1;
 	new Float:min_dist = 10000;
 
@@ -5723,11 +7415,12 @@ stock FindPlayerNearestTarget(npcid)
 		new id = PvpInfo[i][ID];
 		if(id == -1) continue;
 		if(npcid == id) continue;
+		if(FCNPC_IsDead(id) || GetPlayerHP(id) <= 0) continue;
 		if(GetPlayerTourTeam(id) != NO_TEAM && GetPlayerTourTeam(npcid) == GetPlayerTourTeam(id))
 			continue;
 		
 		new invulnearable = GetPVarInt(id, "Invulnearable");
-		if(invulnearable == 1)
+		if(invulnearable > 0)
 			continue;
 		
 		new Float:dist;
@@ -5744,28 +7437,32 @@ stock FindPlayerNearestTarget(npcid)
 
 stock FindPlayerTarget(npcid, bool:by_minhp = false)
 {
+	if(npcid == -1) return -1;
+	if(SpecialAbilityEffect == SPECIAL_AB_EFFECT_CONFUSION && GetPlayerTourTeam(npcid) != NO_TEAM && GetPlayerTourTeam(npcid) != SpecialAbilityEffectTeam) return -1;
+
 	new targetid = -1;
 	new nearest_targets[MAX_RELIABLE_TARGETS];
 	new targets_count = 0;
 	new Float:distances[MAX_PARTICIPANTS];
 	new Float:available_dist = 0;
 
-	for (new i = 0; i < MAX_RELIABLE_TARGETS; i++)
+	for(new i = 0; i < MAX_RELIABLE_TARGETS; i++)
 		nearest_targets[i] = -1;
-	for (new i = 0; i < MAX_PARTICIPANTS; i++)
+	for(new i = 0; i < MAX_PARTICIPANTS; i++)
 		distances[i] = 1000.0;
 
-	for (new i = 0; i < MAX_PARTICIPANTS; i++)
+	for(new i = 0; i < MAX_PARTICIPANTS; i++)
 	{
 		if(PvpInfo[i][ID] == -1) continue;
 		if(npcid == PvpInfo[i][ID]) continue;
+		if(FCNPC_IsDead(PvpInfo[i][ID]) || GetPlayerHP(PvpInfo[i][ID]) <= 0) continue;
 		distances[i] = GetDistanceBetweenPlayers(npcid, PvpInfo[i][ID]);
 	}
 	
 	SortArrayAscending(distances);
 	available_dist = distances[MAX_RELIABLE_TARGETS-1];
 
-    for (new i = 0; i < MAX_PARTICIPANTS; i++) 
+    for(new i = 0; i < MAX_PARTICIPANTS; i++) 
 	{
 		if(PvpInfo[i][ID] == -1) continue;
 		if(PvpInfo[i][ID] == npcid || FCNPC_IsDead(PvpInfo[i][ID]))
@@ -5776,7 +7473,7 @@ stock FindPlayerTarget(npcid, bool:by_minhp = false)
 			continue;
 
 		new invulnearable = GetPVarInt(PvpInfo[i][ID], "Invulnearable");
-		if(invulnearable == 1)
+		if(invulnearable > 0)
 			continue;
 		
 		new Float:dist;
@@ -5794,9 +7491,9 @@ stock FindPlayerTarget(npcid, bool:by_minhp = false)
 	if(!by_minhp)
 		return nearest_targets[0];
 
-	for (new i = 0; i < MAX_RELIABLE_TARGETS; i++)
+	for(new i = 0; i < MAX_RELIABLE_TARGETS; i++)
 	{
-		new Float:min_hp = 1001;
+		new Float:min_hp = 50001;
 		if(nearest_targets[i] == -1)
 			break;
 		
@@ -5841,8 +7538,10 @@ stock TryFindCommonTarget(playerid, current_target)
 		if(part_id == -1 || part_id == playerid || GetPlayerTourTeam(playerid) == GetPlayerTourTeam(part_id))
 			continue;
 
+		if(FCNPC_IsDead(part_id) || GetPlayerHP(part_id) <= 0) continue;
+
 		new invulnearable = GetPVarInt(part_id, "Invulnearable");
-		if(invulnearable == 1)
+		if(invulnearable > 0)
 			continue;
 		
 		if(GetDistanceBetweenPlayers(playerid, part_id) > 15.0)
@@ -5857,7 +7556,23 @@ stock TryFindCommonTarget(playerid, current_target)
 	}
 
 	if(target != current_target)
+	{
 		SetPlayerTarget(playerid, target);
+		return 1;
+	}
+
+	return -1;
+}
+
+stock ResetPlayerTarget(playerid)
+{
+	if(FCNPC_IsAiming(playerid))
+		FCNPC_StopAim(playerid);
+
+	SetPVarInt(playerid, "FixTargetID", -1);
+
+	if(!FCNPC_IsMoving(playerid))
+		MoveAround(playerid);
 }
 
 stock SetPlayerTarget(playerid, target = -1)
@@ -5865,7 +7580,9 @@ stock SetPlayerTarget(playerid, target = -1)
 	if(FCNPC_IsAiming(playerid))
 		FCNPC_StopAim(playerid);
 	new targetid;
-	if(target == -1)
+	if(SpecialAbilityEffect == SPECIAL_AB_EFFECT_CONFUSION && GetPlayerTourTeam(playerid) != NO_TEAM && GetPlayerTourTeam(playerid) != SpecialAbilityEffectTeam)
+		targetid = -1;
+	else if(target == -1)
 	{
 		SetPVarInt(playerid, "FixTargetID", -1);
 		targetid = FindPlayerTarget(playerid, true);
@@ -5997,6 +7714,7 @@ stock DestroyBoss()
 {
 	IsBoss[BossNPC] = false;
 	FCNPC_Destroy(BossNPC);
+	ResetPlayerVariables(BossNPC);
 	BossNPC = -1;
 
 	for(new i = 0; i < MAX_PLAYERS; i++)
@@ -6004,6 +7722,265 @@ stock DestroyBoss()
 	BossAttackersCount = 0;
 	AttackedBoss = -1;
 	print("Boss destroyed.");
+}
+
+stock GetAvailableDungeonsList(playerid)
+{
+	new listitems[2048] = "";
+	new min_id = 383;
+	new max_id = 426;
+
+	new query[255];
+	new Cache:q_result;
+	new itemid = 0;
+	new string[64];
+
+	for(new i = 0; i < MAX_DUNGEONS; i++)
+		AvailableDungeons[playerid][i] = -1;
+
+	for(new cur_id = min_id; cur_id <= max_id; cur_id++)
+	{
+		if(!HasItem(playerid, cur_id, 1)) continue;
+
+		new keys_count = GetItemsCount(playerid, cur_id);
+		new dungeon_id = -1;
+		new dungeon_rank = 1;
+		new dungeon_type = 1;
+
+		format(query, sizeof(query), "SELECT * FROM `dungeons` WHERE `KeyID` = %d LIMIT 1", cur_id);
+		q_result = mysql_query(sql_handle, query);
+
+		new row_count = 0;
+		cache_get_row_count(row_count);
+		if(row_count <= 0)
+		{
+			cache_delete(q_result);
+			return listitems;
+		}
+
+		cache_get_value_name_int(0, "ID", dungeon_id);
+		cache_get_value_name_int(0, "Rank", dungeon_rank);
+		cache_get_value_name_int(0, "Type", dungeon_type);
+
+		cache_delete(q_result);
+
+		AvailableDungeons[playerid][itemid] = dungeon_id;
+		itemid++;
+
+		format(string, sizeof(string), "\n{%s}Территория войны [%d]\t{ffffff}%d", GetGradeColor(dungeon_type), dungeon_rank, keys_count);
+		strcat(listitems, string);
+	}
+	
+	new header[32] = "Имя\tКлючей";
+	if(itemid > 0) strins(listitems, header, 0);
+
+	return listitems;
+}
+
+stock EnterToDungeon(playerid, dungeonid)
+{
+	new dungeon[BaseDungeon];
+	dungeon = GetDungeon(dungeonid);
+
+	new slotid = FindItem(playerid, dungeon[KeyID]);
+	if(slotid == -1) return;
+
+	DeleteItem(playerid, slotid, 1);
+	SetPVarInt(playerid, "ActiveDungeon", dungeonid);
+	SetPVarInt(playerid, "DungeonEnemiesKilled", 0);
+	SetPVarInt(playerid, "DungeonEnemiesRequired", dungeon[MobsCount] + dungeon[BossesCount]);
+	
+	FillDungeon(playerid, dungeonid);
+	TeleportToDungeon(playerid);
+
+	SendClientMessage(playerid, COLOR_WHITE, "Вы попали на территорию войны.");
+	SendClientMessage(playerid, COLOR_YELLOW, "Убейте всех врагов чтобы получить награду!");
+}
+
+stock FillDungeon(playerid, dungeonid)
+{
+	new dungeon[BaseDungeon];
+	dungeon = GetDungeon(dungeonid);
+
+	for(new i = 0; i < MAX_PLAYERS; i++)
+		PlayerDungeon[playerid][Mobs][i] = -1;
+	for(new i = 0; i < MAX_PLAYERS; i++)
+		PlayerDungeon[playerid][Bosses][i] = -1;
+
+	for(new i = 0; i < dungeon[MobsCount]; i++)
+	{
+		new mob_type = random(dungeon[MobsTypesCount]);
+		new mobid = dungeon[Mobs][mob_type];
+		if(mobid == -1) continue;
+		
+		new walker[wInfo];
+		walker = GetWalker(mobid);
+
+		new npc_name[255];
+		npc_name = ResolveMobName(mobid);
+
+		new suffix[8];
+		format(suffix, sizeof(suffix), "_%d", i+1);
+		strcat(npc_name, suffix);
+
+		new npcid = FCNPC_Create(npc_name);
+		PlayerDungeon[playerid][Mobs][i] = npcid;
+		ResetPlayerVariables(npcid);
+
+		IsDungeonMob[npcid] = true;
+		MaxHP[npcid] = walker[HP];
+		SetPlayerMaxHP(npcid, walker[HP], false);
+
+		PlayerInfo[npcid][Rank] = mobid;
+		PlayerInfo[npcid][DamageMin] = dungeon[Damage];
+		PlayerInfo[npcid][DamageMax] = dungeon[Damage];
+		PlayerInfo[npcid][Defense] = dungeon[Defense];
+		PlayerInfo[npcid][Dodge] = walker[Dodge];
+		PlayerInfo[npcid][Accuracy] = walker[Accuracy];
+		PlayerInfo[npcid][Crit] = walker[Crit];
+		PlayerInfo[npcid][Sex] = 0;
+		PlayerInfo[npcid][Skin] = walker[Skin];
+		PlayerInfo[npcid][WeaponSlotID] = 31;
+
+		SetPlayerColor(npcid, HexRateColors[mobid-1][0]);
+		ShowNPCInTabList(npcid);
+
+		FCNPC_Spawn(npcid, walker[Skin], 0, 0, 0);
+		SetRandomMobPos(npcid);
+		FCNPC_SetInvulnerable(npcid, false);
+		FCNPC_SetInterior(npcid, 0);
+		UpdatePlayerWeapon(npcid);
+		SetMobDestPoint(npcid);
+	}
+
+	for(new i = 0; i < dungeon[BossesCount]; i++)
+	{
+		new boss_type = random(dungeon[BossesTypesCount]);
+		new bossid = dungeon[Bosses][boss_type];
+		if(bossid == -1) continue;
+
+		new boss[BossInfo];
+		boss = GetBoss(bossid);
+
+		new npc_name[64];
+		format(npc_name, sizeof(npc_name), "%s_%d", BossesNames[bossid], i+1);
+
+		new npcid = FCNPC_Create(npc_name);
+		PlayerDungeon[playerid][Bosses][i] = npcid;
+		PlayerDungeon[playerid][BossesIds][npcid] = bossid;
+		ResetPlayerVariables(npcid);
+
+		SetPlayerColor(npcid, 0x990099FF);
+		ShowNPCInTabList(npcid); 
+		FCNPC_SetInvulnerable(npcid, false);
+
+		IsDungeonBoss[npcid] = true;
+		PlayerInfo[npcid][DamageMin] = boss[DamageMin];
+		PlayerInfo[npcid][DamageMax] = boss[DamageMax];
+		PlayerInfo[npcid][Defense] = boss[Defense];
+		PlayerInfo[npcid][Dodge] = boss[Dodge];
+		PlayerInfo[npcid][Accuracy] = boss[Accuracy];
+		PlayerInfo[npcid][Crit] = DEFAULT_CRIT;
+		PlayerInfo[npcid][Sex] = 0;
+		PlayerInfo[npcid][Skin] = BossesSkins[bossid][0];
+		PlayerInfo[npcid][WeaponSlotID] = BossesWeapons[bossid][0];
+
+		FCNPC_Spawn(npcid, PlayerInfo[npcid][Skin], 0, 0, 0);
+		SetRandomMobPos(npcid);
+		SetPlayerMaxHP(npcid, boss[HP], false);
+		SetPVarFloat(npcid, "HP", boss[HP]);
+		SetPlayerHP(npcid, boss[HP]);
+		SetPlayerSkills(npcid);
+		FCNPC_SetInterior(npcid, 0);
+
+		UpdatePlayerSkin(npcid);
+		UpdatePlayerWeapon(npcid);
+		SetMobDestPoint(npcid);
+	}
+}
+
+stock CompleteDungeon(playerid, bool:is_win)
+{
+	if(!IsPlayerInDungeon(playerid)) return;
+
+	new dungeonid = GetPVarInt(playerid, "ActiveDungeon");
+	if(is_win)
+	{
+		SendClientMessage(playerid, COLOR_GREEN, "Победа! Территория войны пройдена.");
+		SendClientMessage(playerid, COLOR_WHITE, "Чтобы вернуться домой воспользуйтесь порталом или меню N.");
+		ClaimDungeonReward(playerid, dungeonid);
+	}
+	else
+	{
+		SendClientMessage(playerid, COLOR_RED, "Поражение. Территория войны закрыта.");
+		DestroyDungeonEnemies(playerid);
+	}
+
+	SetPVarInt(playerid, "ActiveDungeon", -1);
+	SetPVarInt(playerid, "DungeonEnemiesKilled", 0);
+	SetPVarInt(playerid, "DungeonEnemiesRequired", 0);
+}
+
+stock DestroyDungeonEnemies(playerid)
+{
+	for(new i = 0; i < MAX_PLAYERS; i++)
+	{
+		new id = PlayerDungeon[playerid][Mobs][i];
+		if(id == -1 || id == playerid) continue;
+		if(!FCNPC_IsValid(id)) continue;
+
+		FCNPC_Destroy(id);
+		IsDungeonMob[id] = false;
+		ResetPlayerVariables(id);
+		ResetDungeonLoot(id);
+		PlayerDungeon[playerid][Mobs][i] = -1;
+	}
+	for(new i = 0; i < MAX_PLAYERS; i++)
+	{
+		new id = PlayerDungeon[playerid][Bosses][i];
+		if(id == -1 || id == playerid) continue;
+		if(!FCNPC_IsValid(id)) continue;
+
+		FCNPC_Destroy(id);
+		IsDungeonBoss[id] = false;
+		ResetPlayerVariables(id);
+		ResetDungeonLoot(id);
+		PlayerDungeon[playerid][Bosses][i] = -1;
+	}
+}
+
+stock ClaimDungeonReward(playerid, dungeonid)
+{
+	
+}
+
+stock ResolveMobName(mobid)
+{
+	new name[64] = "Mob";
+	switch(mobid)
+	{
+		case 1: name = "Mob_Bomj";
+		case 2: name = "Mob_Gay";
+		case 3: name = "Mob_Gopstop";
+		case 4: name = "Mob_Policeman";
+		case 5: name = "Mob_Clown";
+		case 6: name = "Mob_Proletary";
+		case 7: name = "Mob_VSDDMan";
+		case 8: name = "Mob_Authority";
+		case 9: name = "Mob_LocalBourgeois";
+		default: name = "Mob";
+	}
+
+	return name;
+}
+
+public bool:IsPlayerInDungeon(playerid)
+{
+	if(playerid == INVALID_PLAYER_ID) return false;
+
+	new dungeonid = GetPVarInt(playerid, "ActiveDungeon");
+	if(dungeonid != -1) return true;
+	return false;
 }
 
 stock GetBossesList()
@@ -6056,17 +8033,98 @@ stock SetBossCooldown(bossid)
 	new resp_time;
 	switch(bossid)
 	{
-		case 1: resp_time = 30;
-		case 2: resp_time = 60;
-		case 3: resp_time = 120;
-		case 4: resp_time = 240;
-		default: resp_time = 15;
+		case 1: resp_time = 10;
+		case 2: resp_time = 15;
+		case 3: resp_time = 20;
+		case 4: resp_time = 30;
+		case 5: resp_time = 45;
+		case 6: resp_time = 60;
+		case 7: resp_time = 90;
+		default: resp_time = 5;
 	}
 
 	new query[255];
 	format(query, sizeof(query), "UPDATE `bosses` SET `RespawnTime` = '%d' WHERE `ID` = '%d' LIMIT 1", resp_time, bossid);
 	new Cache:q_result = mysql_query(sql_handle, query);
 	cache_delete(q_result);
+}
+
+stock GetNYShazokItemsList()
+{
+	new listitems[2048] = "Предмет\tЦена (красных носов)";
+	new query[255] = "SELECT * FROM `ny_shazok_seller`";
+	new Cache:q_result = mysql_query(sql_handle, query);
+
+	new row_count = 0;
+	cache_get_row_count(row_count);
+	
+	if(row_count <= 0)
+	{
+		cache_delete(q_result);
+		return listitems;
+	}
+
+	q_result = cache_save();
+	cache_unset_active();
+
+	new iteminfo[255];
+	for(new i = 0; i < row_count; i++)
+	{
+		new itemid = -1;
+		new price = 0;
+		cache_set_active(q_result);
+		cache_get_value_name_int(i, "ItemID", itemid);
+		cache_get_value_name_int(i, "Price", price);
+		cache_unset_active();
+
+		if(itemid == -1) continue;
+		new item[BaseItem];
+		item = GetItem(itemid);
+		format(iteminfo, sizeof(iteminfo), "\n{%s}%s\t{66CC00}%d", GetGradeColor(item[Grade]), item[Name], price);
+		strcat(listitems, iteminfo);
+	}
+
+	cache_delete(q_result);
+	return listitems;
+}
+
+stock GetKeysSellerItemsList()
+{
+	new listitems[2048] = "Предмет\tЦена";
+	new query[255] = "SELECT * FROM `keys_seller`";
+	new Cache:q_result = mysql_query(sql_handle, query);
+
+	new row_count = 0;
+	cache_get_row_count(row_count);
+	
+	if(row_count <= 0)
+	{
+		cache_delete(q_result);
+		return listitems;
+	}
+
+	q_result = cache_save();
+	cache_unset_active();
+
+	new iteminfo[255];
+	for(new i = 0; i < row_count; i++)
+	{
+		new itemid = -1;
+		new price = 0;
+		cache_set_active(q_result);
+		cache_get_value_name_int(i, "ItemID", itemid);
+		cache_get_value_name_int(i, "Price", price);
+		cache_unset_active();
+
+		if(itemid == -1) continue;
+		new item[BaseItem];
+		item = GetItem(itemid);
+		format(iteminfo, sizeof(iteminfo), "\n{%s}%s\t{66CC00}%s$", GetGradeColor(item[Grade]), item[Name], FormatMoney(price));
+		strcat(listitems, iteminfo);
+	}
+
+	cache_delete(q_result);
+	return listitems;
 }
 
 stock GetMaterialsSellerItemsList(playerid)
@@ -6098,10 +8156,12 @@ stock GetMaterialsSellerItemsList(playerid)
 		if(itemid == -1) continue;
 		new item[BaseItem];
 		item = GetItem(itemid);
-		if(itemid == 186)
-			format(iteminfo, sizeof(iteminfo), "\n{%s}%s\t{66CC00}%d$", GetGradeColor(item[Grade]), item[Name], item[Price] + 1000 * PlayerInfo[playerid][Level] * 5);
+		if(itemid == 280)
+			format(iteminfo, sizeof(iteminfo), "\n{%s}%s\t{66CC00}%s$", GetGradeColor(item[Grade]), item[Name], FormatMoney(item[Price] + 4000 * PlayerInfo[playerid][Rank] * PlayerInfo[playerid][Rank]));
+		else if(itemid == 281)
+			format(iteminfo, sizeof(iteminfo), "\n{%s}%s\t{66CC00}%s$", GetGradeColor(item[Grade]), item[Name], FormatMoney(item[Price] + 2000 * PlayerInfo[playerid][Rank] * PlayerInfo[playerid][Rank]));
 		else
-			format(iteminfo, sizeof(iteminfo), "\n{%s}%s\t{66CC00}%d$", GetGradeColor(item[Grade]), item[Name], item[Price]);
+			format(iteminfo, sizeof(iteminfo), "\n{%s}%s\t{66CC00}%s$", GetGradeColor(item[Grade]), item[Name], FormatMoney(item[Price]));
 		strcat(listitems, iteminfo);
 	}
 
@@ -6138,8 +8198,8 @@ stock GetWeaponSellerItemsList()
 		if(itemid == -1) continue;
 		new item[BaseItem];
 		item = GetItem(itemid);
-		format(iteminfo, sizeof(iteminfo), "\n{%s}%s\t{ffffff}%d\t{66CC00}%d$", 
-			GetGradeColor(item[Grade]), item[Name], item[MinLevel], item[Price]
+		format(iteminfo, sizeof(iteminfo), "\n{%s}%s\t{%s}%s\t{66CC00}%s$", 
+			GetGradeColor(item[Grade]), item[Name], RateColors[item[MinRank]-1], GetRankInterval(item[MinRank]), FormatMoney(item[Price])
 		);
 		strcat(listitems, iteminfo);
 	}
@@ -6177,8 +8237,8 @@ stock GetArmorSellerItemsList()
 		if(itemid == -1) continue;
 		new item[BaseItem];
 		item = GetItem(itemid);
-		format(iteminfo, sizeof(iteminfo), "\n{%s}%s\t{ffffff}%d\t{66CC00}%d$", 
-			GetGradeColor(item[Grade]), item[Name], item[MinLevel], item[Price]
+		format(iteminfo, sizeof(iteminfo), "\n{%s}%s\t{%s}%s\t{66CC00}%s$", 
+			GetGradeColor(item[Grade]), item[Name], RateColors[item[MinRank]-1], GetRankInterval(item[MinRank]), FormatMoney(item[Price])
 		);
 		strcat(listitems, iteminfo);
 	}
@@ -6194,6 +8254,7 @@ stock SafeDestroyPickup(pickupid)
 		pickupid == home_quit ||
 		pickupid == boss_tp ||
 		pickupid == arena_tp ||
+		pickupid == war_tp ||
 		pickupid == health_pickup)
 		return;
 	DestroyPickup(pickupid);
@@ -6216,7 +8277,7 @@ stock GetRealKillerId(playerid, lastshotterid)
 
 		new damage = DmgInfo[playerid][i];
 		if(PvpInfo[i][ID] == lastshotterid)
-			damage += MaxHP[playerid] / 4;
+			damage += MaxHP[playerid] / 3;
 		if(damage > max_damage)
 		{
 			max_damage = damage;
@@ -6228,16 +8289,12 @@ stock GetRealKillerId(playerid, lastshotterid)
 
 stock GiveKillScore(playerid, killerid)
 {
-	new base_score = GetScoreDiff(PlayerInfo[killerid][GlobalTopPosition], PlayerInfo[playerid][GlobalTopPosition], true);
+	new base_score = GetScoreDiff(PlayerInfo[playerid][Rate], PlayerInfo[killerid][Rate], true);
 	new killer_idx = GetPvpIndex(killerid);
 
-	new Float:kills_diff = floatdiv(PvpInfo[killer_idx][Kills], PvpInfo[killer_idx][Deaths]);
+	new kills_diff = PvpInfo[killer_idx][Kills] - PvpInfo[killer_idx][Deaths];
 	if(kills_diff > 1)
-		base_score = floatround(floatdiv(base_score, kills_diff));
-
-	if(base_score < 50)
-		base_score = 50;
-
+		base_score = floatround(floatmul(base_score, floatpower(0.97, kills_diff)));
 	PvpInfo[killer_idx][Score] += base_score;
 
 	new damagers_ids[MAX_PARTICIPANTS];
@@ -6264,8 +8321,11 @@ stock GiveKillScore(playerid, killerid)
 
 	for(new i = 0; i < MAX_PARTICIPANTS; i++)
 	{
-		if(DmgInfo[playerid][damagers_ids[i]] <= 0)
+		if(damagers_ids[i] == killer_idx)
+			continue;
+		if(DmgInfo[playerid][i] <= 0)
 			break;
+
 		new part_id = PvpInfo[damagers_ids[i]][ID];
 		if(part_id == -1 || part_id == killerid || part_id == playerid || part_id == INVALID_PLAYER_ID || GetPlayerTourTeam(playerid) == GetPlayerTourTeam(part_id))
 			continue;
@@ -6273,23 +8333,6 @@ stock GiveKillScore(playerid, killerid)
 		base_score = floatround(floatmul(base_score, 0.75));
 		PvpInfo[damagers_ids[i]][Score] += base_score;
 	}
-}
-
-stock GiveDeathScore(playerid, killerid)
-{
-	new base_score = GetScoreDiff(PlayerInfo[killerid][GlobalTopPosition], PlayerInfo[playerid][GlobalTopPosition], false);
-	new killed_idx = GetPvpIndex(playerid);
-
-	new Float:deaths_diff = floatdiv(PvpInfo[killed_idx][Deaths], PvpInfo[killed_idx][Kills]);
-	if(deaths_diff > 1)
-		base_score = floatround(floatdiv(base_score, deaths_diff));
-
-	if(base_score < 0)
-		base_score = 0;
-
-	PvpInfo[killed_idx][Score] -= base_score;
-	if(PvpInfo[killed_idx][Score] < 0)
-		PvpInfo[killed_idx][Score] = 0;
 }
 
 stock ResetLoot()
@@ -6322,20 +8365,64 @@ stock ResetWalkerLoot(walkerid)
 	}
 }
 
+stock ResetDungeonLoot(npcid)
+{
+	for(new i = 0; i < MAX_DUNGEON_LOOT; i++)
+	{
+		if(DungeonLootPickups[npcid][i] > 0)
+		{
+			SafeDestroyPickup(DungeonLootPickups[npcid][i]);
+			DungeonLootPickups[npcid][i] = 0;
+		}
+		DungeonLootItems[npcid][i][ItemID] = -1;
+		DungeonLootItems[npcid][i][Count] = 0;
+		DungeonLootItems[npcid][i][OwnerID] = -1;
+	}
+}
+
+stock RollDungeonLoot(npcid, playerid)
+{
+	if(playerid == -1 || playerid == INVALID_PLAYER_ID) return;
+
+	new loot_mult = 4;
+	if(HasItem(playerid, 280, 1))
+		loot_mult /= 2;
+
+	new iterations = random(MAX_DUNGEON_LOOT / loot_mult) + MAX_DUNGEON_LOOT / loot_mult + 1;
+	for(new i = 0; i < iterations; i++)
+	{
+		new loot[LootInfo];
+		if(IsDungeonBoss[npcid])
+			loot = RollBossLootItem(PlayerDungeon[playerid][BossesIds][npcid]);
+		else
+			loot = RollWalkerLootItem(PlayerInfo[npcid][Rank], playerid);
+		
+		if(loot[ItemID] == -1) continue;
+		loot[OwnerID] = -1;
+
+		DungeonLootItems[npcid][i][ItemID] = loot[ItemID];
+		DungeonLootItems[npcid][i][Count] = loot[Count];
+		DungeonLootItems[npcid][i][OwnerID] = loot[OwnerID];
+
+		new Float:x, Float:y, Float:z;
+		FCNPC_GetPosition(npcid, x, y, z);
+		DungeonLootPickups[npcid][i] = CreatePickup(19055, 1, x + random(6), y + random(6), z, 0);
+	}
+}
+
 stock RollWalkerLoot(walkerid, killerid)
 {
 	if(killerid == -1 || killerid == INVALID_PLAYER_ID) return;
 
 	new loot_mult = 4;
-	if(HasItem(killerid, 185, 1))
+	if(HasItem(killerid, 280, 1))
 		loot_mult /= 2;
 
 	new iterations = random(MAX_WALKER_LOOT / loot_mult) + MAX_WALKER_LOOT / loot_mult + 1;
 	for(new i = 0; i < iterations; i++)
 	{
 		new loot[LootInfo];
-		new idx = GetWalkerIdx(walkerid);
-		loot = RollWalkerLootItem(Walkers[idx][Type], killerid);
+		loot = RollWalkerLootItem(PlayerInfo[walkerid][Rank], killerid);
 		if(loot[ItemID] == -1) continue;
 
 		WalkerLootItems[walkerid][i][ItemID] = loot[ItemID];
@@ -6355,7 +8442,7 @@ stock RollBossLoot()
 	for(new i = 0; i < MAX_PLAYERS; i++)
 	{
 		if(!IsBossAttacker[i]) continue;
-		if(HasItem(i, 185, 1))
+		if(HasItem(i, 280, 1))
 		{
 			loot_mult /= 2;
 			break;
@@ -6378,10 +8465,9 @@ stock RollBossLoot()
 	}
 }
 
-//TODO
 stock RollWalkerLootItem(rank, ownerid)
 {
-	/*new chance = random(10001);
+	new chance = random(10001);
 	new itemid = -1;
 	new count = 1;
 	switch(rank)
@@ -6390,132 +8476,122 @@ stock RollWalkerLootItem(rank, ownerid)
 		{
 			switch(chance)
 			{
-				case 0..48: itemid = GetRandomEquip(1, 1);
-				case 49: itemid = 313;
-				case 50..999: itemid = GetRandomStone();
-				case 1000..1099: { itemid = 195; count = rank; }
-				default: { itemid = 241; count = (rank * 5 - rank) + random(rank * 3); }
+				case 0..49: itemid = GetRandomEquip(1, 1);
+				case 50..799: itemid = GetRandomStone();
+				case 800..999: { itemid = 290; count = 1; }
+				default: { itemid = 366; count = (rank * 5 - rank) + random(rank * 3); }
 			}
 		}
 		case 2:
 		{
 			switch(chance)
 			{
-				case 0..48: itemid = GetRandomEquip(1, 2);
-				case 49: itemid = 313;
-				case 50..999: { itemid = GetRandomStone(); count = 2; }
-				case 1000..1099: { itemid = 195; count = rank; }
-				case 1100..1124: itemid = 315;
-				default: { itemid = 241; count = (rank * 5 - rank) + random(rank * 3); }
+				case 0..49: itemid = GetRandomEquip(1, 2);
+				case 50..799: { itemid = GetRandomStone(); count = 2; }
+				case 800..999: { itemid = 290; count = 1; }
+				default: { itemid = 366; count = (rank * 5 - rank) + random(rank * 3); }
 			}
 		}
 		case 3:
 		{
 			switch(chance)
 			{
-				case 0..48: itemid = GetRandomEquip(2, 3);
-				case 49: itemid = 313;
-				case 50..999: { itemid = GetRandomStone(); count = 4; }
-				case 1000..1099: itemid = 310;
-				case 1100..1199: { itemid = 195; count = rank; }
-				case 1200..1224: itemid = 315;
-				default: { itemid = 241; count = (rank * 5 - rank) + random(rank * 3); }
+				case 0..49: itemid = GetRandomEquip(2, 3);
+				case 50..749: { itemid = GetRandomStone(); count = 4; }
+				case 750..949: { itemid = 290; count = 2; }
+				case 950..999: { itemid = 306; count = 1; }
+				case 1000..1099: { itemid = 286; count = 1; }
+				default: { itemid = 366; count = (rank * 5 - rank) + random(rank * 3); }
 			}
 		}
 		case 4:
 		{
 			switch(chance)
 			{
-				case 0..48: itemid = GetRandomEquip(3, 4);
-				case 49: itemid = 313;
-				case 50..999: { itemid = GetRandomStone(); count = 6; }
-				case 1000..1199: itemid = 310;
-				case 1200..1299: { itemid = 195; count = rank; }
-				case 1300..1324: itemid = 316;
-				default: { itemid = 241; count = (rank * 5 - rank) + random(rank * 3); }
+				case 0..49: itemid = GetRandomEquip(3, 4);
+				case 50..749: { itemid = GetRandomStone(); count = 6; }
+				case 750..949: { itemid = 290; count = 3; }
+				case 950..999: { itemid = 306; count = 2; }
+				case 1000..1099: { itemid = 286; count = 2; }
+				default: { itemid = 366; count = (rank * 5 - rank) + random(rank * 3); }
 			}
 		}
 		case 5:
 		{
 			switch(chance)
 			{
-				case 0..48: itemid = GetRandomEquip(4, 5);
-				case 49: itemid = 313;
-				case 50..999: { itemid = GetRandomBooster(); count = 4; }
-				case 1000..1299: itemid = 310;
-				case 1300..1399: { itemid = 195; count = rank; }
-				case 1400..1424: itemid = 316;
-				default: { itemid = 241; count = (rank * 5 - rank) + random(rank * 3); }
+				case 0..49: itemid = GetRandomEquip(4, 5);
+				case 50..824: { itemid = GetRandomBooster(); count = 4; }
+				case 825..1024: { itemid = 290; count = 4; }
+				case 1025..1074: { itemid = 306; count = 3; }
+				case 1075..1099: itemid = 320;
+				default: { itemid = 366; count = (rank * 5 - rank) + random(rank * 3); }
 			}
 		}
 		case 6:
 		{
 			switch(chance)
 			{
-				case 0..48: itemid = GetRandomEquip(5, 6);
-				case 49: itemid = 313;
-				case 50..999: { itemid = GetRandomBooster(); count = 6; }
-				case 1000..1099: itemid = 311;
-				case 1100..1199: { itemid = 195; count = rank; }
-				case 1200..1224: itemid = 316;
-				default: { itemid = 241; count = (rank * 5 - rank) + random(rank * 3); }
+				case 0..49: itemid = GetRandomEquip(5, 6);
+				case 50..824: { itemid = GetRandomBooster(); count = 6; }
+				case 825..1024: { itemid = 290; count = 5; }
+				case 1025..1114: { itemid = 306; count = 4; }
+				case 1115..1164: itemid = 320;
+				case 1165..1174: itemid = 307;
+				default: { itemid = 366; count = (rank * 5 - rank) + random(rank * 3); }
 			}
 		}
 		case 7:
 		{
 			switch(chance)
 			{
-				case 0..48: itemid = GetRandomEquip(6, 7);
-				case 49: itemid = 313;
-				case 50..999: { itemid = GetRandomBooster(); count = 8; }
-				case 1000..1149: itemid = 311;
-				case 1150..1199: { itemid = 191; count = 3; }
-				case 1200..1299: { itemid = 195; count = rank; }
-				case 1300..1324: itemid = 316;
-				default: { itemid = 241; count = (rank * 5 - rank) + random(rank * 3); }
+				case 0..49: itemid = GetRandomEquip(6, 7);
+				case 50..774: { itemid = GetRandomBooster(); count = 8; }
+				case 775..974: { itemid = 290; count = 6; }
+				case 975..1064: { itemid = 306; count = 5; }
+				case 1065..1139: itemid = 320;
+				case 1140..1149: itemid = 307;
+				default: { itemid = 366; count = (rank * 5 - rank) + random(rank * 3); }
 			}
 		}
 		case 8:
 		{
 			switch(chance)
 			{
-				case 0..48: itemid = GetRandomEquip(7, 8);
-				case 49: itemid = 313;
-				case 50..1149: { itemid = GetRandomBooster(); count = 10; }
-				case 1150..1159: itemid = 312;
-				case 1160..1299: { itemid = 192; count = 3; }
-				case 1300..1399: { itemid = 195; count = rank; }
-				case 1400..1424: itemid = 317;
-				default: { itemid = 241; count = (rank * 5 - rank) + random(rank * 3); }
+				case 0..49: itemid = GetRandomEquip(7, 8);
+				case 50..749: { itemid = GetRandomBooster(); count = 10; }
+				case 750..949: { itemid = 290; count = 7; }
+				case 950..1029: { itemid = 306; count = 6; }
+				case 1030..1129: itemid = 320;
+				case 1130..1149: itemid = 307;
+				default: { itemid = 366; count = (rank * 5 - rank) + random(rank * 3); }
 			}
 		}
 		case 9:
 		{
 			switch(chance)
 			{
-				case 0..48: itemid = GetRandomEquip(8, 9);
-				case 49: itemid = 313;
-				case 50..1449: { itemid = GetRandomBooster(); count = 12; }
-				case 1450..1474: itemid = 312;
-				case 1475..1799: { itemid = 192; count = 5; }
-				case 1800..1899: { itemid = 195; count = rank; }
-				case 1900..1924: itemid = 317;
-				default: { itemid = 241; count = (rank * 5 - rank) + random(rank * 3); }
+				case 0..49: itemid = GetRandomEquip(8, 9);
+				case 50..699: { itemid = GetRandomBooster(); count = 12; }
+				case 700..899: { itemid = 290; count = 8; }
+				case 900..979: { itemid = 306; count = 7; }
+				case 980..1129: itemid = 320;
+				case 1130..1149: itemid = 307;
+				default: { itemid = 366; count = (rank * 5 - rank) + random(rank * 3); }
 			}
 		}
-	}*/
+	}
 
 	new loot[LootInfo];
-	//loot[ItemID] = itemid;
-	//loot[Count] = count;
-	//loot[OwnerID] = ownerid;
+	loot[ItemID] = itemid;
+	loot[Count] = count;
+	loot[OwnerID] = ownerid;
 	return loot;
 }
 
-//TODO
 stock RollBossLootItem(bossid)
 {
-	/*new chance = random(10001);
+	new chance = random(10001);
 	new itemid = -1;
 	new count = 1;
 	switch(bossid)
@@ -6525,9 +8601,19 @@ stock RollBossLootItem(bossid)
 			switch(chance)
 			{
 				case 0..499: itemid = GetRandomEquip(1, 2);
-				case 500..799: itemid = GetRandomAccessory(0);
-				case 800..4999: { itemid = 195; count = 2; }
-				default: { itemid = GetRandomBooster(); count = 2; }
+				case 500..599: itemid = GetRandomGlasses(1, 2);
+				case 600..799: itemid = GetRandomWatch(1, 2);
+				case 800..1099: itemid = 317; //коробка с бижутерией
+				case 1100..1399: itemid = 314; //коробка с модификатором
+				case 1450..1549: itemid = 305; //инструкция Шажка
+				case 1550..1749: { itemid = 306; count = 1; } //катализатор
+				case 1750..2049: { itemid = 286; count = 1; } //эликсир удачи
+				case 2050..2199: { itemid = 287; count = 1; } //качественный эликсир удачи
+				case 2200..2239: { itemid = 288; count = 1; } //эликсир удачи мастера
+				case 2240..2249: { itemid = 289; count = 1; } //редкий эликсир удачи
+				case 2250..6149: { itemid = 290; count = 2; } //усилитель
+				case 6150..6349: itemid = 297; //часть оружия Шажка
+				default: { itemid = GetRandomBooster(); count = 2; } //случайный бустер
 			}
 		}
 		case 1:
@@ -6535,10 +8621,20 @@ stock RollBossLootItem(bossid)
 			switch(chance)
 			{
 				case 0..499: itemid = GetRandomEquip(2, 3);
-				case 500..899: itemid = GetRandomAccessory(0);
-				case 900..1299: itemid = 191;
-				case 1300..5499: { itemid = 195; count = 4; }
-				default: { itemid = GetRandomBooster(); count = 4; }
+				case 500..599: itemid = GetRandomGlasses(2, 3);
+				case 600..799: itemid = GetRandomWatch(2, 3);
+				case 800..1099: itemid = 317; //коробка с бижутерией
+				case 1100..1399: itemid = 314; //коробка с модификатором
+				case 1450..1579: itemid = 305; //инструкция Шажка
+				case 1580..1679: { itemid = 306; count = 2; } //катализатор
+				case 1680..2004: { itemid = 286; count = 1; } //эликсир удачи
+				case 2005..2179: { itemid = 287; count = 1; } //качественный эликсир удачи
+				case 2180..2234: { itemid = 288; count = 1; } //эликсир удачи мастера
+				case 2235..2249: { itemid = 289; count = 1; } //редкий эликсир удачи
+				case 2250..6149: { itemid = 290; count = 4; } //усилитель
+				case 6150..6249: itemid = 298; //часть оружия Шажка
+				case 6250..6349: itemid = 299; //часть оружия Шажка
+				default: { itemid = GetRandomBooster(); count = 4; } //случайный бустер
 			}
 		}
 		case 2:
@@ -6546,11 +8642,22 @@ stock RollBossLootItem(bossid)
 			switch(chance)
 			{
 				case 0..499: itemid = GetRandomEquip(4, 6);
-				case 500..799: itemid = GetRandomAccessory(1);
-				case 800..1399: itemid = 191;
-				case 1400..1599: itemid = 192;
-				case 1600..5499: { itemid = GetRandomBooster(); count = 8; }
-				default: { itemid = 195; count = 8; }
+				case 500..599: itemid = GetRandomGlasses(4, 6);
+				case 600..799: itemid = GetRandomWatch(4, 6);
+				case 800..1099: itemid = 318; //коробка с бижутерией
+				case 1100..1399: itemid = 315; //коробка с модификатором
+				case 1450..1599: itemid = 305; //инструкция Шажка
+				case 1600..1609: itemid = 308; //оружие Древних
+				case 1610..1699: itemid = 307; //печать Древних
+				case 1700..1799: { itemid = 306; count = 4; } //катализатор
+				case 1800..2124: { itemid = 286; count = 2; } //эликсир удачи
+				case 2125..2299: { itemid = 287; count = 2; } //качественный эликсир удачи
+				case 2300..2374: { itemid = 288; count = 2; } //эликсир удачи мастера
+				case 2375..2399: { itemid = 289; count = 1; } //редкий эликсир удачи
+				case 2400..6199: { itemid = 290; count = 8; } //усилитель
+				case 6200..6299: itemid = 300; //часть оружия Шажка
+				case 6300..6399: itemid = 301; //часть оружия Шажка
+				default: { itemid = GetRandomBooster(); count = 8; } //случайный бустер
 			}
 		}
 		case 3:
@@ -6558,13 +8665,25 @@ stock RollBossLootItem(bossid)
 			switch(chance)
 			{
 				case 0..499: itemid = GetRandomEquip(7, 8);
-				case 500..599: itemid = 202;
-				case 600..759: itemid = 192;
-				case 800..1069: itemid = GetRandomAccessory(2);
-				case 1070..1099: itemid = 193;
-				case 1100..1399: { itemid = 191; count = 2; }
-				case 1400..5499: { itemid = GetRandomBooster(); count = 14; }
-				default: { itemid = 195; count = 14; }
+				case 500..599: itemid = GetRandomGlasses(7, 8);
+				case 600..799: itemid = GetRandomWatch(7, 8);
+				case 800..1099: itemid = 319; //коробка с бижутерией
+				case 1100..1399: itemid = 315; //коробка с модификатором
+				case 1450..1679: itemid = 305; //инструкция Шажка
+				case 1680..1689: itemid = 309; //оружие Древних
+				case 1690..1699: itemid = 310; //оружие Древних
+				case 1700..1749: itemid = GetRandomAccessory(4); //бижутерия сил земли
+				case 1750..1759: itemid = 316; //коробка с крупным модификатором
+				case 1760..1849: { itemid = 307; count = 2; } //печать Древних
+				case 1850..2049: { itemid = 306; count = 8; } //катализатор
+				case 2050..2374: { itemid = 286; count = 3; } //эликсир удачи
+				case 2375..2549: { itemid = 287; count = 3; } //качественный эликсир удачи
+				case 2550..2624: { itemid = 288; count = 2; } //эликсир удачи мастера
+				case 2625..2649: { itemid = 289; count = 1; } //редкий эликсир удачи
+				case 2650..6299: { itemid = 290; count = 14; } //усилитель
+				case 6300..6399: itemid = 302; //часть оружия Шажка
+				case 6400..6499: itemid = 303; //часть оружия Шажка
+				default: { itemid = GetRandomBooster(); count = 14; } //случайный бустер
 			}
 		}
 		case 4:
@@ -6572,75 +8691,157 @@ stock RollBossLootItem(bossid)
 			switch(chance)
 			{
 				case 0..499: itemid = GetRandomEquip(9, 9);
-				case 500..599: itemid = 203;
-				case 600..819: itemid = GetRandomAccessory(3);
-				case 820..879: itemid = 193;
-				case 880: itemid = 194;
-				case 881..1099: { itemid = 192; count = 2; }
-				case 1100..1399: { itemid = 191; count = 3; }
-				case 1400..5499: { itemid = GetRandomBooster(); count = 28; }
-				default: { itemid = 195; count = 28; }
+				case 500..599: itemid = GetRandomGlasses(9, 9);
+				case 600..799: itemid = GetRandomWatch(9, 9);
+				case 800..1099: itemid = 319; //коробка с бижутерией
+				case 1100..1399: { itemid = 315; count = 2; } //коробка с модификатором
+				case 1450..1679: itemid = 305; //инструкция Шажка
+				case 1680..1689: itemid = 311; //оружие Древних
+				case 1690..1699: itemid = GetRandomAccessory(5); //бижутерия Древних
+				case 1700..1749: itemid = GetRandomAccessory(4); //бижутерия сил земли
+				case 1750..1759: itemid = 316; //коробка с крупным модификатором
+				case 1760..1849: { itemid = 307; count = 3; } //печать Древних
+				case 1850..2049: { itemid = 306; count = 14; } //катализатор
+				case 2050..2374: { itemid = 286; count = 5; } //эликсир удачи
+				case 2375..2549: { itemid = 287; count = 4; } //качественный эликсир удачи
+				case 2550..2624: { itemid = 288; count = 3; } //эликсир удачи мастера
+				case 2625..2649: { itemid = 289; count = 2; } //редкий эликсир удачи
+				case 2650..6299: { itemid = 290; count = 28; } //усилитель
+				case 6300..6599: itemid = 304; //часть оружия Шажка
+				default: { itemid = GetRandomBooster(); count = 28; } //случайный бустер
 			}
 		}
-	}*/
+		case 5:
+		{
+			switch(chance)
+			{
+				case 0..49: itemid = 269;
+				case 50..99: itemid = 270;
+				case 100..149: itemid = 271;
+				case 150..199: itemid = 272;
+				case 200..249: itemid = GetRandomAccessory(5); //бижутерия Древних
+				case 250..399: itemid = GetRandomAccessory(4); //бижутерия сил земли
+				case 400..799: { itemid = 315; count = 3; } //коробка с модификатором
+				case 800..849: itemid = 316; //коробка с крупным модификатором
+				case 850..5149: { itemid = 307; count = 5; } //печать Древних
+				case 5150..5349: { itemid = 288; count = 5; } //эликсир удачи мастера
+				case 5350..5399: { itemid = 289; count = 2; } //редкий эликсир удачи
+				case 5400..5899: { itemid = 427; count = 5; } //золотой слиток
+				default: { itemid = 320; count = 10; } //коробка с эликсиром
+			}
+		}
+		case 6:
+		{
+			switch(chance)
+			{
+				case 0..99: itemid = 375;
+				case 100..199: itemid = 376;
+				case 200..299: itemid = 379;
+				case 300..399: itemid = 380;
+				case 400..599: itemid = GetRandomAccessory(6); //бижутерия священной горы
+				case 600..1099: { itemid = 315; count = 4; } //коробка с модификатором
+				case 1100..1149: { itemid = 316; count = 2; } //коробка с крупным модификатором
+				case 1150..5249: { itemid = 307; count = 7; } //печать Древних
+				case 5250..5449: { itemid = 288; count = 6; } //эликсир удачи мастера
+				case 5450..5499: { itemid = 289; count = 2; } //редкий эликсир удачи
+				case 5500..5999: { itemid = 427; count = 8; } //золотой слиток
+				default: { itemid = 320; count = 16; } //коробка с эликсиром
+			}
+		}
+		case 7:
+		{
+			switch(chance)
+			{
+				case 0..99: itemid = 377;
+				case 100..199: itemid = 378;
+				case 200..299: itemid = 381;
+				case 300..399: itemid = 382;
+				case 400..599: itemid = GetRandomAccessory(6); //бижутерия священной горы
+				case 600..1099: { itemid = 315; count = 6; } //коробка с модификатором
+				case 1100..1149: { itemid = 316; count = 3; } //коробка с крупным модификатором
+				case 1150..5249: { itemid = 307; count = 10; } //печать Древних
+				case 5250..5449: { itemid = 288; count = 9; } //эликсир удачи мастера
+				case 5450..5499: { itemid = 289; count = 3; } //редкий эликсир удачи
+				case 5500..5999: { itemid = 427; count = 14; } //золотой слиток
+				default: { itemid = 320; count = 24; } //коробка с эликсиром
+			}
+		}
+	}
 
 	new loot[LootInfo];
-	//loot[ItemID] = itemid;
-	//loot[Count] = count;
-	//loot[OwnerID] = -1;
+	loot[ItemID] = itemid;
+	loot[Count] = count;
+	loot[OwnerID] = -1;
 	return loot;
 }
 
-stock GetRandomEquip(minlevel, maxlevel, eq_type = RND_EQUIP_TYPE_RANDOM, eq_grade = RND_EQUIP_GRADE_RANDOM)
+stock GetRandomEquip(minrank, maxrank, eq_type = RND_EQUIP_TYPE_RANDOM, grade = RND_EQUIP_GRADE_RANDOM)
 {
-	new type;
-	new grade;
+	new rank = minrank + random(maxrank-minrank+1) - 1;
+	new type = eq_type == RND_EQUIP_TYPE_RANDOM ? random(3) : eq_type;
+	new baseid = 1;
+	if(type == 1)
+		baseid = 82;
+	else if(type == 2)
+		baseid = 137;
 
-	if(eq_type == RND_EQUIP_TYPE_RANDOM)
-		type = random(2);
-	else if(eq_type == RND_EQUIP_TYPE_WEAPON)
-		type = 1;
-	else
-		type = 2;
-
-	if(eq_grade == RND_EQUIP_GRADE_RANDOM)
-		grade = 1 + random(3);
-	else
-		grade = eq_grade;
-
-	new query[255];
-	format(query, sizeof(query), "SELECT * FROM `items` WHERE `MinLevel` >= %d AND `MinLevel` <= %d AND `Type` = %d AND `Grade` = %d",
-	minlevel, maxlevel, type, grade);
-	new Cache:q_result = mysql_query(sql_handle, query);
-	new row_count = 0;
-	cache_get_row_count(row_count);
-	if(row_count <= 0)
+	if(type == 0 && rank == 5)
 	{
-		print("Cannot get random equip.");
-		return;
+		rank += random(2);
+		return baseid + rank * 8 + (grade == RND_EQUIP_GRADE_RANDOM ? random(8) : grade-1);
 	}
+	if(type == 0 && rank > 5)
+		return baseid + (rank+1) * 8 + (grade == RND_EQUIP_GRADE_RANDOM ? random(8) : grade-1);
+	
+	if(type == 0)
+		return baseid + rank * 8 + (grade == RND_EQUIP_GRADE_RANDOM ? random(8) : grade-1);
+	else
+		return baseid + rank * 6 + (grade == RND_EQUIP_GRADE_RANDOM ? random(6) : grade-1);
+}
 
-	new idx = random(row_count);
-	new itemid;
-	cache_get_value_name_int(idx, "ItemID", itemid);
-	cache_delete(q_result);
+stock GetRandomGlasses(minrank, maxrank)
+{
+	new rank = minrank + random(maxrank-minrank+1) - 1;
+	return 191 + rank;
+}
 
-	return itemid;
+stock GetRandomWatch(minrank, maxrank)
+{
+	new rank = minrank + random(maxrank-minrank+1) - 1;
+	return 200 + rank;
+}
+
+stock GetRandomShazokPart(rank)
+{
+	if(rank > 3)
+		return 299 + rank - 4;
+	return 297 + rank - 1;
 }
 
 stock GetRandomAccessory(type)
 {
-	return 154 + type * 7 + random(7);
+	if(type < 4)
+		return 209 + type * 7 + random(7);
+	else if(type < 6)
+	{
+		type = type - 4;
+		return 237 + type * 4 + random(4);
+	}
+	else
+	{
+		type = type - 6;
+		return 371 + type * 4 + random(4);
+	}
 }
 
 stock GetRandomBooster()
 {
-	return 196 + random(6);
+	return 291 + random(6);
 }
 
 stock GetRandomStone()
 {
-	return 187 + random(4);
+	return 282 + random(4);
 }
 
 stock DebugLogInt(msg[], variable)
@@ -6655,6 +8856,33 @@ stock DebugLogFloat(msg[], Float:variable)
 	new string[255];
 	format(string, sizeof(string), "%s [%.3f].", msg, variable);
 	print(string);
+}
+
+stock FormatMoney(value)
+{
+	new string[64];
+	if(value < 1000)
+	{
+		format(string, sizeof(string), "%d", value);
+		return string;
+	}
+
+	new dec;
+	new dec_str[8];
+	while(value > 0)
+	{
+		dec = value % 1000;
+		value /= 1000;
+
+		if(dec >= 100 || value == 0) format(dec_str, sizeof(dec_str), ".%d", dec);
+		else if(dec >= 10) format(dec_str, sizeof(dec_str), ".0%d", dec);
+		else format(dec_str, sizeof(dec_str), ".00%d", dec);
+		strins(string, dec_str, 0);
+	}
+
+	strdel(string, 0, 1); //remove first '.'
+
+	return string;
 }
 
 stock UpdateHPBar(playerid)
@@ -6676,75 +8904,58 @@ stock UpdateHPBar(playerid)
 	}
 }
 
-stock UpdateLevelBar(playerid)
-{
-	new Float:proc = floatdiv(PlayerInfo[playerid][Exp], GetExpForLevel(PlayerInfo[playerid][Level]+1));
-	if(proc > 1.00) proc = 1.00;
-	if(proc < 0.00) proc = 0.00;
-
-	new Float:percents = floatmul(proc, 100);
-	new string[20];
-	format(string, sizeof(string), "%.2f%", percents);
-
-    PlayerTextDrawSetString(playerid, ExpPercents[playerid], string);
-    PlayerTextDrawHide(playerid, ExpLine[playerid]);
-    PlayerTextDrawTextSize(playerid, ExpLine[playerid], floatmul(percents, 6.4), 5.807403);
-    PlayerTextDrawShow(playerid, ExpLine[playerid]);
-
-	format(string, sizeof(string), "%d", PlayerInfo[playerid][Level]);
-	PlayerTextDrawSetString(playerid, LevelText[playerid], string);
-}
-
-stock UpdatePlayerLevel(playerid)
+stock UpdatePlayerRank(playerid)
 {
 	new string[255];
-	new new_level = GetLevelByExp(PlayerInfo[playerid][Exp]);
+	new new_rank = GetRankByRate(PlayerInfo[playerid][Rate]);
 
-	if(new_level > PlayerInfo[playerid][Level])
+	if(new_rank > PlayerInfo[playerid][Rank])
 	{
-		format(string, sizeof(string), "Новый уровень - %d!", new_level);
+		format(string, sizeof(string), "Ранг повышен - %s.", GetRateInterval(PlayerInfo[playerid][Rate]));
 		SendClientMessage(playerid, COLOR_GREEN, string);
 	}
+	else if(new_rank < PlayerInfo[playerid][Rank])
+	{
+		format(string, sizeof(string), "Ранг понижен - %s.", GetRateInterval(PlayerInfo[playerid][Rate]));
+		SendClientMessage(playerid, COLOR_RED, string);
+	}
 
-	PlayerInfo[playerid][Level] = new_level;
+	PlayerInfo[playerid][Rank] = new_rank;
+	if(PlayerInfo[playerid][Status] == HIERARCHY_NONE)
+		SetPlayerColor(playerid, IsTourStarted ? HexTeamColors[PlayerInfo[playerid][TeamColor]][0] : HexRateColors[PlayerInfo[playerid][Rank]-1][0]);
+
 	UpdatePlayerStats(playerid);
-}
-
-stock GetExpForLevel(level)
-{
-	if(level > MAX_LEVEL)
-		level = MAX_LEVEL;
-	
-	return 1;
-	//TODO
-}
-
-stock GetLevelByExp(exp)
-{
-	//TODO
-	return 1;
 }
 
 stock UpdatePlayerSkin(playerid)
 {
-	if(IsBoss[playerid] || IsWalker[playerid])
+	if(IsBoss[playerid] || IsWalker[playerid] || IsDungeonBoss[playerid] || IsDungeonMob[playerid])
 	{
 		SetPlayerSkin(playerid, PlayerInfo[playerid][Skin]);
+		return;
+	}
+
+    if(PlayerInfo[playerid][IsWatcher] != 0)
+	{
+		PlayerInfo[playerid][Skin] = 264;
+		SetPlayerSkin(playerid, 264);
 		return;
 	}
 
 	switch(PlayerInfo[playerid][ArmorSlotID])
 	{
 		case 81: PlayerInfo[playerid][Skin] = PlayerInfo[playerid][Sex] == 0 ? 78 : 131;
-		case 82..89: PlayerInfo[playerid][Skin] = PlayerInfo[playerid][Sex] == 0 ? 22 : 13;
-		case 90..97: PlayerInfo[playerid][Skin] = PlayerInfo[playerid][Sex] == 0 ? 6 : 41;
-		case 98..105: PlayerInfo[playerid][Skin] = PlayerInfo[playerid][Sex] == 0 ? 167 : 205;
-		case 106..113: PlayerInfo[playerid][Skin] = PlayerInfo[playerid][Sex] == 0 ? 70 : 219;
-		case 114..121: PlayerInfo[playerid][Skin] = PlayerInfo[playerid][Sex] == 0 ? 310 : 309;
-		case 122..129: PlayerInfo[playerid][Skin] = PlayerInfo[playerid][Sex] == 0 ? 147 : 141;
-		case 130..137: PlayerInfo[playerid][Skin] = PlayerInfo[playerid][Sex] == 0 ? 127 : 150;
-		case 138..145: PlayerInfo[playerid][Skin] = PlayerInfo[playerid][Sex] == 0 ? 126 : 93;
-		case 146..153: PlayerInfo[playerid][Skin] = PlayerInfo[playerid][Sex] == 0 ? 294 : 214;
+		case 82..87: PlayerInfo[playerid][Skin] = PlayerInfo[playerid][Sex] == 0 ? 22 : 13;
+		case 88..93: PlayerInfo[playerid][Skin] = PlayerInfo[playerid][Sex] == 0 ? 6 : 41;
+		case 94..99: PlayerInfo[playerid][Skin] = PlayerInfo[playerid][Sex] == 0 ? 167 : 205;
+		case 100..105: PlayerInfo[playerid][Skin] = PlayerInfo[playerid][Sex] == 0 ? 70 : 219;
+		case 106..111: PlayerInfo[playerid][Skin] = PlayerInfo[playerid][Sex] == 0 ? 310 : 309;
+		case 112..117: PlayerInfo[playerid][Skin] = PlayerInfo[playerid][Sex] == 0 ? 147 : 141;
+		case 118..123: PlayerInfo[playerid][Skin] = PlayerInfo[playerid][Sex] == 0 ? 127 : 150;
+		case 124..129: PlayerInfo[playerid][Skin] = PlayerInfo[playerid][Sex] == 0 ? 126 : 93;
+		case 130..135: PlayerInfo[playerid][Skin] = PlayerInfo[playerid][Sex] == 0 ? 294 : 214;
+		case 273: PlayerInfo[playerid][Skin] = PlayerInfo[playerid][Sex] == 0 ? 113 : 91;
+		case 274: PlayerInfo[playerid][Skin] = PlayerInfo[playerid][Sex] == 0 ? 165 : 141;
 		default: PlayerInfo[playerid][Skin] = PlayerInfo[playerid][Sex] == 0 ? DEFAULT_SKIN_MALE : DEFAULT_SKIN_FEMALE;
 	}
 	SetPlayerSkin(playerid, PlayerInfo[playerid][Skin]);
@@ -6752,25 +8963,31 @@ stock UpdatePlayerSkin(playerid)
 
 stock UpdatePlayerWeapon(playerid)
 {
-	if(IsBoss[playerid] || IsWalker[playerid])
+	if(IsBoss[playerid] || IsWalker[playerid] || IsDungeonBoss[playerid] || IsDungeonMob[playerid])
 	{
 		FCNPC_SetWeapon(playerid, PlayerInfo[playerid][WeaponSlotID]);
 		FCNPC_SetAmmo(playerid, 10000);
 		return;
 	}
 
+    if(PlayerInfo[playerid][IsWatcher] != 0)
+	{
+		ResetPlayerWeapons(playerid);
+		return;
+	}
+
 	new weaponid;
 	switch(PlayerInfo[playerid][WeaponSlotID])
 	{
-		case 9..16,242: weaponid = 24;
-		case 17..24,243: weaponid = 28;
-		case 25..32,244: weaponid = 32;
-		case 33..40,245,214..222: weaponid = 29;
-		case 41..48,246: weaponid = 30;
-		case 49..56,223..231: weaponid = 31;
-		case 57..64,247,232..240: weaponid = 25;
-		case 65..72,248: weaponid = 27;
-		case 73..80,249: weaponid = 26;
+		case 9..16,248..250: weaponid = 24;
+		case 17..24: weaponid = 28;
+		case 25..32,251..253: weaponid = 32;
+		case 33..40,254..256: weaponid = 29;
+		case 41..48: weaponid = 30;
+		case 49..56,257..259,269: weaponid = 31;
+		case 57..64,260..262,270,275: weaponid = 25;
+		case 65..72,263..265,271: weaponid = 27;
+		case 73..80,266..268,272: weaponid = 26;
 		default: weaponid = 22;
 	}
 
@@ -6784,6 +9001,45 @@ stock UpdatePlayerWeapon(playerid)
 		GivePlayerWeapon(playerid, weaponid, 999999);
 }
 
+stock UpdatePlayerHat(playerid)
+{
+	RemovePlayerAttachedObject(playerid,4);
+	if(IsBoss[playerid] || IsWalker[playerid] || IsDungeonBoss[playerid] || IsDungeonMob[playerid])
+		return;
+
+	new hat[BaseItem];
+	hat = GetItem(PlayerInfo[playerid][HatSlotID]);
+	SetPlayerAttachedObject(playerid,4,hat[Model],2,0.141000,0.006000,-0.000000,0.000000,0.000000,0.000000,1.084001,1.073000,1.137001);
+}
+
+stock UpdatePlayerGlasses(playerid)
+{
+	RemovePlayerAttachedObject(playerid,5);
+	if(IsBoss[playerid] || IsWalker[playerid] || IsDungeonBoss[playerid] || IsDungeonMob[playerid])
+		return;
+	
+	if(PlayerInfo[playerid][GlassesSlotID] != -1)
+	{
+		new glasses[BaseItem];
+		glasses = GetItem(PlayerInfo[playerid][GlassesSlotID]);
+		SetPlayerAttachedObject(playerid,5,glasses[Model],2,0.093999,0.036000,-0.003999,91.899948,92.699890,0.000000,1.070999,1.037001,1.176002);
+	}
+}
+
+stock UpdatePlayerWatch(playerid)
+{
+	RemovePlayerAttachedObject(playerid,6);
+	if(IsBoss[playerid] || IsWalker[playerid] || IsDungeonBoss[playerid] || IsDungeonMob[playerid])
+		return;
+	
+	if(PlayerInfo[playerid][WatchSlotID] != -1)
+	{
+		new watch[BaseItem];
+		watch = GetItem(PlayerInfo[playerid][WatchSlotID]);
+		SetPlayerAttachedObject(playerid,6,watch[Model],5,0.012999,-0.015000,-0.019999,169.700500,-96.600479,-41.199993,1.077000,1.459998,1.277999);
+	}
+}
+
 stock UpdatePlayerStats(playerid)
 {
 	new weapon_damage[2];
@@ -6794,27 +9050,76 @@ stock UpdatePlayerStats(playerid)
 	PlayerInfo[playerid][DamageMax] = weapon_damage[1];
 	
 	new armor_defense;
-	new default_defense;
-	default_defense = GetArmorBaseDefense(PlayerInfo[playerid][ArmorSlotID]);
-	armor_defense = GetArmorModifiedDefense(default_defense, GetModifierLevel(PlayerInfo[playerid][ArmorMod], MOD_DEFENSE));
-	PlayerInfo[playerid][Defense] = armor_defense;
+	new default_armor_defense;
+	default_armor_defense = GetArmorBaseDefense(PlayerInfo[playerid][ArmorSlotID]);
+	armor_defense = GetArmorModifiedDefense(default_armor_defense, GetModifierLevel(PlayerInfo[playerid][ArmorMod], MOD_DEFENSE));
+	if(armor_defense == 0)
+		armor_defense = DEFAULT_DEFENSE;
 
-	PlayerInfo[playerid][Accuracy] = DEFAULT_ACCURACY + GetPlayerPropValue(playerid, PROPERTY_ACCURACY) + PlayerInfo[playerid][Level] - 1;
-	PlayerInfo[playerid][Dodge] = DEFAULT_DODGE + GetPlayerPropValue(playerid, PROPERTY_DODGE) + PlayerInfo[playerid][Level] - 1;
-	PlayerInfo[playerid][Crit] = DEFAULT_CRIT + GetPlayerPropValue(playerid, PROPERTY_CRIT) + PlayerInfo[playerid][Level] / 2;
+	new hat_defense;
+	new default_hat_defense;
+	default_hat_defense = GetArmorBaseDefense(PlayerInfo[playerid][HatSlotID]);
+	hat_defense = GetArmorModifiedDefense(default_hat_defense, GetModifierLevel(PlayerInfo[playerid][HatMod], MOD_DEFENSE));
 
-	new damage_multiplier = 100;
-	new defense_multiplier = 100;
+	new glasses_defense = 0;
+	if(PlayerInfo[playerid][GlassesSlotID] != -1)
+	{
+		new default_glasses_defense;
+		default_glasses_defense = GetArmorBaseDefense(PlayerInfo[playerid][GlassesSlotID]);
+		glasses_defense = GetArmorModifiedDefense(default_glasses_defense, GetModifierLevel(PlayerInfo[playerid][GlassesMod], MOD_DEFENSE));
+	}
+	
+	new watch_defense = 0;
+	if(PlayerInfo[playerid][WatchSlotID] != -1)
+	{
+		new default_watch_defense;
+		default_watch_defense = GetArmorBaseDefense(PlayerInfo[playerid][WatchSlotID]);
+		watch_defense = GetArmorModifiedDefense(default_watch_defense, GetModifierLevel(PlayerInfo[playerid][WatchMod], MOD_DEFENSE));
+	}
 
-	damage_multiplier += GetPlayerPropValue(playerid, PROPERTY_DAMAGE);
-	defense_multiplier += GetPlayerPropValue(playerid, PROPERTY_DEFENSE);
+	PlayerInfo[playerid][Defense] = armor_defense + hat_defense + glasses_defense + watch_defense;
+	PlayerInfo[playerid][Accuracy] = DEFAULT_ACCURACY + GetPlayerPropValue(playerid, PROPERTY_ACCURACY);
+	PlayerInfo[playerid][Dodge] = DEFAULT_DODGE + GetPlayerPropValue(playerid, PROPERTY_DODGE);
+	PlayerInfo[playerid][Crit] = DEFAULT_CRIT + GetPlayerPropValue(playerid, PROPERTY_CRIT) + PlayerInfo[playerid][Rank] * 2;
+	PlayerInfo[playerid][Vamp] = GetPlayerPropValue(playerid, PROPERTY_VAMP);
+
+	new damage_multiplier = 100 + GetPlayerPropValue(playerid, PROPERTY_DAMAGE);
+	new defense_multiplier = 100 + GetPlayerPropValue(playerid, PROPERTY_DEFENSE);
+	new hp_multiplier = 100 + GetPlayerPropValue(playerid, PROPERTY_HP);
+
+	switch(PlayerInfo[playerid][Status])
+	{
+		case HIERARCHY_LEADER:
+		{
+			damage_multiplier += 50;
+			defense_multiplier += 50;
+		}
+		case HIERARCHY_ARCHONT:
+		{
+			defense_multiplier += 50;
+			hp_multiplier += 20;
+		}
+		case HIERARCHY_ATTACK:
+		{
+			damage_multiplier += 30;
+		}
+		case HIERARCHY_DEFENSE:
+		{
+			damage_multiplier += 30;
+		}
+		case HIERARCHY_SUPPORT:
+		{
+			damage_multiplier += 20;
+			defense_multiplier += 20;
+			hp_multiplier += 15;
+		}
+	}
 
 	PlayerInfo[playerid][DamageMin] = (PlayerInfo[playerid][DamageMin] * damage_multiplier) / 100;
 	PlayerInfo[playerid][DamageMax] = (PlayerInfo[playerid][DamageMax] * damage_multiplier) / 100;
 	PlayerInfo[playerid][Defense] = (PlayerInfo[playerid][Defense] * defense_multiplier) / 100;
 
 	UpdatePlayerMaxHP(playerid);
-	new hp_multiplier = 100 + GetPlayerPropValue(playerid, PROPERTY_HP);
 	new Float:new_max_hp = floatmul(MaxHP[playerid], floatdiv(hp_multiplier, 100));
 	SetPlayerMaxHP(playerid, new_max_hp, true);
 
@@ -6830,9 +9135,18 @@ stock GetPlayerPropValue(playerid, prop)
 	switch(prop)
 	{
 		case PROPERTY_ACCURACY:
+		{
 			mod_value += GetModifierStatByLevel(PlayerInfo[playerid][WeaponMod], GetModifierLevel(PlayerInfo[playerid][WeaponMod], MOD_ACCURACY));
+			mod_value += GetModifierStatByLevel(PlayerInfo[playerid][GlassesMod], GetModifierLevel(PlayerInfo[playerid][GlassesMod], MOD_ACCURACY));
+			mod_value += GetModifierStatByLevel(PlayerInfo[playerid][WatchMod], GetModifierLevel(PlayerInfo[playerid][WatchMod], MOD_ACCURACY));
+		}
 		case PROPERTY_DODGE:
+		{
 			mod_value += GetModifierStatByLevel(PlayerInfo[playerid][ArmorMod], GetModifierLevel(PlayerInfo[playerid][ArmorMod], MOD_DODGE));
+			mod_value += GetModifierStatByLevel(PlayerInfo[playerid][HatMod], GetModifierLevel(PlayerInfo[playerid][HatMod], MOD_DODGE));
+			mod_value += GetModifierStatByLevel(PlayerInfo[playerid][GlassesMod], GetModifierLevel(PlayerInfo[playerid][GlassesMod], MOD_DODGE));
+			mod_value += GetModifierStatByLevel(PlayerInfo[playerid][WatchMod], GetModifierLevel(PlayerInfo[playerid][WatchMod], MOD_DODGE));
+		}
 	}
 	value += mod_value;
 
@@ -6852,31 +9166,83 @@ stock GetPlayerPropValue(playerid, prop)
 			value += armor[PropertyVal][i];
 	}
 
-	if(PlayerInfo[playerid][AccSlot1ID] != -1)
+	new hat[BaseItem];
+	hat = GetItem(PlayerInfo[playerid][HatSlotID]);
+	for(new i = 0; i < MAX_PROPERTIES; i++)
 	{
-		new acc1[BaseItem];
-		acc1 = GetItem(PlayerInfo[playerid][AccSlot1ID]);
-		for(new i = 0; i < MAX_PROPERTIES; i++)
-		{
-			if(acc1[Property][i] == prop)
-				value += acc1[PropertyVal][i];
-		}
+		if(hat[Property][i] == prop)
+			value += hat[PropertyVal][i];
 	}
-	
-	if(PlayerInfo[playerid][AccSlot2ID] != -1)
+
+	if(PlayerInfo[playerid][GlassesSlotID] != -1)
 	{
-		new acc2[BaseItem];
-		acc2 = GetItem(PlayerInfo[playerid][AccSlot2ID]);
+		new glasses[BaseItem];
+		glasses = GetItem(PlayerInfo[playerid][GlassesSlotID]);
 		for(new i = 0; i < MAX_PROPERTIES; i++)
 		{
-			if(acc2[Property][i] == prop)
-				value += acc2[PropertyVal][i];
+			if(glasses[Property][i] == prop)
+				value += glasses[PropertyVal][i];
 		}
 	}
 
-	if(prop == PROPERTY_DAMAGE && HasItem(playerid, 183, 1))
+	if(PlayerInfo[playerid][WatchSlotID] != -1)
+	{
+		new watch[BaseItem];
+		watch = GetItem(PlayerInfo[playerid][WatchSlotID]);
+		for(new i = 0; i < MAX_PROPERTIES; i++)
+		{
+			if(watch[Property][i] == prop)
+				value += watch[PropertyVal][i];
+		}
+	}
+
+	if(PlayerInfo[playerid][RingSlot1ID] != -1)
+	{
+		new ring1[BaseItem];
+		ring1 = GetItem(PlayerInfo[playerid][RingSlot1ID]);
+		for(new i = 0; i < MAX_PROPERTIES; i++)
+		{
+			if(ring1[Property][i] == prop)
+				value += ring1[PropertyVal][i];
+		}
+	}
+
+	if(PlayerInfo[playerid][RingSlot2ID] != -1)
+	{
+		new ring2[BaseItem];
+		ring2 = GetItem(PlayerInfo[playerid][RingSlot2ID]);
+		for(new i = 0; i < MAX_PROPERTIES; i++)
+		{
+			if(ring2[Property][i] == prop)
+				value += ring2[PropertyVal][i];
+		}
+	}
+
+	if(PlayerInfo[playerid][AmuletteSlot1ID] != -1)
+	{
+		new amulette1[BaseItem];
+		amulette1 = GetItem(PlayerInfo[playerid][AmuletteSlot1ID]);
+		for(new i = 0; i < MAX_PROPERTIES; i++)
+		{
+			if(amulette1[Property][i] == prop)
+				value += amulette1[PropertyVal][i];
+		}
+	}
+
+	if(PlayerInfo[playerid][AmuletteSlot2ID] != -1)
+	{
+		new amulette2[BaseItem];
+		amulette2 = GetItem(PlayerInfo[playerid][AmuletteSlot2ID]);
+		for(new i = 0; i < MAX_PROPERTIES; i++)
+		{
+			if(amulette2[Property][i] == prop)
+				value += amulette2[PropertyVal][i];
+		}
+	}
+
+	if(prop == PROPERTY_DAMAGE && HasItem(playerid, ITEM_GEN_ATTACK_ID, 1))
 		value += 5;
-	if(prop == PROPERTY_DEFENSE && HasItem(playerid, 184, 1))
+	if(prop == PROPERTY_DEFENSE && HasItem(playerid, ITEM_GEN_DEFENSE_ID, 1))
 		value += 5;
 	
 	return value;
@@ -6902,17 +9268,55 @@ stock UndressEquip(playerid, type)
 			PlayerInfo[playerid][ArmorMod] = MOD_CLEAR;
 			UpdatePlayerSkin(playerid);
 		}
-		case ITEMTYPE_ACCESSORY:
+        case ITEMTYPE_HAT:
 		{
-			if(PlayerInfo[playerid][AccSlot1ID] != -1)
+			if(PlayerInfo[playerid][HatSlotID] == 136) return;
+			AddEquip(playerid, PlayerInfo[playerid][HatSlotID], PlayerInfo[playerid][HatMod]);
+			PlayerInfo[playerid][HatSlotID] = 136;
+			PlayerInfo[playerid][HatMod] = MOD_CLEAR;
+			UpdatePlayerHat(playerid);
+		}
+        case ITEMTYPE_GLASSES:
+		{
+			if(PlayerInfo[playerid][GlassesSlotID] == -1) return;
+			AddEquip(playerid, PlayerInfo[playerid][GlassesSlotID], PlayerInfo[playerid][GlassesMod]);
+			PlayerInfo[playerid][GlassesSlotID] = -1;
+			PlayerInfo[playerid][GlassesMod] = MOD_CLEAR;
+			UpdatePlayerGlasses(playerid);
+		}
+        case ITEMTYPE_WATCH:
+		{
+			if(PlayerInfo[playerid][WatchSlotID] == -1) return;
+			AddEquip(playerid, PlayerInfo[playerid][WatchSlotID], PlayerInfo[playerid][WatchMod]);
+			PlayerInfo[playerid][WatchSlotID] = -1;
+			PlayerInfo[playerid][WatchMod] = MOD_CLEAR;
+			UpdatePlayerWatch(playerid);
+		}
+		case ITEMTYPE_RING:
+		{
+			if(PlayerInfo[playerid][RingSlot1ID] != -1)
 			{
-				AddEquip(playerid, PlayerInfo[playerid][AccSlot1ID], MOD_CLEAR);
-				PlayerInfo[playerid][AccSlot1ID] = -1;
+				AddEquip(playerid, PlayerInfo[playerid][RingSlot1ID], MOD_CLEAR);
+				PlayerInfo[playerid][RingSlot1ID] = -1;
 			}
-			else if(PlayerInfo[playerid][AccSlot2ID] != -1)
+			else if(PlayerInfo[playerid][RingSlot2ID] != -1)
 			{
-				AddEquip(playerid, PlayerInfo[playerid][AccSlot2ID], MOD_CLEAR);
-				PlayerInfo[playerid][AccSlot2ID] = -1;
+				AddEquip(playerid, PlayerInfo[playerid][RingSlot2ID], MOD_CLEAR);
+				PlayerInfo[playerid][RingSlot2ID] = -1;
+			}
+			else return;
+		}
+        case ITEMTYPE_AMULETTE:
+		{
+			if(PlayerInfo[playerid][AmuletteSlot1ID] != -1)
+			{
+				AddEquip(playerid, PlayerInfo[playerid][AmuletteSlot1ID], MOD_CLEAR);
+				PlayerInfo[playerid][AmuletteSlot1ID] = -1;
+			}
+			else if(PlayerInfo[playerid][AmuletteSlot2ID] != -1)
+			{
+				AddEquip(playerid, PlayerInfo[playerid][AmuletteSlot2ID], MOD_CLEAR);
+				PlayerInfo[playerid][AmuletteSlot2ID] = -1;
 			}
 			else return;
 		}
@@ -6920,6 +9324,7 @@ stock UndressEquip(playerid, type)
 	}
 
 	UpdatePlayerStats(playerid);
+    UpdatePlayerEffects(playerid);
 
 	if(IsInventoryOpen[playerid])
 		UpdateEquipSlots(playerid);
@@ -6960,23 +9365,70 @@ stock EquipItem(playerid, type, slot)
 			PlayerInfo[playerid][ArmorMod] = mod;
 			UpdatePlayerSkin(playerid);
 		}
-		case ITEMTYPE_ACCESSORY:
+        case ITEMTYPE_HAT:
 		{
-			if(PlayerInfo[playerid][AccSlot1ID] == -1)
-				PlayerInfo[playerid][AccSlot1ID] = itemid;
-			else if(PlayerInfo[playerid][AccSlot2ID] == -1)
-				PlayerInfo[playerid][AccSlot2ID] = itemid;
+			if(PlayerInfo[playerid][HatSlotID] != 136)
+			{
+				if(IsInventoryFull(playerid)) return;
+				UndressEquip(playerid, type);
+			}
+			PlayerInfo[playerid][HatSlotID] = itemid;
+			PlayerInfo[playerid][HatMod] = mod;
+			UpdatePlayerHat(playerid);
+		}
+        case ITEMTYPE_GLASSES:
+		{
+			if(PlayerInfo[playerid][GlassesSlotID] != -1)
+			{
+				if(IsInventoryFull(playerid)) return;
+				UndressEquip(playerid, type);
+			}
+			PlayerInfo[playerid][GlassesSlotID] = itemid;
+			PlayerInfo[playerid][GlassesMod] = mod;
+			UpdatePlayerGlasses(playerid);
+		}
+        case ITEMTYPE_WATCH:
+		{
+			if(PlayerInfo[playerid][WatchSlotID] != -1)
+			{
+				if(IsInventoryFull(playerid)) return;
+				UndressEquip(playerid, type);
+			}
+			PlayerInfo[playerid][WatchSlotID] = itemid;
+			PlayerInfo[playerid][WatchMod] = mod;
+			UpdatePlayerWatch(playerid);
+		}
+		case ITEMTYPE_RING:
+		{
+			if(PlayerInfo[playerid][RingSlot1ID] == -1)
+				PlayerInfo[playerid][RingSlot1ID] = itemid;
+			else if(PlayerInfo[playerid][RingSlot2ID] == -1)
+				PlayerInfo[playerid][RingSlot2ID] = itemid;
 			else
 			{
 				if(IsInventoryFull(playerid)) return;
 				UndressEquip(playerid, type);
-				PlayerInfo[playerid][AccSlot1ID] = itemid;
+				PlayerInfo[playerid][RingSlot1ID] = itemid;
+			}
+		}
+        case ITEMTYPE_AMULETTE:
+		{
+			if(PlayerInfo[playerid][AmuletteSlot1ID] == -1)
+				PlayerInfo[playerid][AmuletteSlot1ID] = itemid;
+			else if(PlayerInfo[playerid][AmuletteSlot2ID] == -1)
+				PlayerInfo[playerid][AmuletteSlot2ID] = itemid;
+			else
+			{
+				if(IsInventoryFull(playerid)) return;
+				UndressEquip(playerid, type);
+				PlayerInfo[playerid][AmuletteSlot1ID] = itemid;
 			}
 		}
 		default: return;
 	}
 
 	UpdatePlayerStats(playerid);
+    UpdatePlayerEffects(playerid);
 
 	if(IsInventoryOpen[playerid])
 		UpdateEquipSlots(playerid);
@@ -6987,22 +9439,27 @@ stock IsInvSlotEmpty(playerid, slotid)
 	return PlayerInventory[playerid][slotid][ID] == -1;
 }
 
-stock IsWarSlotEmpty(playerid, slotid)
-{
-	return PlayerWarehouse[playerid][slotid][ID] == -1;
-}
-
 stock UpdateEquipSlots(playerid)
 {
 	PlayerTextDrawHide(playerid, ChrInfWeaponSlot[playerid]);
 	PlayerTextDrawHide(playerid, ChrInfArmorSlot[playerid]);
-	PlayerTextDrawHide(playerid, ChrInfAccSlot1[playerid]);
-	PlayerTextDrawHide(playerid, ChrInfAccSlot2[playerid]);
+	PlayerTextDrawHide(playerid, ChrInfHatSlot[playerid]);
+	PlayerTextDrawHide(playerid, ChrInfWatchSlot[playerid]);
+	PlayerTextDrawHide(playerid, ChrInfGlassesSlot[playerid]);
+	PlayerTextDrawHide(playerid, ChrInfRingSlot1[playerid]);
+	PlayerTextDrawHide(playerid, ChrInfRingSlot2[playerid]);
+	PlayerTextDrawHide(playerid, ChrInfAmuletteSlot1[playerid]);
+	PlayerTextDrawHide(playerid, ChrInfAmuletteSlot2[playerid]);
 
 	PlayerTextDrawBackgroundColor(playerid, ChrInfWeaponSlot[playerid], -1061109505);
 	PlayerTextDrawBackgroundColor(playerid, ChrInfArmorSlot[playerid], -1061109505);
-	PlayerTextDrawBackgroundColor(playerid, ChrInfAccSlot1[playerid], -1061109505);
-	PlayerTextDrawBackgroundColor(playerid, ChrInfAccSlot2[playerid], -1061109505);
+	PlayerTextDrawBackgroundColor(playerid, ChrInfHatSlot[playerid], -1061109505);
+	PlayerTextDrawBackgroundColor(playerid, ChrInfWatchSlot[playerid], -1061109505);
+	PlayerTextDrawBackgroundColor(playerid, ChrInfGlassesSlot[playerid], -1061109505);
+	PlayerTextDrawBackgroundColor(playerid, ChrInfRingSlot1[playerid], -1061109505);
+	PlayerTextDrawBackgroundColor(playerid, ChrInfRingSlot2[playerid], -1061109505);
+	PlayerTextDrawBackgroundColor(playerid, ChrInfAmuletteSlot1[playerid], -1061109505);
+	PlayerTextDrawBackgroundColor(playerid, ChrInfAmuletteSlot2[playerid], -1061109505);
 
 	if(PlayerInfo[playerid][WeaponSlotID] == 0)
 	{
@@ -7031,135 +9488,312 @@ stock UpdateEquipSlots(playerid)
 		PlayerTextDrawSetPreviewRot(playerid, ChrInfArmorSlot[playerid], armor[ModelRotX], armor[ModelRotY], armor[ModelRotZ], 1.000000);
 		PlayerTextDrawBackgroundColor(playerid, ChrInfArmorSlot[playerid], HexGradeColors[armor[Grade]-1][0]);
 	}
-
-	if(PlayerInfo[playerid][AccSlot1ID] == -1)
+	
+	if(PlayerInfo[playerid][HatSlotID] == 136)
 	{
-		PlayerTextDrawSetPreviewModel(playerid, ChrInfAccSlot1[playerid], 954);
-		PlayerTextDrawSetPreviewRot(playerid, ChrInfAccSlot1[playerid], 0.000000, 0.000000, 0.000000, 1.000000);
+		PlayerTextDrawSetPreviewModel(playerid, ChrInfHatSlot[playerid], 18954);
+		PlayerTextDrawSetPreviewRot(playerid, ChrInfHatSlot[playerid], 0.000000, -45.000000, 0.000000, 1.000000);
 	}
 	else
 	{
-		new acc1[BaseItem];
-		acc1 = GetItem(PlayerInfo[playerid][AccSlot1ID]);
-		PlayerTextDrawSetPreviewModel(playerid, ChrInfAccSlot1[playerid], acc1[Model]);
-		PlayerTextDrawSetPreviewRot(playerid, ChrInfAccSlot1[playerid], acc1[ModelRotX], acc1[ModelRotY], acc1[ModelRotZ], 1.000000);
-		PlayerTextDrawBackgroundColor(playerid, ChrInfAccSlot1[playerid], HexGradeColors[acc1[Grade]-1][0]);
+		new hat[BaseItem];
+		hat = GetItem(PlayerInfo[playerid][HatSlotID]);
+		PlayerTextDrawSetPreviewModel(playerid, ChrInfHatSlot[playerid], hat[Model]);
+		PlayerTextDrawSetPreviewRot(playerid, ChrInfHatSlot[playerid], hat[ModelRotX], hat[ModelRotY], hat[ModelRotZ], 1.000000);
+		PlayerTextDrawBackgroundColor(playerid, ChrInfHatSlot[playerid], HexGradeColors[hat[Grade]-1][0]);
 	}
 
-	if(PlayerInfo[playerid][AccSlot2ID] == -1)
+	if(PlayerInfo[playerid][WatchSlotID] == -1)
 	{
-		PlayerTextDrawSetPreviewModel(playerid, ChrInfAccSlot2[playerid], 954);
-		PlayerTextDrawSetPreviewRot(playerid, ChrInfAccSlot2[playerid], 0.000000, 0.000000, 0.000000, 1.000000);
+		PlayerTextDrawSetPreviewModel(playerid, ChrInfWatchSlot[playerid], 19046);
+		PlayerTextDrawSetPreviewRot(playerid, ChrInfWatchSlot[playerid], 0.000000, -45.000000, 0.000000, 1.000000);
 	}
 	else
 	{
-		new acc2[BaseItem];
-		acc2 = GetItem(PlayerInfo[playerid][AccSlot2ID]);
-		PlayerTextDrawSetPreviewModel(playerid, ChrInfAccSlot2[playerid], acc2[Model]);
-		PlayerTextDrawSetPreviewRot(playerid, ChrInfAccSlot2[playerid], acc2[ModelRotX], acc2[ModelRotY], acc2[ModelRotZ], 1.000000);
-		PlayerTextDrawBackgroundColor(playerid, ChrInfAccSlot2[playerid], HexGradeColors[acc2[Grade]-1][0]);
+		new watch[BaseItem];
+		watch = GetItem(PlayerInfo[playerid][WatchSlotID]);
+		PlayerTextDrawSetPreviewModel(playerid, ChrInfWatchSlot[playerid], watch[Model]);
+		PlayerTextDrawSetPreviewRot(playerid, ChrInfWatchSlot[playerid], watch[ModelRotX], watch[ModelRotY], watch[ModelRotZ], 1.000000);
+		PlayerTextDrawBackgroundColor(playerid, ChrInfWatchSlot[playerid], HexGradeColors[watch[Grade]-1][0]);
+	}
+
+	if(PlayerInfo[playerid][GlassesSlotID] == -1)
+	{
+		PlayerTextDrawSetPreviewModel(playerid, ChrInfGlassesSlot[playerid], 19034);
+		PlayerTextDrawSetPreviewRot(playerid, ChrInfGlassesSlot[playerid], 0.000000, -45.000000, 135.000000, 1.000000);
+	}
+	else
+	{
+		new glasses[BaseItem];
+		glasses = GetItem(PlayerInfo[playerid][GlassesSlotID]);
+		PlayerTextDrawSetPreviewModel(playerid, ChrInfGlassesSlot[playerid], glasses[Model]);
+		PlayerTextDrawSetPreviewRot(playerid, ChrInfGlassesSlot[playerid], glasses[ModelRotX], glasses[ModelRotY], glasses[ModelRotZ], 1.000000);
+		PlayerTextDrawBackgroundColor(playerid, ChrInfGlassesSlot[playerid], HexGradeColors[glasses[Grade]-1][0]);
+	}
+
+	if(PlayerInfo[playerid][RingSlot1ID] == -1)
+	{
+		PlayerTextDrawSetPreviewModel(playerid, ChrInfRingSlot1[playerid], 954);
+		PlayerTextDrawSetPreviewRot(playerid, ChrInfRingSlot1[playerid], 0.000000, 0.000000, 0.000000, 1.000000);
+	}
+	else
+	{
+		new ring1[BaseItem];
+		ring1 = GetItem(PlayerInfo[playerid][RingSlot1ID]);
+		PlayerTextDrawSetPreviewModel(playerid, ChrInfRingSlot1[playerid], ring1[Model]);
+		PlayerTextDrawSetPreviewRot(playerid, ChrInfRingSlot1[playerid], ring1[ModelRotX], ring1[ModelRotY], ring1[ModelRotZ], 1.000000);
+		PlayerTextDrawBackgroundColor(playerid, ChrInfRingSlot1[playerid], HexGradeColors[ring1[Grade]-1][0]);
+	}
+
+	if(PlayerInfo[playerid][RingSlot2ID] == -1)
+	{
+		PlayerTextDrawSetPreviewModel(playerid, ChrInfRingSlot2[playerid], 954);
+		PlayerTextDrawSetPreviewRot(playerid, ChrInfRingSlot2[playerid], 0.000000, 0.000000, 0.000000, 1.000000);
+	}
+	else
+	{
+		new ring2[BaseItem];
+		ring2 = GetItem(PlayerInfo[playerid][RingSlot2ID]);
+		PlayerTextDrawSetPreviewModel(playerid, ChrInfRingSlot2[playerid], ring2[Model]);
+		PlayerTextDrawSetPreviewRot(playerid, ChrInfRingSlot2[playerid], ring2[ModelRotX], ring2[ModelRotY], ring2[ModelRotZ], 1.000000);
+		PlayerTextDrawBackgroundColor(playerid, ChrInfRingSlot2[playerid], HexGradeColors[ring2[Grade]-1][0]);
+	}
+
+	if(PlayerInfo[playerid][AmuletteSlot1ID] == -1)
+	{
+		PlayerTextDrawSetPreviewModel(playerid, ChrInfAmuletteSlot1[playerid], 954);
+		PlayerTextDrawSetPreviewRot(playerid, ChrInfAmuletteSlot1[playerid], 0.000000, 0.000000, 0.000000, 1.000000);
+	}
+	else
+	{
+		new amulette1[BaseItem];
+		amulette1 = GetItem(PlayerInfo[playerid][AmuletteSlot1ID]);
+		PlayerTextDrawSetPreviewModel(playerid, ChrInfAmuletteSlot1[playerid], amulette1[Model]);
+		PlayerTextDrawSetPreviewRot(playerid, ChrInfAmuletteSlot1[playerid], amulette1[ModelRotX], amulette1[ModelRotY], amulette1[ModelRotZ], 1.000000);
+		PlayerTextDrawBackgroundColor(playerid, ChrInfAmuletteSlot1[playerid], HexGradeColors[amulette1[Grade]-1][0]);
+	}
+
+	if(PlayerInfo[playerid][AmuletteSlot2ID] == -1)
+	{
+		PlayerTextDrawSetPreviewModel(playerid, ChrInfAmuletteSlot2[playerid], 954);
+		PlayerTextDrawSetPreviewRot(playerid, ChrInfAmuletteSlot2[playerid], 0.000000, 0.000000, 0.000000, 1.000000);
+	}
+	else
+	{
+		new amulette2[BaseItem];
+		amulette2 = GetItem(PlayerInfo[playerid][AmuletteSlot2ID]);
+		PlayerTextDrawSetPreviewModel(playerid, ChrInfAmuletteSlot2[playerid], amulette2[Model]);
+		PlayerTextDrawSetPreviewRot(playerid, ChrInfAmuletteSlot2[playerid], amulette2[ModelRotX], amulette2[ModelRotY], amulette2[ModelRotZ], 1.000000);
+		PlayerTextDrawBackgroundColor(playerid, ChrInfAmuletteSlot2[playerid], HexGradeColors[amulette2[Grade]-1][0]);
 	}
 
 	PlayerTextDrawShow(playerid, ChrInfWeaponSlot[playerid]);
 	PlayerTextDrawShow(playerid, ChrInfArmorSlot[playerid]);
-	PlayerTextDrawShow(playerid, ChrInfAccSlot1[playerid]);
-	PlayerTextDrawShow(playerid, ChrInfAccSlot2[playerid]);
+	PlayerTextDrawShow(playerid, ChrInfHatSlot[playerid]);
+	PlayerTextDrawShow(playerid, ChrInfWatchSlot[playerid]);
+	PlayerTextDrawShow(playerid, ChrInfGlassesSlot[playerid]);
+	PlayerTextDrawShow(playerid, ChrInfRingSlot1[playerid]);
+	PlayerTextDrawShow(playerid, ChrInfRingSlot2[playerid]);
+	PlayerTextDrawShow(playerid, ChrInfAmuletteSlot1[playerid]);
+	PlayerTextDrawShow(playerid, ChrInfAmuletteSlot2[playerid]);
+}
+
+stock CurrentPageContainsSlot(playerid, slotid)
+{
+	new page = GetPVarInt(playerid, "InvPage");
+	if(page < 1 || page > MAX_INV_PAGES)
+		return false;
+	
+	new first_page_slotid = (page-1) * MAX_PAGE_SLOTS;
+	new last_page_slotid = first_page_slotid + MAX_PAGE_SLOTS - 1;
+
+	return slotid >= first_page_slotid && slotid <= last_page_slotid;
+}
+
+stock GetPageSlotId(playerid, slotid)
+{
+	new page = GetPVarInt(playerid, "InvPage");
+	if(page < 1 || page > MAX_INV_PAGES)
+		return slotid;
+	
+	return slotid - (page-1) * MAX_PAGE_SLOTS;
+}
+
+stock GetSlotIdByPage(playerid, pageslot)
+{
+	new page = GetPVarInt(playerid, "InvPage");
+	if(page < 1 || page > MAX_INV_PAGES)
+		return pageslot;
+
+	return pageslot + (page-1) * MAX_PAGE_SLOTS;
 }
 
 stock UpdateSlot(playerid, slotid)
 {
-	if (!IsInventoryOpen[playerid]) return;
+	if(!IsInventoryOpen[playerid]) return;
+	if(!CurrentPageContainsSlot(playerid, slotid)) return;
 
-    PlayerTextDrawHide(playerid, ChrInfInvSlot[playerid][slotid]);
-    PlayerTextDrawHide(playerid, ChrInfInvSlotCount[playerid][slotid]);
+	new txd_slotid = GetPageSlotId(playerid, slotid);
 
-	PlayerTextDrawBackgroundColor(playerid, ChrInfInvSlot[playerid][slotid], -1061109505);
+    PlayerTextDrawHide(playerid, ChrInfInvSlot[playerid][txd_slotid]);
+    PlayerTextDrawHide(playerid, ChrInfInvSlotCount[playerid][txd_slotid]);
+
+	PlayerTextDrawBackgroundColor(playerid, ChrInfInvSlot[playerid][txd_slotid], -1061109505);
 	if(IsInvSlotEmpty(playerid, slotid))
 	{
-		PlayerTextDrawSetPreviewRot(playerid, ChrInfInvSlot[playerid][slotid], 0.0, 0.0, 0.0, -1.0);
-		PlayerTextDrawShow(playerid, ChrInfInvSlot[playerid][slotid]);
+		PlayerTextDrawSetPreviewRot(playerid, ChrInfInvSlot[playerid][txd_slotid], 0.0, 0.0, 0.0, -1.0);
+		PlayerTextDrawShow(playerid, ChrInfInvSlot[playerid][txd_slotid]);
 		return;
 	}
 
 	new item[BaseItem];
 	item = GetItem(PlayerInventory[playerid][slotid][ID]);
 
-	PlayerTextDrawBackgroundColor(playerid, ChrInfInvSlot[playerid][slotid], HexGradeColors[item[Grade]-1][0]);
-	PlayerTextDrawSetPreviewModel(playerid, ChrInfInvSlot[playerid][slotid], item[Model]);
-	PlayerTextDrawSetPreviewRot(playerid, ChrInfInvSlot[playerid][slotid], item[ModelRotX], item[ModelRotY], item[ModelRotZ], 1.0);
-	PlayerTextDrawShow(playerid, ChrInfInvSlot[playerid][slotid]);
+	PlayerTextDrawBackgroundColor(playerid, ChrInfInvSlot[playerid][txd_slotid], HexGradeColors[item[Grade]-1][0]);
+	PlayerTextDrawSetPreviewModel(playerid, ChrInfInvSlot[playerid][txd_slotid], item[Model]);
+	PlayerTextDrawSetPreviewRot(playerid, ChrInfInvSlot[playerid][txd_slotid], item[ModelRotX], item[ModelRotY], item[ModelRotZ], 1.0);
+	PlayerTextDrawShow(playerid, ChrInfInvSlot[playerid][txd_slotid]);
 
 	new string[16];
 	if(!IsEquip(PlayerInventory[playerid][slotid][ID]))
 	{
 		format(string, sizeof(string), "%d", PlayerInventory[playerid][slotid][Count]);
-		PlayerTextDrawSetStringRus(playerid, ChrInfInvSlotCount[playerid][slotid], string);
-		PlayerTextDrawShow(playerid, ChrInfInvSlotCount[playerid][slotid]);
-	}
-}
-
-stock UpdateWarehouseSlot(playerid, slotid)
-{
-	if (!IsWarehouseOpen[playerid]) return;
-
-    PlayerTextDrawHide(playerid, WarehouseSlot[playerid][slotid]);
-    PlayerTextDrawHide(playerid, WarehouseSlotCount[playerid][slotid]);
-
-	PlayerTextDrawBackgroundColor(playerid, WarehouseSlot[playerid][slotid], -1061109505);
-	if(IsWarSlotEmpty(playerid, slotid))
-	{
-		PlayerTextDrawSetPreviewRot(playerid, WarehouseSlot[playerid][slotid], 0.0, 0.0, 0.0, -1.0);
-		PlayerTextDrawShow(playerid, WarehouseSlot[playerid][slotid]);
-		return;
-	}
-
-	new item[BaseItem];
-	item = GetItem(PlayerWarehouse[playerid][slotid][ID]);
-
-	PlayerTextDrawBackgroundColor(playerid, WarehouseSlot[playerid][slotid], HexGradeColors[item[Grade]-1][0]);
-	PlayerTextDrawSetPreviewModel(playerid, WarehouseSlot[playerid][slotid], item[Model]);
-	PlayerTextDrawSetPreviewRot(playerid, WarehouseSlot[playerid][slotid], item[ModelRotX], item[ModelRotY], item[ModelRotZ], 1.0);
-	PlayerTextDrawShow(playerid, WarehouseSlot[playerid][slotid]);
-
-	new string[16];
-	if(!IsEquip(PlayerWarehouse[playerid][slotid][ID]))
-	{
-		format(string, sizeof(string), "%d", PlayerWarehouse[playerid][slotid][Count]);
-		PlayerTextDrawSetStringRus(playerid, WarehouseSlot[playerid][slotid], string);
-		PlayerTextDrawShow(playerid, WarehouseSlot[playerid][slotid]);
+		PlayerTextDrawSetStringRus(playerid, ChrInfInvSlotCount[playerid][txd_slotid], string);
+		PlayerTextDrawShow(playerid, ChrInfInvSlotCount[playerid][txd_slotid]);
 	}
 }
 
 stock SetSlotSelection(playerid, slotid, bool:selection)
 {
+	if(!IsInventoryOpen[playerid]) return;
+	if(!CurrentPageContainsSlot(playerid, slotid)) return;
+
+	new txd_slotid = GetPageSlotId(playerid, slotid);
+
 	if(IsInvSlotEmpty(playerid, slotid))
-		PlayerTextDrawBackgroundColor(playerid, ChrInfInvSlot[playerid][slotid], selection ? 0x999999AA : -1061109505);
+		PlayerTextDrawBackgroundColor(playerid, ChrInfInvSlot[playerid][txd_slotid], selection ? 0x999999AA : -1061109505);
 	else
 	{
 		new item[BaseItem];
 		item = GetItem(PlayerInventory[playerid][slotid][ID]);
-		PlayerTextDrawBackgroundColor(playerid, ChrInfInvSlot[playerid][slotid], selection ? HexGradeColors[item[Grade]-1][0] - 0x00000077 : HexGradeColors[item[Grade]-1][0]);
+		PlayerTextDrawBackgroundColor(playerid, ChrInfInvSlot[playerid][txd_slotid], selection ? HexGradeColors[item[Grade]-1][0] - 0x00000077 : HexGradeColors[item[Grade]-1][0]);
 	}
 
-	PlayerTextDrawHide(playerid, ChrInfInvSlot[playerid][slotid]);
-	PlayerTextDrawShow(playerid, ChrInfInvSlot[playerid][slotid]);
+	PlayerTextDrawHide(playerid, ChrInfInvSlot[playerid][txd_slotid]);
+	PlayerTextDrawShow(playerid, ChrInfInvSlot[playerid][txd_slotid]);
+}
+
+stock SortInventory(playerid)
+{
+	if(!IsInventoryOpen[playerid]) return;
+
+	IsSlotsBlocked[playerid] = true;
+	SendClientMessage(playerid, COLOR_WHITE, "Идет сортировка инвентаря...");
+
+	new tmpitem1[BaseItem];
+	new tmpitem2[BaseItem];
+	//sort by type
+	for(new i = 0; i < MAX_SLOTS; i++)
+    {
+        for(new j = MAX_SLOTS-1; j > i; j--)
+        {
+			if(IsInvSlotEmpty(playerid, j) && IsInvSlotEmpty(playerid, j-1)) continue;
+			if(IsInvSlotEmpty(playerid, j)) continue;
+			if(IsInvSlotEmpty(playerid, j-1))
+			{
+				SwapInventoryItems(playerid, j, j-1);
+				continue;
+			}
+
+			tmpitem1 = GetItem(PlayerInventory[playerid][j][ID]);
+			tmpitem2 = GetItem(PlayerInventory[playerid][j-1][ID]);
+            if(tmpitem2[Type] > tmpitem1[Type])
+            {
+				SwapInventoryItems(playerid, j, j-1);
+            }
+        }
+    }
+	//sort by rank
+	for(new i = 0; i < MAX_SLOTS; i++)
+    {
+        for(new j = MAX_SLOTS-1; j > i; j--)
+        {
+			if(IsInvSlotEmpty(playerid, j) && IsInvSlotEmpty(playerid, j-1)) continue;
+			if(IsInvSlotEmpty(playerid, j)) continue;
+			if(IsInvSlotEmpty(playerid, j-1))
+			{
+				SwapInventoryItems(playerid, j, j-1);
+				continue;
+			}
+
+			tmpitem1 = GetItem(PlayerInventory[playerid][j][ID]);
+			tmpitem2 = GetItem(PlayerInventory[playerid][j-1][ID]);
+            if(tmpitem2[Type] == tmpitem1[Type] && tmpitem2[MinRank] < tmpitem1[MinRank])
+            {
+				SwapInventoryItems(playerid, j, j-1);
+            }
+        }
+    }
+	//sort by grade
+	for(new i = 0; i < MAX_SLOTS; i++)
+    {
+        for(new j = MAX_SLOTS-1; j > i; j--)
+        {
+			if(IsInvSlotEmpty(playerid, j) && IsInvSlotEmpty(playerid, j-1)) continue;
+			if(IsInvSlotEmpty(playerid, j)) continue;
+			if(IsInvSlotEmpty(playerid, j-1))
+			{
+				SwapInventoryItems(playerid, j, j-1);
+				continue;
+			}
+
+			tmpitem1 = GetItem(PlayerInventory[playerid][j][ID]);
+			tmpitem2 = GetItem(PlayerInventory[playerid][j-1][ID]);
+            if(tmpitem2[Type] == tmpitem1[Type] && tmpitem2[MinRank] == tmpitem1[MinRank] && tmpitem2[Grade] < tmpitem1[Grade])
+            {
+				SwapInventoryItems(playerid, j, j-1);
+            }
+        }
+    }
+
+	UpdateInventory(playerid);
+
+	SendClientMessage(playerid, COLOR_GREEN, "Сортировка инвентаря завершена");
+	IsSlotsBlocked[playerid] = false;
+}
+
+stock SwapInventoryItems(playerid, idx1, idx2)
+{
+	new tmp[iInfo];
+	tmp = PlayerInventory[playerid][idx2];
+	PlayerInventory[playerid][idx2] = PlayerInventory[playerid][idx1];
+	PlayerInventory[playerid][idx1] = tmp;
 }
 
 stock UpdateInventory(playerid)
 {
-	if(IsInventoryOpen[playerid])
-	{
-		for (new i = 0; i < MAX_INVENTORY_SLOTS; i++) 
-		{
-			PlayerTextDrawHide(playerid, ChrInfInvSlot[playerid][i]);
-			PlayerTextDrawHide(playerid, ChrInfInvSlotCount[playerid][i]);
-		}
-	}
+	if(!IsInventoryOpen[playerid]) return;
 
-	for (new i = 0; i < MAX_INVENTORY_SLOTS; i++) 
+	new page = GetPVarInt(playerid, "InvPage");
+	if(page < 1)
+		SetPVarInt(playerid, "InvPage", 1);
+	else if(page > MAX_INV_PAGES)
+		SetPVarInt(playerid, "InvPage", MAX_INV_PAGES);
+
+	new string[32];
+	format(string, sizeof(string), "%d/%d", page, MAX_INV_PAGES);
+	PlayerTextDrawSetStringRus(playerid, ChrInfCurInv[playerid], string);
+
+	for(new i = 0; i < MAX_PAGE_SLOTS; i++) 
 	{
-		PlayerTextDrawBackgroundColor(playerid, ChrInfInvSlot[playerid][i], -1061109505);
-		if(PlayerInventory[playerid][i][ID] == -1)
+		new inv_slot = GetSlotIdByPage(playerid, i);
+		new bool:selection = inv_slot == SelectedSlot[playerid];
+
+		PlayerTextDrawHide(playerid, ChrInfInvSlot[playerid][i]);
+		PlayerTextDrawHide(playerid, ChrInfInvSlotCount[playerid][i]);
+
+		PlayerTextDrawBackgroundColor(playerid, ChrInfInvSlot[playerid][i], selection ? 0x999999AA : -1061109505);
+		if(PlayerInventory[playerid][inv_slot][ID] == -1)
 		{
 			PlayerTextDrawSetPreviewRot(playerid, ChrInfInvSlot[playerid][i], 0.0, 0.0, 0.0, -1.0);
 			PlayerTextDrawShow(playerid, ChrInfInvSlot[playerid][i]);
@@ -7167,17 +9801,16 @@ stock UpdateInventory(playerid)
 		}
 
 		new item[BaseItem];
-		item = GetItem(PlayerInventory[playerid][i][ID]);
+		item = GetItem(PlayerInventory[playerid][inv_slot][ID]);
 
-		PlayerTextDrawBackgroundColor(playerid, ChrInfInvSlot[playerid][i], HexGradeColors[item[Grade]-1][0]);
+		PlayerTextDrawBackgroundColor(playerid, ChrInfInvSlot[playerid][i], selection ? HexGradeColors[item[Grade]-1][0] - 0x00000077 : HexGradeColors[item[Grade]-1][0]);
 		PlayerTextDrawSetPreviewModel(playerid, ChrInfInvSlot[playerid][i], item[Model]);
 		PlayerTextDrawSetPreviewRot(playerid, ChrInfInvSlot[playerid][i], item[ModelRotX], item[ModelRotY], item[ModelRotZ], 1.0);
 		PlayerTextDrawShow(playerid, ChrInfInvSlot[playerid][i]);
 
-		if(!IsEquip(PlayerInventory[playerid][i][ID]))
+		if(!IsEquip(PlayerInventory[playerid][inv_slot][ID]))
 		{
-			new string[16];
-			format(string, sizeof(string), "%d", PlayerInventory[playerid][i][Count]);
+			format(string, sizeof(string), "%d", PlayerInventory[playerid][inv_slot][Count]);
 			PlayerTextDrawSetStringRus(playerid, ChrInfInvSlotCount[playerid][i], string);
 			PlayerTextDrawShow(playerid, ChrInfInvSlotCount[playerid][i]);
 		}
@@ -7186,7 +9819,7 @@ stock UpdateInventory(playerid)
 
 stock GetInvEmptySlotID(playerid)
 {
-	for(new i = 0; i < MAX_INVENTORY_SLOTS; i++)
+	for(new i = 0; i < MAX_SLOTS; i++)
 		if(PlayerInventory[playerid][i][ID] == -1)
 			return i;
 	
@@ -7206,19 +9839,6 @@ stock SaveInventorySlot(playerid, slot)
 	new query[255];
 	format(query, sizeof(query), "UPDATE `inventories` SET `ItemID` = '%d', `Count` = '%d', `SlotMod` = '%s' WHERE `PlayerName` = '%s' AND `SlotID` = '%d' LIMIT 1", 
 		PlayerInventory[playerid][slot][ID], PlayerInventory[playerid][slot][Count], ArrayToString(PlayerInventory[playerid][slot][Mod], MAX_MOD), name, slot
-	);
-	new Cache:q_result = mysql_query(sql_handle, query);
-	cache_delete(q_result);
-}
-
-stock SaveWarehouseSlot(playerid, slot)
-{
-	new name[255];
-	GetPlayerName(playerid, name, sizeof(name));
-
-	new query[255];
-	format(query, sizeof(query), "UPDATE `warehouses` SET `ItemID` = '%d', `Count` = '%d', `SlotMod` = '%s' WHERE `PlayerName` = '%s' AND `SlotID` = '%d' LIMIT 1", 
-		PlayerWarehouse[playerid][slot][ID], PlayerWarehouse[playerid][slot][Count], ArrayToString(PlayerWarehouse[playerid][slot][Mod], MAX_MOD), name, slot
 	);
 	new Cache:q_result = mysql_query(sql_handle, query);
 	cache_delete(q_result);
@@ -7316,24 +9936,6 @@ stock AddEquip(playerid, id, mod[])
 	return true;
 }
 
-stock DeleteItemFromWarehouse(playerid, slotid, count = 1)
-{
-	if(slotid == -1) return false;
-
-	PlayerWarehouse[playerid][slotid][Count] -= count;
-	if(PlayerWarehouse[playerid][slotid][Count] <= 0)
-	{
-		for(new i = 0; i < MAX_MOD; i++)
-			PlayerWarehouse[playerid][slotid][Mod][i] = 0;
-		PlayerWarehouse[playerid][slotid][ID] = -1;
-		PlayerWarehouse[playerid][slotid][Count] = 0;
-	}
-
-	UpdateWarehouseSlot(playerid, slotid);
-	SaveWarehouseSlot(playerid, slotid);
-	return true;
-}
-
 stock DeleteItem(playerid, slotid, count = 1)
 {
 	if(slotid == -1) return false;
@@ -7360,7 +9962,9 @@ stock SellItem(playerid, slotid, count = 1)
 
 	new item[BaseItem];
 	item = GetItem(PlayerInventory[playerid][slotid][ID]);
-	new price = (item[Price] * count) / 5;
+	new price = (item[Price] * count) / 7;
+	new tax = price / 99;
+	price -= tax;
 
 	PlayerInventory[playerid][slotid][Count] -= count;
 	if(PlayerInventory[playerid][slotid][Count] <= 0)
@@ -7378,6 +9982,7 @@ stock SellItem(playerid, slotid, count = 1)
 
 	PlayerInfo[playerid][Cash] += price;
 	GivePlayerMoney(playerid, price);
+	GivePatriarchMoney(tax);
 
 	return true;
 }
@@ -7386,11 +9991,26 @@ stock FindItem(playerid, itemid)
 {
 	if(IsPlayerConnected(playerid))
 	{
-		for(new i = 0; i < MAX_INVENTORY_SLOTS; i++)
+		for(new i = 0; i < MAX_SLOTS; i++)
 			if(PlayerInventory[playerid][i][ID] == itemid)
 				return i;
 	}
 	return -1;
+}
+
+stock GetItemsCount(playerid, id)
+{
+	if(id == -1) return 0;
+
+	if(IsPlayerConnected(playerid))
+	{
+		for(new i = 0; i < MAX_SLOTS; i++)
+			if(PlayerInventory[playerid][i][ID] == id)
+				return PlayerInventory[playerid][i][Count];
+		return 0;
+	}
+
+	return 0;
 }
 
 stock HasItem(playerid, id, count = 1)
@@ -7399,7 +10019,7 @@ stock HasItem(playerid, id, count = 1)
 
 	if(IsPlayerConnected(playerid))
 	{
-		for(new i = 0; i < MAX_INVENTORY_SLOTS; i++)
+		for(new i = 0; i < MAX_SLOTS; i++)
 			if(PlayerInventory[playerid][i][ID] == id && PlayerInventory[playerid][i][Count] >= count)
 				return true;
 		return false;
@@ -7502,17 +10122,18 @@ stock GetItem(id)
 	}
 
 	item[ID] = id;
+	cache_get_value_name_int(0, "IsTradeble", item[IsTradeble]);
 	cache_get_value_name(0, "Name", string);
 	sscanf(string, "s[255]", item[Name]);
 	cache_get_value_name_int(0, "Type", item[Type]);
 	cache_get_value_name_int(0, "Grade", item[Grade]);
-	cache_get_value_name_int(0, "MinLevel", item[MinLevel]);
+	cache_get_value_name_int(0, "MinRank", item[MinRank]);
 	cache_get_value_name(0, "Description", string);
 	sscanf(string, "s[255]", item[Description]);
 	cache_get_value_name(0, "Property", string);
-	sscanf(string, "a<i>[2]", item[Property]);
+	sscanf(string, "a<i>[3]", item[Property]);
 	cache_get_value_name(0, "PropertyVal", string);
-	sscanf(string, "a<i>[2]", item[PropertyVal]);
+	sscanf(string, "a<i>[3]", item[PropertyVal]);
 	cache_get_value_name_int(0, "Price", item[Price]);
 	cache_get_value_name_int(0, "Model", item[Model]);
 	cache_get_value_name_int(0, "ModelRotX", item[ModelRotX]);
@@ -7523,11 +10144,48 @@ stock GetItem(id)
 	return item;
 }
 
+stock GetDungeon(id)
+{
+	new string[255];
+	new query[255];
+	new dungeon[BaseDungeon];
+	format(query, sizeof(query), "SELECT * FROM `dungeons` WHERE `ID` = '%d' LIMIT 1", id);
+	new Cache:q_result = mysql_query(sql_handle, query);
+
+	new count;
+	cache_get_row_count(count);
+	if(count <= 0)
+	{
+		format(string, sizeof(string), "Cannot get dungeon [ID = %d].", id);
+		print(string);
+		return dungeon;
+	}
+
+	dungeon[ID] = id;
+	cache_get_value_name_int(0, "KeyID", dungeon[KeyID]);
+	cache_get_value_name_int(0, "Rank", dungeon[Rank]);
+	cache_get_value_name_int(0, "Type", dungeon[Type]);
+	cache_get_value_name_int(0, "Damage", dungeon[Damage]);
+	cache_get_value_name_int(0, "Defense", dungeon[Defense]);
+	cache_get_value_name_int(0, "MobsCount", dungeon[MobsCount]);
+	cache_get_value_name_int(0, "MobsTypesCount", dungeon[MobsTypesCount]);
+	cache_get_value_name_int(0, "BossesCount", dungeon[BossesCount]);
+	cache_get_value_name_int(0, "BossesTypesCount", dungeon[BossesTypesCount]);
+
+	cache_get_value_name(0, "Mobs", string);
+	sscanf(string, "a<i>[3]", dungeon[Mobs]);
+	cache_get_value_name(0, "Bosses", string);
+	sscanf(string, "a<i>[2]", dungeon[Bosses]);
+
+	cache_delete(q_result);
+	return dungeon;
+}
+
 stock IsModPotion(item_id)
 {
 	switch(item_id)
 	{
-		case 191..194: return true;
+		case 286..289: return true;
 	}
 	return false;
 }
@@ -7536,7 +10194,7 @@ stock IsModStone(item_id)
 {
 	switch(item_id)
 	{
-		case 187..190: return true;
+		case 282..285: return true;
 	}
 	return false;
 }
@@ -7548,7 +10206,7 @@ stock IsModifiableEquip(item_id)
 	
 	new item[BaseItem];
 	item = GetItem(item_id);
-	return item[Type] == ITEMTYPE_WEAPON || item[Type] == ITEMTYPE_ARMOR;
+	return item[Type] == ITEMTYPE_WEAPON || item[Type] == ITEMTYPE_ARMOR || item[Type] == ITEMTYPE_HAT || item[Type] == ITEMTYPE_GLASSES || item[Type] == ITEMTYPE_WATCH;
 }
 
 stock IsEquip(item_id)
@@ -7558,7 +10216,7 @@ stock IsEquip(item_id)
 	
 	new item[BaseItem];
 	item = GetItem(item_id);
-	return item[Type] == ITEMTYPE_WEAPON || item[Type] == ITEMTYPE_ARMOR || item[Type] == ITEMTYPE_ACCESSORY;
+	return item[Type] == ITEMTYPE_WEAPON || item[Type] == ITEMTYPE_ARMOR || item[Type] == ITEMTYPE_HAT || item[Type] == ITEMTYPE_GLASSES || item[Type] == ITEMTYPE_WATCH || item[Type] == ITEMTYPE_RING || item[Type] == ITEMTYPE_AMULETTE;
 }
 
 stock IsLockbox(item_id)
@@ -7641,6 +10299,29 @@ stock ResetWorldBounds(playerid)
 	SetPlayerWorldBounds(playerid, 307.0, 163.0, -1774.0, -1895.0);
 }
 
+stock RemoveWorldBounds(playerid)
+{
+	SetPlayerWorldBounds(playerid, 20000.0000, -20000.0000, 20000.0000, -20000.0000);
+}
+
+stock TeleportToDungeon(playerid)
+{
+	RemoveWorldBounds(playerid);
+	SetPlayerInterior(playerid, 0);
+	SetPlayerPos(playerid, -63.6603,1518.1443,12.7500);
+	SetPlayerFacingAngle(playerid, 292.1078);
+	SetCameraBehindPlayer(playerid);
+	SetPlayerWorldBounds(playerid, 93.0163, -75.3017, 1584.2813, 1463.9381);
+}
+
+stock TeleportToRandomWatcherPos(playerid)
+{
+	new idx = random(MAX_WATCHERS_POSITIONS);
+	RemoveWorldBounds(playerid);
+	SetPlayerInterior(playerid, 0);
+	SetPlayerPos(playerid, WatchersPositions[idx][0], WatchersPositions[idx][1], WatchersPositions[idx][2]);
+}
+
 stock TeleportToRandomArenaPos(playerid)
 {
 	if(FCNPC_IsValid(playerid))
@@ -7659,7 +10340,7 @@ stock TeleportToRandomArenaPos(playerid)
 stock ConnectParticipants(playerid)
 {
 	new query[255];
-	format(query, sizeof(query), "SELECT * FROM `players` WHERE `Owner` = '%s' LIMIT 20", AccountLogin[playerid]);
+	format(query, sizeof(query), "SELECT * FROM `players` WHERE `Owner` = '%s' AND `IsWatcher`=0 LIMIT 20", AccountLogin[playerid]);
 	new Cache:q_result = mysql_query(sql_handle, query);
 
 	cache_get_row_count(ParticipantsCount[playerid]);
@@ -7670,34 +10351,6 @@ stock ConnectParticipants(playerid)
 		cache_get_value_name(i, "Name", Participants[playerid][i]);
 
 	cache_delete(q_result);
-}
-
-stock ShowCPInfo(playerid)
-{
-	PlayerTextDrawShow(playerid, ChrInfCPLabel[playerid]);
-	PlayerTextDrawShow(playerid, ChrInfCPValue[playerid]);
-}
-
-stock HideCPInfo(playerid)
-{
-	PlayerTextDrawHide(playerid, ChrInfCPLabel[playerid]);
-	PlayerTextDrawHide(playerid, ChrInfCPValue[playerid]);
-}
-
-stock ShowLevelBar(playerid)
-{
-	PlayerTextDrawShow(playerid, LevelCircle[playerid]);
-	PlayerTextDrawShow(playerid, LevelText[playerid]);
-	PlayerTextDrawShow(playerid, ExpLine[playerid]);
-	PlayerTextDrawShow(playerid, ExpPercents[playerid]);
-}
-
-stock HideLevelBar(playerid)
-{
-	PlayerTextDrawHide(playerid, LevelCircle[playerid]);
-	PlayerTextDrawHide(playerid, LevelText[playerid]);
-	PlayerTextDrawHide(playerid, ExpLine[playerid]);
-	PlayerTextDrawHide(playerid, ExpPercents[playerid]);
 }
 
 stock ShowItemInfo(playerid, itemid)
@@ -7713,10 +10366,20 @@ stock ShowItemInfo(playerid, itemid)
 	PlayerTextDrawBackgroundColor(playerid, InfItemIcon[playerid], HexGradeColors[item[Grade]-1][0]);
 	PlayerTextDrawSetStringRus(playerid, InfItemName[playerid], item[Name]);
 	PlayerTextDrawColor(playerid, InfItemName[playerid], HexGradeColors[item[Grade]-1][0]);
-	PlayerTextDrawSetStringRus(playerid, InfItemType[playerid], GetItemTypeString(item[Type]));
-	PlayerTextDrawSetStringRus(playerid, InfItemEffect[playerid][0], GetItemEffectString(item[Property][0], item[PropertyVal][0]));
-	PlayerTextDrawSetStringRus(playerid, InfItemEffect[playerid][1], GetItemEffectString(item[Property][1], item[PropertyVal][1]));
-	format(string, sizeof(string), "Цена: %d$", item[Price]);
+	PlayerTextDrawSetStringRus(playerid, InfItemType[playerid], ResolveItemType(item[Type]));
+
+	for(new i = 0; i < MAX_PROPERTIES; i++)
+	{
+		PlayerTextDrawSetStringRus(playerid, InfItemEffect[playerid][i], GetItemEffectString(item[Property][i], item[PropertyVal][i]));
+		if(item[Property][i] == PROPERTY_HEAL || item[Property][i] == PROPERTY_INVUL || item[Property][i] == PROPERTY_REGEN)
+			PlayerTextDrawColor(playerid, InfItemEffect[playerid][i], 16711935);
+		else
+			PlayerTextDrawColor(playerid, InfItemEffect[playerid][i], -1);
+		
+		PlayerTextDrawShow(playerid, InfItemEffect[playerid][i]);
+	}
+
+	format(string, sizeof(string), "Цена: %s$", FormatMoney(item[Price]));
 	PlayerTextDrawSetStringRus(playerid, InfPrice[playerid], string);
 
 	PlayerTextDrawShow(playerid, InfBox[playerid]);
@@ -7725,8 +10388,6 @@ stock ShowItemInfo(playerid, itemid)
 	PlayerTextDrawShow(playerid, InfItemIcon[playerid]);
 	PlayerTextDrawShow(playerid, InfItemName[playerid]);
 	PlayerTextDrawShow(playerid, InfItemType[playerid]);
-	PlayerTextDrawShow(playerid, InfItemEffect[playerid][0]);
-	PlayerTextDrawShow(playerid, InfItemEffect[playerid][1]);
 	PlayerTextDrawShow(playerid, InfDelim2[playerid]);
 	PlayerTextDrawShow(playerid, InfDelim3[playerid]);
 	PlayerTextDrawShow(playerid, InfPrice[playerid]);
@@ -7758,6 +10419,7 @@ stock HideItemInfo(playerid)
 	PlayerTextDrawHide(playerid, InfItemType[playerid]);
 	PlayerTextDrawHide(playerid, InfItemEffect[playerid][0]);
 	PlayerTextDrawHide(playerid, InfItemEffect[playerid][1]);
+	PlayerTextDrawHide(playerid, InfItemEffect[playerid][2]);
 	PlayerTextDrawHide(playerid, InfDelim2[playerid]);
 	PlayerTextDrawHide(playerid, InfDelim3[playerid]);
 	PlayerTextDrawHide(playerid, InfPrice[playerid]);
@@ -7777,22 +10439,61 @@ stock HideEquipInfo(playerid)
 	PlayerTextDrawHide(playerid, EqInfItemIcon[playerid]);
 	PlayerTextDrawHide(playerid, EqInfItemName[playerid]);
 	PlayerTextDrawHide(playerid, EqInfMainStat[playerid]);
-	PlayerTextDrawHide(playerid, EqInfBonusStat[playerid][0]);
-	PlayerTextDrawHide(playerid, EqInfBonusStat[playerid][1]);
 	PlayerTextDrawHide(playerid, EqInfDelim2[playerid]);
 	PlayerTextDrawHide(playerid, EqInfDelim3[playerid]);
 	PlayerTextDrawHide(playerid, EqInfDelim4[playerid]);
 	PlayerTextDrawHide(playerid, EqInfDelim5[playerid]);
 	PlayerTextDrawHide(playerid, EqInfPrice[playerid]);
 	PlayerTextDrawHide(playerid, EqInfClose[playerid]);
-	for(new i = 0; i < 4; i++)
+	PlayerTextDrawHide(playerid, EqInfItemType[playerid]);
+	PlayerTextDrawHide(playerid, EqInfItemMinRank[playerid]);
+	PlayerTextDrawHide(playerid, EqInfItemGrade[playerid]);
+	PlayerTextDrawHide(playerid, EqInfTrading[playerid]);
+	for(new i = 0; i < 2; i++)
 		PlayerTextDrawHide(playerid, EqInfModStat[playerid][i]);
+	for(new i = 0; i < 3; i++)
+		PlayerTextDrawHide(playerid, EqInfBonusStat[playerid][i]);
 	for(new i = 0; i < MAX_MOD; i++)
 		PlayerTextDrawHide(playerid, EqInfMod[playerid][i]);
 	for(new i = 0; i < 3; i++)
 		PlayerTextDrawHide(playerid, EqInfDescriptionStr[playerid][i]);
 
 	Windows[playerid][EquipInfo] = false;
+}
+
+stock ResolveItemType(type)
+{
+	new string[64];
+	switch(type) 
+	{
+	    case ITEMTYPE_WEAPON: string = "Оружие";
+		case ITEMTYPE_ARMOR: string = "Доспех";
+		case ITEMTYPE_HAT: string = "Шапка";
+		case ITEMTYPE_WATCH: string = "Часы";
+		case ITEMTYPE_GLASSES: string = "Очки";
+		case ITEMTYPE_AMULETTE: string = "Амулет";
+		case ITEMTYPE_RING: string = "Кольцо";
+		case ITEMTYPE_BOX: string = "Коробка";
+		case ITEMTYPE_MODIFIER: string = "Модификатор";
+		case ITEMTYPE_PASSIVE: string = "Пассивный предмет";
+	    default: string = "Материал";
+	}
+	return string;
+}
+
+stock ResolveItemGrade(grade)
+{
+	new string[8];
+	switch(grade) 
+	{
+	    case GRADE_B: string = "B";
+		case GRADE_C: string = "C";
+		case GRADE_L: string = "L";
+		case GRADE_R: string = "R";
+		case GRADE_S: string = "S";
+	    default: string = "N";
+	}
+	return string;
 }
 
 stock ShowEquipInfo(playerid, itemid, mod[])
@@ -7808,10 +10509,40 @@ stock ShowEquipInfo(playerid, itemid, mod[])
 	PlayerTextDrawBackgroundColor(playerid, EqInfItemIcon[playerid], HexGradeColors[item[Grade]-1][0]);
 	PlayerTextDrawSetStringRus(playerid, EqInfItemName[playerid], item[Name]);
 	PlayerTextDrawColor(playerid, EqInfItemName[playerid], HexGradeColors[item[Grade]-1][0]);
-	PlayerTextDrawSetStringRus(playerid, EqInfBonusStat[playerid][0], GetItemEffectString(item[Property][0], item[PropertyVal][0]));
-	PlayerTextDrawSetStringRus(playerid, EqInfBonusStat[playerid][1], GetItemEffectString(item[Property][1], item[PropertyVal][1]));
-	format(string, sizeof(string), "Цена: %d$", item[Price]);
+
+	format(string, sizeof(string), "Тип: %s", ResolveItemType(item[Type]));
+	PlayerTextDrawSetStringRus(playerid, EqInfItemType[playerid], string);
+
+	format(string, sizeof(string), "Мин. ранг: %s", GetRankInterval(item[MinRank]));
+	PlayerTextDrawSetStringRus(playerid, EqInfItemMinRank[playerid], string);
+	new min_rank = item[MinRank];
+	if(HasItem(playerid, ITEM_SHAZOK_LETTER_ID))
+		min_rank--;
+	if(PlayerInfo[playerid][Rank] >= min_rank)
+		PlayerTextDrawColor(playerid, EqInfItemMinRank[playerid], -1);
+	else
+		PlayerTextDrawColor(playerid, EqInfItemMinRank[playerid], 0xFF0000FF);
+
+	format(string, sizeof(string), "Грейд: %s", ResolveItemGrade(item[Grade]));
+	PlayerTextDrawSetStringRus(playerid, EqInfItemGrade[playerid], string);
+
+	for(new i = 0; i < MAX_PROPERTIES; i++)
+	{
+		if(item[Property][i] == PROPERTY_HEAL || item[Property][i] == PROPERTY_INVUL)
+			PlayerTextDrawColor(playerid, EqInfBonusStat[playerid][i], 16711935);
+		else
+			PlayerTextDrawColor(playerid, EqInfBonusStat[playerid][i], -1);
+
+		PlayerTextDrawSetStringRus(playerid, EqInfBonusStat[playerid][i], GetItemEffectString(item[Property][i], item[PropertyVal][i]));
+	}
+
+	format(string, sizeof(string), "Цена: %s$", FormatMoney(item[Price]));
 	PlayerTextDrawSetStringRus(playerid, EqInfPrice[playerid], string);
+
+	if(item[IsTradeble] == 1)
+		PlayerTextDrawSetStringRus(playerid, EqInfTrading[playerid], "Обмен: возможен");
+	else
+		PlayerTextDrawSetStringRus(playerid, EqInfTrading[playerid], "Обмен: невозможен");
 
 	PlayerTextDrawShow(playerid, EqInfBox[playerid]);
 	PlayerTextDrawShow(playerid, EqInfTxt1[playerid]);
@@ -7819,13 +10550,18 @@ stock ShowEquipInfo(playerid, itemid, mod[])
 	PlayerTextDrawShow(playerid, EqInfDelim1[playerid]);
 	PlayerTextDrawShow(playerid, EqInfItemIcon[playerid]);
 	PlayerTextDrawShow(playerid, EqInfItemName[playerid]);
+	PlayerTextDrawShow(playerid, EqInfItemType[playerid]);
+	PlayerTextDrawShow(playerid, EqInfItemMinRank[playerid]);
+	PlayerTextDrawShow(playerid, EqInfItemGrade[playerid]);
 	PlayerTextDrawShow(playerid, EqInfBonusStat[playerid][0]);
 	PlayerTextDrawShow(playerid, EqInfBonusStat[playerid][1]);
+	PlayerTextDrawShow(playerid, EqInfBonusStat[playerid][2]);
 	PlayerTextDrawShow(playerid, EqInfDelim2[playerid]);
 	PlayerTextDrawShow(playerid, EqInfDelim3[playerid]);
 	PlayerTextDrawShow(playerid, EqInfDelim4[playerid]);
 	PlayerTextDrawShow(playerid, EqInfDelim5[playerid]);
 	PlayerTextDrawShow(playerid, EqInfPrice[playerid]);
+	PlayerTextDrawShow(playerid, EqInfTrading[playerid]);
 	PlayerTextDrawShow(playerid, EqInfClose[playerid]);
 
 	for(new i = 0; i < MAX_MOD; i++)
@@ -7835,12 +10571,12 @@ stock ShowEquipInfo(playerid, itemid, mod[])
 		PlayerTextDrawShow(playerid, EqInfMod[playerid][i]);
 	}
 
-	new modifiers[4];
+	new modifiers[2];
 	modifiers = GetModifiers(mod);
 	new modifiers_count = GetModifiersCount(modifiers);
-	new modifiers_effects_descs[4][255];
+	new modifiers_effects_descs[2][255];
 	modifiers_effects_descs = MapModifiersDescs(mod, modifiers, modifiers_count);
-	for(new i = 0; i < 4; i++)
+	for(new i = 0; i < 2; i++)
 	{
 		PlayerTextDrawSetStringRus(playerid, EqInfModStat[playerid][i], modifiers_effects_descs[i]);
 		PlayerTextDrawShow(playerid, EqInfModStat[playerid][i]);
@@ -7857,7 +10593,7 @@ stock ShowEquipInfo(playerid, itemid, mod[])
 			damage = GetWeaponModifiedDamage(damage, GetModifierLevel(mod, MOD_DAMAGE));
 		format(string, sizeof(string), "Урон: %d-%d", damage[0], damage[1]);
 	}
-	else if(item[Type] == ITEMTYPE_ARMOR)
+	else if(item[Type] == ITEMTYPE_ARMOR || item[Type] == ITEMTYPE_HAT || item[Type] == ITEMTYPE_GLASSES || item[Type] == ITEMTYPE_WATCH)
 	{
 		new bool:mod_exists = false;
 		mod_exists = ModifierExists(mod, MOD_DEFENSE);
@@ -7901,21 +10637,29 @@ stock UpdatePlayerStatsVisual(playerid)
 	PlayerTextDrawSetStringRus(playerid, ChrInfAccuracy[playerid], string);
 	format(string, sizeof(string), "%s: %d", "Уклонение", PlayerInfo[playerid][Dodge]);
 	PlayerTextDrawSetStringRus(playerid, ChrInfDodge[playerid], string);
+	format(string, sizeof(string), "%s: %d", "Крит", PlayerInfo[playerid][Crit]);
+	PlayerTextDrawSetStringRus(playerid, ChrInfCrit[playerid], string);
 }
 
 stock ShowMainMenu(playerid)
 {
-	new listitems[] = "Информация о персонаже\nСменить персонажа\nБыстрое перемещение";
+	new listitems[] = "Информация о персонаже\nСменить персонажа\nПереключиться на наблюдателя\nБыстрое перемещение";
 	ShowPlayerDialog(playerid, 1000, DIALOG_STYLE_TABLIST, "Bourgeois Circus", listitems, "Далее", "Закрыть");
 }
 
 stock ShowCharInfo(playerid)
 {
+    if(PlayerInfo[playerid][IsWatcher] != 0)
+	{
+		SendClientMessage(playerid, COLOR_GREY, "Данная функция недоступна для наблюдателя.");
+		return;
+	}
+
 	new string[255];
 
-	format(string, sizeof(string), "%d", PlayerInfo[playerid][OC]);
-	PlayerTextDrawSetStringRus(playerid, ChrInfOC[playerid], string);
-	PlayerTextDrawColor(playerid, ChrInfOC[playerid], GetTitleColorHex(PlayerInfo[playerid][Status], PlayerInfo[playerid][GlobalTopPosition]));
+	format(string, sizeof(string), "%d", PlayerInfo[playerid][Rate]);
+	PlayerTextDrawSetStringRus(playerid, ChrInfRate[playerid], string);
+	PlayerTextDrawColor(playerid, ChrInfRate[playerid], HexRateColors[PlayerInfo[playerid][Rank]-1][0]);
 	format(string, sizeof(string), "%d", PlayerInfo[playerid][GlobalTopPosition]);
 	PlayerTextDrawSetStringRus(playerid, ChrInfAllRate[playerid], string);
 	PlayerTextDrawColor(playerid, ChrInfAllRate[playerid], GetHexPlaceColor(PlayerInfo[playerid][GlobalTopPosition]));
@@ -7923,38 +10667,59 @@ stock ShowCharInfo(playerid)
 	PlayerTextDrawSetStringRus(playerid, ChrInfPersonalRate[playerid], string);
 	PlayerTextDrawColor(playerid, ChrInfPersonalRate[playerid], GetHexPlaceColor(PlayerInfo[playerid][LocalTopPosition]));
 
+	new inv_page = GetPVarInt(playerid, "InvPage");
+	if(inv_page < 1)
+		inv_page = 1;
+	if(inv_page > MAX_INV_PAGES)
+		inv_page = MAX_INV_PAGES;
+
+	format(string, sizeof(string), "%d/%d", inv_page, MAX_INV_PAGES);
+	PlayerTextDrawSetStringRus(playerid, ChrInfCurInv[playerid], string);
+
 	UpdatePlayerStatsVisual(playerid);
 
 	PlayerTextDrawShow(playerid, ChrInfoBox[playerid]);
 	PlayerTextDrawShow(playerid, ChrInfoHeader[playerid]);
-	PlayerTextDrawShow(playerid, ChrInfoDelim1[playerid]);
+	PlayerTextDrawShow(playerid, ChrInfDelim1[playerid]);
 	PlayerTextDrawShow(playerid, ChrInfDelim2[playerid]);
 	PlayerTextDrawShow(playerid, ChrInfDelim3[playerid]);
+	PlayerTextDrawShow(playerid, ChrInfDelim4[playerid]);
+	PlayerTextDrawShow(playerid, ChrInfDelim5[playerid]);
 	PlayerTextDrawShow(playerid, ChrInfMaxHP[playerid]);
 	PlayerTextDrawShow(playerid, ChrInfDamage[playerid]);
 	PlayerTextDrawShow(playerid, ChrInfDefense[playerid]);
 	PlayerTextDrawShow(playerid, ChrInfAccuracy[playerid]);
 	PlayerTextDrawShow(playerid, ChrInfDodge[playerid]);
+	PlayerTextDrawShow(playerid, ChrInfCrit[playerid]);
 	PlayerTextDrawShow(playerid, ChrInfArmorSlot[playerid]);
 	PlayerTextDrawShow(playerid, ChrInfWeaponSlot[playerid]);
-	PlayerTextDrawShow(playerid, ChrInfAccSlot1[playerid]);
-	PlayerTextDrawShow(playerid, ChrInfAccSlot2[playerid]);
+	PlayerTextDrawShow(playerid, ChrInfHatSlot[playerid]);
+	PlayerTextDrawShow(playerid, ChrInfWatchSlot[playerid]);
+	PlayerTextDrawShow(playerid, ChrInfGlassesSlot[playerid]);
+	PlayerTextDrawShow(playerid, ChrInfRingSlot1[playerid]);
+	PlayerTextDrawShow(playerid, ChrInfRingSlot1[playerid]);
+	PlayerTextDrawShow(playerid, ChrInfAmuletteSlot1[playerid]);
+	PlayerTextDrawShow(playerid, ChrInfAmuletteSlot2[playerid]);
 	PlayerTextDrawShow(playerid, ChrInfClose[playerid]);
 	PlayerTextDrawShow(playerid, ChrInfText1[playerid]);
 	PlayerTextDrawShow(playerid, ChrInfText2[playerid]);
 	PlayerTextDrawShow(playerid, ChrInfAllRate[playerid]);
-	PlayerTextDrawShow(playerid, ChrInfOC[playerid]);
+	PlayerTextDrawShow(playerid, ChrInfRate[playerid]);
 	PlayerTextDrawShow(playerid, ChrInfPersonalRate[playerid]);
 	PlayerTextDrawShow(playerid, ChrInfButUse[playerid]);
 	PlayerTextDrawShow(playerid, ChrInfButInfo[playerid]);
+	PlayerTextDrawShow(playerid, ChrInfButSort[playerid]);
 	PlayerTextDrawShow(playerid, ChrInfButDel[playerid]);
 	PlayerTextDrawShow(playerid, ChrInfButMod[playerid]);
-	PlayerTextDrawShow(playerid, ChrInfDelim4[playerid]);
+	PlayerTextDrawShow(playerid, ChrInfCurInv[playerid]);
+	PlayerTextDrawShow(playerid, ChrInfNextInvBtn[playerid]);
+	PlayerTextDrawShow(playerid, ChrInfPrevInvBtn[playerid]);
 
 	UpdateEquipSlots(playerid);
-	UpdateInventory(playerid);
 	
 	IsInventoryOpen[playerid] = true;
+	UpdateInventory(playerid);
+
 	Windows[playerid][CharInfo] = true;
 	SelectTextDraw(playerid,0xCCCCFF65);
 }
@@ -7963,31 +10728,42 @@ stock HideCharInfo(playerid)
 {
 	PlayerTextDrawHide(playerid, ChrInfoBox[playerid]);
 	PlayerTextDrawHide(playerid, ChrInfoHeader[playerid]);
-	PlayerTextDrawHide(playerid, ChrInfoDelim1[playerid]);
+	PlayerTextDrawHide(playerid, ChrInfDelim1[playerid]);
 	PlayerTextDrawHide(playerid, ChrInfDelim2[playerid]);
 	PlayerTextDrawHide(playerid, ChrInfDelim3[playerid]);
+	PlayerTextDrawHide(playerid, ChrInfDelim4[playerid]);
+	PlayerTextDrawHide(playerid, ChrInfDelim5[playerid]);
 	PlayerTextDrawHide(playerid, ChrInfMaxHP[playerid]);
 	PlayerTextDrawHide(playerid, ChrInfDamage[playerid]);
 	PlayerTextDrawHide(playerid, ChrInfDefense[playerid]);
 	PlayerTextDrawHide(playerid, ChrInfAccuracy[playerid]);
 	PlayerTextDrawHide(playerid, ChrInfDodge[playerid]);
+	PlayerTextDrawHide(playerid, ChrInfCrit[playerid]);
 	PlayerTextDrawHide(playerid, ChrInfArmorSlot[playerid]);
 	PlayerTextDrawHide(playerid, ChrInfWeaponSlot[playerid]);
-	PlayerTextDrawHide(playerid, ChrInfAccSlot1[playerid]);
-	PlayerTextDrawHide(playerid, ChrInfAccSlot2[playerid]);
+	PlayerTextDrawHide(playerid, ChrInfHatSlot[playerid]);
+	PlayerTextDrawHide(playerid, ChrInfWatchSlot[playerid]);
+	PlayerTextDrawHide(playerid, ChrInfGlassesSlot[playerid]);
+	PlayerTextDrawHide(playerid, ChrInfRingSlot1[playerid]);
+	PlayerTextDrawHide(playerid, ChrInfRingSlot2[playerid]);
+	PlayerTextDrawHide(playerid, ChrInfAmuletteSlot1[playerid]);
+	PlayerTextDrawHide(playerid, ChrInfAmuletteSlot2[playerid]);
 	PlayerTextDrawHide(playerid, ChrInfClose[playerid]);
 	PlayerTextDrawHide(playerid, ChrInfText1[playerid]);
 	PlayerTextDrawHide(playerid, ChrInfText2[playerid]);
 	PlayerTextDrawHide(playerid, ChrInfAllRate[playerid]);
-	PlayerTextDrawHide(playerid, ChrInfOC[playerid]);
+	PlayerTextDrawHide(playerid, ChrInfRate[playerid]);
 	PlayerTextDrawHide(playerid, ChrInfPersonalRate[playerid]);
 	PlayerTextDrawHide(playerid, ChrInfButUse[playerid]);
 	PlayerTextDrawHide(playerid, ChrInfButInfo[playerid]);
+	PlayerTextDrawHide(playerid, ChrInfButSort[playerid]);
 	PlayerTextDrawHide(playerid, ChrInfButDel[playerid]);
 	PlayerTextDrawHide(playerid, ChrInfButMod[playerid]);
-	PlayerTextDrawHide(playerid, ChrInfDelim4[playerid]);
+	PlayerTextDrawHide(playerid, ChrInfCurInv[playerid]);
+	PlayerTextDrawHide(playerid, ChrInfNextInvBtn[playerid]);
+	PlayerTextDrawHide(playerid, ChrInfPrevInvBtn[playerid]);
 
-	for (new i = 0; i < MAX_INVENTORY_SLOTS; i++)
+	for(new i = 0; i < MAX_PAGE_SLOTS; i++)
 	{
 		PlayerTextDrawHide(playerid, ChrInfInvSlot[playerid][i]);
 		PlayerTextDrawHide(playerid, ChrInfInvSlotCount[playerid][i]);
@@ -8146,7 +10922,7 @@ stock UpdateMarketSellWindow(playerid)
 			PlayerTextDrawShow(playerid, MpBtn2[playerid]);
 		}
 
-		format(string, sizeof(string), "Цена: %d$", MarketSellingItem[playerid][Price]);
+		format(string, sizeof(string), "Цена: %s$", FormatMoney(MarketSellingItem[playerid][Price]));
 		PlayerTextDrawSetStringRus(playerid, MpTxtPrice[playerid], string);
 		PlayerTextDrawShow(playerid, MpTxtPrice[playerid]);
 
@@ -8382,23 +11158,23 @@ stock GetAvModLvlByModifierID(id)
 
 	switch(id)
 	{
-		case 250, 256, 262, 268: { levels[0] = 1; levels[1] = 2; }
-		case 251, 257, 263, 269: { levels[0] = 1; levels[1] = 3; }
-		case 252, 258, 264, 270: { levels[0] = 2; levels[1] = 3; }
-		case 253, 259, 265, 271: { levels[0] = 2; levels[1] = 4; }
-		case 254, 260, 266, 272: { levels[0] = 2; levels[1] = 5; }
-		case 255, 261, 267, 273: { levels[0] = 2; levels[1] = 6; }
+		case 321, 327, 333: { levels[0] = 1; levels[1] = 2; }
+		case 322, 328, 334: { levels[0] = 1; levels[1] = 3; }
+		case 323, 329, 335: { levels[0] = 2; levels[1] = 3; }
+		case 324, 330, 336: { levels[0] = 2; levels[1] = 4; }
+		case 325, 331, 337: { levels[0] = 2; levels[1] = 5; }
+		case 326, 332, 338: { levels[0] = 2; levels[1] = 6; }
 
-		case 274, 279, 284, 289: { levels[0] = 3; levels[1] = 4; }
-		case 275, 280, 285, 290: { levels[0] = 3; levels[1] = 5; }
-		case 276, 281, 286, 291: { levels[0] = 3; levels[1] = 6; }
-		case 277, 282, 287, 292: { levels[0] = 4; levels[1] = 5; }
-		case 278, 283, 288, 293: { levels[0] = 4; levels[1] = 6; }
+		case 339, 344, 349: { levels[0] = 3; levels[1] = 4; }
+		case 340, 345, 350: { levels[0] = 3; levels[1] = 5; }
+		case 341, 346, 351: { levels[0] = 3; levels[1] = 6; }
+		case 342, 347, 352: { levels[0] = 4; levels[1] = 5; }
+		case 343, 348, 353: { levels[0] = 4; levels[1] = 6; }
 
-		case 294, 298, 302, 306: { levels[0] = 4; levels[1] = 7; }
-		case 295, 299, 303, 307: { levels[0] = 5; levels[1] = 6; }
-		case 296, 300, 304, 308: { levels[0] = 5; levels[1] = 7; }
-		case 297, 301, 305, 309: { levels[0] = 6; levels[1] = 7; }
+		case 354, 358, 362: { levels[0] = 4; levels[1] = 7; }
+		case 355, 359, 363: { levels[0] = 5; levels[1] = 6; }
+		case 356, 360, 364: { levels[0] = 5; levels[1] = 7; }
+		case 357, 361, 365: { levels[0] = 6; levels[1] = 7; }
 
 		default: { levels[0] = 0; levels[1] = 0; }
 	}
@@ -8576,8 +11352,11 @@ stock CombineWithModifier(playerid)
 	new equip[BaseItem];
 	new itemid = CmbItem[playerid][2];
 	equip = GetItem(CmbItem[playerid][0]);
-	if( ((itemid == 187 || itemid == 189) && equip[Type] != ITEMTYPE_WEAPON) ||
-		((itemid == 188 || itemid == 190) && equip[Type] != ITEMTYPE_ARMOR) )
+	if( ((itemid == 283 || itemid == 285) && equip[Type] == ITEMTYPE_WEAPON) ||
+		((itemid == 282 || itemid == 284) && equip[Type] == ITEMTYPE_ARMOR) ||
+		((itemid == 282 || itemid == 284) && equip[Type] == ITEMTYPE_HAT) ||
+		(itemid == 282 && equip[Type] == ITEMTYPE_GLASSES) || 
+		(itemid == 282 && equip[Type] == ITEMTYPE_WATCH) )
 	{
 		ShowPlayerDialog(playerid, 1, DIALOG_STYLE_MSGBOX, "Комбинирование", "Нельзя использовать этот камень.", "Закрыть", "");
 		return;
@@ -8613,94 +11392,7 @@ stock CombineWithModifier(playerid)
 		new name[255];
 		GetPlayerName(playerid, name, sizeof(name));
 		format(cng_string, sizeof(cng_string), "{%s}%s{FF6347} успешно модернизирован %d на стадии {%s}%s.", 
-			GetTitleColor(PlayerInfo[playerid][Status], PlayerInfo[playerid][GlobalTopPosition]), name, mod_level, GetGradeColor(equip[Grade]), equip[Name]
-		);
-		SendClientMessageToAll(COLOR_LIGHTRED, cng_string);
-	}
-	ShowPlayerDialog(playerid, 1, DIALOG_STYLE_MSGBOX, "Комбинирование", "{33CC00}Успешная комбинация.", "Закрыть", "");
-}
-
-stock CombineWithAntique(playerid, m_count, mod_level)
-{
-	if(m_count <= 0)
-	{
-		ShowPlayerDialog(playerid, 1, DIALOG_STYLE_MSGBOX, "Комбинирование", "Комбинация не существует.", "Закрыть", "");
-		return;
-	}
-
-	new equip[BaseItem];
-	new itemid = CmbItem[playerid][2];
-	equip = GetItem(CmbItem[playerid][0]);
-	if( ((itemid == 187 || itemid == 189) && equip[Type] != ITEMTYPE_WEAPON) ||
-		((itemid == 188 || itemid == 190) && equip[Type] != ITEMTYPE_ARMOR) )
-	{
-		ShowPlayerDialog(playerid, 1, DIALOG_STYLE_MSGBOX, "Комбинирование", "Нельзя использовать этот камень.", "Закрыть", "");
-		return;
-	}
-
-	new rnd = random(10001);
-	new rq_count = 0;
-	new need_chance = 0;
-	switch(mod_level)
-	{
-		case 0: { rq_count = 10; need_chance = 2000; }
-		case 1: { rq_count = 15; need_chance = 1000; }
-		case 2: { rq_count = 25; need_chance = 700; }
-		case 3: { rq_count = 50; need_chance = 500; }
-		case 4: { rq_count = 80; need_chance = 200; }
-		case 5: { rq_count = 110; need_chance = 60; }
-		case 6: { rq_count = 135; need_chance = 10; }
-	}
-
-	if(rq_count == 0 || m_count != rq_count)
-	{
-		ShowPlayerDialog(playerid, 1, DIALOG_STYLE_MSGBOX, "Комбинирование", "Комбинация не существует.", "Закрыть", "");
-		return;
-	}
-
-	DeleteItem(playerid, CmbItemInvSlot[playerid][1], m_count);
-	DeleteItem(playerid, CmbItemInvSlot[playerid][2], 1);
-
-	new bool:success = rnd < need_chance;
-	if(success)
-		SetModLevel(playerid, CmbItemInvSlot[playerid][0], CmbItem[playerid][2], mod_level + 1, false);
-	else
-		ShowPlayerDialog(playerid, 1, DIALOG_STYLE_MSGBOX, "Комбинирование", "{CC3300}Комбинация неудачна.", "Закрыть", "");
-
-	new bool:items_exists = true;
-	for(new i = 0; i < MAX_CMB_ITEMS; i++)
-	{
-		if(CmbItem[playerid][i] == -1)
-			continue;
-		if(!HasItem(playerid, CmbItem[playerid][i], CmbItemCount[playerid][i]))
-		{
-			items_exists = false;
-			break;
-		}
-	}
-
-	if(success || (!success && !items_exists))
-	{
-		for(new i = 0; i < MAX_CMB_ITEMS; i++)
-		{
-			CmbItem[playerid][i] = -1;
-			CmbItemCount[playerid][i] = 0;
-			CmbItemInvSlot[playerid][i] = -1;
-		}
-	}
-
-	UpdateCmbWindow(playerid);
-
-	if(rnd >= need_chance) 
-		return;
-
-	if(mod_level + 1 >= 5)
-	{
-		new cng_string[255];
-		new name[255];
-		GetPlayerName(playerid, name, sizeof(name));
-		format(cng_string, sizeof(cng_string), "{%s}%s{FF6347} успешно модернизирован %d на стадии {%s}%s.", 
-			GetTitleColor(PlayerInfo[playerid][Status], PlayerInfo[playerid][GlobalTopPosition]), name, mod_level + 1, GetGradeColor(equip[Grade]), equip[Name]
+			GetColorByRate(PlayerInfo[playerid][Rate]), name, mod_level, GetGradeColor(equip[Grade]), equip[Name]
 		);
 		SendClientMessageToAll(COLOR_LIGHTRED, cng_string);
 	}
@@ -8716,15 +11408,6 @@ stock CombineItems(playerid)
 		if(s_item[Type] == ITEMTYPE_MODIFIER && CmbItemCount[playerid][1] == 1 && IsModStone(CmbItem[playerid][2]) && CmbItemCount[playerid][2] == 1)
 		{
 			CombineWithModifier(playerid);
-			return;
-		}
-
-		new eq_item[BaseItem];
-		eq_item = GetItem(CmbItem[playerid][0]);
-		if(eq_item[Grade] == GRADE_R && CmbItem[playerid][1] == 195 && IsModStone(CmbItem[playerid][2]) && CmbItemCount[playerid][2] == 1)
-		{
-			new mod_level = GetModLevel(PlayerInventory[playerid][CmbItemInvSlot[playerid][0]][Mod]);
-			CombineWithAntique(playerid, CmbItemCount[playerid][1], mod_level);
 			return;
 		}
 	}
@@ -8785,6 +11468,12 @@ stock CombineItems(playerid)
 	{
 		if(!success && IsEquip(CmbItem[playerid][i]))
 			continue;
+		
+		if(!success && CmbItem[playerid][i] >= 308 && CmbItem[playerid][i] <= 311)
+			continue;
+		
+		if(!success && CmbItem[playerid][i] >= 297 && CmbItem[playerid][i] <= 304)
+			continue;
 
 		DeleteItem(playerid, CmbItemInvSlot[playerid][i], CmbItemCount[playerid][i]);
 	}
@@ -8794,6 +11483,14 @@ stock CombineItems(playerid)
 		ShowPlayerDialog(playerid, 1, DIALOG_STYLE_MSGBOX, "Комбинирование", "{33CC00}Успешная комбинация.", "Закрыть", "");
 		if(IsEquip(result_id))
 		{
+			if(result_id >= 245 && result_id <= 266)
+			{
+				if(CheckChance(5))
+					result_id += 2;
+				else if(CheckChance(25))
+					result_id += 1;
+			}
+
 			new eq_item[BaseItem];
 			eq_item = GetItem(result_id);
 
@@ -8803,7 +11500,7 @@ stock CombineItems(playerid)
 			{
 				new string[255];
 				format(string, sizeof(string), "{%s}%s {ffffff}приобрел {%s}[%s]{ffffff}.", 
-					GetTitleColor(PlayerInfo[playerid][Status], PlayerInfo[playerid][GlobalTopPosition]), PlayerInfo[playerid][Name], GetGradeColor(eq_item[Grade]), eq_item[Name]
+					GetColorByRate(PlayerInfo[playerid][Rate]), PlayerInfo[playerid][Name], GetGradeColor(eq_item[Grade]), eq_item[Name]
 				);
 				SendClientMessageToAll(0xFFFFFFFF, string);
 			}
@@ -8852,8 +11549,12 @@ stock UpgradeItem(playerid, itemslot, stoneid, potionid = -1)
 	new item[BaseItem];
 	item = GetItem(itemid);
 
+	new grade = item[Grade];
+	if(grade > GRADE_R)
+		grade = GRADE_R;
+
 	new chances[4];
-	chances = GetModChances(level, item[Grade], potionid);
+	chances = GetModChances(level, grade, potionid);
 
 	new stoneslot = FindItem(playerid, stoneid);
 	if(stoneslot == -1)
@@ -8893,10 +11594,12 @@ stock UpgradeItem(playerid, itemslot, stoneid, potionid = -1)
 			new name[255];
 			GetPlayerName(playerid, name, sizeof(name));
 			format(cng_string, sizeof(cng_string), "{%s}%s{FF6347} успешно модернизирован %d на стадии {%s}%s.", 
-				GetTitleColor(PlayerInfo[playerid][Status], PlayerInfo[playerid][GlobalTopPosition]), name, level, GetGradeColor(item[Grade]), item[Name]
+				GetColorByRate(PlayerInfo[playerid][Rate]), name, level, GetGradeColor(item[Grade]), item[Name]
 			);
 			SendClientMessageToAll(COLOR_LIGHTRED, cng_string);
 		}
+
+        UpdatePlayerEffects(playerid);
 		ShowPlayerDialog(playerid, 1, DIALOG_STYLE_MSGBOX, "Модификация", "{66CC00}Модификация завершена успешно.", "Закрыть", "");
 	}
 	//fail
@@ -8927,19 +11630,6 @@ stock UpgradeItem(playerid, itemslot, stoneid, potionid = -1)
 stock GetModChances(level, grade, potionid = -1)
 {
 	new chances[4];
-
-	if(grade == GRADE_R)
-	{
-		chances[0] = 0;
-		chances[1] = 10000;
-		chances[2] = 0;
-		chances[3] = 0;
-		return chances;
-	}
-
-	if(grade > GRADE_C)
-		grade = GRADE_C;
-
 	new query[255];
 	format(query, sizeof(query), "SELECT * FROM `mod_chances` WHERE `Level` = '%d' AND `Grade` = '%d' AND `Potion` = '%d' LIMIT 1", level, grade, potionid);
 	new Cache:q_result = mysql_query(sql_handle, query);
@@ -8966,10 +11656,10 @@ stock GetModifierByStone(stoneid)
 {
 	switch(stoneid)
 	{
-		case 187: return MOD_DAMAGE;
-		case 188: return MOD_DEFENSE;
-		case 189: return MOD_ACCURACY;
-		case 190: return MOD_DODGE;
+		case 282: return MOD_DAMAGE;
+		case 283: return MOD_DEFENSE;
+		case 284: return MOD_ACCURACY;
+		case 285: return MOD_DODGE;
 	}
 	return 0;
 }
@@ -8981,64 +11671,41 @@ stock GetWeaponBaseDamage(weaponid)
 	{
 		case 1: { damage[0] = 19; damage[1] = 24; }
 		case 2..8: { damage[0] = 25; damage[1] = 31; }
-		case 9: { damage[0] = 70; damage[1] = 101; }
-		case 10..16, 242: { damage[0] = 91; damage[1] = 131; }
+		case 9: { damage[0] = 101; damage[1] = 149; }
+		case 10..16: { damage[0] = 135; damage[1] = 186; }
 		case 17: { damage[0] = 9; damage[1] = 18; }
-		case 18..24, 243: { damage[0] = 12; damage[1] = 24; }
+		case 18..24: { damage[0] = 12; damage[1] = 24; }
 		case 25: { damage[0] = 12; damage[1] = 26; }
-		case 26..32, 244: { damage[0] = 16; damage[1] = 34; }
+		case 26..32: { damage[0] = 16; damage[1] = 34; }
 		case 33: { damage[0] = 20; damage[1] = 47; }
-		case 34..40, 245: { damage[0] = 27; damage[1] = 63; }
+		case 34..40: { damage[0] = 27; damage[1] = 63; }
 		case 41: { damage[0] = 41; damage[1] = 53; }
-		case 42..48, 246: { damage[0] = 55; damage[1] = 72; }
+		case 42..48: { damage[0] = 55; damage[1] = 72; }
 		case 49: { damage[0] = 38; damage[1] = 66; }
 		case 50..56: { damage[0] = 51; damage[1] = 89; }
 		case 57: { damage[0] = 281; damage[1] = 429; }
-		case 58..64, 247: { damage[0] = 379; damage[1] = 579; }
+		case 58..64: { damage[0] = 379; damage[1] = 579; }
 		case 65: { damage[0] = 146; damage[1] = 312; }
-		case 66..72, 248: { damage[0] = 197; damage[1] = 421; }
-		case 73: { damage[0] = 319; damage[1] = 534; }
-		case 74..80, 249: { damage[0] = 431; damage[1] = 721; }
+		case 66..72: { damage[0] = 197; damage[1] = 421; }
+		case 73: { damage[0] = 151; damage[1] = 464; }
+		case 74..80: { damage[0] = 196; damage[1] = 559; }
 
-		case 205: { damage[0] = 79; damage[1] = 118; }
-		case 206: { damage[0] = 87; damage[1] = 130; }
-		case 207: { damage[0] = 96; damage[1] = 143; }
-		case 208: { damage[0] = 105; damage[1] = 157; }
-		case 209: { damage[0] = 116; damage[1] = 173; }
-		case 210: { damage[0] = 127; damage[1] = 190; }
-		case 211: { damage[0] = 140; damage[1] = 209; }
-		case 212: { damage[0] = 154; damage[1] = 230; }
-		case 213: { damage[0] = 169; damage[1] = 253; }
+		case 245..247: { damage[0] = 22; damage[1] = 56; }
+		case 248..250: { damage[0] = 132; damage[1] = 361; }
+		case 251..253: { damage[0] = 16; damage[1] = 79; }
+		case 254..256: { damage[0] = 24; damage[1] = 92; }
+		case 257..259: { damage[0] = 46; damage[1] = 124; }
+		case 260..262: { damage[0] = 338; damage[1] = 721; }
+		case 263..265: { damage[0] = 160; damage[1] = 596; }
+		case 266..268: { damage[0] = 173; damage[1] = 720; }
 
-		case 214: { damage[0] = 34; damage[1] = 51; }
-		case 215: { damage[0] = 37; damage[1] = 56; }
-		case 216: { damage[0] = 41; damage[1] = 62; }
-		case 217: { damage[0] = 45; damage[1] = 68; }
-		case 218: { damage[0] = 50; damage[1] = 75; }
-		case 219: { damage[0] = 55; damage[1] = 82; }
-		case 220: { damage[0] = 60; damage[1] = 90; }
-		case 221: { damage[0] = 66; damage[1] = 99; }
-		case 222: { damage[0] = 73; damage[1] = 109; }
+		case 269: { damage[0] = 135; damage[1] = 196; }
+		case 270: { damage[0] = 895; damage[1] = 1406; }
+		case 271: { damage[0] = 431; damage[1] = 1186; }
+		case 272: { damage[0] = 545; damage[1] = 1486; }
 
-		case 223: { damage[0] = 63; damage[1] = 87; }
-		case 224: { damage[0] = 69; damage[1] = 96; }
-		case 225: { damage[0] = 76; damage[1] = 105; }
-		case 226: { damage[0] = 84; damage[1] = 116; }
-		case 227: { damage[0] = 92; damage[1] = 127; }
-		case 228: { damage[0] = 101; damage[1] = 140; }
-		case 229: { damage[0] = 117; damage[1] = 154; }
-		case 230: { damage[0] = 123; damage[1] = 170; }
-		case 231: { damage[0] = 135; damage[1] = 187; }
-
-		case 232: { damage[0] = 389; damage[1] = 538; }
-		case 233: { damage[0] = 428; damage[1] = 592; }
-		case 234: { damage[0] = 471; damage[1] = 651; }
-		case 235: { damage[0] = 518; damage[1] = 716; }
-		case 236: { damage[0] = 570; damage[1] = 788; }
-		case 237: { damage[0] = 626; damage[1] = 866; }
-		case 238: { damage[0] = 689; damage[1] = 953; }
-		case 239: { damage[0] = 758; damage[1] = 1048; }
-		case 240: { damage[0] = 834; damage[1] = 1153; }
+		case 275: { damage[0] = 310; damage[1] = 544; }
+		case 276: { damage[0] = 69; damage[1] = 92; }
 
 		default: { damage[0] = 13; damage[1] = 15; }
 	}
@@ -9059,25 +11726,78 @@ stock GetArmorBaseDefense(armorid)
 	new defense;
 	switch(armorid)
 	{
-		case 82: defense = 180;
-		case 83..89: defense = 234;
-		case 90: defense = 275;
-		case 91..97: defense = 358;
-		case 98: defense = 330;
-		case 99..105: defense = 429;
-		case 106: defense = 383;
-		case 107..113: defense = 498;
-		case 114: defense = 437;
-		case 115..121: defense = 568;
-		case 122: defense = 502;
-		case 123..129: defense = 653;
-		case 130: defense = 595;
-		case 131..137: defense = 774;
-		case 138: defense = 676;
-		case 139..145: defense = 879;
-		case 146: defense = 841;
-		case 147..153: defense = 1135;
-		default: defense = 100;
+		case 82: defense = 120;
+		case 83..87: defense = 180;
+		case 88: defense = 210;
+		case 89..93: defense = 275;
+        case 94: defense = 290;
+		case 95..99: defense = 346;
+        case 100: defense = 361;
+		case 101..105: defense = 422;
+        case 106: defense = 440;
+		case 107..111: defense = 509;
+        case 112: defense = 533;
+		case 113..117: defense = 600;
+        case 118: defense = 618;
+		case 119..123: defense = 711;
+        case 124: defense = 738;
+		case 125..129: defense = 846;
+        case 130: defense = 877;
+		case 131..135: defense = 1003;
+
+        case 137: defense = 30;
+		case 138..142: defense = 45;
+        case 143: defense = 48;
+		case 144..148: defense = 66;
+        case 149: defense = 70;
+		case 150..154: defense = 102;
+        case 155: defense = 110;
+		case 156..160: defense = 138;
+        case 161: defense = 150;
+		case 162..166: defense = 203;
+        case 167: defense = 235;
+		case 168..172: defense = 295;
+        case 173: defense = 349;
+		case 174..178: defense = 448;
+        case 179: defense = 502;
+		case 180..184: defense = 619;
+        case 185: defense = 686;
+		case 186..190: defense = 871;
+
+        case 191: defense = 50;
+        case 192: defense = 70;
+        case 193: defense = 95;
+        case 194: defense = 130;
+        case 195: defense = 180;
+        case 196: defense = 255;
+        case 197: defense = 345;
+        case 198: defense = 460;
+        case 199: defense = 600;
+
+		case 375: defense = 540;
+        case 376: defense = 735;
+        case 377: defense = 980;
+        case 378: defense = 1450;
+
+        case 200: defense = 25;
+        case 201: defense = 35;
+        case 202: defense = 47;
+        case 203: defense = 65;
+        case 204: defense = 90;
+        case 205: defense = 127;
+        case 206: defense = 178;
+        case 207: defense = 230;
+        case 208: defense = 300;
+
+		case 379: defense = 275;
+        case 380: defense = 364;
+        case 381: defense = 541;
+        case 382: defense = 810;
+
+        case 273: defense = 846;
+        case 274: defense = 1003;
+
+		default: defense = 0;
 	}
 	return defense;
 }
@@ -9092,7 +11812,7 @@ stock GetArmorModifiedDefense(base_defense, level)
 
 stock MapModifiersDescs(mod[], modifiers[], count)
 {
-	new descs[4][255];
+	new descs[2][255];
 	new string[255];
 	for(new i = 0; i < count; i++)
 	{
@@ -9187,13 +11907,13 @@ stock GetModModel(modifier)
 
 stock GetModifiers(mod[])
 {
-	new modifiers[4];
+	new modifiers[2];
 	for (new i = 0; i < MAX_MOD; i++)
 	{
 		if(mod[i] == 0) continue;
-		if(ArrayValueExist(modifiers, 4, mod[i])) continue;
+		if(ArrayValueExist(modifiers, 2, mod[i])) continue;
 
-		for (new j = 0; j < 4; j++)
+		for (new j = 0; j < 2; j++)
 		{
 			if(modifiers[j] == 0)
 			{
@@ -9208,7 +11928,7 @@ stock GetModifiers(mod[])
 stock GetModifiersCount(modfs[])
 {
 	new count = 0;
-	for (new i = 0; i < 4; i++)
+	for (new i = 0; i < 2; i++)
 		if(modfs[i] != 0) count++;
 	
 	return count;
@@ -9230,37 +11950,39 @@ stock ArrayValueExist(arr[], size, value)
 	return false;
 }
 
+stock ShuffleArray(data[], size_s = sizeof(data))
+{
+    new j = 0, temp = 0;
+    for(new i = size_s-1; i > 0; i--)
+    {
+        j = random(i + 1);
+        temp = data[i];
+        data[i] = data[j];
+        data[j] = temp;
+    }
+    return 1;
+}
+
 stock GetItemEffectString(effect, value)
 {
 	new string[128];
 	switch(effect) 
 	{
-	    case 1: format(string, sizeof(string), "Урон +%d%%", value);
-	    case 2: format(string, sizeof(string), "Защита +%d%%", value);
-	    case 3: format(string, sizeof(string), "Уклонение +%d", value);
-	    case 4: format(string, sizeof(string), "Точность +%d", value);
-	    case 5: format(string, sizeof(string), "HP +%d%%", value);
-	    case 6: format(string, sizeof(string), "Шанс крита +%d%%", value);
+		case 1: format(string, sizeof(string), "Урон +%d%%", value);
+		case 2: format(string, sizeof(string), "Защита +%d%%", value);
+		case 3: format(string, sizeof(string), "Уклонение +%d", value);
+		case 4: format(string, sizeof(string), "Точность +%d", value);
+		case 5: format(string, sizeof(string), "HP +%d%%", value);
+		case 6: format(string, sizeof(string), "Шанс крита +%d%%", value);
 		case 7: format(string, sizeof(string), "Лут с боссов X%d", value);
-	    default: string = "";
+		case 8: string = "Исцеление";
+		case 9: string = "Неуязвимость";
+		case 10: format(string, sizeof(string), "HP +%d", value);
+		case 11: format(string, sizeof(string), "Урон в HP +%d%%", value);
+		case 12: string = "Восстановление";
+		default: string = "";
 	}
 
-	return string;
-}
-
-stock GetItemTypeString(type)
-{
-	new string[64];
-	switch(type) 
-	{
-	    case 1: string = "Оружие";
-	    case 2: string = "Доспех";
-	    case 3: string = "Аксессуар";
-	    case 4: string = "Пассивный предмет";
-	    case 5: string = "Материал";
-	    case 6: string = "Коробка";
-	    default: string = "Предмет";
-	}
 	return string;
 }
 
@@ -9288,8 +12010,9 @@ stock GetGradeColor(grade)
 	{
 	    case GRADE_B: color = "FFCC00";
 	    case GRADE_C: color = "CC6600";
-		case GRADE_D: color = "9966FF";
-		case GRADE_R: color = "3399FF";
+		case GRADE_L: color = "6AA84F";
+		case GRADE_R: color = "1C4587";
+		case GRADE_S: color = "9900FF";
 	    default: color = "CCCCCC";
 	}
 	return color;
@@ -9330,6 +12053,60 @@ stock ArrayToString(array[], size, type = TYPE_INT)
 
 	strdel(string, strlen(string)-1, strlen(string));
 	return string;
+}
+
+stock GetRateInterval(rate) 
+{
+	new interval[32];
+	switch(rate) 
+	{
+	    case 500..999: interval = "Камень";
+	    case 1000..1199: interval = "Железо";
+	    case 1200..1399: interval = "Бронза";
+	    case 1400..1599: interval = "Серебро";
+	    case 1600..1999: interval = "Золото";
+	    case 2000..2299: interval = "Платина";
+	    case 2300..2699: interval = "Алмаз";
+	    case 2700..3000: interval = "Бриллиант";
+	    default: interval = "Дерево";
+	}
+	return interval;
+}
+
+stock GetRankInterval(rank)
+{
+	new interval[32];
+	switch(rank) 
+	{
+	    case 2: interval = "Камень";
+	    case 3: interval = "Железо";
+	    case 4: interval = "Бронза";
+	    case 5: interval = "Серебро";
+	    case 6: interval = "Золото";
+	    case 7: interval = "Платина";
+	    case 8: interval = "Алмаз";
+	    case 9: interval = "Бриллиант";
+	    default: interval = "Дерево";
+	}
+	return interval;
+}
+
+stock GetRankByRate(rate)
+{
+	new rank;
+	switch(rate)
+	{
+		case 500..999: rank = 2;
+	    case 1000..1199: rank = 3;
+	    case 1200..1399: rank = 4;
+	    case 1400..1599: rank = 5;
+	    case 1600..1999: rank = 6;
+	    case 2000..2299: rank = 7;
+	    case 2300..2699: rank = 8;
+	    case 2700..3000: rank = 9;
+	    default: rank = 1;
+	}
+	return rank;
 }
 
 stock LoadTournamentInfo()
@@ -9413,9 +12190,9 @@ stock SavePlayer(playerid, bool:with_pos = true)
 	new query[2048] = "UPDATE `players` SET ";
 	new tmp[255];
 
-	format(tmp, sizeof(tmp), "`Sex` = '%d', `Exp` = '%d', `Level` = '%d', ", PlayerInfo[playerid][Sex], PlayerInfo[playerid][Exp], PlayerInfo[playerid][Level]);
+	format(tmp, sizeof(tmp), "`Sex` = '%d', `Rate` = '%d', `Rank` = '%d', ", PlayerInfo[playerid][Sex], PlayerInfo[playerid][Rate], PlayerInfo[playerid][Rank]);
 	strcat(query, tmp);
-	format(tmp, sizeof(tmp), "`Status` = '%d', `OC` = '%d', `CP` = '%d', `Cash` = '%d', `IsWatcher` = '%d', ", PlayerInfo[playerid][Status], PlayerInfo[playerid][OC], PlayerInfo[playerid][CP], PlayerInfo[playerid][Cash], PlayerInfo[playerid][IsWatcher]);
+	format(tmp, sizeof(tmp), "`Status` = '%d', `Simulations` = '%d', `IsWatcher` = '%d', `Cash` = '%d', ", PlayerInfo[playerid][Status], PlayerInfo[playerid][Simulations], PlayerInfo[playerid][IsWatcher], PlayerInfo[playerid][Cash]);
 	strcat(query, tmp);
 	if(with_pos)
 	{
@@ -9430,9 +12207,14 @@ stock SavePlayer(playerid, bool:with_pos = true)
 	strcat(query, tmp);
 	format(tmp, sizeof(tmp), "`Crit` = '%d', `GlobalTopPos` = '%d', `LocalTopPos` = '%d', `WalkersLimit` = '%d', ", PlayerInfo[playerid][Crit], PlayerInfo[playerid][GlobalTopPosition], PlayerInfo[playerid][LocalTopPosition], PlayerInfo[playerid][WalkersLimit]);
 	strcat(query, tmp);
-	format(tmp, sizeof(tmp), "`WeaponSlotID` = '%d', `ArmorSlotID` = '%d', `AccSlot1ID` = '%d', `AccSlot2ID` = '%d', ", PlayerInfo[playerid][WeaponSlotID], PlayerInfo[playerid][ArmorSlotID], PlayerInfo[playerid][AccSlot1ID], PlayerInfo[playerid][AccSlot2ID]);
+	format(tmp, sizeof(tmp), "`WeaponSlotID` = '%d', `ArmorSlotID` = '%d', `HatSlotID` = '%d', `GlassesSlotID` = '%d', `WatchSlotID` = '%d', ", PlayerInfo[playerid][WeaponSlotID], 
+    PlayerInfo[playerid][ArmorSlotID], PlayerInfo[playerid][HatSlotID], PlayerInfo[playerid][GlassesSlotID], PlayerInfo[playerid][WatchSlotID]);
 	strcat(query, tmp);
-	format(tmp, sizeof(tmp), "`WeaponMod` = '%s', `ArmorMod` = '%s' ", ArrayToString(PlayerInfo[playerid][WeaponMod], MAX_MOD), ArrayToString(PlayerInfo[playerid][ArmorMod], MAX_MOD));
+    format(tmp, sizeof(tmp), "`RingSlot1ID` = '%d', `RingSlot2ID` = '%d', `AmuletteSlot1ID` = '%d', `AmuletteSlot2ID` = '%d', ", PlayerInfo[playerid][RingSlot1ID], PlayerInfo[playerid][RingSlot2ID], PlayerInfo[playerid][AmuletteSlot1ID], PlayerInfo[playerid][AmuletteSlot2ID]);
+	strcat(query, tmp);
+    format(tmp, sizeof(tmp), "`WeaponMod` = '%s', `ArmorMod` = '%s', ", ArrayToString(PlayerInfo[playerid][WeaponMod], MAX_MOD), ArrayToString(PlayerInfo[playerid][ArmorMod], MAX_MOD));
+	strcat(query, tmp);
+    format(tmp, sizeof(tmp), "`HatMod` = '%s', `GlassesMod` = '%s', `WatchMod` = '%s' ", ArrayToString(PlayerInfo[playerid][HatMod], MAX_MOD), ArrayToString(PlayerInfo[playerid][GlassesMod], MAX_MOD), ArrayToString(PlayerInfo[playerid][WatchMod], MAX_MOD));
 	strcat(query, tmp);
 	format(tmp, sizeof(tmp), "WHERE `Name` = '%s' LIMIT 1", name);
 	strcat(query, tmp);
@@ -9443,26 +12225,11 @@ stock SavePlayer(playerid, bool:with_pos = true)
 	SaveInventory(playerid);
 }
 
-stock CreateWarehouse(name[])
-{
-	new query[512];
-
-	for(new i = 0; i < MAX_WAREHOUSE_SLOTS; i++)
-	{
-		format(query, sizeof(query), "INSERT INTO `warehouses`(`PlayerName`, `SlotID`, `ItemID`, `SlotMod`, `Count`) VALUES ('%s','%d','%d','%s','%d')",
-			name, i, -1, "0 0 0 0 0 0 0", 0
-		);
-
-		new Cache:q_result = mysql_query(sql_handle, query);
-		cache_delete(q_result);
-	}
-}
-
 stock CreateInventory(name[])
 {
 	new query[512];
 
-	for(new i = 0; i < MAX_INVENTORY_SLOTS; i++)
+	for(new i = 0; i < MAX_SLOTS; i++)
 	{
 		format(query, sizeof(query), "INSERT INTO `inventories`(`PlayerName`, `SlotID`, `ItemID`, `SlotMod`, `Count`) VALUES ('%s','%d','%d','%s','%d')",
 			name, i, -1, "0 0 0 0 0 0 0", 0
@@ -9481,7 +12248,7 @@ stock SaveInventory(playerid)
 	new query[512];
 	GetPlayerName(playerid, name, sizeof(name));
 
-	for(new i = 0; i < MAX_INVENTORY_SLOTS; i++)
+	for(new i = 0; i < MAX_SLOTS; i++)
 	{
 		format(query, sizeof(query), "UPDATE `inventories` SET `ItemID` = '%d', `SlotMod` = '%s', `Count` = '%d' WHERE `PlayerName` = '%s' AND `SlotID` = '%d' LIMIT 1", 
 			PlayerInventory[playerid][i][ID], ArrayToString(PlayerInventory[playerid][i][Mod], MAX_MOD), PlayerInventory[playerid][i][Count], name, i
@@ -9494,6 +12261,7 @@ stock SaveInventory(playerid)
 stock LoadInventory(playerid)
 {
 	if(FCNPC_IsValid(playerid)) return;
+    if(PlayerInfo[playerid][IsWatcher] != 0) return;
 
 	new name[128];
 	new query[512];
@@ -9504,7 +12272,7 @@ stock LoadInventory(playerid)
 
 	new row_count = 0;
 	cache_get_row_count(row_count);
-	if(row_count < MAX_INVENTORY_SLOTS)
+	if(row_count < MAX_SLOTS)
 	{
 		SendClientMessage(playerid, COLOR_LIGHTRED, "Ошибка при загрузке инвентаря. Обратитесь к администратору.");
 		cache_delete(q_result);
@@ -9550,12 +12318,11 @@ stock LoadPlayer(playerid)
 
 	cache_get_value_name_int(0, "ID", PlayerInfo[playerid][ID]);
 	cache_get_value_name_int(0, "Sex", PlayerInfo[playerid][Sex]);
-	cache_get_value_name_int(0, "Exp", PlayerInfo[playerid][Exp]);
-	cache_get_value_name_int(0, "Level", PlayerInfo[playerid][Level]);
-	cache_get_value_name_int(0, "Status", PlayerInfo[playerid][Status]);
-	cache_get_value_name_int(0, "OC", PlayerInfo[playerid][OC]);
-	cache_get_value_name_int(0, "CP", PlayerInfo[playerid][CP]);
-	cache_get_value_name_int(0, "IsWatcher", PlayerInfo[playerid][IsWatcher]);
+	cache_get_value_name_int(0, "Rate", PlayerInfo[playerid][Rate]);
+	cache_get_value_name_int(0, "Rank", PlayerInfo[playerid][Rank]);
+    cache_get_value_name_int(0, "Status", PlayerInfo[playerid][Status]);
+    cache_get_value_name_int(0, "Simulations", PlayerInfo[playerid][Simulations]);
+    cache_get_value_name_int(0, "IsWatcher", PlayerInfo[playerid][IsWatcher]);
 	cache_get_value_name_int(0, "Cash", PlayerInfo[playerid][Cash]);
 	cache_get_value_name_float(0, "PosX", PlayerInfo[playerid][PosX]);
 	cache_get_value_name_float(0, "PosY", PlayerInfo[playerid][PosY]);
@@ -9576,8 +12343,13 @@ stock LoadPlayer(playerid)
 	cache_get_value_name_int(0, "WalkersLimit", PlayerInfo[playerid][WalkersLimit]);
 	cache_get_value_name_int(0, "WeaponSlotID", PlayerInfo[playerid][WeaponSlotID]);
 	cache_get_value_name_int(0, "ArmorSlotID", PlayerInfo[playerid][ArmorSlotID]);
-	cache_get_value_name_int(0, "AccSlot1ID", PlayerInfo[playerid][AccSlot1ID]);
-	cache_get_value_name_int(0, "AccSlot2ID", PlayerInfo[playerid][AccSlot2ID]);
+    cache_get_value_name_int(0, "HatSlotID", PlayerInfo[playerid][HatSlotID]);
+    cache_get_value_name_int(0, "GlassesSlotID", PlayerInfo[playerid][GlassesSlotID]);
+    cache_get_value_name_int(0, "WatchSlotID", PlayerInfo[playerid][WatchSlotID]);
+	cache_get_value_name_int(0, "RingSlot1ID", PlayerInfo[playerid][RingSlot1ID]);
+	cache_get_value_name_int(0, "RingSlot2ID", PlayerInfo[playerid][RingSlot2ID]);
+    cache_get_value_name_int(0, "AmuletteSlot1ID", PlayerInfo[playerid][AmuletteSlot1ID]);
+	cache_get_value_name_int(0, "AmuletteSlot2ID", PlayerInfo[playerid][AmuletteSlot2ID]);
 
 	new owner[255];
 	cache_get_value_name(0, "Owner", owner);
@@ -9588,21 +12360,30 @@ stock LoadPlayer(playerid)
 	sscanf(string, "a<i>[7]", PlayerInfo[playerid][WeaponMod]);
 	cache_get_value_name(0, "ArmorMod", string);
 	sscanf(string, "a<i>[7]", PlayerInfo[playerid][ArmorMod]);
+    cache_get_value_name(0, "HatMod", string);
+	sscanf(string, "a<i>[7]", PlayerInfo[playerid][HatMod]);
+    cache_get_value_name(0, "GlassesMod", string);
+	sscanf(string, "a<i>[7]", PlayerInfo[playerid][GlassesMod]);
+    cache_get_value_name(0, "WatchMod", string);
+	sscanf(string, "a<i>[7]", PlayerInfo[playerid][WatchMod]);
 
 	cache_delete(q_result);
 
 	LoadInventory(playerid);
-	UpdatePlayerLevel(playerid);
+	UpdatePlayerRank(playerid);
  	return 1;
 }
 
 stock CreatePlayer(playerid, name[], owner[], sex)
 {
 	new query[2048] = "INSERT INTO `players`( \
-		`ID`, `Name`, `Owner`, `Sex`, `Exp`, `Level`, `OC`, `CP`, `Status`, `IsWatcher`, `Cash`, `PosX`, `PosY`, `PosZ`, \
-		`Angle`, `Interior`, `Skin`, `Kills`, `Deaths`, `DamageMin`, `DamageMax`, `Defense`, \
-		`Dodge`, `Accuracy`, `Crit`, `GlobalTopPos`, `LocalTopPos`, `WeaponSlotID`, `WeaponMod`, \
-		`ArmorSlotID`, `ArmorMod`, `AccSlot1ID`, `AccSlot2ID`) VALUES (";
+		`ID`, `Name`, `Owner`, `Sex`, `Rate`, `Rank`, `Status`, `Simulations`, `IsWatcher`, `Cash`, \
+		`PosX`, `PosY`, `PosZ`, `Angle`, `Interior`, `Skin`, `Kills`, `Deaths`, `DamageMin`, `DamageMax`, `Defense`, ";
+	new query2[512] = "`Dodge`, `Accuracy`, `Crit`, `GlobalTopPos`, `LocalTopPos`, `WalkersLimit`, `WeaponSlotID`, `WeaponMod`, \
+		`ArmorSlotID`, `ArmorMod`, `HatSlotID`, `HatMod`, `GlassesSlotID`, `GlassesMod`, `WatchSlotID`, `WatchMod`, \
+		`RingSlot1ID`, `RingSlot2ID`, `AmuletteSlot1ID`, `AmuletteSlot2ID`) VALUES (";
+	strcat(query, query2);
+
 	new tmp[1024];
 
 	new sub_query[255] = "SELECT MAX(`ID`) AS `ID` FROM `players`";
@@ -9619,8 +12400,10 @@ stock CreatePlayer(playerid, name[], owner[], sex)
 
 	id++;
 
-	format(tmp, sizeof(tmp), "'%d','%s','%s','%d','%d','%d','%d','%d','%d','%d','%d','%f','%f','%f','%f','%d','%d','%d','%d','%d','%d','%d','%d','%d','%d','%d','%d','%d','%s','%d','%s','%d','%d')",
-		id, name, owner, sex, 0, 1, 0, 0, 0, 0, 0, DEFAULT_POS_X, DEFAULT_POS_Y, DEFAULT_POS_Z, 180, 1, 78, 0, 0, 13, 15, 5, 0, 5, 5, 20, 10, 0, "0 0 0 0 0 0 0", 81, "0 0 0 0 0 0 0", -1, -1
+	format(tmp, sizeof(tmp), "'%d','%s','%s','%d','%d','%d','%d','%d','%d','%d','%f','%f','%f','%f','%d','%d','%d', \
+        '%d','%d','%d','%d','%d','%d','%d','%d','%d','%d','%d','%s','%d','%s','%d','%s','%d','%s','%d','%s','%d','%d','%d','%d')",
+		id, name, owner, sex, 0, 1, 0, 0, 0, 0, DEFAULT_POS_X, DEFAULT_POS_Y, DEFAULT_POS_Z, 180, 1, 78, 0, 0, 13, 15, 5, 0, 5, 5, 20, 10, MAX_WALKERS, 
+        0, "0 0 0 0 0 0 0", 81, "0 0 0 0 0 0 0", 136, "0 0 0 0 0 0 0", -1, "0 0 0 0 0 0 0", -1, "0 0 0 0 0 0 0", -1, -1, -1, -1
 	);
 	strcat(query, tmp);
 
@@ -9632,6 +12415,57 @@ stock CreatePlayer(playerid, name[], owner[], sex)
 	SendClientMessage(playerid, COLOR_GREEN, "Player created succesfully.");
 }
 
+stock CreateWatcher(login[])
+{
+	new name[255] = "";
+	strcat(name, login);
+	strcat(name, "_Watcher");
+
+    new query[2048] = "INSERT INTO `players`( \
+		`ID`, `Name`, `Owner`, `Sex`, `Rate`, `Rank`, `Status`, `Simulations`, `IsWatcher`, `Cash`, \
+		`PosX`, `PosY`, `PosZ`, `Angle`, `Interior`, `Skin`, `Kills`, `Deaths`, `DamageMin`, `DamageMax`, `Defense`, ";
+	new query2[512] = "`Dodge`, `Accuracy`, `Crit`, `GlobalTopPos`, `LocalTopPos`, `WalkersLimit`, `WeaponSlotID`, `WeaponMod`, \
+		`ArmorSlotID`, `ArmorMod`, `HatSlotID`, `HatMod`, `GlassesSlotID`, `GlassesMod`, `WatchSlotID`, `WatchMod`, \
+		`RingSlot1ID`, `RingSlot2ID`, `AmuletteSlot1ID`, `AmuletteSlot2ID`) VALUES (";
+	strcat(query, query2);
+	
+	new tmp[1024];
+
+	new sub_query[255] = "SELECT MAX(`ID`) AS `ID` FROM `players`";
+	new Cache:sq_result = mysql_query(sql_handle, sub_query);
+	new id = -1;
+	cache_get_value_name_int(0, "ID", id);
+	cache_delete(sq_result);
+
+	if(id == -1)
+	{
+		printf("Cannot generate pID.");
+		return false;
+	}
+
+	id++;
+
+    format(tmp, sizeof(tmp), "'%d','%s','%s','%d','%d','%d','%d','%d','%d','%d','%f','%f','%f','%f','%d','%d','%d', \
+        '%d','%d','%d','%d','%d','%d','%d','%d','%d','%d','%d','%s','%d','%s','%d','%s','%d','%s','%d','%s','%d','%d','%d','%d')",
+		id, name, login, 0, 0, 1, 0, 0, 1, 0, DEFAULT_POS_X, DEFAULT_POS_Y, DEFAULT_POS_Z, 180, 1, 78, 0, 0, 13, 15, 5, 0, 5, 5, 20, 10, MAX_WALKERS, 
+        0, "0 0 0 0 0 0 0", 81, "0 0 0 0 0 0 0", 136, "0 0 0 0 0 0 0", -1, "0 0 0 0 0 0 0", -1, "0 0 0 0 0 0 0", -1, -1, -1, -1
+	);
+	strcat(query, tmp);
+
+	new Cache:q_result = mysql_query(sql_handle, query);
+	cache_delete(q_result);
+
+	new s_query[512];
+	format(s_query, sizeof(s_query), "SELECT * FROM `players` WHERE `Owner` = '%s' AND `IsWatcher` > 0 LIMIT 1", login);
+	q_result = mysql_query(sql_handle, s_query);
+
+	new row_count = 0;
+	cache_get_row_count(row_count);
+	cache_delete(q_result);
+
+	return row_count > 0;
+}
+
 stock IsPlayerBesideNPC(playerid)
 {
 	return IsPlayerInRangeOfPoint(playerid, 2.0, -2166.7527,646.0400,1052.3750) ||
@@ -9639,89 +12473,198 @@ stock IsPlayerBesideNPC(playerid)
 		   IsPlayerInRangeOfPoint(playerid, 2.0, 262.6658,-1825.2792,3.9126);
 }
 
-stock GetTitleColor(status, pos)
+stock GetColorByRate(rate) 
 {
-	new color[32] = "ffffff";
-	if(status > 0)
+	new color[16];
+	switch(rate) 
 	{
-		color = "1155cc";
-		return color;
+		case 500..999: color = RateColors[1];
+		case 1000..1199: color = RateColors[2];
+		case 1200..1399: color = RateColors[3];
+		case 1400..1599: color = RateColors[4];
+		case 1600..1999: color = RateColors[5];
+		case 2000..2299: color = RateColors[6];
+		case 2300..2699: color = RateColors[7];
+		case 2700..3000: color = RateColors[8];
+		default: color = RateColors[0];
 	}
-
-	switch(pos)
-	{
-		case 1: color = "666666";
-		case 2: color = "741b47";
-		case 3: color = "9900ff";
-		case 4,5: color = "ff0000";
-		case 6..8: color = "e06666";
-		case 9..12: color = "ff9900";
-		case 13..16: color = "85200c";
-		default: color = "6aa84f";
-	}
-
 	return color;
 }
 
-stock GetTitleColorHex(status, pos)
+stock GetColorByRank(rank) 
 {
-	new color = 0xffffffff;
-	if(status > 0)
+	new color[16];
+	switch(rank) 
 	{
-		color = 0x1155ccff;
-		return color;
+		case 2: color = RateColors[1];
+		case 3: color = RateColors[2];
+		case 4: color = RateColors[3];
+		case 5: color = RateColors[4];
+		case 6: color = RateColors[5];
+		case 7: color = RateColors[6];
+		case 8: color = RateColors[7];
+		case 9: color = RateColors[8];
+		default: color = RateColors[0];
 	}
-
-	switch(pos)
-	{
-		case 1: color = 0x666666ff;
-		case 2: color = 0x741b47ff;
-		case 3: color = 0x9900ffff;
-		case 4,5: color = 0xff0000ff;
-		case 6..8: color = 0xe06666ff;
-		case 9..12: color = 0xff9900ff;
-		case 13..16: color = 0x85200cff;
-		default: color = 0x6aa84fff;
-	}
-
 	return color;
 }
 
-stock GetTitle(status, pos)
+stock ResetHierarchy()
 {
-	new title[32] = "ffffff";
-	if(status > 0)
-	{
-		title = "Основатель";
-		return title;
-	}
+	new query[255] = "UPDATE `players` SET `Status` = 0 WHERE 1";
+	new Cache:temp_result = mysql_query(sql_handle, query);
+	cache_delete(temp_result);
 
-	switch(pos)
+	for(new i = 0; i < MAX_PLAYERS; i++)
 	{
-		case 1: title = "Генерал";
-		case 2: title = "Полковник";
-		case 3: title = "Подполковник";
-		case 4,5: title = "Майор";
-		case 6..8: title = "Капитан";
-		case 9..12: title = "Лейтенант";
-		case 13..16: title = "Сержант";
-		default: title = "Рядовой";
+		if(!IsPlayerConnected(i) || FCNPC_IsValid(i))
+			continue;
+		
+		PlayerInfo[i][Status] = HIERARCHY_NONE;
+		UpdatePlayerStats(i);
+		UpdatePlayerEffects(i);
 	}
-
-	return title;
 }
 
-stock UpdateGlobalOCTop()
+stock PatriarchPayday()
 {
-	new query[255];
-	format(query, sizeof(query), "SELECT * FROM `players` WHERE `Owner` <> 'Admin' ORDER BY `OC` DESC LIMIT %d", MAX_PARTICIPANTS);
+	new query[255] = "SELECT * FROM `hierarchy` LIMIT 1";
 	new Cache:q_result = mysql_query(sql_handle, query);
 
 	new row_count = 0;
 	cache_get_row_count(row_count);
 	if(row_count <= 0)
 	{
-		print("Global OC update error.");
+		print("PatriarchPayday error.");
+		cache_delete(q_result);
+		return;
+	}
+
+	new money;
+	new name[255];
+	cache_get_value_name_int(0, "Money", money);
+	cache_get_value_name(0, "LeaderName", name);
+	cache_delete(q_result);
+
+	if(money <= 0)
+		return;
+
+	new msg[255];
+	format(msg, sizeof(msg), "{00CC00}Накопленная комиссия с рынка составила: %s$", FormatMoney(money));
+	PendingMessage(name, msg);
+	
+	new playerid = GetPlayerID(name);
+	if(playerid != -1)
+		GivePlayerMoney(playerid, money);
+	else
+		GivePlayerMoneyOffline(name, money);
+}
+
+stock UpdateHierarchy()
+{
+	PatriarchPayday();
+	UpdateTempHierarchyItems();
+
+	UpdateGlobalRatingTop();
+	ResetHierarchy();
+
+	new pretendets[HIERARCHY_STATUSES_COUNT];
+	for(new i = 0; i < HIERARCHY_STATUSES_COUNT; i++)
+	{
+		new query[255];
+		format(query, sizeof(query), "SELECT * FROM `players` WHERE `Name` = '%s' LIMIT 1", GlobalRatingTop[i][Name]);
+		new Cache:q_result = mysql_query(sql_handle, query);
+
+		new row_count = 0;
+		cache_get_row_count(row_count);
+		if(row_count <= 0)
+		{
+			print("Hierarchy update error.");
+			cache_delete(q_result);
+			return;
+		}
+
+		new pid;
+		cache_get_value_name_int(0, "ID", pid);
+		cache_delete(q_result);
+
+		pretendets[i] = pid;
+	}
+
+	ShuffleArray(pretendets);
+
+	SendClientMessageToAll(COLOR_WHITE, "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~");
+	SendClientMessageToAll(COLOR_WHITE, "Выборы в иерархию завершились!");
+	SendClientMessageToAll(COLOR_YELLOW, "Новые лидеры:");
+	SendClientMessageToAll(COLOR_WHITE, "");
+
+	for(new i = 0; i < HIERARCHY_STATUSES_COUNT; i++)
+	{
+		new query[255];
+		format(query, sizeof(query), "UPDATE `players` SET `Status` = '%d' WHERE `ID` = '%d' LIMIT 1", i+1, pretendets[i]);
+		new Cache:temp_result = mysql_query(sql_handle, query);
+		cache_delete(temp_result);
+
+		format(query, sizeof(query), "SELECT * FROM `players` WHERE `ID` = '%d' LIMIT 1", pretendets[i]);
+		new Cache:q_result = mysql_query(sql_handle, query);
+
+		new row_count = 0;
+		cache_get_row_count(row_count);
+		if(row_count <= 0)
+		{
+			print("Hierarchy update error.");
+			cache_delete(q_result);
+			return;
+		}
+
+		new name[255];
+		cache_get_value_name(0, "Name", name);
+		cache_delete(q_result);
+
+		if(i+1 == HIERARCHY_LEADER)
+		{
+			PendingItem(name, 274, MOD_CLEAR, 1, "Награда Патриарха");
+			PendingItem(name, 276, MOD_CLEAR, 1, "Награда Патриарха");
+
+			new p_query[255];
+			format(p_query, sizeof(p_query), "UPDATE `hierarchy` SET `LeaderName` = '%s', `Money` = '0' LIMIT 1", name);
+			new Cache:p_result = mysql_query(sql_handle, p_query);
+			cache_delete(p_result);
+		}
+		else
+		{
+			PendingItem(name, 273, MOD_CLEAR, 1, "Награда основателя");
+			PendingItem(name, 275, MOD_CLEAR, 1, "Награда основателя");
+		}
+
+		new playerid = GetPlayerInGameID(pretendets[i]);
+		if(playerid != -1)
+		{
+			PlayerInfo[playerid][Status] = i+1;
+			UpdatePlayerEffects(playerid);
+			UpdatePlayerStats(playerid);
+		}
+
+		new text[255];
+		format(text, sizeof(text), "%s - {FFFFFF}%s", GetHierarchyStatusString(i+1), name);
+		SendClientMessageToAll(COLOR_WHITE, text);
+	}
+
+	SendClientMessageToAll(COLOR_WHITE, "");
+	SendClientMessageToAll(COLOR_WHITE, "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~");
+}
+
+stock UpdateGlobalRatingTop()
+{
+	new query[255];
+	format(query, sizeof(query), "SELECT * FROM `players` WHERE `Owner` <> 'Admin' AND `IsWatcher`=0 ORDER BY `Rate` DESC LIMIT %d", MAX_PARTICIPANTS);
+	new Cache:q_result = mysql_query(sql_handle, query);
+
+	new row_count = 0;
+	cache_get_row_count(row_count);
+	if(row_count <= 0)
+	{
+		print("Global rating update error.");
 		cache_delete(q_result);
 		return;
 	}
@@ -9732,22 +12675,19 @@ stock UpdateGlobalOCTop()
 	for(new i = 0; i < row_count; i++)
 	{
 		new name[255];
-		new oc;
-		new status;
+		new rate;
 
 		cache_set_active(q_result);
 		cache_get_value_name(i, "Name", name);
-		cache_get_value_name_int(i, "OC", oc);
-		cache_get_value_name_int(i, "Status", status);
+		cache_get_value_name_int(i, "Rate", rate);
 		cache_unset_active();
 
 		format(query, sizeof(query), "UPDATE `players` SET `GlobalTopPos` = '%d' WHERE `Name` = '%s' LIMIT 1", i+1, name);
 		new Cache:temp_result = mysql_query(sql_handle, query);
 		cache_delete(temp_result);
 
-		GlobalOCTop[i][Name] = name;
-		GlobalOCTop[i][OC] = oc;
-		GlobalOCTop[i][Status] = status;
+		GlobalRatingTop[i][Name] = name;
+		GlobalRatingTop[i][Rate] = rate;
 
 		new playerid = GetPlayerID(name);
 		if(playerid != -1)
@@ -9757,7 +12697,7 @@ stock UpdateGlobalOCTop()
 	cache_delete(q_result);
 }
 
-stock UpdateLocalLevelTop(playerid)
+stock UpdateLocalRatingTop(playerid)
 {
 	new name[255];
 	new query[255];
@@ -9771,7 +12711,7 @@ stock UpdateLocalLevelTop(playerid)
 	cache_get_row_count(row_count);
 	if(row_count <= 0)
 	{
-		format(string, sizeof(string), "Local level update error. Player: %s", name);
+		format(string, sizeof(string), "Local rating update error. Player: %s", name);
 		print(string);
 		cache_delete(q_result);
 		return;
@@ -9781,14 +12721,14 @@ stock UpdateLocalLevelTop(playerid)
 	cache_get_value_name(0, "Owner", owner);
 	cache_delete(q_result);
 
-	format(query, sizeof(query), "SELECT * FROM `players` WHERE `Owner` = '%s' ORDER BY `Exp` DESC LIMIT %d", owner, MAX_PARTICIPANTS / 2);
+    format(query, sizeof(query), "SELECT * FROM `players` WHERE `Owner` = '%s' AND `IsWatcher`=0 ORDER BY `Rate` DESC LIMIT %d", owner, MAX_PARTICIPANTS / 2);
 	q_result = mysql_query(sql_handle, query);
 
 	row_count = 0;
 	cache_get_row_count(row_count);
 	if(row_count <= 0)
 	{
-		format(string, sizeof(string), "Local level update error. Player: %s", name);
+		format(string, sizeof(string), "Local rating update error. Player: %s", name);
 		print(string);
 		cache_delete(q_result);
 		return;
@@ -9799,87 +12739,19 @@ stock UpdateLocalLevelTop(playerid)
 
 	for(new i = 0; i < row_count; i++)
 	{
-		new level;
-		new status;
-		new global_pos;
+		new rate;
 
 		cache_set_active(q_result);
 		cache_get_value_name(i, "Name", name);
-		cache_get_value_name_int(i, "Level", level);
-		cache_get_value_name_int(i, "Status", status);
-		cache_get_value_name_int(i, "GlobalTopPos", global_pos);
-		cache_unset_active();
-
-		LocalLevelTop[playerid][i][Name] = name;
-		LocalLevelTop[playerid][i][Level] = level;
-		LocalLevelTop[playerid][i][Status] = status;
-		LocalLevelTop[playerid][i][GlobalTopPosition] = global_pos;
-	}
-
-	cache_delete(q_result);
-}
-
-stock UpdateLocalOCTop(playerid)
-{
-	new name[255];
-	new query[255];
-	new string[255];
-	
-	GetPlayerName(playerid, name, sizeof(name));
-	format(query, sizeof(query), "SELECT * FROM `players` WHERE `Name` = '%s' LIMIT 1", name);
-	new Cache:q_result = mysql_query(sql_handle, query);
-
-	new row_count = 0;
-	cache_get_row_count(row_count);
-	if(row_count <= 0)
-	{
-		format(string, sizeof(string), "Local OC update error. Player: %s", name);
-		print(string);
-		cache_delete(q_result);
-		return;
-	}
-
-	new owner[255];
-	cache_get_value_name(0, "Owner", owner);
-	cache_delete(q_result);
-
-	format(query, sizeof(query), "SELECT * FROM `players` WHERE `Owner` = '%s' ORDER BY `OC` DESC LIMIT %d", owner, MAX_PARTICIPANTS / 2);
-	q_result = mysql_query(sql_handle, query);
-
-	row_count = 0;
-	cache_get_row_count(row_count);
-	if(row_count <= 0)
-	{
-		format(string, sizeof(string), "Local OC update error. Player: %s", name);
-		print(string);
-		cache_delete(q_result);
-		return;
-	}
-
-	q_result = cache_save();
-	cache_unset_active();
-
-	for(new i = 0; i < row_count; i++)
-	{
-		new oc;
-		new status;
-		new global_pos;
-
-		cache_set_active(q_result);
-		cache_get_value_name(i, "Name", name);
-		cache_get_value_name_int(i, "OC", oc);
-		cache_get_value_name_int(i, "Status", status);
-		cache_get_value_name_int(i, "GlobalTopPos", global_pos);
+		cache_get_value_name_int(i, "Rate", rate);
 		cache_unset_active();
 
 		format(query, sizeof(query), "UPDATE `players` SET `LocalTopPos` = '%d' WHERE `Name` = '%s' LIMIT 1", i+1, name);
 		new Cache:temp_result = mysql_query(sql_handle, query);
 		cache_delete(temp_result);
 
-		LocalOCTop[playerid][i][Name] = name;
-		LocalOCTop[playerid][i][OC] = oc;
-		LocalOCTop[playerid][i][Status] = status;
-		LocalOCTop[playerid][i][GlobalTopPosition] = global_pos;
+		LocalRatingTop[playerid][i][Name] = name;
+		LocalRatingTop[playerid][i][Rate] = rate;
 
 		new pid = GetPlayerID(name);
 		if(pid != -1)
@@ -9889,60 +12761,97 @@ stock UpdateLocalOCTop(playerid)
 	cache_delete(q_result);
 }
 
-stock ShowGlobalOCTop(playerid)
+stock GetHierarchyStatusString(status)
 {
-	new top[4000] = "№ п\\п\tИмя\tOC";
+	new string[64] = "";
+	switch(status)
+	{
+		case HIERARCHY_LEADER: string = "{cc0000}Патриарх";
+		case HIERARCHY_ARCHONT: string = "{674ea7}Архонт";
+		case HIERARCHY_ATTACK: string = "{0000ff}Атакующий";
+		case HIERARCHY_DEFENSE: string = "{b45f06}Защитник";
+		case HIERARCHY_SUPPORT: string = "{c27ba0}Поддержка";
+	}
+
+	return string;
+}
+
+stock ShowHierarchy(playerid)
+{
+	new info[2048] = "Статус\tИмя\tРейтинг";
+	new string[455];
+
+	for(new i = 1; i <= HIERARCHY_STATUSES_COUNT; i++)
+	{
+		new query[255];
+		format(query, sizeof(query), "SELECT * FROM `players` WHERE `Status` = %d LIMIT 1", i);
+		new Cache:q_result = mysql_query(sql_handle, query);
+
+		new row_count = 0;
+		cache_get_row_count(row_count);
+		if(row_count <= 0)
+		{
+			format(string, sizeof(string), "\n%s\t{ffffff}Нет\t-", GetHierarchyStatusString(i));
+			strcat(info, string);
+			cache_delete(q_result);
+			continue;
+		}
+
+		new name[255];
+		new rate;
+
+		cache_get_value_name(0, "Name", name);
+		cache_get_value_name_int(0, "Rate", rate);
+
+		format(string, sizeof(string), "\n%s\t{%s}%s\t{ffffff}%d", GetHierarchyStatusString(i), GetColorByRate(rate), name, rate);
+		strcat(info, string);
+
+		cache_delete(q_result);
+	}
+
+	new money = 0;
+	new query[255] = "SELECT * FROM `hierarchy` LIMIT 1";
+	new Cache:q_result = mysql_query(sql_handle, query);
+
+	new row_count = 0;
+	cache_get_row_count(row_count);
+	if(row_count > 0)
+		cache_get_value_name_int(0, "Money", money);
+
+    cache_delete(q_result);
+	
+	format(string, sizeof(string), "\n{ffffff}Накопленная сумма комиссий рынка: {00CC00}%s$", FormatMoney(money));
+	strcat(info, string);
+
+	ShowPlayerDialog(playerid, 1, DIALOG_STYLE_TABLIST_HEADERS, "Иерархия", info, "Закрыть", "");
+}
+
+stock ShowGlobalRatingTop(playerid)
+{
+	new top[4000] = "№ п\\п\tИмя\tРейтинг";
 	new string[455];
 	for (new i = 0; i < MAX_PARTICIPANTS; i++) 
 	{
 		format(string, sizeof(string), "\n{%s}%d\t{%s}%s\t%d", 
-			GetPlaceColor(i+1), i+1, GetTitleColor(GlobalOCTop[i][Status], i+1), GlobalOCTop[i][Name], GlobalOCTop[i][OC]
+			GetPlaceColor(i+1), i+1, GetColorByRate(GlobalRatingTop[i][Rate]), GlobalRatingTop[i][Name], GlobalRatingTop[i][Rate]
 		);
 		strcat(top, string);
 	}
-	ShowPlayerDialog(playerid, 1, DIALOG_STYLE_TABLIST_HEADERS, "Общий рейтинг участников (ОС)", top, "Закрыть", "");
+	ShowPlayerDialog(playerid, 1, DIALOG_STYLE_TABLIST_HEADERS, "Общий рейтинг участников", top, "Закрыть", "");
 }
 
-stock ShowLocalOCTop(playerid)
+stock ShowLocalRatingTop(playerid)
 {
-	new top[4000] = "№ п\\п\tИмя\tOC";
+	new top[4000] = "№ п\\п\tИмя\tРейтинг";
 	new string[455];
 	for (new i = 0; i < MAX_PARTICIPANTS / 2; i++) 
 	{
 		format(string, sizeof(string), "\n{%s}%d\t{%s}%s\t%d", 
-			GetPlaceColor(i+1), i+1, GetTitleColor(LocalOCTop[playerid][i][Status], LocalOCTop[playerid][i][GlobalTopPosition]), LocalOCTop[playerid][i][Name], LocalOCTop[playerid][i][OC]
+			GetPlaceColor(i+1), i+1, GetColorByRate(LocalRatingTop[playerid][i][Rate]), LocalRatingTop[playerid][i][Name], LocalRatingTop[playerid][i][Rate]
 		);
 		strcat(top, string);
 	}
-	ShowPlayerDialog(playerid, 1, DIALOG_STYLE_TABLIST_HEADERS, "Рейтинг моих участников (ОС)", top, "Закрыть", "");
-}
-
-stock ShowGlobalLevelTop(playerid)
-{
-	new top[4000] = "№ п\\п\tИмя\tУровень";
-	new string[455];
-	for (new i = 0; i < MAX_PARTICIPANTS; i++) 
-	{
-		format(string, sizeof(string), "\n{%s}%d\t{%s}%s\t%d", 
-			GetPlaceColor(i+1), i+1, GetTitleColor(GlobalLevelTop[i][Status], i+1), GlobalLevelTop[i][Name], GlobalLevelTop[i][Level]
-		);
-		strcat(top, string);
-	}
-	ShowPlayerDialog(playerid, 1, DIALOG_STYLE_TABLIST_HEADERS, "Общий рейтинг участников (опыт)", top, "Закрыть", "");
-}
-
-stock ShowLocalLevelTop(playerid)
-{
-	new top[4000] = "№ п\\п\tИмя\tУровень";
-	new string[455];
-	for (new i = 0; i < MAX_PARTICIPANTS / 2; i++) 
-	{
-		format(string, sizeof(string), "\n{%s}%d\t{%s}%s\t%d", 
-			GetPlaceColor(i+1), i+1, GetTitleColor(LocalLevelTop[playerid][i][Status], LocalLevelTop[playerid][i][GlobalTopPosition]), LocalLevelTop[playerid][i][Name], LocalLevelTop[playerid][i][Level]
-		);
-		strcat(top, string);
-	}
-	ShowPlayerDialog(playerid, 1, DIALOG_STYLE_TABLIST_HEADERS, "Рейтинг моих участников (опыт)", top, "Закрыть", "");
+	ShowPlayerDialog(playerid, 1, DIALOG_STYLE_TABLIST_HEADERS, "Рейтинг моих участников", top, "Закрыть", "");
 }
 
 stock IsTourParticipant(id)
@@ -9954,14 +12863,14 @@ stock IsTourParticipant(id)
 
 stock ShowTourParticipants(playerid)
 {
-	new top[4000] = "№ п\\п\tИмя\tУровень\tОС";
+	new top[4000] = "№ п\\п\tИмя\tРейтинг";
 	new string[255];
 	for (new i = 0; i < TourParticipantsCount; i++) 
 	{
 		new player[pInfo];
 		player = GetPlayer(Tournament[ParticipantsIDs][i]);
-		format(string, sizeof(string), "\n{ffffff}%d\t{%s}%s\t{ffffff}%d\t%d", 
-			i+1, GetTitleColor(player[Status], player[GlobalTopPosition]), player[Name], player[Level], player[OC]
+		format(string, sizeof(string), "\n{ffffff}%d\t{%s}%s\t%d", 
+			i+1, GetColorByRate(player[Rate]), player[Name], player[Rate]
 		);
 		strcat(top, string);
 	}
@@ -9992,22 +12901,20 @@ stock ShowTournamentTab(playerid)
 		new score = 0;
 		new kills = 0;
 		new deaths = 0;
-		new oc_diff = 0;
-
+		new r_diff = 0;
 		cache_get_value_name_int(i, "ID", id);
-		if(id == -1) continue;
 		cache_get_value_name_int(i, "Score", score);
 		cache_get_value_name_int(i, "Kills", kills);
 		cache_get_value_name_int(i, "Deaths", deaths);
-		cache_get_value_name_int(i, "OC", oc_diff);
+		cache_get_value_name_int(i, "RateDiff", r_diff);
+		if(id == -1) continue;
 
 		new player[pInfo];
 		player = GetPlayer(id);
 
 		format(TournamentTab[i][Name], 255, "%s", player[Name]);
-		TournamentTab[i][GlobalTopPosition] = player[GlobalTopPosition];
-		TournamentTab[i][Status] = player[Status];
-		TournamentTab[i][OC] = oc_diff;
+		TournamentTab[i][Rate] = player[Rate];
+		TournamentTab[i][RateDiff] = r_diff;
 		TournamentTab[i][Score] = score;
 		TournamentTab[i][Kills] = kills;
 		TournamentTab[i][Deaths] = deaths;
@@ -10016,27 +12923,27 @@ stock ShowTournamentTab(playerid)
 
 	cache_delete(q_result);
 
-	new top[4000] = "№ п\\п\tИмя\tРезультат\tOC";
+	new top[4000] = "№ п\\п\tИмя\tРезультат\tОчки (рейтинг)";
 	new string[255];
 	for (new i = 0; i < row_count; i++) 
 	{
-		new oc_color[32];
-		new oc_str[255];
-		new oc_diff = TournamentTab[i][OC];
-		if(oc_diff >= 0)
+		new rate_color[255];
+		new rate_str[32];
+		new rate_diff = TournamentTab[i][RateDiff];
+		if(rate_diff >= 0)
 		{
-		    oc_color = "33CC00";
-			format(oc_str, sizeof(oc_str), "+%d", oc_diff);
+		    rate_color = "33CC00";
+			format(rate_str, sizeof(rate_str), "+%d", rate_diff);
 		}
 		else
 		{
-		    oc_color = "CC0000";
-			format(oc_str, sizeof(oc_str), "-%d", oc_diff);
+		    rate_color = "CC0000";
+			format(rate_str, sizeof(rate_str), "%d", rate_diff);
 		}
 
 		format(string, sizeof(string), "\n{%s}%d\t{%s}%s\t{00CC00}%d {ffffff}- {CC0000}%d\t{9900CC}%d {ffffff}({%s}%s{ffffff})", 
-			GetPlaceColor(i+1), i+1, GetTitleColor(TournamentTab[i][Status], TournamentTab[i][GlobalTopPosition]), TournamentTab[i][Name],
-			TournamentTab[i][Kills], TournamentTab[i][Deaths], TournamentTab[i][Score], oc_color, oc_str
+			GetPlaceColor(i+1), i+1, GetColorByRate(TournamentTab[i][Rate]), TournamentTab[i][Name],
+			TournamentTab[i][Kills], TournamentTab[i][Deaths], TournamentTab[i][Score], rate_color, rate_str
 		);
 		strcat(top, string);
 	}
@@ -10061,9 +12968,7 @@ stock GetPlayerByName(name[])
 		return player;
 	}
 
-	cache_get_value_name_int(0, "Level", player[Level]);
-	cache_get_value_name_int(0, "Exp", player[Exp]);
-	cache_get_value_name_int(0, "OC", player[OC]);
+	cache_get_value_name_int(0, "Rate", player[Rate]);
 	new owner[255];
 	cache_get_value_name_int(0, "ID", player[ID]);
 	cache_get_value_name(0, "Owner", owner);
@@ -10089,9 +12994,7 @@ stock GetPlayer(id)
 		return player;
 	}
 
-	cache_get_value_name_int(0, "Level", player[Level]);
-	cache_get_value_name_int(0, "Exp", player[Exp]);
-	cache_get_value_name_int(0, "OC", player[OC]);
+	cache_get_value_name_int(0, "Rate", player[Rate]);
 	new name[255];
 	new owner[255];
 	cache_get_value_name(0, "Name", name);
@@ -10104,12 +13007,12 @@ stock GetPlayer(id)
 	return player;
 }
 
-stock GetWalker(type)
+stock GetWalker(rank)
 {
 	new walker[wInfo];
 
 	new query[255];
-	format(query, sizeof(query), "SELECT * FROM `walkers` WHERE `Type` = '%d' LIMIT 1", type);
+	format(query, sizeof(query), "SELECT * FROM `walkers` WHERE `Rank` = '%d' LIMIT 1", rank);
 	new Cache:q_result = mysql_query(sql_handle, query);
 	new row_count;
 	cache_get_row_count(row_count);
@@ -10119,7 +13022,7 @@ stock GetWalker(type)
 		return walker;
 	}
 
-	walker[Type] = type;
+	walker[Rank] = rank;
 
 	cache_get_value_name_int(0, "Skin", walker[Skin]);
 	cache_get_value_name_int(0, "MaxHP", walker[HP]);
@@ -10178,7 +13081,7 @@ stock SetWalkerDestPoint(walkerid)
 	new Float:x, Float:y, Float:z;
 	FCNPC_GetPosition(walkerid, x, y, z);
 
-	x = 184 + random(115);
+	x = 200 + random(99);
 	y = -1868 + random(27);
 
 	FCNPC_GoTo(walkerid, x, y, z, FCNPC_MOVE_TYPE_WALK, FCNPC_MOVE_SPEED_WALK);
@@ -10187,11 +13090,32 @@ stock SetWalkerDestPoint(walkerid)
 stock SetRandomWalkerPos(walkerid)
 {
 	new Float:x, Float:y, Float:z;
-	x = 184 + random(115);
+	x = 200 + random(99);
 	y = -1868 + random(27);
 	z = 3.2866;
 
 	FCNPC_SetPosition(walkerid, x, y, z);
+}
+
+stock SetMobDestPoint(mobid)
+{
+	new Float:x, Float:y, Float:z;
+	FCNPC_GetPosition(mobid, x, y, z);
+
+	x = -50 + random(104);
+	y = 1476 + random(92);
+
+	FCNPC_GoTo(mobid, x, y, z, FCNPC_MOVE_TYPE_WALK, FCNPC_MOVE_SPEED_WALK);
+}
+
+stock SetRandomMobPos(mobid)
+{
+	new Float:x, Float:y, Float:z;
+	x = -50 + random(104);
+	y = 1476 + random(92);
+	z = 12.7500;
+
+	FCNPC_SetPosition(mobid, x, y, z);
 }
 
 stock ResetWalkerDamagersInfo(walkerid)
@@ -10207,8 +13131,8 @@ stock InitWalkers()
 {
 	for(new i = 0; i < MAX_WALKERS; i++)
 	{
-		new type = random(WALKER_TYPES) + 1;
-		Walkers[i] = GetWalker(type);
+		new rank = random(MAX_RANK) + 1;
+		Walkers[i] = GetWalker(rank);
 
 		new npc_name[255];
 		format(npc_name, sizeof(npc_name), "Walker_%d", i);
@@ -10220,7 +13144,7 @@ stock InitWalkers()
 		MaxHP[Walkers[i][ID]] = Walkers[i][HP];
 		SetPlayerMaxHP(Walkers[i][ID], Walkers[i][HP], false);
 
-		PlayerInfo[Walkers[i][ID]][Level] = type * 5 + 10;
+		PlayerInfo[Walkers[i][ID]][Rank] = rank;
 		PlayerInfo[Walkers[i][ID]][DamageMin] = Walkers[i][DamageMin];
 		PlayerInfo[Walkers[i][ID]][DamageMax] = Walkers[i][DamageMax];
 		PlayerInfo[Walkers[i][ID]][Defense] = Walkers[i][Defense];
@@ -10238,11 +13162,37 @@ stock InitWalkers()
 		UpdatePlayerWeapon(Walkers[i][ID]);
 
 		new name[255];
-		format(name, sizeof(name), "[LV%d] %s", PlayerInfo[Walkers[i][ID]][Level], Walkers[i][Name]);
-		Walkers[i][LabelID] = CreateDynamic3DTextLabel(name, HexWalkerTypesColors[type-1][0], 0, 0, 0.15, 40, Walkers[i][ID]);
+		format(name, sizeof(name), "[LV%d] %s", Walkers[i][Rank], Walkers[i][Name]);
+		Walkers[i][LabelID] = CreateDynamic3DTextLabel(name, HexRateColors[Walkers[i][Rank]-1][0], 0, 0, 0.15, 40, Walkers[i][ID]);
 
 		SetWalkerDestPoint(Walkers[i][ID]);
 	}
+}
+
+stock ResetPlayerVariables(playerid)
+{
+	PlayerInfo[playerid][ID] = 0;
+	PlayerInfo[playerid][Rate] = 0;
+	PlayerInfo[playerid][Rank] = 0;
+	PlayerInfo[playerid][Status] = 0;
+	PlayerInfo[playerid][IsWatcher] = 0;
+	PlayerInfo[playerid][Cash] = 0;
+	PlayerInfo[playerid][Sex] = 0;
+	PlayerInfo[playerid][WeaponSlotID] = 0;
+	PlayerInfo[playerid][ArmorSlotID] = 81;
+    PlayerInfo[playerid][HatSlotID] = 161;
+    PlayerInfo[playerid][GlassesSlotID] = -1;
+    PlayerInfo[playerid][WatchSlotID] = -1;
+	PlayerInfo[playerid][RingSlot1ID] = -1;
+	PlayerInfo[playerid][RingSlot2ID] = -1;
+    PlayerInfo[playerid][AmuletteSlot1ID] = -1;
+	PlayerInfo[playerid][AmuletteSlot2ID] = -1;
+	PlayerInfo[playerid][WeaponMod] = MOD_CLEAR;
+	PlayerInfo[playerid][ArmorMod] = MOD_CLEAR;
+    PlayerInfo[playerid][HatMod] = MOD_CLEAR;
+    PlayerInfo[playerid][GlassesMod] = MOD_CLEAR;
+    PlayerInfo[playerid][WatchMod] = MOD_CLEAR;
+	DisableEffects(playerid);
 }
 
 stock DestroyWalkers()
@@ -10254,6 +13204,7 @@ stock DestroyWalkers()
 			KillTimer(WalkerRespawnTimer[Walkers[i][ID]]);
 		FCNPC_Destroy(Walkers[i][ID]);
 		IsWalker[Walkers[i][ID]] = false;
+		ResetPlayerVariables(Walkers[i][ID]);
 	}
 }
 
@@ -10318,19 +13269,19 @@ stock InitPlayerTextDraws(playerid)
 	PlayerTextDrawFont(playerid, HPBar[playerid], 1);
 	PlayerTextDrawSetProportional(playerid, HPBar[playerid], 1);
 
-	ChrInfoBox[playerid] = CreatePlayerTextDraw(playerid, 499.533386, 107.319213, "chrinfobox");
-	PlayerTextDrawLetterSize(playerid, ChrInfoBox[playerid], 0.000000, 22.429840);
-	PlayerTextDrawTextSize(playerid, ChrInfoBox[playerid], 606.567382, 0.000000);
+	ChrInfoBox[playerid] = CreatePlayerTextDraw(playerid, 477.000122, 103.129661, "mainbox");
+	PlayerTextDrawLetterSize(playerid, ChrInfoBox[playerid], 0.000000, 31.112138);
+	PlayerTextDrawTextSize(playerid, ChrInfoBox[playerid], 625.667053, 0.000000);
 	PlayerTextDrawAlignment(playerid, ChrInfoBox[playerid], 1);
 	PlayerTextDrawColor(playerid, ChrInfoBox[playerid], 0);
 	PlayerTextDrawUseBox(playerid, ChrInfoBox[playerid], true);
-	PlayerTextDrawBoxColor(playerid, ChrInfoBox[playerid], 102);
+	PlayerTextDrawBoxColor(playerid, ChrInfoBox[playerid], 0x000000DD);
 	PlayerTextDrawSetShadow(playerid, ChrInfoBox[playerid], 0);
 	PlayerTextDrawSetOutline(playerid, ChrInfoBox[playerid], 0);
 	PlayerTextDrawFont(playerid, ChrInfoBox[playerid], 0);
 
-	ChrInfoHeader[playerid] = CreatePlayerTextDraw(playerid, 551.999877, 107.436988, "Персонаж");
-	PlayerTextDrawLetterSize(playerid, ChrInfoHeader[playerid], 0.235999, 0.932147);
+	ChrInfoHeader[playerid] = CreatePlayerTextDraw(playerid, 555.733703, 103.454742, "Персонаж");
+	PlayerTextDrawLetterSize(playerid, ChrInfoHeader[playerid], 0.271333, 0.973630);
 	PlayerTextDrawAlignment(playerid, ChrInfoHeader[playerid], 2);
 	PlayerTextDrawColor(playerid, ChrInfoHeader[playerid], -1);
 	PlayerTextDrawSetShadow(playerid, ChrInfoHeader[playerid], 0);
@@ -10339,22 +13290,22 @@ stock InitPlayerTextDraws(playerid)
 	PlayerTextDrawFont(playerid, ChrInfoHeader[playerid], 1);
 	PlayerTextDrawSetProportional(playerid, ChrInfoHeader[playerid], 1);
 
-	ChrInfoDelim1[playerid] = CreatePlayerTextDraw(playerid, 498.299621, 116.480003, "chrinfo_delim1");
-	PlayerTextDrawLetterSize(playerid, ChrInfoDelim1[playerid], 0.005665, 1.837852);
-	PlayerTextDrawTextSize(playerid, ChrInfoDelim1[playerid], 108.999992, 2.074074);
-	PlayerTextDrawAlignment(playerid, ChrInfoDelim1[playerid], 1);
-	PlayerTextDrawColor(playerid, ChrInfoDelim1[playerid], 16711935);
-	PlayerTextDrawUseBox(playerid, ChrInfoDelim1[playerid], false);
-	PlayerTextDrawBoxColor(playerid, ChrInfoDelim1[playerid], 0);
-	PlayerTextDrawSetShadow(playerid, ChrInfoDelim1[playerid], 0);
-	PlayerTextDrawSetOutline(playerid, ChrInfoDelim1[playerid], 0);
-	PlayerTextDrawFont(playerid, ChrInfoDelim1[playerid], 5);
-	PlayerTextDrawBackgroundColor(playerid, ChrInfoDelim1[playerid], 0x00000000);
-	PlayerTextDrawSetPreviewModel(playerid, ChrInfoDelim1[playerid], 18656);
-	PlayerTextDrawSetPreviewRot(playerid, ChrInfoDelim1[playerid], 0.000000, 0.000000, 0.000000, 1.000000);
+	ChrInfDelim1[playerid] = CreatePlayerTextDraw(playerid, 498.299621, 116.480003, "chrinfo_delim1");
+	PlayerTextDrawLetterSize(playerid, ChrInfDelim1[playerid], 0.005665, 1.837852);
+	PlayerTextDrawTextSize(playerid, ChrInfDelim1[playerid], 108.999992, 2.074074);
+	PlayerTextDrawAlignment(playerid, ChrInfDelim1[playerid], 1);
+	PlayerTextDrawColor(playerid, ChrInfDelim1[playerid], 16711935);
+	PlayerTextDrawUseBox(playerid, ChrInfDelim1[playerid], false);
+	PlayerTextDrawBoxColor(playerid, ChrInfDelim1[playerid], 0);
+	PlayerTextDrawSetShadow(playerid, ChrInfDelim1[playerid], 0);
+	PlayerTextDrawSetOutline(playerid, ChrInfDelim1[playerid], 0);
+	PlayerTextDrawFont(playerid, ChrInfDelim1[playerid], 5);
+	PlayerTextDrawBackgroundColor(playerid, ChrInfDelim1[playerid], 0x00000000);
+	PlayerTextDrawSetPreviewModel(playerid, ChrInfDelim1[playerid], 18656);
+	PlayerTextDrawSetPreviewRot(playerid, ChrInfDelim1[playerid], 0.000000, 0.000000, 0.000000, 1.000000);
 
-	ChrInfMaxHP[playerid] = CreatePlayerTextDraw(playerid, 501.333282, 119.881446, "HP: 10000/10000");
-	PlayerTextDrawLetterSize(playerid, ChrInfMaxHP[playerid], 0.193332, 0.737185);
+	ChrInfMaxHP[playerid] = CreatePlayerTextDraw(playerid, 479.733489, 121.876953, "HP: 99999/99999");
+	PlayerTextDrawLetterSize(playerid, ChrInfMaxHP[playerid], 0.219999, 0.803556);
 	PlayerTextDrawAlignment(playerid, ChrInfMaxHP[playerid], 1);
 	PlayerTextDrawColor(playerid, ChrInfMaxHP[playerid], -1);
 	PlayerTextDrawSetShadow(playerid, ChrInfMaxHP[playerid], 0);
@@ -10363,8 +13314,8 @@ stock InitPlayerTextDraws(playerid)
 	PlayerTextDrawFont(playerid, ChrInfMaxHP[playerid], 1);
 	PlayerTextDrawSetProportional(playerid, ChrInfMaxHP[playerid], 1);
 
-	ChrInfDamage[playerid] = CreatePlayerTextDraw(playerid, 501.366607, 126.605903, "Урон: 9999-9999");
-	PlayerTextDrawLetterSize(playerid, ChrInfDamage[playerid], 0.193332, 0.737185);
+	ChrInfDamage[playerid] = CreatePlayerTextDraw(playerid, 479.800109, 128.850326, "Damage: 9999-9999");
+	PlayerTextDrawLetterSize(playerid, ChrInfDamage[playerid], 0.219999, 0.803556);
 	PlayerTextDrawAlignment(playerid, ChrInfDamage[playerid], 1);
 	PlayerTextDrawColor(playerid, ChrInfDamage[playerid], -1);
 	PlayerTextDrawSetShadow(playerid, ChrInfDamage[playerid], 0);
@@ -10373,8 +13324,8 @@ stock InitPlayerTextDraws(playerid)
 	PlayerTextDrawFont(playerid, ChrInfDamage[playerid], 1);
 	PlayerTextDrawSetProportional(playerid, ChrInfDamage[playerid], 1);
 
-	ChrInfDefense[playerid] = CreatePlayerTextDraw(playerid, 501.533477, 133.164413, "Защита: 9999");
-	PlayerTextDrawLetterSize(playerid, ChrInfDefense[playerid], 0.193332, 0.737185);
+	ChrInfDefense[playerid] = CreatePlayerTextDraw(playerid, 479.733428, 135.450424, "Defense: 99999");
+	PlayerTextDrawLetterSize(playerid, ChrInfDefense[playerid], 0.219999, 0.803556);
 	PlayerTextDrawAlignment(playerid, ChrInfDefense[playerid], 1);
 	PlayerTextDrawColor(playerid, ChrInfDefense[playerid], -1);
 	PlayerTextDrawSetShadow(playerid, ChrInfDefense[playerid], 0);
@@ -10383,8 +13334,8 @@ stock InitPlayerTextDraws(playerid)
 	PlayerTextDrawFont(playerid, ChrInfDefense[playerid], 1);
 	PlayerTextDrawSetProportional(playerid, ChrInfDefense[playerid], 1);
 
-	ChrInfAccuracy[playerid] = CreatePlayerTextDraw(playerid, 501.566833, 139.515502, "Точность: 999");
-	PlayerTextDrawLetterSize(playerid, ChrInfAccuracy[playerid], 0.193332, 0.737185);
+	ChrInfAccuracy[playerid] = CreatePlayerTextDraw(playerid, 479.800292, 142.050582, "Accuracy: 9999");
+	PlayerTextDrawLetterSize(playerid, ChrInfAccuracy[playerid], 0.219999, 0.803556);
 	PlayerTextDrawAlignment(playerid, ChrInfAccuracy[playerid], 1);
 	PlayerTextDrawColor(playerid, ChrInfAccuracy[playerid], -1);
 	PlayerTextDrawSetShadow(playerid, ChrInfAccuracy[playerid], 0);
@@ -10393,8 +13344,8 @@ stock InitPlayerTextDraws(playerid)
 	PlayerTextDrawFont(playerid, ChrInfAccuracy[playerid], 1);
 	PlayerTextDrawSetProportional(playerid, ChrInfAccuracy[playerid], 1);
 
-	ChrInfDodge[playerid] = CreatePlayerTextDraw(playerid, 501.533447, 145.534683, "Уклонение: 999");
-	PlayerTextDrawLetterSize(playerid, ChrInfDodge[playerid], 0.193332, 0.737185);
+	ChrInfDodge[playerid] = CreatePlayerTextDraw(playerid, 479.867034, 148.692001, "Dodge: 9999");
+	PlayerTextDrawLetterSize(playerid, ChrInfDodge[playerid], 0.219999, 0.803556);
 	PlayerTextDrawAlignment(playerid, ChrInfDodge[playerid], 1);
 	PlayerTextDrawColor(playerid, ChrInfDodge[playerid], -1);
 	PlayerTextDrawSetShadow(playerid, ChrInfDodge[playerid], 0);
@@ -10403,23 +13354,36 @@ stock InitPlayerTextDraws(playerid)
 	PlayerTextDrawFont(playerid, ChrInfDodge[playerid], 1);
 	PlayerTextDrawSetProportional(playerid, ChrInfDodge[playerid], 1);
 
-	ChrInfDelim2[playerid] = CreatePlayerTextDraw(playerid, 498.466400, 153.693481, "chrinfo_delim2");
-	PlayerTextDrawLetterSize(playerid, ChrInfDelim2[playerid], 0.005665, 1.837852);
-	PlayerTextDrawTextSize(playerid, ChrInfDelim2[playerid], 108.999992, 2.074074);
-	PlayerTextDrawAlignment(playerid, ChrInfDelim2[playerid], 1);
-	PlayerTextDrawColor(playerid, ChrInfDelim2[playerid], 16711935);
-	PlayerTextDrawUseBox(playerid, ChrInfDelim2[playerid], false);
-	PlayerTextDrawBoxColor(playerid, ChrInfDelim2[playerid], 0);
-	PlayerTextDrawSetShadow(playerid, ChrInfDelim2[playerid], 0);
-	PlayerTextDrawSetOutline(playerid, ChrInfDelim2[playerid], 0);
-	PlayerTextDrawFont(playerid, ChrInfDelim2[playerid], 5);
-	PlayerTextDrawBackgroundColor(playerid, ChrInfDelim2[playerid], 0x00000000);
-	PlayerTextDrawSetPreviewModel(playerid, ChrInfDelim2[playerid], 18656);
-	PlayerTextDrawSetPreviewRot(playerid, ChrInfDelim2[playerid], 0.000000, 0.000000, 0.000000, 1.000000);
+	ChrInfCrit[playerid] = CreatePlayerTextDraw(playerid, 479.933746, 155.209106, "Crit: 999");
+	PlayerTextDrawLetterSize(playerid, ChrInfCrit[playerid], 0.219999, 0.803556);
+	PlayerTextDrawAlignment(playerid, ChrInfCrit[playerid], 1);
+	PlayerTextDrawColor(playerid, ChrInfCrit[playerid], -1);
+	PlayerTextDrawSetShadow(playerid, ChrInfCrit[playerid], 0);
+	PlayerTextDrawSetOutline(playerid, ChrInfCrit[playerid], 0);
+	PlayerTextDrawBackgroundColor(playerid, ChrInfCrit[playerid], 51);
+	PlayerTextDrawFont(playerid, ChrInfCrit[playerid], 1);
+	PlayerTextDrawSetProportional(playerid, ChrInfCrit[playerid], 1);
+	PlayerTextDrawSetPreviewModel(playerid, ChrInfCrit[playerid], 0);
+	PlayerTextDrawSetPreviewRot(playerid, ChrInfCrit[playerid], 0.000000, 0.000000, 0.000000, 0.000000);
 
-	ChrInfArmorSlot[playerid] = CreatePlayerTextDraw(playerid, 591.000000, 121.000000, "armor_slot");
+	ChrInfHatSlot[playerid] = CreatePlayerTextDraw(playerid, 580.833801, 120.959968, "hat_slot");
+	PlayerTextDrawLetterSize(playerid, ChrInfHatSlot[playerid], 0.000000, 0.000000);
+	PlayerTextDrawTextSize(playerid, ChrInfHatSlot[playerid], 20.000000, 19.911109);
+	PlayerTextDrawAlignment(playerid, ChrInfHatSlot[playerid], 1);
+	PlayerTextDrawColor(playerid, ChrInfHatSlot[playerid], -1);
+	PlayerTextDrawUseBox(playerid, ChrInfHatSlot[playerid], true);
+	PlayerTextDrawBoxColor(playerid, ChrInfHatSlot[playerid], 0);
+	PlayerTextDrawSetShadow(playerid, ChrInfHatSlot[playerid], 0);
+	PlayerTextDrawSetOutline(playerid, ChrInfHatSlot[playerid], 0);
+	PlayerTextDrawBackgroundColor(playerid, ChrInfHatSlot[playerid], -1);
+	PlayerTextDrawFont(playerid, ChrInfHatSlot[playerid], 5);
+	PlayerTextDrawSetSelectable(playerid, ChrInfHatSlot[playerid], true);
+	PlayerTextDrawSetPreviewModel(playerid, ChrInfHatSlot[playerid], 18954);
+	PlayerTextDrawSetPreviewRot(playerid, ChrInfHatSlot[playerid], 0.000000, -45.000000, 0.000000, 1.000000);
+
+	ChrInfArmorSlot[playerid] = CreatePlayerTextDraw(playerid, 580.833740, 142.202850, "armor_slot");
 	PlayerTextDrawLetterSize(playerid, ChrInfArmorSlot[playerid], 0.000000, 0.000000);
-	PlayerTextDrawTextSize(playerid, ChrInfArmorSlot[playerid], 14.000000, 14.000000);
+	PlayerTextDrawTextSize(playerid, ChrInfArmorSlot[playerid], 20.000000, 19.911109);
 	PlayerTextDrawAlignment(playerid, ChrInfArmorSlot[playerid], 1);
 	PlayerTextDrawColor(playerid, ChrInfArmorSlot[playerid], -1);
 	PlayerTextDrawUseBox(playerid, ChrInfArmorSlot[playerid], true);
@@ -10428,13 +13392,103 @@ stock InitPlayerTextDraws(playerid)
 	PlayerTextDrawSetOutline(playerid, ChrInfArmorSlot[playerid], 0);
 	PlayerTextDrawBackgroundColor(playerid, ChrInfArmorSlot[playerid], -1);
 	PlayerTextDrawFont(playerid, ChrInfArmorSlot[playerid], 5);
+	PlayerTextDrawSetSelectable(playerid, ChrInfArmorSlot[playerid], true);
 	PlayerTextDrawSetPreviewModel(playerid, ChrInfArmorSlot[playerid], 1275);
 	PlayerTextDrawSetPreviewRot(playerid, ChrInfArmorSlot[playerid], 0.000000, 0.000000, 0.000000, 1.000000);
-	PlayerTextDrawSetSelectable(playerid, ChrInfArmorSlot[playerid], true);
 
-	ChrInfWeaponSlot[playerid] = CreatePlayerTextDraw(playerid, 575.000000, 121.000000, "weapon_slot");
+	ChrInfWatchSlot[playerid] = CreatePlayerTextDraw(playerid, 601.833557, 142.207229, "watch_slot");
+	PlayerTextDrawLetterSize(playerid, ChrInfWatchSlot[playerid], 0.000000, 0.000000);
+	PlayerTextDrawTextSize(playerid, ChrInfWatchSlot[playerid], 20.000000, 19.911109);
+	PlayerTextDrawAlignment(playerid, ChrInfWatchSlot[playerid], 1);
+	PlayerTextDrawColor(playerid, ChrInfWatchSlot[playerid], -1);
+	PlayerTextDrawUseBox(playerid, ChrInfWatchSlot[playerid], true);
+	PlayerTextDrawBoxColor(playerid, ChrInfWatchSlot[playerid], 0);
+	PlayerTextDrawSetShadow(playerid, ChrInfWatchSlot[playerid], 0);
+	PlayerTextDrawSetOutline(playerid, ChrInfWatchSlot[playerid], 0);
+	PlayerTextDrawBackgroundColor(playerid, ChrInfWatchSlot[playerid], -1);
+	PlayerTextDrawFont(playerid, ChrInfWatchSlot[playerid], 5);
+	PlayerTextDrawSetSelectable(playerid, ChrInfWatchSlot[playerid], true);
+	PlayerTextDrawSetPreviewModel(playerid, ChrInfWatchSlot[playerid], 19046);
+	PlayerTextDrawSetPreviewRot(playerid, ChrInfWatchSlot[playerid], 0.000000, -45.000000, 0.000000, 1.000000);
+
+	ChrInfGlassesSlot[playerid] = CreatePlayerTextDraw(playerid, 559.766662, 142.294647, "glasses_slot");
+	PlayerTextDrawLetterSize(playerid, ChrInfGlassesSlot[playerid], 0.000000, 0.000000);
+	PlayerTextDrawTextSize(playerid, ChrInfGlassesSlot[playerid], 20.000000, 19.911109);
+	PlayerTextDrawAlignment(playerid, ChrInfGlassesSlot[playerid], 1);
+	PlayerTextDrawColor(playerid, ChrInfGlassesSlot[playerid], -1);
+	PlayerTextDrawUseBox(playerid, ChrInfGlassesSlot[playerid], true);
+	PlayerTextDrawBoxColor(playerid, ChrInfGlassesSlot[playerid], 0);
+	PlayerTextDrawSetShadow(playerid, ChrInfGlassesSlot[playerid], 0);
+	PlayerTextDrawSetOutline(playerid, ChrInfGlassesSlot[playerid], 0);
+	PlayerTextDrawBackgroundColor(playerid, ChrInfGlassesSlot[playerid], -1);
+	PlayerTextDrawFont(playerid, ChrInfGlassesSlot[playerid], 5);
+	PlayerTextDrawSetSelectable(playerid, ChrInfGlassesSlot[playerid], true);
+	PlayerTextDrawSetPreviewModel(playerid, ChrInfGlassesSlot[playerid], 19034);
+	PlayerTextDrawSetPreviewRot(playerid, ChrInfGlassesSlot[playerid], 0.000000, -45.000000, 135.000000, 1.000000);
+
+	ChrInfAmuletteSlot1[playerid] = CreatePlayerTextDraw(playerid, 601.633666, 120.663269, "amulette_slot_1");
+	PlayerTextDrawLetterSize(playerid, ChrInfAmuletteSlot1[playerid], 0.000000, 0.000000);
+	PlayerTextDrawTextSize(playerid, ChrInfAmuletteSlot1[playerid], 9.899995, 9.899995);
+	PlayerTextDrawAlignment(playerid, ChrInfAmuletteSlot1[playerid], 1);
+	PlayerTextDrawColor(playerid, ChrInfAmuletteSlot1[playerid], -1);
+	PlayerTextDrawUseBox(playerid, ChrInfAmuletteSlot1[playerid], true);
+	PlayerTextDrawBoxColor(playerid, ChrInfAmuletteSlot1[playerid], 0);
+	PlayerTextDrawSetShadow(playerid, ChrInfAmuletteSlot1[playerid], 0);
+	PlayerTextDrawSetOutline(playerid, ChrInfAmuletteSlot1[playerid], 0);
+	PlayerTextDrawBackgroundColor(playerid, ChrInfAmuletteSlot1[playerid], -1);
+	PlayerTextDrawFont(playerid, ChrInfAmuletteSlot1[playerid], 5);
+	PlayerTextDrawSetSelectable(playerid, ChrInfAmuletteSlot1[playerid], true);
+	PlayerTextDrawSetPreviewModel(playerid, ChrInfAmuletteSlot1[playerid], 954);
+	PlayerTextDrawSetPreviewRot(playerid, ChrInfAmuletteSlot1[playerid], 0.000000, 0.000000, 0.000000, 1.000000);
+
+	ChrInfAmuletteSlot2[playerid] = CreatePlayerTextDraw(playerid, 612.200378, 120.667755, "amulette_slot_2");
+	PlayerTextDrawLetterSize(playerid, ChrInfAmuletteSlot2[playerid], 0.000000, 0.000000);
+	PlayerTextDrawTextSize(playerid, ChrInfAmuletteSlot2[playerid], 9.899995, 9.899995);
+	PlayerTextDrawAlignment(playerid, ChrInfAmuletteSlot2[playerid], 1);
+	PlayerTextDrawColor(playerid, ChrInfAmuletteSlot2[playerid], -1);
+	PlayerTextDrawUseBox(playerid, ChrInfAmuletteSlot2[playerid], true);
+	PlayerTextDrawBoxColor(playerid, ChrInfAmuletteSlot2[playerid], 0);
+	PlayerTextDrawSetShadow(playerid, ChrInfAmuletteSlot2[playerid], 0);
+	PlayerTextDrawSetOutline(playerid, ChrInfAmuletteSlot2[playerid], 0);
+	PlayerTextDrawBackgroundColor(playerid, ChrInfAmuletteSlot2[playerid], -1);
+	PlayerTextDrawFont(playerid, ChrInfAmuletteSlot2[playerid], 5);
+	PlayerTextDrawSetSelectable(playerid, ChrInfAmuletteSlot2[playerid], true);
+	PlayerTextDrawSetPreviewModel(playerid, ChrInfAmuletteSlot2[playerid], 954);
+	PlayerTextDrawSetPreviewRot(playerid, ChrInfAmuletteSlot2[playerid], 0.000000, 0.000000, 0.000000, 1.000000);
+
+	ChrInfRingSlot2[playerid] = CreatePlayerTextDraw(playerid, 612.133728, 131.167098, "ring_slot_2");
+	PlayerTextDrawLetterSize(playerid, ChrInfRingSlot2[playerid], 0.000000, 0.000000);
+	PlayerTextDrawTextSize(playerid, ChrInfRingSlot2[playerid], 9.899995, 9.899995);
+	PlayerTextDrawAlignment(playerid, ChrInfRingSlot2[playerid], 1);
+	PlayerTextDrawColor(playerid, ChrInfRingSlot2[playerid], -1);
+	PlayerTextDrawUseBox(playerid, ChrInfRingSlot2[playerid], true);
+	PlayerTextDrawBoxColor(playerid, ChrInfRingSlot2[playerid], 0);
+	PlayerTextDrawSetShadow(playerid, ChrInfRingSlot2[playerid], 0);
+	PlayerTextDrawSetOutline(playerid, ChrInfRingSlot2[playerid], 0);
+	PlayerTextDrawBackgroundColor(playerid, ChrInfRingSlot2[playerid], -1);
+	PlayerTextDrawFont(playerid, ChrInfRingSlot2[playerid], 5);
+	PlayerTextDrawSetSelectable(playerid, ChrInfRingSlot2[playerid], true);
+	PlayerTextDrawSetPreviewModel(playerid, ChrInfRingSlot2[playerid], 954);
+	PlayerTextDrawSetPreviewRot(playerid, ChrInfRingSlot2[playerid], 0.000000, 0.000000, 0.000000, 1.000000);
+
+	ChrInfRingSlot1[playerid] = CreatePlayerTextDraw(playerid, 601.700317, 131.070693, "ring_slot_1");
+	PlayerTextDrawLetterSize(playerid, ChrInfRingSlot1[playerid], 0.000000, 0.000000);
+	PlayerTextDrawTextSize(playerid, ChrInfRingSlot1[playerid], 9.899995, 9.899995);
+	PlayerTextDrawAlignment(playerid, ChrInfRingSlot1[playerid], 1);
+	PlayerTextDrawColor(playerid, ChrInfRingSlot1[playerid], -1);
+	PlayerTextDrawUseBox(playerid, ChrInfRingSlot1[playerid], true);
+	PlayerTextDrawBoxColor(playerid, ChrInfRingSlot1[playerid], 0);
+	PlayerTextDrawSetShadow(playerid, ChrInfRingSlot1[playerid], 0);
+	PlayerTextDrawSetOutline(playerid, ChrInfRingSlot1[playerid], 0);
+	PlayerTextDrawBackgroundColor(playerid, ChrInfRingSlot1[playerid], -1);
+	PlayerTextDrawFont(playerid, ChrInfRingSlot1[playerid], 5);
+	PlayerTextDrawSetSelectable(playerid, ChrInfRingSlot1[playerid], true);
+	PlayerTextDrawSetPreviewModel(playerid, ChrInfRingSlot1[playerid], 954);
+	PlayerTextDrawSetPreviewRot(playerid, ChrInfRingSlot1[playerid], 0.000000, 0.000000, 0.000000, 1.000000);
+
+	ChrInfWeaponSlot[playerid] = CreatePlayerTextDraw(playerid, 559.866638, 121.350975, "weapon_slot");
 	PlayerTextDrawLetterSize(playerid, ChrInfWeaponSlot[playerid], 0.000000, 0.000000);
-	PlayerTextDrawTextSize(playerid, ChrInfWeaponSlot[playerid], 14.000000, 14.000000);
+	PlayerTextDrawTextSize(playerid, ChrInfWeaponSlot[playerid], 20.000000, 20.000000);
 	PlayerTextDrawAlignment(playerid, ChrInfWeaponSlot[playerid], 1);
 	PlayerTextDrawColor(playerid, ChrInfWeaponSlot[playerid], -1);
 	PlayerTextDrawUseBox(playerid, ChrInfWeaponSlot[playerid], true);
@@ -10443,130 +13497,44 @@ stock InitPlayerTextDraws(playerid)
 	PlayerTextDrawSetOutline(playerid, ChrInfWeaponSlot[playerid], 0);
 	PlayerTextDrawBackgroundColor(playerid, ChrInfWeaponSlot[playerid], -1);
 	PlayerTextDrawFont(playerid, ChrInfWeaponSlot[playerid], 5);
+	PlayerTextDrawSetSelectable(playerid, ChrInfWeaponSlot[playerid], true);
 	PlayerTextDrawSetPreviewModel(playerid, ChrInfWeaponSlot[playerid], 346);
 	PlayerTextDrawSetPreviewRot(playerid, ChrInfWeaponSlot[playerid], 0.000000, 0.000000, 0.000000, 1.000000);
-	PlayerTextDrawSetSelectable(playerid, ChrInfWeaponSlot[playerid], true);
 
-	ChrInfAccSlot1[playerid] = CreatePlayerTextDraw(playerid, 575.000000, 137.000000, "acs_slot1");
-	PlayerTextDrawLetterSize(playerid, ChrInfAccSlot1[playerid], 0.000000, 0.000000);
-	PlayerTextDrawTextSize(playerid, ChrInfAccSlot1[playerid], 14.000000, 14.000000);
-	PlayerTextDrawAlignment(playerid, ChrInfAccSlot1[playerid], 1);
-	PlayerTextDrawColor(playerid, ChrInfAccSlot1[playerid], -1);
-	PlayerTextDrawUseBox(playerid, ChrInfAccSlot1[playerid], true);
-	PlayerTextDrawBoxColor(playerid, ChrInfAccSlot1[playerid], 0);
-	PlayerTextDrawSetShadow(playerid, ChrInfAccSlot1[playerid], 0);
-	PlayerTextDrawSetOutline(playerid, ChrInfAccSlot1[playerid], 0);
-	PlayerTextDrawBackgroundColor(playerid, ChrInfAccSlot1[playerid], -1);
-	PlayerTextDrawFont(playerid, ChrInfAccSlot1[playerid], 5);
-	PlayerTextDrawSetPreviewModel(playerid, ChrInfAccSlot1[playerid], 954);
-	PlayerTextDrawSetPreviewRot(playerid, ChrInfAccSlot1[playerid], 0.000000, 0.000000, 0.000000, 1.000000);
-	PlayerTextDrawSetSelectable(playerid, ChrInfAccSlot1[playerid], true);
+	ChrInfDelim1[playerid] = CreatePlayerTextDraw(playerid, 475.766632, 115.069625, "delim1");
+	PlayerTextDrawLetterSize(playerid, ChrInfDelim1[playerid], 0.000000, 0.000000);
+	PlayerTextDrawTextSize(playerid, ChrInfDelim1[playerid], 150.766723, 2.488883);
+	PlayerTextDrawAlignment(playerid, ChrInfDelim1[playerid], 1);
+	PlayerTextDrawColor(playerid, ChrInfDelim1[playerid], -65281);
+	PlayerTextDrawUseBox(playerid, ChrInfDelim1[playerid], true);
+	PlayerTextDrawBoxColor(playerid, ChrInfDelim1[playerid], 0);
+	PlayerTextDrawSetShadow(playerid, ChrInfDelim1[playerid], 0);
+	PlayerTextDrawSetOutline(playerid, ChrInfDelim1[playerid], 0);
+	PlayerTextDrawFont(playerid, ChrInfDelim1[playerid], 5);
+	PlayerTextDrawBackgroundColor(playerid, ChrInfDelim1[playerid], 0x00000000);
+	PlayerTextDrawSetPreviewModel(playerid, ChrInfDelim1[playerid], 18656);
+	PlayerTextDrawSetPreviewRot(playerid, ChrInfDelim1[playerid], 0.000000, 0.000000, 0.000000, 1.000000);
 
-	ChrInfAccSlot2[playerid] = CreatePlayerTextDraw(playerid, 591.000000, 137.000000, "acs_slot2");
-	PlayerTextDrawLetterSize(playerid, ChrInfAccSlot2[playerid], 0.000000, 0.000000);
-	PlayerTextDrawTextSize(playerid, ChrInfAccSlot2[playerid], 14.000000, 14.000000);
-	PlayerTextDrawAlignment(playerid, ChrInfAccSlot2[playerid], 1);
-	PlayerTextDrawColor(playerid, ChrInfAccSlot2[playerid], -1);
-	PlayerTextDrawUseBox(playerid, ChrInfAccSlot2[playerid], true);
-	PlayerTextDrawBoxColor(playerid, ChrInfAccSlot2[playerid], 0);
-	PlayerTextDrawSetShadow(playerid, ChrInfAccSlot2[playerid], 0);
-	PlayerTextDrawSetOutline(playerid, ChrInfAccSlot2[playerid], 0);
-	PlayerTextDrawBackgroundColor(playerid, ChrInfAccSlot2[playerid], -1);
-	PlayerTextDrawFont(playerid, ChrInfAccSlot2[playerid], 5);
-	PlayerTextDrawSetPreviewModel(playerid, ChrInfAccSlot2[playerid], 954);
-	PlayerTextDrawSetPreviewRot(playerid, ChrInfAccSlot2[playerid], 0.000000, 0.000000, 0.000000, 1.000000);
-	PlayerTextDrawSetSelectable(playerid, ChrInfAccSlot2[playerid], true);
+	ChrInfDelim2[playerid] = CreatePlayerTextDraw(playerid, 476.099945, 165.640029, "delim2");
+	PlayerTextDrawLetterSize(playerid, ChrInfDelim2[playerid], 0.000000, 0.000000);
+	PlayerTextDrawTextSize(playerid, ChrInfDelim2[playerid], 150.100067, 2.488883);
+	PlayerTextDrawAlignment(playerid, ChrInfDelim2[playerid], 1);
+	PlayerTextDrawColor(playerid, ChrInfDelim2[playerid], -65281);
+	PlayerTextDrawUseBox(playerid, ChrInfDelim2[playerid], true);
+	PlayerTextDrawBoxColor(playerid, ChrInfDelim2[playerid], 0);
+	PlayerTextDrawSetShadow(playerid, ChrInfDelim2[playerid], 0);
+	PlayerTextDrawSetOutline(playerid, ChrInfDelim2[playerid], 0);
+	PlayerTextDrawFont(playerid, ChrInfDelim2[playerid], 5);
+	PlayerTextDrawBackgroundColor(playerid, ChrInfDelim2[playerid], 0x00000000);
+	PlayerTextDrawSetPreviewModel(playerid, ChrInfDelim2[playerid], 18656);
+	PlayerTextDrawSetPreviewRot(playerid, ChrInfDelim2[playerid], 0.000000, 0.000000, 0.000000, 1.000000);
 
-	ChrInfClose[playerid] = CreatePlayerTextDraw(playerid, 601.999938, 106.607421, "X");
-	PlayerTextDrawLetterSize(playerid, ChrInfClose[playerid], 0.315333, 1.010962);
-	PlayerTextDrawTextSize(playerid, ChrInfClose[playerid], 6.666668, 4.977776);
-	PlayerTextDrawAlignment(playerid, ChrInfClose[playerid], 2);
-	PlayerTextDrawColor(playerid, ChrInfClose[playerid], -2147483393);
-	PlayerTextDrawUseBox(playerid, ChrInfClose[playerid], true);
-	PlayerTextDrawBoxColor(playerid, ChrInfClose[playerid], 0);
-	PlayerTextDrawBackgroundColor(playerid, ChrInfClose[playerid], 0x00000000);
-	PlayerTextDrawSetShadow(playerid, ChrInfClose[playerid], 0);
-	PlayerTextDrawSetOutline(playerid, ChrInfClose[playerid], 1);
-	PlayerTextDrawFont(playerid, ChrInfClose[playerid], 1);
-	PlayerTextDrawSetProportional(playerid, ChrInfClose[playerid], 1);
-	PlayerTextDrawSetSelectable(playerid, ChrInfClose[playerid], true);
-
-	ChrInfText1[playerid] = CreatePlayerTextDraw(playerid, 519.999877, 156.385177, "Общий");
-	PlayerTextDrawLetterSize(playerid, ChrInfText1[playerid], 0.186000, 0.716444);
-	PlayerTextDrawAlignment(playerid, ChrInfText1[playerid], 2);
-	PlayerTextDrawColor(playerid, ChrInfText1[playerid], -1);
-	PlayerTextDrawSetShadow(playerid, ChrInfText1[playerid], 0);
-	PlayerTextDrawSetOutline(playerid, ChrInfText1[playerid], 0);
-	PlayerTextDrawBackgroundColor(playerid, ChrInfText1[playerid], 51);
-	PlayerTextDrawFont(playerid, ChrInfText1[playerid], 1);
-	PlayerTextDrawSetProportional(playerid, ChrInfText1[playerid], 1);
-
-	ChrInfAllRate[playerid] = CreatePlayerTextDraw(playerid, 520.299987, 163.151092, "99");
-	PlayerTextDrawLetterSize(playerid, ChrInfAllRate[playerid], 0.263000, 1.243257);
-	PlayerTextDrawAlignment(playerid, ChrInfAllRate[playerid], 2);
-	PlayerTextDrawColor(playerid, ChrInfAllRate[playerid], -5963521);
-	PlayerTextDrawSetShadow(playerid, ChrInfAllRate[playerid], 0);
-	PlayerTextDrawSetOutline(playerid, ChrInfAllRate[playerid], 0);
-	PlayerTextDrawBackgroundColor(playerid, ChrInfAllRate[playerid], 51);
-	PlayerTextDrawFont(playerid, ChrInfAllRate[playerid], 1);
-	PlayerTextDrawSetProportional(playerid, ChrInfAllRate[playerid], 1);
-
-	ChrInfOC[playerid] = CreatePlayerTextDraw(playerid, 554.765869, 160.334808, "OC: 500000");
-	PlayerTextDrawLetterSize(playerid, ChrInfOC[playerid], 0.215332, 1.085629);
-	PlayerTextDrawAlignment(playerid, ChrInfOC[playerid], 2);
-	PlayerTextDrawColor(playerid, ChrInfOC[playerid], -1378294017);
-	PlayerTextDrawSetShadow(playerid, ChrInfOC[playerid], 0);
-	PlayerTextDrawSetOutline(playerid, ChrInfOC[playerid], 0);
-	PlayerTextDrawBackgroundColor(playerid, ChrInfOC[playerid], 51);
-	PlayerTextDrawFont(playerid, ChrInfOC[playerid], 1);
-	PlayerTextDrawSetProportional(playerid, ChrInfOC[playerid], 1);
-
-	ChrInfCPLabel[playerid] = CreatePlayerTextDraw(playerid, 498.933502, 97.025161, "CP:");
-	PlayerTextDrawLetterSize(playerid, ChrInfCPLabel[playerid], 0.202333, 0.836742);
-	PlayerTextDrawAlignment(playerid, ChrInfCPLabel[playerid], 1);
-	PlayerTextDrawColor(playerid, ChrInfCPLabel[playerid], -5963521);
-	PlayerTextDrawSetShadow(playerid, ChrInfCPLabel[playerid], 0);
-	PlayerTextDrawSetOutline(playerid, ChrInfCPLabel[playerid], 1);
-	PlayerTextDrawBackgroundColor(playerid, ChrInfCPLabel[playerid], 51);
-	PlayerTextDrawFont(playerid, ChrInfCPLabel[playerid], 1);
-	PlayerTextDrawSetProportional(playerid, ChrInfCPLabel[playerid], 1);
-
-	ChrInfCPValue[playerid] = CreatePlayerTextDraw(playerid, 607.932739, 97.236984, "0");
-	PlayerTextDrawLetterSize(playerid, ChrInfCPValue[playerid], 0.202333, 0.836742);
-	PlayerTextDrawAlignment(playerid, ChrInfCPValue[playerid], 3);
-	PlayerTextDrawColor(playerid, ChrInfCPValue[playerid], -5963521);
-	PlayerTextDrawSetShadow(playerid, ChrInfCPValue[playerid], 0);
-	PlayerTextDrawSetOutline(playerid, ChrInfCPValue[playerid], 1);
-	PlayerTextDrawBackgroundColor(playerid, ChrInfCPValue[playerid], 51);
-	PlayerTextDrawFont(playerid, ChrInfCPValue[playerid], 1);
-	PlayerTextDrawSetProportional(playerid, ChrInfCPValue[playerid], 1);
-
-	ChrInfText2[playerid] = CreatePlayerTextDraw(playerid, 589.599487, 156.638442, "Личный");
-	PlayerTextDrawLetterSize(playerid, ChrInfText2[playerid], 0.186000, 0.716444);
-	PlayerTextDrawAlignment(playerid, ChrInfText2[playerid], 2);
-	PlayerTextDrawColor(playerid, ChrInfText2[playerid], -1);
-	PlayerTextDrawSetShadow(playerid, ChrInfText2[playerid], 0);
-	PlayerTextDrawSetOutline(playerid, ChrInfText2[playerid], 0);
-	PlayerTextDrawBackgroundColor(playerid, ChrInfText2[playerid], 51);
-	PlayerTextDrawFont(playerid, ChrInfText2[playerid], 1);
-	PlayerTextDrawSetProportional(playerid, ChrInfText2[playerid], 1);
-
-	ChrInfPersonalRate[playerid] = CreatePlayerTextDraw(playerid, 589.832946, 163.487228, "11");
-	PlayerTextDrawLetterSize(playerid, ChrInfPersonalRate[playerid], 0.263000, 1.243257);
-	PlayerTextDrawAlignment(playerid, ChrInfPersonalRate[playerid], 2);
-	PlayerTextDrawColor(playerid, ChrInfPersonalRate[playerid], -5963521);
-	PlayerTextDrawSetShadow(playerid, ChrInfPersonalRate[playerid], 0);
-	PlayerTextDrawSetOutline(playerid, ChrInfPersonalRate[playerid], 0);
-	PlayerTextDrawBackgroundColor(playerid, ChrInfPersonalRate[playerid], 51);
-	PlayerTextDrawFont(playerid, ChrInfPersonalRate[playerid], 1);
-	PlayerTextDrawSetProportional(playerid, ChrInfPersonalRate[playerid], 1);
-
-	ChrInfDelim3[playerid] = CreatePlayerTextDraw(playerid, 498.399719, 174.978012, "chrinfo_delim3");
-	PlayerTextDrawLetterSize(playerid, ChrInfDelim3[playerid], 0.005665, 1.837852);
-	PlayerTextDrawTextSize(playerid, ChrInfDelim3[playerid], 108.999992, 2.074074);
+	ChrInfDelim3[playerid] = CreatePlayerTextDraw(playerid, 476.833190, 188.832504, "delim3");
+	PlayerTextDrawLetterSize(playerid, ChrInfDelim3[playerid], 0.000000, 0.000000);
+	PlayerTextDrawTextSize(playerid, ChrInfDelim3[playerid], 149.833511, 2.488883);
 	PlayerTextDrawAlignment(playerid, ChrInfDelim3[playerid], 1);
-	PlayerTextDrawColor(playerid, ChrInfDelim3[playerid], 16711935);
-	PlayerTextDrawUseBox(playerid, ChrInfDelim3[playerid], false);
+	PlayerTextDrawColor(playerid, ChrInfDelim3[playerid], -65281);
+	PlayerTextDrawUseBox(playerid, ChrInfDelim3[playerid], true);
 	PlayerTextDrawBoxColor(playerid, ChrInfDelim3[playerid], 0);
 	PlayerTextDrawSetShadow(playerid, ChrInfDelim3[playerid], 0);
 	PlayerTextDrawSetOutline(playerid, ChrInfDelim3[playerid], 0);
@@ -10575,72 +13543,230 @@ stock InitPlayerTextDraws(playerid)
 	PlayerTextDrawSetPreviewModel(playerid, ChrInfDelim3[playerid], 18656);
 	PlayerTextDrawSetPreviewRot(playerid, ChrInfDelim3[playerid], 0.000000, 0.000000, 0.000000, 1.000000);
 
-	LevelCircle[playerid] = CreatePlayerTextDraw(playerid, 587.333251, 392.000152, "LevelCircle");
-	PlayerTextDrawLetterSize(playerid, LevelCircle[playerid], 0.000000, 2.866667);
-	PlayerTextDrawTextSize(playerid, LevelCircle[playerid], 70.000022, 70.933349);
-	PlayerTextDrawAlignment(playerid, LevelCircle[playerid], 1);
-	PlayerTextDrawColor(playerid, LevelCircle[playerid], -1378294017);
-	PlayerTextDrawUseBox(playerid, LevelCircle[playerid], true);
-	PlayerTextDrawBoxColor(playerid, LevelCircle[playerid], 0x00000000);
-	PlayerTextDrawBackgroundColor(playerid, LevelCircle[playerid], 0x00000000);
-	PlayerTextDrawSetShadow(playerid, LevelCircle[playerid], 0);
-	PlayerTextDrawSetOutline(playerid, LevelCircle[playerid], 0);
-	PlayerTextDrawFont(playerid, LevelCircle[playerid], 5);
-	PlayerTextDrawSetPreviewModel(playerid, LevelCircle[playerid], 2992);
-	PlayerTextDrawSetPreviewRot(playerid, LevelCircle[playerid], 90.000000, 0.000000, 0.000000, 1.000000);
+	ChrInfDelim4[playerid] = CreatePlayerTextDraw(playerid, 477.499877, 202.525741, "delim4");
+	PlayerTextDrawLetterSize(playerid, ChrInfDelim4[playerid], 0.000000, 0.000000);
+	PlayerTextDrawTextSize(playerid, ChrInfDelim4[playerid], 149.500167, 2.488883);
+	PlayerTextDrawAlignment(playerid, ChrInfDelim4[playerid], 1);
+	PlayerTextDrawColor(playerid, ChrInfDelim4[playerid], -65281);
+	PlayerTextDrawUseBox(playerid, ChrInfDelim4[playerid], true);
+	PlayerTextDrawBoxColor(playerid, ChrInfDelim4[playerid], 0);
+	PlayerTextDrawSetShadow(playerid, ChrInfDelim4[playerid], 0);
+	PlayerTextDrawSetOutline(playerid, ChrInfDelim4[playerid], 0);
+	PlayerTextDrawFont(playerid, ChrInfDelim4[playerid], 5);
+	PlayerTextDrawBackgroundColor(playerid, ChrInfDelim4[playerid], 0x00000000);
+	PlayerTextDrawSetPreviewModel(playerid, ChrInfDelim4[playerid], 18656);
+	PlayerTextDrawSetPreviewRot(playerid, ChrInfDelim4[playerid], 0.000000, 0.000000, 0.000000, 1.000000);
 
-	ExpLine[playerid] = CreatePlayerTextDraw(playerid, 0.000037, 443.312683, "ExpLine");
-	PlayerTextDrawLetterSize(playerid, ExpLine[playerid], 0.000000, -3.700000);
-	PlayerTextDrawTextSize(playerid, ExpLine[playerid], 639.666625, 5.807403);
-	PlayerTextDrawAlignment(playerid, ExpLine[playerid], 1);
-	PlayerTextDrawColor(playerid, ExpLine[playerid], 16711935);
-	PlayerTextDrawUseBox(playerid, ExpLine[playerid], true);
-	PlayerTextDrawBoxColor(playerid, ExpLine[playerid], 0x00000000);
-	PlayerTextDrawBackgroundColor(playerid, ExpLine[playerid], 0x00000000);
-	PlayerTextDrawSetShadow(playerid, ExpLine[playerid], 37);
-	PlayerTextDrawSetOutline(playerid, ExpLine[playerid], 0);
-	PlayerTextDrawFont(playerid, ExpLine[playerid], 5);
-	PlayerTextDrawSetPreviewModel(playerid, ExpLine[playerid], 18656);
-	PlayerTextDrawSetPreviewRot(playerid, ExpLine[playerid], 0.000000, 0.000000, 0.000000, 1.000000);
+	ChrInfDelim5[playerid] = CreatePlayerTextDraw(playerid, 477.233154, 353.108734, "delim5");
+	PlayerTextDrawLetterSize(playerid, ChrInfDelim5[playerid], 0.000000, 0.000000);
+	PlayerTextDrawTextSize(playerid, ChrInfDelim5[playerid], 148.233749, 2.488883);
+	PlayerTextDrawAlignment(playerid, ChrInfDelim5[playerid], 1);
+	PlayerTextDrawColor(playerid, ChrInfDelim5[playerid], -65281);
+	PlayerTextDrawUseBox(playerid, ChrInfDelim5[playerid], true);
+	PlayerTextDrawBoxColor(playerid, ChrInfDelim5[playerid], 0);
+	PlayerTextDrawSetShadow(playerid, ChrInfDelim5[playerid], 0);
+	PlayerTextDrawSetOutline(playerid, ChrInfDelim5[playerid], 0);
+	PlayerTextDrawFont(playerid, ChrInfDelim5[playerid], 5);
+	PlayerTextDrawBackgroundColor(playerid, ChrInfDelim5[playerid], 0x00000000);
+	PlayerTextDrawSetPreviewModel(playerid, ChrInfDelim5[playerid], 18656);
+	PlayerTextDrawSetPreviewRot(playerid, ChrInfDelim5[playerid], 0.000000, 0.000000, 0.000000, 1.000000);
 
-	ExpPercents[playerid] = CreatePlayerTextDraw(playerid, 310.666534, 441.777832, "100.00%");
-	PlayerTextDrawLetterSize(playerid, ExpPercents[playerid], 0.137666, 0.749628);
-	PlayerTextDrawTextSize(playerid, ExpPercents[playerid], -32.666656, 7.466667);
-	PlayerTextDrawAlignment(playerid, ExpPercents[playerid], 1);
-	PlayerTextDrawColor(playerid, ExpPercents[playerid], 255);
-	PlayerTextDrawUseBox(playerid, ExpPercents[playerid], true);
-	PlayerTextDrawBoxColor(playerid, ExpPercents[playerid], 0);
-	PlayerTextDrawSetShadow(playerid, ExpPercents[playerid], 0);
-	PlayerTextDrawSetOutline(playerid, ExpPercents[playerid], 0);
-	PlayerTextDrawBackgroundColor(playerid, ExpPercents[playerid], 51);
-	PlayerTextDrawFont(playerid, ExpPercents[playerid], 2);
-	PlayerTextDrawSetProportional(playerid, ExpPercents[playerid], 1);
+	ChrInfClose[playerid] = CreatePlayerTextDraw(playerid, 620.699951, 103.288909, "X");
+	PlayerTextDrawLetterSize(playerid, ChrInfClose[playerid], 0.357333, 1.044147);
+	PlayerTextDrawTextSize(playerid, ChrInfClose[playerid], 15.000000, 11.199998);
+	PlayerTextDrawAlignment(playerid, ChrInfClose[playerid], 2);
+	PlayerTextDrawColor(playerid, ChrInfClose[playerid], -2147483393);
+	PlayerTextDrawUseBox(playerid, ChrInfClose[playerid], true);
+	PlayerTextDrawBoxColor(playerid, ChrInfClose[playerid], 0);
+	PlayerTextDrawSetShadow(playerid, ChrInfClose[playerid], 0);
+	PlayerTextDrawSetOutline(playerid, ChrInfClose[playerid], 1);
+	PlayerTextDrawFont(playerid, ChrInfClose[playerid], 1);
+	PlayerTextDrawSetProportional(playerid, ChrInfClose[playerid], 1);
+	PlayerTextDrawSetSelectable(playerid, ChrInfClose[playerid], true);
+	PlayerTextDrawBackgroundColor(playerid, ChrInfClose[playerid], 0x00000000);
 
-	LevelText[playerid] = CreatePlayerTextDraw(playerid, 622.666503, 418.962982, "1");
-	PlayerTextDrawLetterSize(playerid, LevelText[playerid], 0.338333, 1.583407);
-	PlayerTextDrawAlignment(playerid, LevelText[playerid], 2);
-	PlayerTextDrawColor(playerid, LevelText[playerid], -65281);
-	PlayerTextDrawUseBox(playerid, LevelText[playerid], true);
-	PlayerTextDrawBoxColor(playerid, LevelText[playerid], 0);
-	PlayerTextDrawSetShadow(playerid, LevelText[playerid], 0);
-	PlayerTextDrawSetOutline(playerid, LevelText[playerid], 1);
-	PlayerTextDrawBackgroundColor(playerid, LevelText[playerid], 51);
-	PlayerTextDrawFont(playerid, LevelText[playerid], 2);
-	PlayerTextDrawSetProportional(playerid, LevelText[playerid], 1);
+	ChrInfRate[playerid] = CreatePlayerTextDraw(playerid, 555.466735, 170.239990, "3000");
+	PlayerTextDrawLetterSize(playerid, ChrInfRate[playerid], 0.398665, 1.570963);
+	PlayerTextDrawAlignment(playerid, ChrInfRate[playerid], 2);
+	PlayerTextDrawColor(playerid, ChrInfRate[playerid], -1378294017);
+	PlayerTextDrawSetShadow(playerid, ChrInfRate[playerid], 0);
+	PlayerTextDrawSetOutline(playerid, ChrInfRate[playerid], 0);
+	PlayerTextDrawBackgroundColor(playerid, ChrInfRate[playerid], 51);
+	PlayerTextDrawFont(playerid, ChrInfRate[playerid], 1);
+	PlayerTextDrawSetProportional(playerid, ChrInfRate[playerid], 1);
 
-	new inv_slot_x = 501;
-	new inv_slot_y = 179;
-	new inv_slot_count_x = 520;
-	new inv_slot_count_y = 193;
-	new inv_slot_offset = 21;
+	ChrInfText2[playerid] = CreatePlayerTextDraw(playerid, 508.366851, 168.000061, "Личный");
+	PlayerTextDrawLetterSize(playerid, ChrInfText2[playerid], 0.183999, 0.699850);
+	PlayerTextDrawAlignment(playerid, ChrInfText2[playerid], 2);
+	PlayerTextDrawColor(playerid, ChrInfText2[playerid], -1);
+	PlayerTextDrawSetShadow(playerid, ChrInfText2[playerid], 0);
+	PlayerTextDrawSetOutline(playerid, ChrInfText2[playerid], 0);
+	PlayerTextDrawBackgroundColor(playerid, ChrInfText2[playerid], 51);
+	PlayerTextDrawFont(playerid, ChrInfText2[playerid], 1);
+	PlayerTextDrawSetProportional(playerid, ChrInfText2[playerid], 1);
+	PlayerTextDrawSetPreviewModel(playerid, ChrInfText2[playerid], 0);
+	PlayerTextDrawSetPreviewRot(playerid, ChrInfText2[playerid], 0.000000, 0.000000, 0.000000, 0.000000);
+
+	ChrInfText1[playerid] = CreatePlayerTextDraw(playerid, 600.733764, 168.211761, "Общий");
+	PlayerTextDrawLetterSize(playerid, ChrInfText1[playerid], 0.183999, 0.699850);
+	PlayerTextDrawAlignment(playerid, ChrInfText1[playerid], 2);
+	PlayerTextDrawColor(playerid, ChrInfText1[playerid], -1);
+	PlayerTextDrawSetShadow(playerid, ChrInfText1[playerid], 0);
+	PlayerTextDrawSetOutline(playerid, ChrInfText1[playerid], 0);
+	PlayerTextDrawBackgroundColor(playerid, ChrInfText1[playerid], 51);
+	PlayerTextDrawFont(playerid, ChrInfText1[playerid], 1);
+	PlayerTextDrawSetProportional(playerid, ChrInfText1[playerid], 1);
+	PlayerTextDrawSetPreviewModel(playerid, ChrInfText1[playerid], 0);
+	PlayerTextDrawSetPreviewRot(playerid, ChrInfText1[playerid], 0.000000, 0.000000, 0.000000, 0.000000);
+
+	ChrInfPersonalRate[playerid] = CreatePlayerTextDraw(playerid, 508.333251, 173.682800, "99");
+	PlayerTextDrawLetterSize(playerid, ChrInfPersonalRate[playerid], 0.307666, 1.172741);
+	PlayerTextDrawAlignment(playerid, ChrInfPersonalRate[playerid], 2);
+	PlayerTextDrawColor(playerid, ChrInfPersonalRate[playerid], -65281);
+	PlayerTextDrawSetShadow(playerid, ChrInfPersonalRate[playerid], 0);
+	PlayerTextDrawSetOutline(playerid, ChrInfPersonalRate[playerid], 0);
+	PlayerTextDrawBackgroundColor(playerid, ChrInfPersonalRate[playerid], 51);
+	PlayerTextDrawFont(playerid, ChrInfPersonalRate[playerid], 1);
+	PlayerTextDrawSetProportional(playerid, ChrInfPersonalRate[playerid], 1);
+
+	ChrInfAllRate[playerid] = CreatePlayerTextDraw(playerid, 601.132873, 173.148025, "98");
+	PlayerTextDrawLetterSize(playerid, ChrInfAllRate[playerid], 0.307666, 1.172741);
+	PlayerTextDrawAlignment(playerid, ChrInfAllRate[playerid], 2);
+	PlayerTextDrawColor(playerid, ChrInfAllRate[playerid], -65281);
+	PlayerTextDrawSetShadow(playerid, ChrInfAllRate[playerid], 0);
+	PlayerTextDrawSetOutline(playerid, ChrInfAllRate[playerid], 0);
+	PlayerTextDrawBackgroundColor(playerid, ChrInfAllRate[playerid], 51);
+	PlayerTextDrawFont(playerid, ChrInfAllRate[playerid], 1);
+	PlayerTextDrawSetProportional(playerid, ChrInfAllRate[playerid], 1);
+	PlayerTextDrawSetPreviewModel(playerid, ChrInfAllRate[playerid], 0);
+	PlayerTextDrawSetPreviewRot(playerid, ChrInfAllRate[playerid], 0.000000, 0.000000, 0.000000, 0.000000);
+
+	ChrInfNextInvBtn[playerid] = CreatePlayerTextDraw(playerid, 602.532958, 188.948074, ">");
+	PlayerTextDrawLetterSize(playerid, ChrInfNextInvBtn[playerid], 0.449999, 1.600000);
+	PlayerTextDrawTextSize(playerid, ChrInfNextInvBtn[playerid], 15.666666, 8.711110);
+	PlayerTextDrawAlignment(playerid, ChrInfNextInvBtn[playerid], 2);
+	PlayerTextDrawColor(playerid, ChrInfNextInvBtn[playerid], -5963521);
+	PlayerTextDrawUseBox(playerid, ChrInfNextInvBtn[playerid], true);
+	PlayerTextDrawBoxColor(playerid, ChrInfNextInvBtn[playerid], 0);
+	PlayerTextDrawSetShadow(playerid, ChrInfNextInvBtn[playerid], 0);
+	PlayerTextDrawSetOutline(playerid, ChrInfNextInvBtn[playerid], 0);
+	PlayerTextDrawBackgroundColor(playerid, ChrInfNextInvBtn[playerid], 0x00000000);
+	PlayerTextDrawFont(playerid, ChrInfNextInvBtn[playerid], 1);
+	PlayerTextDrawSetProportional(playerid, ChrInfNextInvBtn[playerid], 1);
+	PlayerTextDrawSetSelectable(playerid, ChrInfNextInvBtn[playerid], true);
+
+	ChrInfPrevInvBtn[playerid] = CreatePlayerTextDraw(playerid, 508.366394, 188.994018, "<");
+	PlayerTextDrawLetterSize(playerid, ChrInfPrevInvBtn[playerid], 0.449999, 1.600000);
+	PlayerTextDrawTextSize(playerid, ChrInfPrevInvBtn[playerid], 15.666666, 8.711110);
+	PlayerTextDrawAlignment(playerid, ChrInfPrevInvBtn[playerid], 2);
+	PlayerTextDrawColor(playerid, ChrInfPrevInvBtn[playerid], -5963521);
+	PlayerTextDrawUseBox(playerid, ChrInfPrevInvBtn[playerid], true);
+	PlayerTextDrawBoxColor(playerid, ChrInfPrevInvBtn[playerid], 0);
+	PlayerTextDrawSetShadow(playerid, ChrInfPrevInvBtn[playerid], 0);
+	PlayerTextDrawSetOutline(playerid, ChrInfPrevInvBtn[playerid], 0);
+	PlayerTextDrawBackgroundColor(playerid, ChrInfPrevInvBtn[playerid], 0x00000000);
+	PlayerTextDrawFont(playerid, ChrInfPrevInvBtn[playerid], 1);
+	PlayerTextDrawSetProportional(playerid, ChrInfPrevInvBtn[playerid], 1);
+	PlayerTextDrawSetSelectable(playerid, ChrInfPrevInvBtn[playerid], true);
+
+	ChrInfCurInv[playerid] = CreatePlayerTextDraw(playerid, 555.599914, 191.727478, "1/5");
+	PlayerTextDrawLetterSize(playerid, ChrInfCurInv[playerid], 0.322665, 1.031702);
+	PlayerTextDrawAlignment(playerid, ChrInfCurInv[playerid], 2);
+	PlayerTextDrawColor(playerid, ChrInfCurInv[playerid], -1);
+	PlayerTextDrawSetShadow(playerid, ChrInfCurInv[playerid], 0);
+	PlayerTextDrawSetOutline(playerid, ChrInfCurInv[playerid], 0);
+	PlayerTextDrawBackgroundColor(playerid, ChrInfCurInv[playerid], 51);
+	PlayerTextDrawFont(playerid, ChrInfCurInv[playerid], 1);
+	PlayerTextDrawSetProportional(playerid, ChrInfCurInv[playerid], 1);
+
+	ChrInfButUse[playerid] = CreatePlayerTextDraw(playerid, 486.000000, 358.000000, "but_use");
+	PlayerTextDrawLetterSize(playerid, ChrInfButUse[playerid], 0.000000, 0.000000);
+	PlayerTextDrawTextSize(playerid, ChrInfButUse[playerid], 21.000000, 21.000000);
+	PlayerTextDrawAlignment(playerid, ChrInfButUse[playerid], 1);
+	PlayerTextDrawColor(playerid, ChrInfButUse[playerid], -1);
+	PlayerTextDrawUseBox(playerid, ChrInfButUse[playerid], true);
+	PlayerTextDrawBoxColor(playerid, ChrInfButUse[playerid], 0);
+	PlayerTextDrawSetShadow(playerid, ChrInfButUse[playerid], 0);
+	PlayerTextDrawSetOutline(playerid, ChrInfButUse[playerid], 0);
+	PlayerTextDrawFont(playerid, ChrInfButUse[playerid], 5);
+	PlayerTextDrawSetSelectable(playerid, ChrInfButUse[playerid], true);
+	PlayerTextDrawBackgroundColor(playerid, ChrInfButUse[playerid], 0x00000000);
+	PlayerTextDrawSetPreviewModel(playerid, ChrInfButUse[playerid], 19131);
+	PlayerTextDrawSetPreviewRot(playerid, ChrInfButUse[playerid], 0.000000, 90.000000, 90.000000, 1.000000);
+
+	ChrInfButMod[playerid] = CreatePlayerTextDraw(playerid, 567.000000, 358.000000, "but_upg");
+	PlayerTextDrawLetterSize(playerid, ChrInfButMod[playerid], 0.000000, 0.000000);
+	PlayerTextDrawTextSize(playerid, ChrInfButMod[playerid], 21.000000, 21.000000);
+	PlayerTextDrawAlignment(playerid, ChrInfButMod[playerid], 1);
+	PlayerTextDrawColor(playerid, ChrInfButMod[playerid], -1);
+	PlayerTextDrawUseBox(playerid, ChrInfButMod[playerid], true);
+	PlayerTextDrawBoxColor(playerid, ChrInfButMod[playerid], 0);
+	PlayerTextDrawSetShadow(playerid, ChrInfButMod[playerid], 0);
+	PlayerTextDrawSetOutline(playerid, ChrInfButMod[playerid], 0);
+	PlayerTextDrawFont(playerid, ChrInfButMod[playerid], 5);
+	PlayerTextDrawSetSelectable(playerid, ChrInfButMod[playerid], true);
+	PlayerTextDrawBackgroundColor(playerid, ChrInfButMod[playerid], 0x00000000);
+	PlayerTextDrawSetPreviewModel(playerid, ChrInfButMod[playerid], 19132);
+	PlayerTextDrawSetPreviewRot(playerid, ChrInfButMod[playerid], 180.000000, 0.000000, 90.000000, 1.000000);
+
+	ChrInfButDel[playerid] = CreatePlayerTextDraw(playerid, 540.000000, 358.000000, "but_delete");
+	PlayerTextDrawLetterSize(playerid, ChrInfButDel[playerid], 0.000000, 0.000000);
+	PlayerTextDrawTextSize(playerid, ChrInfButDel[playerid], 21.000000, 21.000000);
+	PlayerTextDrawAlignment(playerid, ChrInfButDel[playerid], 1);
+	PlayerTextDrawColor(playerid, ChrInfButDel[playerid], -1);
+	PlayerTextDrawUseBox(playerid, ChrInfButDel[playerid], true);
+	PlayerTextDrawBoxColor(playerid, ChrInfButDel[playerid], 0);
+	PlayerTextDrawSetShadow(playerid, ChrInfButDel[playerid], 0);
+	PlayerTextDrawSetOutline(playerid, ChrInfButDel[playerid], 0);
+	PlayerTextDrawFont(playerid, ChrInfButDel[playerid], 5);
+	PlayerTextDrawSetSelectable(playerid, ChrInfButDel[playerid], true);
+	PlayerTextDrawBackgroundColor(playerid, ChrInfButDel[playerid], 0x00000000);
+	PlayerTextDrawSetPreviewModel(playerid, ChrInfButDel[playerid], 1409);
+	PlayerTextDrawSetPreviewRot(playerid, ChrInfButDel[playerid], 0.000000, 0.000000, 180.000000, 1.000000);
+
+	ChrInfButInfo[playerid] = CreatePlayerTextDraw(playerid, 513.000000, 358.000000, "but_info");
+	PlayerTextDrawLetterSize(playerid, ChrInfButInfo[playerid], 0.000000, 0.000000);
+	PlayerTextDrawTextSize(playerid, ChrInfButInfo[playerid], 21.000000, 21.000000);
+	PlayerTextDrawAlignment(playerid, ChrInfButInfo[playerid], 1);
+	PlayerTextDrawColor(playerid, ChrInfButInfo[playerid], -1);
+	PlayerTextDrawUseBox(playerid, ChrInfButInfo[playerid], true);
+	PlayerTextDrawBoxColor(playerid, ChrInfButInfo[playerid], 0);
+	PlayerTextDrawSetShadow(playerid, ChrInfButInfo[playerid], 0);
+	PlayerTextDrawSetOutline(playerid, ChrInfButInfo[playerid], 0);
+	PlayerTextDrawFont(playerid, ChrInfButInfo[playerid], 5);
+	PlayerTextDrawSetSelectable(playerid, ChrInfButInfo[playerid], true);
+	PlayerTextDrawBackgroundColor(playerid, ChrInfButInfo[playerid], 0x00000000);
+	PlayerTextDrawSetPreviewModel(playerid, ChrInfButInfo[playerid], 1239);
+	PlayerTextDrawSetPreviewRot(playerid, ChrInfButInfo[playerid], 0.000000, 0.000000, 180.000000, 1.000000);
+
+	ChrInfButSort[playerid] = CreatePlayerTextDraw(playerid, 594.000000, 358.000000, "but_sort");
+	PlayerTextDrawLetterSize(playerid, ChrInfButSort[playerid], 0.000000, 0.000000);
+	PlayerTextDrawTextSize(playerid, ChrInfButSort[playerid], 21.000000, 21.000000);
+	PlayerTextDrawAlignment(playerid, ChrInfButSort[playerid], 1);
+	PlayerTextDrawColor(playerid, ChrInfButSort[playerid], -1);
+	PlayerTextDrawUseBox(playerid, ChrInfButSort[playerid], true);
+	PlayerTextDrawBoxColor(playerid, ChrInfButSort[playerid], 0);
+	PlayerTextDrawSetShadow(playerid, ChrInfButSort[playerid], 0);
+	PlayerTextDrawSetOutline(playerid, ChrInfButSort[playerid], 0);
+	PlayerTextDrawFont(playerid, ChrInfButSort[playerid], 5);
+	PlayerTextDrawSetSelectable(playerid, ChrInfButSort[playerid], true);
+	PlayerTextDrawBackgroundColor(playerid, ChrInfButSort[playerid], 0x00000000);
+	PlayerTextDrawSetPreviewModel(playerid, ChrInfButSort[playerid], 1247);
+	PlayerTextDrawSetPreviewRot(playerid, ChrInfButSort[playerid], 0.000000, 0.000000, 0.000000, 1.000000);
+
+	new inv_slot_x = 479;
+	new inv_slot_y = 207;
+	new inv_slot_count_x = 507;
+	new inv_slot_count_y = 227;
+	new inv_slot_offset = 29;
 	new idx = 0;
-	for(new i = 1; i <= MAX_INVENTORY_SLOTS_X; i++)
+	for(new i = 1; i <= MAX_SLOTS_X; i++)
 	{
-		for(new j = 1; j <= MAX_INVENTORY_SLOTS_Y; j++)
+		for(new j = 1; j <= MAX_SLOTS_Y; j++)
 		{
-			ChrInfInvSlot[playerid][idx] = CreatePlayerTextDraw(playerid, inv_slot_x, inv_slot_y, "invslot");
+			ChrInfInvSlot[playerid][idx] = CreatePlayerTextDraw(playerid, inv_slot_x, inv_slot_y, "inv_slot");
 			PlayerTextDrawLetterSize(playerid, ChrInfInvSlot[playerid][idx], 0.000000, 0.000000);
-			PlayerTextDrawTextSize(playerid, ChrInfInvSlot[playerid][idx], 20.000000, 20.000000);
+			PlayerTextDrawTextSize(playerid, ChrInfInvSlot[playerid][idx], 28.000000, 28.000000);
 			PlayerTextDrawAlignment(playerid, ChrInfInvSlot[playerid][idx], 1);
 			PlayerTextDrawColor(playerid, ChrInfInvSlot[playerid][idx], -1);
 			PlayerTextDrawUseBox(playerid, ChrInfInvSlot[playerid][idx], true);
@@ -10654,7 +13780,7 @@ stock InitPlayerTextDraws(playerid)
 			PlayerTextDrawSetPreviewRot(playerid, ChrInfInvSlot[playerid][idx], 0.000000, 0.000000, 0.000000, 1.000000);
 
 			ChrInfInvSlotCount[playerid][idx] = CreatePlayerTextDraw(playerid, inv_slot_count_x, inv_slot_count_y, "0");
-			PlayerTextDrawLetterSize(playerid, ChrInfInvSlotCount[playerid][idx], 0.139999, 0.674960);
+			PlayerTextDrawLetterSize(playerid, ChrInfInvSlotCount[playerid][idx], 0.202665, 0.965331);
 			PlayerTextDrawAlignment(playerid, ChrInfInvSlotCount[playerid][idx], 3);
 			PlayerTextDrawColor(playerid, ChrInfInvSlotCount[playerid][idx], 255);
 			PlayerTextDrawSetShadow(playerid, ChrInfInvSlotCount[playerid][idx], 0);
@@ -10667,135 +13793,67 @@ stock InitPlayerTextDraws(playerid)
 			inv_slot_count_x += inv_slot_offset;
 			idx++;
 		}
-		inv_slot_x = 501;
-		inv_slot_count_x = 520;
+		inv_slot_x = 479;
+		inv_slot_count_x = 507;
 		inv_slot_y += inv_slot_offset;
 		inv_slot_count_y += inv_slot_offset;
 	}
 
-	ChrInfButUse[playerid] = CreatePlayerTextDraw(playerid, 517.000000, 290.000000, "but_use");
-	PlayerTextDrawLetterSize(playerid, ChrInfButUse[playerid], 0.000000, 0.133331);
-	PlayerTextDrawTextSize(playerid, ChrInfButUse[playerid], 17.000000, 17.000000);
-	PlayerTextDrawAlignment(playerid, ChrInfButUse[playerid], 1);
-	PlayerTextDrawColor(playerid, ChrInfButUse[playerid], -1);
-	PlayerTextDrawUseBox(playerid, ChrInfButUse[playerid], true);
-	PlayerTextDrawBoxColor(playerid, ChrInfButUse[playerid], 0);
-	PlayerTextDrawSetShadow(playerid, ChrInfButUse[playerid], 0);
-	PlayerTextDrawSetOutline(playerid, ChrInfButUse[playerid], 0);
-	PlayerTextDrawFont(playerid, ChrInfButUse[playerid], 5);
-	PlayerTextDrawSetSelectable(playerid, ChrInfButUse[playerid], true);
-	PlayerTextDrawBackgroundColor(playerid, ChrInfButUse[playerid], 0x00000000);
-	PlayerTextDrawSetPreviewModel(playerid, ChrInfButUse[playerid], 19131);
-	PlayerTextDrawSetPreviewRot(playerid, ChrInfButUse[playerid], 0.000000, 90.000000, 90.000000, 1.000000);
-
-	ChrInfButInfo[playerid] = CreatePlayerTextDraw(playerid, 537.000000, 290.000000, "but_info");
-	PlayerTextDrawLetterSize(playerid, ChrInfButInfo[playerid], 0.000000, 0.133331);
-	PlayerTextDrawTextSize(playerid, ChrInfButInfo[playerid], 17.000000, 17.000000);
-	PlayerTextDrawAlignment(playerid, ChrInfButInfo[playerid], 1);
-	PlayerTextDrawColor(playerid, ChrInfButInfo[playerid], -1);
-	PlayerTextDrawUseBox(playerid, ChrInfButInfo[playerid], true);
-	PlayerTextDrawBoxColor(playerid, ChrInfButInfo[playerid], 0);
-	PlayerTextDrawSetShadow(playerid, ChrInfButInfo[playerid], 0);
-	PlayerTextDrawSetOutline(playerid, ChrInfButInfo[playerid], 0);
-	PlayerTextDrawFont(playerid, ChrInfButInfo[playerid], 5);
-	PlayerTextDrawSetSelectable(playerid, ChrInfButInfo[playerid], true);
-	PlayerTextDrawBackgroundColor(playerid, ChrInfButInfo[playerid], 0x00000000);
-	PlayerTextDrawSetPreviewModel(playerid, ChrInfButInfo[playerid], 1239);
-	PlayerTextDrawSetPreviewRot(playerid, ChrInfButInfo[playerid], 0.000000, 0.000000, 180.000000, 1.000000);
-
-	ChrInfButDel[playerid] = CreatePlayerTextDraw(playerid, 557.000000, 290.000000, "but_del");
-	PlayerTextDrawLetterSize(playerid, ChrInfButDel[playerid], 0.000000, 0.133331);
-	PlayerTextDrawTextSize(playerid, ChrInfButDel[playerid], 17.000000, 17.000000);
-	PlayerTextDrawAlignment(playerid, ChrInfButDel[playerid], 1);
-	PlayerTextDrawColor(playerid, ChrInfButDel[playerid], -1);
-	PlayerTextDrawUseBox(playerid, ChrInfButDel[playerid], true);
-	PlayerTextDrawBoxColor(playerid, ChrInfButDel[playerid], 0);
-	PlayerTextDrawSetShadow(playerid, ChrInfButDel[playerid], 0);
-	PlayerTextDrawSetOutline(playerid, ChrInfButDel[playerid], 0);
-	PlayerTextDrawFont(playerid, ChrInfButDel[playerid], 5);
-	PlayerTextDrawSetSelectable(playerid, ChrInfButDel[playerid], true);
-	PlayerTextDrawBackgroundColor(playerid, ChrInfButDel[playerid], 0x00000000);
-	PlayerTextDrawSetPreviewModel(playerid, ChrInfButDel[playerid], 1409);
-	PlayerTextDrawSetPreviewRot(playerid, ChrInfButDel[playerid], 0.000000, 0.000000, 180.000000, 1.000000);
-
-	ChrInfButMod[playerid] = CreatePlayerTextDraw(playerid, 577.000000, 290.000000, "but_mod");
-	PlayerTextDrawLetterSize(playerid, ChrInfButMod[playerid], 0.000000, 0.133331);
-	PlayerTextDrawTextSize(playerid, ChrInfButMod[playerid], 17.000000, 17.000000);
-	PlayerTextDrawAlignment(playerid, ChrInfButMod[playerid], 1);
-	PlayerTextDrawColor(playerid, ChrInfButMod[playerid], -1);
-	PlayerTextDrawUseBox(playerid, ChrInfButMod[playerid], true);
-	PlayerTextDrawBoxColor(playerid, ChrInfButMod[playerid], 0);
-	PlayerTextDrawSetShadow(playerid, ChrInfButMod[playerid], 0);
-	PlayerTextDrawSetOutline(playerid, ChrInfButMod[playerid], 0);
-	PlayerTextDrawFont(playerid, ChrInfButMod[playerid], 5);
-	PlayerTextDrawSetSelectable(playerid, ChrInfButMod[playerid], true);
-	PlayerTextDrawBackgroundColor(playerid, ChrInfButMod[playerid], 0x00000000);
-	PlayerTextDrawSetPreviewModel(playerid, ChrInfButMod[playerid], 19132);
-	PlayerTextDrawSetPreviewRot(playerid, ChrInfButMod[playerid], 180.000000, 0.000000, 90.000000, 1.000000);
-
-	ChrInfDelim4[playerid] = CreatePlayerTextDraw(playerid, 498.333129, 285.281646, "chrinfo_delim4");
-	PlayerTextDrawLetterSize(playerid, ChrInfDelim4[playerid], 0.005665, 1.837852);
-	PlayerTextDrawTextSize(playerid, ChrInfDelim4[playerid], 108.999992, 2.074074);
-	PlayerTextDrawAlignment(playerid, ChrInfDelim4[playerid], 1);
-	PlayerTextDrawColor(playerid, ChrInfDelim4[playerid], 16711935);
-	PlayerTextDrawUseBox(playerid, ChrInfDelim4[playerid], true);
-	PlayerTextDrawBoxColor(playerid, ChrInfDelim4[playerid], 0);
-	PlayerTextDrawSetShadow(playerid, ChrInfDelim4[playerid], 0);
-	PlayerTextDrawSetOutline(playerid, ChrInfDelim4[playerid], 0);
-	PlayerTextDrawFont(playerid, ChrInfDelim4[playerid], 5);
-	PlayerTextDrawSetPreviewModel(playerid, ChrInfDelim4[playerid], 18656);
-	PlayerTextDrawSetPreviewRot(playerid, ChrInfDelim4[playerid], 0.000000, 0.000000, 0.000000, 1.000000);
-
-	EqInfBox[playerid] = CreatePlayerTextDraw(playerid, 388.100067, 113.085182, "inf_box");
-	PlayerTextDrawLetterSize(playerid, EqInfBox[playerid], 0.000000, 20.898159);
-	PlayerTextDrawTextSize(playerid, EqInfBox[playerid], 246.666671, 0.000000);
+	EqInfBox[playerid] = CreatePlayerTextDraw(playerid, 397.433563, 164.522216, "main_box");
+	PlayerTextDrawLetterSize(playerid, EqInfBox[playerid], 0.000000, 18.778308);
+	PlayerTextDrawTextSize(playerid, EqInfBox[playerid], 236.666671, 0.000000);
 	PlayerTextDrawAlignment(playerid, EqInfBox[playerid], 1);
 	PlayerTextDrawColor(playerid, EqInfBox[playerid], 0);
 	PlayerTextDrawUseBox(playerid, EqInfBox[playerid], true);
-	PlayerTextDrawBoxColor(playerid, EqInfBox[playerid], 102);
+	PlayerTextDrawBoxColor(playerid, EqInfBox[playerid], 0x000000DD);
 	PlayerTextDrawSetShadow(playerid, EqInfBox[playerid], 0);
 	PlayerTextDrawSetOutline(playerid, EqInfBox[playerid], 0);
 	PlayerTextDrawFont(playerid, EqInfBox[playerid], 0);
+	PlayerTextDrawSetPreviewModel(playerid, EqInfBox[playerid], 18656);
+	PlayerTextDrawSetPreviewRot(playerid, EqInfBox[playerid], 0.000000, 0.000000, 0.000000, 1.000000);
 
-	EqInfTxt1[playerid] = CreatePlayerTextDraw(playerid, 318.333312, 114.115562, "Информация");
-	PlayerTextDrawLetterSize(playerid, EqInfTxt1[playerid], 0.239666, 0.986074);
+	EqInfTxt1[playerid] = CreatePlayerTextDraw(playerid, 320.000061, 163.934707, "Информация");
+	PlayerTextDrawLetterSize(playerid, EqInfTxt1[playerid], 0.256333, 1.102222);
 	PlayerTextDrawAlignment(playerid, EqInfTxt1[playerid], 2);
 	PlayerTextDrawColor(playerid, EqInfTxt1[playerid], -1);
 	PlayerTextDrawSetShadow(playerid, EqInfTxt1[playerid], 0);
-	PlayerTextDrawSetOutline(playerid, EqInfTxt1[playerid], 0);
+	PlayerTextDrawSetOutline(playerid, EqInfTxt1[playerid], 1);
 	PlayerTextDrawBackgroundColor(playerid, EqInfTxt1[playerid], 51);
 	PlayerTextDrawFont(playerid, EqInfTxt1[playerid], 1);
 	PlayerTextDrawSetProportional(playerid, EqInfTxt1[playerid], 1);
+	PlayerTextDrawSetPreviewModel(playerid, EqInfTxt1[playerid], 18656);
+	PlayerTextDrawSetPreviewRot(playerid, EqInfTxt1[playerid], 0.000000, 0.000000, 0.000000, 1.000000);
 
-	EqInfClose[playerid] = CreatePlayerTextDraw(playerid, 377.533569, 111.128860, "x");
-	PlayerTextDrawLetterSize(playerid, EqInfClose[playerid], 0.383332, 1.363554);
-	PlayerTextDrawTextSize(playerid, EqInfClose[playerid], 384.666687, 14.933336);
-	PlayerTextDrawAlignment(playerid, EqInfClose[playerid], 1);
+	EqInfClose[playerid] = CreatePlayerTextDraw(playerid, 390.666809, 164.557006, "X");
+	PlayerTextDrawLetterSize(playerid, EqInfClose[playerid], 0.336333, 0.998518);
+	PlayerTextDrawTextSize(playerid, EqInfClose[playerid], 14.333320, 12.029618);
+	PlayerTextDrawAlignment(playerid, EqInfClose[playerid], 2);
 	PlayerTextDrawColor(playerid, EqInfClose[playerid], -2147483393);
 	PlayerTextDrawUseBox(playerid, EqInfClose[playerid], true);
 	PlayerTextDrawBoxColor(playerid, EqInfClose[playerid], 0);
-	PlayerTextDrawBackgroundColor(playerid, EqInfClose[playerid], 0x00000000);
 	PlayerTextDrawSetShadow(playerid, EqInfClose[playerid], 0);
 	PlayerTextDrawSetOutline(playerid, EqInfClose[playerid], 1);
 	PlayerTextDrawFont(playerid, EqInfClose[playerid], 1);
 	PlayerTextDrawSetProportional(playerid, EqInfClose[playerid], 1);
 	PlayerTextDrawSetSelectable(playerid, EqInfClose[playerid], true);
+	PlayerTextDrawBackgroundColor(playerid, EqInfClose[playerid], 0x00000000);
 
-	EqInfDelim1[playerid] = CreatePlayerTextDraw(playerid, 248.599563, 126.121482, "inf_delim1");
-	PlayerTextDrawLetterSize(playerid, EqInfDelim1[playerid], 0.005665, 1.837852);
-	PlayerTextDrawTextSize(playerid, EqInfDelim1[playerid], 137.866516, 2.405925);
+	EqInfDelim1[playerid] = CreatePlayerTextDraw(playerid, 238.366622, 175.508224, "delim1");
+	PlayerTextDrawLetterSize(playerid, EqInfDelim1[playerid], 0.020666, -0.671704);
+	PlayerTextDrawTextSize(playerid, EqInfDelim1[playerid], 157.466659, 1.576301);
 	PlayerTextDrawAlignment(playerid, EqInfDelim1[playerid], 1);
-	PlayerTextDrawColor(playerid, EqInfDelim1[playerid], 16711935);
+	PlayerTextDrawColor(playerid, EqInfDelim1[playerid], -65281);
 	PlayerTextDrawUseBox(playerid, EqInfDelim1[playerid], true);
 	PlayerTextDrawBoxColor(playerid, EqInfDelim1[playerid], 0);
 	PlayerTextDrawSetShadow(playerid, EqInfDelim1[playerid], 0);
 	PlayerTextDrawSetOutline(playerid, EqInfDelim1[playerid], 0);
 	PlayerTextDrawFont(playerid, EqInfDelim1[playerid], 5);
+	PlayerTextDrawBackgroundColor(playerid, EqInfDelim1[playerid], 0x00000000);
 	PlayerTextDrawSetPreviewModel(playerid, EqInfDelim1[playerid], 18656);
 	PlayerTextDrawSetPreviewRot(playerid, EqInfDelim1[playerid], 0.000000, 0.000000, 0.000000, 1.000000);
 
-	EqInfItemName[playerid] = CreatePlayerTextDraw(playerid, 318.400054, 130.210311, "[Type C-HP increasing] Bourgeois destroyer");
-	PlayerTextDrawLetterSize(playerid, EqInfItemName[playerid], 0.169999, 0.811851);
+	EqInfItemName[playerid] = CreatePlayerTextDraw(playerid, 317.733489, 179.116989, "[Type C-Damage Legendary Shazok bourgeois destroyer]");
+	PlayerTextDrawLetterSize(playerid, EqInfItemName[playerid], 0.155999, 0.745481);
 	PlayerTextDrawAlignment(playerid, EqInfItemName[playerid], 2);
 	PlayerTextDrawColor(playerid, EqInfItemName[playerid], -5963521);
 	PlayerTextDrawSetShadow(playerid, EqInfItemName[playerid], 0);
@@ -10804,94 +13862,152 @@ stock InitPlayerTextDraws(playerid)
 	PlayerTextDrawFont(playerid, EqInfItemName[playerid], 1);
 	PlayerTextDrawSetProportional(playerid, EqInfItemName[playerid], 1);
 
-	EqInfItemIcon[playerid] = CreatePlayerTextDraw(playerid, 253.000000, 143.000000, "inf_itemicon");
-	PlayerTextDrawLetterSize(playerid, EqInfItemIcon[playerid], 0.000000, -0.666666);
-	PlayerTextDrawTextSize(playerid, EqInfItemIcon[playerid], 25.000000, 25.000000);
+	EqInfItemIcon[playerid] = CreatePlayerTextDraw(playerid, 360.366760, 190.690612, "item_icon");
+	PlayerTextDrawLetterSize(playerid, EqInfItemIcon[playerid], 0.000000, 0.000000);
+	PlayerTextDrawTextSize(playerid, EqInfItemIcon[playerid], 30.000000, 30.000000);
 	PlayerTextDrawAlignment(playerid, EqInfItemIcon[playerid], 1);
 	PlayerTextDrawColor(playerid, EqInfItemIcon[playerid], -1);
 	PlayerTextDrawUseBox(playerid, EqInfItemIcon[playerid], true);
 	PlayerTextDrawBoxColor(playerid, EqInfItemIcon[playerid], 0);
 	PlayerTextDrawSetShadow(playerid, EqInfItemIcon[playerid], 0);
 	PlayerTextDrawSetOutline(playerid, EqInfItemIcon[playerid], 0);
-	PlayerTextDrawBackgroundColor(playerid, EqInfItemIcon[playerid], -1378294017);
+	PlayerTextDrawBackgroundColor(playerid, EqInfItemIcon[playerid], -5963521);
 	PlayerTextDrawFont(playerid, EqInfItemIcon[playerid], 5);
-	PlayerTextDrawSetPreviewModel(playerid, EqInfItemIcon[playerid], -1);
+	PlayerTextDrawSetPreviewModel(playerid, EqInfItemIcon[playerid], 266);
 	PlayerTextDrawSetPreviewRot(playerid, EqInfItemIcon[playerid], 0.000000, 0.000000, 0.000000, 1.000000);
 
-	EqInfMainStat[playerid] = CreatePlayerTextDraw(playerid, 283.400146, 141.451766, "Damage: 950-1120");
-	PlayerTextDrawLetterSize(playerid, EqInfMainStat[playerid], 0.284000, 1.085629);
-	PlayerTextDrawAlignment(playerid, EqInfMainStat[playerid], 1);
-	PlayerTextDrawColor(playerid, EqInfMainStat[playerid], 16711935);
-	PlayerTextDrawSetShadow(playerid, EqInfMainStat[playerid], 0);
-	PlayerTextDrawSetOutline(playerid, EqInfMainStat[playerid], 0);
-	PlayerTextDrawBackgroundColor(playerid, EqInfMainStat[playerid], 51);
-	PlayerTextDrawFont(playerid, EqInfMainStat[playerid], 1);
-	PlayerTextDrawSetProportional(playerid, EqInfMainStat[playerid], 1);
+	EqInfItemType[playerid] = CreatePlayerTextDraw(playerid, 241.666809, 188.781875, "Type: Weapon");
+	PlayerTextDrawLetterSize(playerid, EqInfItemType[playerid], 0.200333, 0.882371);
+	PlayerTextDrawAlignment(playerid, EqInfItemType[playerid], 1);
+	PlayerTextDrawColor(playerid, EqInfItemType[playerid], -1);
+	PlayerTextDrawSetShadow(playerid, EqInfItemType[playerid], 0);
+	PlayerTextDrawSetOutline(playerid, EqInfItemType[playerid], 0);
+	PlayerTextDrawBackgroundColor(playerid, EqInfItemType[playerid], 51);
+	PlayerTextDrawFont(playerid, EqInfItemType[playerid], 1);
+	PlayerTextDrawSetProportional(playerid, EqInfItemType[playerid], 1);
+	PlayerTextDrawSetPreviewModel(playerid, EqInfItemType[playerid], 19134);
+	PlayerTextDrawSetPreviewRot(playerid, EqInfItemType[playerid], 0.000000, 0.000000, 90.000000, 1.000000);
 
-	EqInfBonusStat[playerid][0] = CreatePlayerTextDraw(playerid, 283.499786, 154.352645, "Max HP +10%");
-	PlayerTextDrawLetterSize(playerid, EqInfBonusStat[playerid][0], 0.188333, 0.757925);
-	PlayerTextDrawAlignment(playerid, EqInfBonusStat[playerid][0], 1);
-	PlayerTextDrawColor(playerid, EqInfBonusStat[playerid][0], -1);
-	PlayerTextDrawSetShadow(playerid, EqInfBonusStat[playerid][0], 0);
-	PlayerTextDrawSetOutline(playerid, EqInfBonusStat[playerid][0], 0);
-	PlayerTextDrawBackgroundColor(playerid, EqInfBonusStat[playerid][0], 51);
-	PlayerTextDrawFont(playerid, EqInfBonusStat[playerid][0], 1);
-	PlayerTextDrawSetProportional(playerid, EqInfBonusStat[playerid][0], 1);
+	EqInfItemMinRank[playerid] = CreatePlayerTextDraw(playerid, 241.466613, 199.571945, "Min rank: Gold");
+	PlayerTextDrawLetterSize(playerid, EqInfItemMinRank[playerid], 0.200333, 0.882371);
+	PlayerTextDrawAlignment(playerid, EqInfItemMinRank[playerid], 1);
+	PlayerTextDrawColor(playerid, EqInfItemMinRank[playerid], -1);
+	PlayerTextDrawSetShadow(playerid, EqInfItemMinRank[playerid], 0);
+	PlayerTextDrawSetOutline(playerid, EqInfItemMinRank[playerid], 0);
+	PlayerTextDrawBackgroundColor(playerid, EqInfItemMinRank[playerid], 51);
+	PlayerTextDrawFont(playerid, EqInfItemMinRank[playerid], 1);
+	PlayerTextDrawSetProportional(playerid, EqInfItemMinRank[playerid], 1);
+	PlayerTextDrawSetPreviewModel(playerid, EqInfItemMinRank[playerid], 19134);
+	PlayerTextDrawSetPreviewRot(playerid, EqInfItemMinRank[playerid], 0.000000, 0.000000, 90.000000, 1.000000);
 
-	EqInfDelim2[playerid] = CreatePlayerTextDraw(playerid, 278.732940, 152.840209, "inf_delim2");
-	PlayerTextDrawLetterSize(playerid, EqInfDelim2[playerid], 0.005665, 1.837852);
-	PlayerTextDrawTextSize(playerid, EqInfDelim2[playerid], 107.833137, 1.617777);
+	EqInfItemGrade[playerid] = CreatePlayerTextDraw(playerid, 241.699935, 209.988754, "Grade: C");
+	PlayerTextDrawLetterSize(playerid, EqInfItemGrade[playerid], 0.200333, 0.882371);
+	PlayerTextDrawAlignment(playerid, EqInfItemGrade[playerid], 1);
+	PlayerTextDrawColor(playerid, EqInfItemGrade[playerid], -1);
+	PlayerTextDrawSetShadow(playerid, EqInfItemGrade[playerid], 0);
+	PlayerTextDrawSetOutline(playerid, EqInfItemGrade[playerid], 0);
+	PlayerTextDrawBackgroundColor(playerid, EqInfItemGrade[playerid], 51);
+	PlayerTextDrawFont(playerid, EqInfItemGrade[playerid], 1);
+	PlayerTextDrawSetProportional(playerid, EqInfItemGrade[playerid], 1);
+	PlayerTextDrawSetPreviewModel(playerid, EqInfItemGrade[playerid], 19134);
+	PlayerTextDrawSetPreviewRot(playerid, EqInfItemGrade[playerid], 0.000000, 0.000000, 90.000000, 1.000000);
+
+	EqInfDelim2[playerid] = CreatePlayerTextDraw(playerid, 238.666839, 223.174713, "delim2");
+	PlayerTextDrawLetterSize(playerid, EqInfDelim2[playerid], 0.020666, -0.671704);
+	PlayerTextDrawTextSize(playerid, EqInfDelim2[playerid], 157.466659, 1.576301);
 	PlayerTextDrawAlignment(playerid, EqInfDelim2[playerid], 1);
-	PlayerTextDrawColor(playerid, EqInfDelim2[playerid], 16711935);
+	PlayerTextDrawColor(playerid, EqInfDelim2[playerid], -65281);
 	PlayerTextDrawUseBox(playerid, EqInfDelim2[playerid], true);
 	PlayerTextDrawBoxColor(playerid, EqInfDelim2[playerid], 0);
 	PlayerTextDrawSetShadow(playerid, EqInfDelim2[playerid], 0);
 	PlayerTextDrawSetOutline(playerid, EqInfDelim2[playerid], 0);
 	PlayerTextDrawFont(playerid, EqInfDelim2[playerid], 5);
+	PlayerTextDrawBackgroundColor(playerid, EqInfDelim2[playerid], 0x00000000);
 	PlayerTextDrawSetPreviewModel(playerid, EqInfDelim2[playerid], 18656);
 	PlayerTextDrawSetPreviewRot(playerid, EqInfDelim2[playerid], 0.000000, 0.000000, 0.000000, 1.000000);
 
-	EqInfBonusStat[playerid][1] = CreatePlayerTextDraw(playerid, 283.566345, 161.948440, "Increase damage up to 10%");
-	PlayerTextDrawLetterSize(playerid, EqInfBonusStat[playerid][1], 0.188333, 0.757925);
+	EqInfMainStat[playerid] = CreatePlayerTextDraw(playerid, 241.633270, 228.535751, "Attack: 9999-9999");
+	PlayerTextDrawLetterSize(playerid, EqInfMainStat[playerid], 0.246666, 1.006815);
+	PlayerTextDrawAlignment(playerid, EqInfMainStat[playerid], 1);
+	PlayerTextDrawColor(playerid, EqInfMainStat[playerid], -1);
+	PlayerTextDrawSetShadow(playerid, EqInfMainStat[playerid], 0);
+	PlayerTextDrawSetOutline(playerid, EqInfMainStat[playerid], 0);
+	PlayerTextDrawBackgroundColor(playerid, EqInfMainStat[playerid], 51);
+	PlayerTextDrawFont(playerid, EqInfMainStat[playerid], 1);
+	PlayerTextDrawSetProportional(playerid, EqInfMainStat[playerid], 1);
+	PlayerTextDrawSetPreviewModel(playerid, EqInfMainStat[playerid], 19134);
+	PlayerTextDrawSetPreviewRot(playerid, EqInfMainStat[playerid], 0.000000, 0.000000, 90.000000, 1.000000);
+
+	EqInfBonusStat[playerid][0] = CreatePlayerTextDraw(playerid, 241.933212, 237.481231, "Unknown property 1 +999%");
+	PlayerTextDrawLetterSize(playerid, EqInfBonusStat[playerid][0], 0.161666, 0.712295);
+	PlayerTextDrawAlignment(playerid, EqInfBonusStat[playerid][0], 1);
+	PlayerTextDrawColor(playerid, EqInfBonusStat[playerid][0], -1);
+	PlayerTextDrawSetShadow(playerid, EqInfBonusStat[playerid][0], 1);
+	PlayerTextDrawSetOutline(playerid, EqInfBonusStat[playerid][0], 0);
+	PlayerTextDrawBackgroundColor(playerid, EqInfBonusStat[playerid][0], 51);
+	PlayerTextDrawFont(playerid, EqInfBonusStat[playerid][0], 1);
+	PlayerTextDrawSetProportional(playerid, EqInfBonusStat[playerid][0], 1);
+	PlayerTextDrawSetPreviewModel(playerid, EqInfBonusStat[playerid][0], 18656);
+	PlayerTextDrawSetPreviewRot(playerid, EqInfBonusStat[playerid][0], 0.000000, 0.000000, 0.000000, 1.000000);
+
+	EqInfBonusStat[playerid][1] = CreatePlayerTextDraw(playerid, 241.933151, 243.210311, "Unknown property 2 +999%");
+	PlayerTextDrawLetterSize(playerid, EqInfBonusStat[playerid][1], 0.161666, 0.712295);
 	PlayerTextDrawAlignment(playerid, EqInfBonusStat[playerid][1], 1);
 	PlayerTextDrawColor(playerid, EqInfBonusStat[playerid][1], -1);
-	PlayerTextDrawSetShadow(playerid, EqInfBonusStat[playerid][1], 0);
+	PlayerTextDrawSetShadow(playerid, EqInfBonusStat[playerid][1], 1);
 	PlayerTextDrawSetOutline(playerid, EqInfBonusStat[playerid][1], 0);
 	PlayerTextDrawBackgroundColor(playerid, EqInfBonusStat[playerid][1], 51);
 	PlayerTextDrawFont(playerid, EqInfBonusStat[playerid][1], 1);
 	PlayerTextDrawSetProportional(playerid, EqInfBonusStat[playerid][1], 1);
+	PlayerTextDrawSetPreviewModel(playerid, EqInfBonusStat[playerid][1], 18656);
+	PlayerTextDrawSetPreviewRot(playerid, EqInfBonusStat[playerid][1], 0.000000, 0.000000, 0.000000, 1.000000);
 
-	EqInfDelim3[playerid] = CreatePlayerTextDraw(playerid, 248.866241, 170.386657, "inf_delim3");
-	PlayerTextDrawLetterSize(playerid, EqInfDelim3[playerid], 0.005665, 1.837852);
-	PlayerTextDrawTextSize(playerid, EqInfDelim3[playerid], 137.866516, 2.405925);
+	EqInfBonusStat[playerid][2] = CreatePlayerTextDraw(playerid, 241.933029, 248.856277, "Unknown property 3 +999%");
+	PlayerTextDrawLetterSize(playerid, EqInfBonusStat[playerid][2], 0.161666, 0.712295);
+	PlayerTextDrawAlignment(playerid, EqInfBonusStat[playerid][2], 1);
+	PlayerTextDrawColor(playerid, EqInfBonusStat[playerid][2], -1);
+	PlayerTextDrawSetShadow(playerid, EqInfBonusStat[playerid][2], 1);
+	PlayerTextDrawSetOutline(playerid, EqInfBonusStat[playerid][2], 0);
+	PlayerTextDrawBackgroundColor(playerid, EqInfBonusStat[playerid][2], 51);
+	PlayerTextDrawFont(playerid, EqInfBonusStat[playerid][2], 1);
+	PlayerTextDrawSetProportional(playerid, EqInfBonusStat[playerid][2], 1);
+	PlayerTextDrawSetPreviewModel(playerid, EqInfBonusStat[playerid][2], 18656);
+	PlayerTextDrawSetPreviewRot(playerid, EqInfBonusStat[playerid][2], 0.000000, 0.000000, 0.000000, 1.000000);
+
+	EqInfDelim3[playerid] = CreatePlayerTextDraw(playerid, 238.366729, 259.060455, "delim3");
+	PlayerTextDrawLetterSize(playerid, EqInfDelim3[playerid], 0.020666, -0.671704);
+	PlayerTextDrawTextSize(playerid, EqInfDelim3[playerid], 157.466659, 1.576301);
 	PlayerTextDrawAlignment(playerid, EqInfDelim3[playerid], 1);
-	PlayerTextDrawColor(playerid, EqInfDelim3[playerid], 16711935);
+	PlayerTextDrawColor(playerid, EqInfDelim3[playerid], -65281);
 	PlayerTextDrawUseBox(playerid, EqInfDelim3[playerid], true);
 	PlayerTextDrawBoxColor(playerid, EqInfDelim3[playerid], 0);
 	PlayerTextDrawSetShadow(playerid, EqInfDelim3[playerid], 0);
 	PlayerTextDrawSetOutline(playerid, EqInfDelim3[playerid], 0);
 	PlayerTextDrawFont(playerid, EqInfDelim3[playerid], 5);
+	PlayerTextDrawBackgroundColor(playerid, EqInfDelim2[playerid], 0x00000000);
 	PlayerTextDrawSetPreviewModel(playerid, EqInfDelim3[playerid], 18656);
 	PlayerTextDrawSetPreviewRot(playerid, EqInfDelim3[playerid], 0.000000, 0.000000, 0.000000, 1.000000);
 
-	EqInfTxt2[playerid] = CreatePlayerTextDraw(playerid, 319.100036, 173.973190, "Модификации");
-	PlayerTextDrawLetterSize(playerid, EqInfTxt2[playerid], 0.233666, 1.015111);
-	PlayerTextDrawAlignment(playerid, EqInfTxt2[playerid], 2);
+	EqInfTxt2[playerid] = CreatePlayerTextDraw(playerid, 242.133316, 264.278350, "Улучшения:");
+	PlayerTextDrawLetterSize(playerid, EqInfTxt2[playerid], 0.247000, 0.932148);
+	PlayerTextDrawAlignment(playerid, EqInfTxt2[playerid], 1);
 	PlayerTextDrawColor(playerid, EqInfTxt2[playerid], -1);
 	PlayerTextDrawSetShadow(playerid, EqInfTxt2[playerid], 0);
 	PlayerTextDrawSetOutline(playerid, EqInfTxt2[playerid], 0);
 	PlayerTextDrawBackgroundColor(playerid, EqInfTxt2[playerid], 51);
 	PlayerTextDrawFont(playerid, EqInfTxt2[playerid], 1);
 	PlayerTextDrawSetProportional(playerid, EqInfTxt2[playerid], 1);
+	PlayerTextDrawSetPreviewModel(playerid, EqInfTxt2[playerid], 19134);
+	PlayerTextDrawSetPreviewRot(playerid, EqInfTxt2[playerid], 0.000000, 0.000000, 90.000000, 1.000000);
 
-	new mod_x = 252;
-	new mod_offset = 19;
+	new mod_x = 285;
+	new mod_offset = 10;
 	idx = 0;
 	for(new i = 1; i <= MAX_MOD; i++)
 	{
-		EqInfMod[playerid][idx] = CreatePlayerTextDraw(playerid, mod_x, 191, "mod");
+		EqInfMod[playerid][idx] = CreatePlayerTextDraw(playerid, mod_x, 262, "mod");
 		PlayerTextDrawLetterSize(playerid, EqInfMod[playerid][idx], 0.000000, 0.000000);
-		PlayerTextDrawTextSize(playerid, EqInfMod[playerid][idx], 18.000000, 18.000000);
+		PlayerTextDrawTextSize(playerid, EqInfMod[playerid][idx], 15.000000, 15.000000);
 		PlayerTextDrawAlignment(playerid, EqInfMod[playerid][idx], 1);
 		PlayerTextDrawColor(playerid, EqInfMod[playerid][idx], -1);
 		PlayerTextDrawUseBox(playerid, EqInfMod[playerid][idx], true);
@@ -10907,8 +14023,8 @@ stock InitPlayerTextDraws(playerid)
 		idx++;
 	}
 
-	EqInfModStat[playerid][0] = CreatePlayerTextDraw(playerid, 253.399841, 215.993835, "Increases damage by 50%");
-	PlayerTextDrawLetterSize(playerid, EqInfModStat[playerid][0], 0.200666, 0.894814);
+	EqInfModStat[playerid][0] = CreatePlayerTextDraw(playerid, 242.066635, 275.187835, "Updrade effect 1 +999%");
+	PlayerTextDrawLetterSize(playerid, EqInfModStat[playerid][0], 0.188333, 0.724740);
 	PlayerTextDrawAlignment(playerid, EqInfModStat[playerid][0], 1);
 	PlayerTextDrawColor(playerid, EqInfModStat[playerid][0], 16711935);
 	PlayerTextDrawSetShadow(playerid, EqInfModStat[playerid][0], 0);
@@ -10916,9 +14032,11 @@ stock InitPlayerTextDraws(playerid)
 	PlayerTextDrawBackgroundColor(playerid, EqInfModStat[playerid][0], 51);
 	PlayerTextDrawFont(playerid, EqInfModStat[playerid][0], 1);
 	PlayerTextDrawSetProportional(playerid, EqInfModStat[playerid][0], 1);
+	PlayerTextDrawSetPreviewModel(playerid, EqInfModStat[playerid][0], 0);
+	PlayerTextDrawSetPreviewRot(playerid, EqInfModStat[playerid][0], 0.000000, 0.000000, 0.000000, 0.000000);
 
-	EqInfModStat[playerid][1] = CreatePlayerTextDraw(playerid, 253.466476, 223.879959, "Bonus 2");
-	PlayerTextDrawLetterSize(playerid, EqInfModStat[playerid][1], 0.200666, 0.894814);
+	EqInfModStat[playerid][1] = CreatePlayerTextDraw(playerid, 242.099853, 281.497528, "Updrade effect 2 +999%");
+	PlayerTextDrawLetterSize(playerid, EqInfModStat[playerid][1], 0.188333, 0.724740);
 	PlayerTextDrawAlignment(playerid, EqInfModStat[playerid][1], 1);
 	PlayerTextDrawColor(playerid, EqInfModStat[playerid][1], 16711935);
 	PlayerTextDrawSetShadow(playerid, EqInfModStat[playerid][1], 0);
@@ -10926,42 +14044,25 @@ stock InitPlayerTextDraws(playerid)
 	PlayerTextDrawBackgroundColor(playerid, EqInfModStat[playerid][1], 51);
 	PlayerTextDrawFont(playerid, EqInfModStat[playerid][1], 1);
 	PlayerTextDrawSetProportional(playerid, EqInfModStat[playerid][1], 1);
+	PlayerTextDrawSetPreviewModel(playerid, EqInfModStat[playerid][1], 0);
+	PlayerTextDrawSetPreviewRot(playerid, EqInfModStat[playerid][1], 0.000000, 0.000000, 0.000000, 0.000000);
 
-	EqInfModStat[playerid][2] = CreatePlayerTextDraw(playerid, 253.566345, 231.392700, "Bonus 3");
-	PlayerTextDrawLetterSize(playerid, EqInfModStat[playerid][2], 0.200666, 0.894814);
-	PlayerTextDrawAlignment(playerid, EqInfModStat[playerid][2], 1);
-	PlayerTextDrawColor(playerid, EqInfModStat[playerid][2], 16711935);
-	PlayerTextDrawSetShadow(playerid, EqInfModStat[playerid][2], 0);
-	PlayerTextDrawSetOutline(playerid, EqInfModStat[playerid][2], 0);
-	PlayerTextDrawBackgroundColor(playerid, EqInfModStat[playerid][2], 51);
-	PlayerTextDrawFont(playerid, EqInfModStat[playerid][2], 1);
-	PlayerTextDrawSetProportional(playerid, EqInfModStat[playerid][2], 1);
-
-	EqInfModStat[playerid][3] = CreatePlayerTextDraw(playerid, 253.599548, 238.822448, "Bonus 4");
-	PlayerTextDrawLetterSize(playerid, EqInfModStat[playerid][3], 0.200666, 0.894814);
-	PlayerTextDrawAlignment(playerid, EqInfModStat[playerid][3], 1);
-	PlayerTextDrawColor(playerid, EqInfModStat[playerid][3], 16711935);
-	PlayerTextDrawSetShadow(playerid, EqInfModStat[playerid][3], 0);
-	PlayerTextDrawSetOutline(playerid, EqInfModStat[playerid][3], 0);
-	PlayerTextDrawBackgroundColor(playerid, EqInfModStat[playerid][3], 51);
-	PlayerTextDrawFont(playerid, EqInfModStat[playerid][3], 1);
-	PlayerTextDrawSetProportional(playerid, EqInfModStat[playerid][3], 1);
-
-	EqInfDelim4[playerid] = CreatePlayerTextDraw(playerid, 248.366043, 250.118347, "inf_delim4");
-	PlayerTextDrawLetterSize(playerid, EqInfDelim4[playerid], 0.005665, 1.837852);
-	PlayerTextDrawTextSize(playerid, EqInfDelim4[playerid], 137.866516, 2.405925);
+	EqInfDelim4[playerid] = CreatePlayerTextDraw(playerid, 238.300079, 291.420501, "delim4");
+	PlayerTextDrawLetterSize(playerid, EqInfDelim4[playerid], 0.020666, -0.671704);
+	PlayerTextDrawTextSize(playerid, EqInfDelim4[playerid], 157.466659, 1.576301);
 	PlayerTextDrawAlignment(playerid, EqInfDelim4[playerid], 1);
-	PlayerTextDrawColor(playerid, EqInfDelim4[playerid], 16711935);
+	PlayerTextDrawColor(playerid, EqInfDelim4[playerid], -65281);
 	PlayerTextDrawUseBox(playerid, EqInfDelim4[playerid], true);
 	PlayerTextDrawBoxColor(playerid, EqInfDelim4[playerid], 0);
 	PlayerTextDrawSetShadow(playerid, EqInfDelim4[playerid], 0);
 	PlayerTextDrawSetOutline(playerid, EqInfDelim4[playerid], 0);
 	PlayerTextDrawFont(playerid, EqInfDelim4[playerid], 5);
+	PlayerTextDrawBackgroundColor(playerid, EqInfDelim2[playerid], 0x00000000);
 	PlayerTextDrawSetPreviewModel(playerid, EqInfDelim4[playerid], 18656);
 	PlayerTextDrawSetPreviewRot(playerid, EqInfDelim4[playerid], 0.000000, 0.000000, 0.000000, 1.000000);
 
-	EqInfDescriptionStr[playerid][0] = CreatePlayerTextDraw(playerid, 319.433380, 254.530380, "[Description string 1]");
-	PlayerTextDrawLetterSize(playerid, EqInfDescriptionStr[playerid][0], 0.167666, 0.749629);
+	EqInfDescriptionStr[playerid][0] = CreatePlayerTextDraw(playerid, 318.700103, 294.228118, "Description string 1");
+	PlayerTextDrawLetterSize(playerid, EqInfDescriptionStr[playerid][0], 0.206999, 0.815999);
 	PlayerTextDrawAlignment(playerid, EqInfDescriptionStr[playerid][0], 2);
 	PlayerTextDrawColor(playerid, EqInfDescriptionStr[playerid][0], -1);
 	PlayerTextDrawSetShadow(playerid, EqInfDescriptionStr[playerid][0], 0);
@@ -10969,9 +14070,11 @@ stock InitPlayerTextDraws(playerid)
 	PlayerTextDrawBackgroundColor(playerid, EqInfDescriptionStr[playerid][0], 51);
 	PlayerTextDrawFont(playerid, EqInfDescriptionStr[playerid][0], 1);
 	PlayerTextDrawSetProportional(playerid, EqInfDescriptionStr[playerid][0], 1);
+	PlayerTextDrawSetPreviewModel(playerid, EqInfDescriptionStr[playerid][0], 0);
+	PlayerTextDrawSetPreviewRot(playerid, EqInfDescriptionStr[playerid][0], 0.000000, 0.000000, 0.000000, 0.000000);
 
-	EqInfDescriptionStr[playerid][1] = CreatePlayerTextDraw(playerid, 319.400115, 264.200103, "[Description string 2]");
-	PlayerTextDrawLetterSize(playerid, EqInfDescriptionStr[playerid][1], 0.167666, 0.749629);
+	EqInfDescriptionStr[playerid][1] = CreatePlayerTextDraw(playerid, 318.700286, 300.662231, "Description string 2");
+	PlayerTextDrawLetterSize(playerid, EqInfDescriptionStr[playerid][1], 0.206999, 0.815999);
 	PlayerTextDrawAlignment(playerid, EqInfDescriptionStr[playerid][1], 2);
 	PlayerTextDrawColor(playerid, EqInfDescriptionStr[playerid][1], -1);
 	PlayerTextDrawSetShadow(playerid, EqInfDescriptionStr[playerid][1], 0);
@@ -10979,9 +14082,11 @@ stock InitPlayerTextDraws(playerid)
 	PlayerTextDrawBackgroundColor(playerid, EqInfDescriptionStr[playerid][1], 51);
 	PlayerTextDrawFont(playerid, EqInfDescriptionStr[playerid][1], 1);
 	PlayerTextDrawSetProportional(playerid, EqInfDescriptionStr[playerid][1], 1);
+	PlayerTextDrawSetPreviewModel(playerid, EqInfDescriptionStr[playerid][1], 0);
+	PlayerTextDrawSetPreviewRot(playerid, EqInfDescriptionStr[playerid][1], 0.000000, 0.000000, 0.000000, 0.000000);
 
-	EqInfDescriptionStr[playerid][2] = CreatePlayerTextDraw(playerid, 319.633575, 274.035766, "[Description string 3]");
-	PlayerTextDrawLetterSize(playerid, EqInfDescriptionStr[playerid][2], 0.167666, 0.749629);
+	EqInfDescriptionStr[playerid][2] = CreatePlayerTextDraw(playerid, 318.766998, 306.888824, "Description string 3");
+	PlayerTextDrawLetterSize(playerid, EqInfDescriptionStr[playerid][2], 0.206999, 0.815999);
 	PlayerTextDrawAlignment(playerid, EqInfDescriptionStr[playerid][2], 2);
 	PlayerTextDrawColor(playerid, EqInfDescriptionStr[playerid][2], -1);
 	PlayerTextDrawSetShadow(playerid, EqInfDescriptionStr[playerid][2], 0);
@@ -10989,29 +14094,46 @@ stock InitPlayerTextDraws(playerid)
 	PlayerTextDrawBackgroundColor(playerid, EqInfDescriptionStr[playerid][2], 51);
 	PlayerTextDrawFont(playerid, EqInfDescriptionStr[playerid][2], 1);
 	PlayerTextDrawSetProportional(playerid, EqInfDescriptionStr[playerid][2], 1);
+	PlayerTextDrawSetPreviewModel(playerid, EqInfDescriptionStr[playerid][2], 0);
+	PlayerTextDrawSetPreviewRot(playerid, EqInfDescriptionStr[playerid][2], 0.000000, 0.000000, 0.000000, 0.000000);
 
-	EqInfDelim5[playerid] = CreatePlayerTextDraw(playerid, 248.532775, 286.045776, "inf_delim5");
-	PlayerTextDrawLetterSize(playerid, EqInfDelim5[playerid], 0.005665, 1.837852);
-	PlayerTextDrawTextSize(playerid, EqInfDelim5[playerid], 137.866516, 2.405925);
+	EqInfDelim5[playerid] = CreatePlayerTextDraw(playerid, 238.233367, 316.106506, "delim5");
+	PlayerTextDrawLetterSize(playerid, EqInfDelim5[playerid], 0.020666, -0.671704);
+	PlayerTextDrawTextSize(playerid, EqInfDelim5[playerid], 157.466659, 1.576301);
 	PlayerTextDrawAlignment(playerid, EqInfDelim5[playerid], 1);
-	PlayerTextDrawColor(playerid, EqInfDelim5[playerid], 16711935);
+	PlayerTextDrawColor(playerid, EqInfDelim5[playerid], -65281);
 	PlayerTextDrawUseBox(playerid, EqInfDelim5[playerid], true);
 	PlayerTextDrawBoxColor(playerid, EqInfDelim5[playerid], 0);
 	PlayerTextDrawSetShadow(playerid, EqInfDelim5[playerid], 0);
 	PlayerTextDrawSetOutline(playerid, EqInfDelim5[playerid], 0);
 	PlayerTextDrawFont(playerid, EqInfDelim5[playerid], 5);
+	PlayerTextDrawBackgroundColor(playerid, EqInfDelim2[playerid], 0x00000000);
 	PlayerTextDrawSetPreviewModel(playerid, EqInfDelim5[playerid], 18656);
 	PlayerTextDrawSetPreviewRot(playerid, EqInfDelim5[playerid], 0.000000, 0.000000, 0.000000, 1.000000);
 
-	EqInfPrice[playerid] = CreatePlayerTextDraw(playerid, 385.366790, 289.913970, "Price: 9999999999$");
-	PlayerTextDrawLetterSize(playerid, EqInfPrice[playerid], 0.234000, 1.069036);
-	PlayerTextDrawAlignment(playerid, EqInfPrice[playerid], 3);
+	EqInfPrice[playerid] = CreatePlayerTextDraw(playerid, 240.967208, 318.259307, "Cost: 99999999$");
+	PlayerTextDrawLetterSize(playerid, EqInfPrice[playerid], 0.206999, 0.815999);
+	PlayerTextDrawAlignment(playerid, EqInfPrice[playerid], 1);
 	PlayerTextDrawColor(playerid, EqInfPrice[playerid], -1);
 	PlayerTextDrawSetShadow(playerid, EqInfPrice[playerid], 0);
 	PlayerTextDrawSetOutline(playerid, EqInfPrice[playerid], 0);
 	PlayerTextDrawBackgroundColor(playerid, EqInfPrice[playerid], 51);
 	PlayerTextDrawFont(playerid, EqInfPrice[playerid], 1);
 	PlayerTextDrawSetProportional(playerid, EqInfPrice[playerid], 1);
+	PlayerTextDrawSetPreviewModel(playerid, EqInfPrice[playerid], 0);
+	PlayerTextDrawSetPreviewRot(playerid, EqInfPrice[playerid], 0.000000, 0.000000, 0.000000, 0.000000);
+
+	EqInfTrading[playerid] = CreatePlayerTextDraw(playerid, 241.000549, 325.274322, "Trade: Allowed");
+	PlayerTextDrawLetterSize(playerid, EqInfTrading[playerid], 0.206999, 0.815999);
+	PlayerTextDrawAlignment(playerid, EqInfTrading[playerid], 1);
+	PlayerTextDrawColor(playerid, EqInfTrading[playerid], -1);
+	PlayerTextDrawSetShadow(playerid, EqInfTrading[playerid], 0);
+	PlayerTextDrawSetOutline(playerid, EqInfTrading[playerid], 0);
+	PlayerTextDrawBackgroundColor(playerid, EqInfTrading[playerid], 51);
+	PlayerTextDrawFont(playerid, EqInfTrading[playerid], 1);
+	PlayerTextDrawSetProportional(playerid, EqInfTrading[playerid], 1);
+	PlayerTextDrawSetPreviewModel(playerid, EqInfTrading[playerid], 0);
+	PlayerTextDrawSetPreviewRot(playerid, EqInfTrading[playerid], 0.000000, 0.000000, 0.000000, 0.000000);
 
 	InfBox[playerid] = CreatePlayerTextDraw(playerid, 389.000030, 151.248153, "inf_box");
 	PlayerTextDrawLetterSize(playerid, InfBox[playerid], 0.000000, 10.677566);
@@ -11019,7 +14141,7 @@ stock InitPlayerTextDraws(playerid)
 	PlayerTextDrawAlignment(playerid, InfBox[playerid], 1);
 	PlayerTextDrawColor(playerid, InfBox[playerid], 0);
 	PlayerTextDrawUseBox(playerid, InfBox[playerid], true);
-	PlayerTextDrawBoxColor(playerid, InfBox[playerid], 102);
+	PlayerTextDrawBoxColor(playerid, InfBox[playerid], 0x000000DD);
 	PlayerTextDrawSetShadow(playerid, InfBox[playerid], 0);
 	PlayerTextDrawSetOutline(playerid, InfBox[playerid], 0);
 	PlayerTextDrawFont(playerid, InfBox[playerid], 0);
@@ -11071,7 +14193,7 @@ stock InitPlayerTextDraws(playerid)
 	PlayerTextDrawFont(playerid, InfItemName[playerid], 1);
 	PlayerTextDrawSetProportional(playerid, InfItemName[playerid], 1);
 
-	InfItemType[playerid] = CreatePlayerTextDraw(playerid, 282.899749, 176.093154, "Passive item");
+	InfItemType[playerid] = CreatePlayerTextDraw(playerid, 282.899749, 173.093154, "Passive item");
 	PlayerTextDrawLetterSize(playerid, InfItemType[playerid], 0.221333, 0.865777);
 	PlayerTextDrawAlignment(playerid, InfItemType[playerid], 1);
 	PlayerTextDrawColor(playerid, InfItemType[playerid], -1);
@@ -11081,8 +14203,8 @@ stock InitPlayerTextDraws(playerid)
 	PlayerTextDrawFont(playerid, InfItemType[playerid], 1);
 	PlayerTextDrawSetProportional(playerid, InfItemType[playerid], 1);
 
-	InfItemEffect[playerid][0] = CreatePlayerTextDraw(playerid, 282.866516, 187.131805, "Decreases required rank for equip by 1");
-	PlayerTextDrawLetterSize(playerid, InfItemEffect[playerid][0], 0.167666, 0.749629);
+	InfItemEffect[playerid][0] = CreatePlayerTextDraw(playerid, 282.666503, 182.970153, "Decreases required rank for equip by 1");
+	PlayerTextDrawLetterSize(playerid, InfItemEffect[playerid][0], 0.147665, 0.674962);
 	PlayerTextDrawAlignment(playerid, InfItemEffect[playerid][0], 1);
 	PlayerTextDrawColor(playerid, InfItemEffect[playerid][0], -1);
 	PlayerTextDrawSetShadow(playerid, InfItemEffect[playerid][0], 0);
@@ -11091,8 +14213,8 @@ stock InitPlayerTextDraws(playerid)
 	PlayerTextDrawFont(playerid, InfItemEffect[playerid][0], 1);
 	PlayerTextDrawSetProportional(playerid, InfItemEffect[playerid][0], 1);
 
-	InfItemEffect[playerid][1] = CreatePlayerTextDraw(playerid, 282.866546, 193.939468, "Damage +25%");
-	PlayerTextDrawLetterSize(playerid, InfItemEffect[playerid][1], 0.167666, 0.749629);
+	InfItemEffect[playerid][1] = CreatePlayerTextDraw(playerid, 282.666625, 189.072463, "Damage +25%");
+	PlayerTextDrawLetterSize(playerid, InfItemEffect[playerid][1], 0.147665, 0.674962);
 	PlayerTextDrawAlignment(playerid, InfItemEffect[playerid][1], 1);
 	PlayerTextDrawColor(playerid, InfItemEffect[playerid][1], -1);
 	PlayerTextDrawSetShadow(playerid, InfItemEffect[playerid][1], 0);
@@ -11100,8 +14222,16 @@ stock InitPlayerTextDraws(playerid)
 	PlayerTextDrawBackgroundColor(playerid, InfItemEffect[playerid][1], 51);
 	PlayerTextDrawFont(playerid, InfItemEffect[playerid][1], 1);
 	PlayerTextDrawSetProportional(playerid, InfItemEffect[playerid][1], 1);
-	PlayerTextDrawSetPreviewModel(playerid, InfItemEffect[playerid][1], 19134);
-	PlayerTextDrawSetPreviewRot(playerid, InfItemEffect[playerid][1], 0.000000, 0.000000, 90.000000, 1.000000);
+
+	InfItemEffect[playerid][2] = CreatePlayerTextDraw(playerid, 282.633270, 195.257675, "Defense +25%");
+	PlayerTextDrawLetterSize(playerid, InfItemEffect[playerid][2], 0.147665, 0.674962);
+	PlayerTextDrawAlignment(playerid, InfItemEffect[playerid][2], 1);
+	PlayerTextDrawColor(playerid, InfItemEffect[playerid][2], -1);
+	PlayerTextDrawSetShadow(playerid, InfItemEffect[playerid][2], 0);
+	PlayerTextDrawSetOutline(playerid, InfItemEffect[playerid][2], 0);
+	PlayerTextDrawBackgroundColor(playerid, InfItemEffect[playerid][2], 51);
+	PlayerTextDrawFont(playerid, InfItemEffect[playerid][2], 1);
+	PlayerTextDrawSetProportional(playerid, InfItemEffect[playerid][2], 1);
 
 	InfDelim2[playerid] = CreatePlayerTextDraw(playerid, 251.033248, 204.010681, "inf_delim2");
 	PlayerTextDrawLetterSize(playerid, InfDelim2[playerid], 0.000000, -0.233333);
@@ -11189,7 +14319,7 @@ stock InitPlayerTextDraws(playerid)
 	PlayerTextDrawAlignment(playerid, UpgBox[playerid], 1);
 	PlayerTextDrawColor(playerid, UpgBox[playerid], 0);
 	PlayerTextDrawUseBox(playerid, UpgBox[playerid], true);
-	PlayerTextDrawBoxColor(playerid, UpgBox[playerid], 102);
+	PlayerTextDrawBoxColor(playerid, UpgBox[playerid], 0x000000DD);
 	PlayerTextDrawSetShadow(playerid, UpgBox[playerid], 0);
 	PlayerTextDrawSetOutline(playerid, UpgBox[playerid], 0);
 	PlayerTextDrawFont(playerid, UpgBox[playerid], 0);
@@ -11336,7 +14466,7 @@ stock InitPlayerTextDraws(playerid)
 	PlayerTextDrawAlignment(playerid, PvpPanelBox[playerid], 1);
 	PlayerTextDrawColor(playerid, PvpPanelBox[playerid], 0);
 	PlayerTextDrawUseBox(playerid, PvpPanelBox[playerid], true);
-	PlayerTextDrawBoxColor(playerid, PvpPanelBox[playerid], 102);
+	PlayerTextDrawBoxColor(playerid, PvpPanelBox[playerid], 0x000000DD);
 	PlayerTextDrawSetShadow(playerid, PvpPanelBox[playerid], 0);
 	PlayerTextDrawSetOutline(playerid, PvpPanelBox[playerid], 0);
 	PlayerTextDrawFont(playerid, PvpPanelBox[playerid], 0);
@@ -11429,7 +14559,7 @@ stock InitPlayerTextDraws(playerid)
 	PlayerTextDrawAlignment(playerid, CmbBox[playerid], 1);
 	PlayerTextDrawColor(playerid, CmbBox[playerid], 0);
 	PlayerTextDrawUseBox(playerid, CmbBox[playerid], true);
-	PlayerTextDrawBoxColor(playerid, CmbBox[playerid], 102);
+	PlayerTextDrawBoxColor(playerid, CmbBox[playerid], 0x000000DD);
 	PlayerTextDrawSetShadow(playerid, CmbBox[playerid], 0);
 	PlayerTextDrawSetOutline(playerid, CmbBox[playerid], 0);
 	PlayerTextDrawFont(playerid, CmbBox[playerid], 0);
@@ -11833,33 +14963,44 @@ stock DeleteTextDraws()
 
 stock DeletePlayerTextDraws(playerid)
 {
-	PlayerTextDrawDestroy(playerid, ChrInfoDelim1[playerid]);
+	PlayerTextDrawDestroy(playerid, ChrInfDelim1[playerid]);
 	PlayerTextDrawDestroy(playerid, ChrInfDelim2[playerid]);
 	PlayerTextDrawDestroy(playerid, ChrInfDelim3[playerid]);
 	PlayerTextDrawDestroy(playerid, ChrInfDelim4[playerid]);
+	PlayerTextDrawDestroy(playerid, ChrInfDelim5[playerid]);
 	PlayerTextDrawDestroy(playerid, ChrInfButMod[playerid]);
 	PlayerTextDrawDestroy(playerid, ChrInfButDel[playerid]);
 	PlayerTextDrawDestroy(playerid, ChrInfButInfo[playerid]);
+	PlayerTextDrawDestroy(playerid, ChrInfButSort[playerid]);
 	PlayerTextDrawDestroy(playerid, ChrInfButUse[playerid]);
 	PlayerTextDrawDestroy(playerid, ChrInfPersonalRate[playerid]);
 	PlayerTextDrawDestroy(playerid, ChrInfText1[playerid]);
 	PlayerTextDrawDestroy(playerid, ChrInfText2[playerid]);
-	PlayerTextDrawDestroy(playerid, ChrInfOC[playerid]);
+	PlayerTextDrawDestroy(playerid, ChrInfRate[playerid]);
 	PlayerTextDrawDestroy(playerid, ChrInfAllRate[playerid]);
 	PlayerTextDrawDestroy(playerid, ChrInfClose[playerid]);
-	PlayerTextDrawDestroy(playerid, ChrInfAccSlot2[playerid]);
-	PlayerTextDrawDestroy(playerid, ChrInfAccSlot1[playerid]);
 	PlayerTextDrawDestroy(playerid, ChrInfWeaponSlot[playerid]);
 	PlayerTextDrawDestroy(playerid, ChrInfArmorSlot[playerid]);
+	PlayerTextDrawDestroy(playerid, ChrInfHatSlot[playerid]);
+	PlayerTextDrawDestroy(playerid, ChrInfWatchSlot[playerid]);
+	PlayerTextDrawDestroy(playerid, ChrInfGlassesSlot[playerid]);
+	PlayerTextDrawDestroy(playerid, ChrInfAmuletteSlot1[playerid]);
+	PlayerTextDrawDestroy(playerid, ChrInfAmuletteSlot2[playerid]);
+	PlayerTextDrawDestroy(playerid, ChrInfRingSlot1[playerid]);
+	PlayerTextDrawDestroy(playerid, ChrInfRingSlot2[playerid]);
 	PlayerTextDrawDestroy(playerid, ChrInfDodge[playerid]);
 	PlayerTextDrawDestroy(playerid, ChrInfAccuracy[playerid]);
 	PlayerTextDrawDestroy(playerid, ChrInfDefense[playerid]);
 	PlayerTextDrawDestroy(playerid, ChrInfDamage[playerid]);
 	PlayerTextDrawDestroy(playerid, ChrInfMaxHP[playerid]);
+	PlayerTextDrawDestroy(playerid, ChrInfCrit[playerid]);
 	PlayerTextDrawDestroy(playerid, ChrInfoHeader[playerid]);
 	PlayerTextDrawDestroy(playerid, ChrInfoBox[playerid]);
+	PlayerTextDrawDestroy(playerid, ChrInfCrit[playerid]);
+	PlayerTextDrawDestroy(playerid, ChrInfNextInvBtn[playerid]);
+	PlayerTextDrawDestroy(playerid, ChrInfPrevInvBtn[playerid]);
 	PlayerTextDrawDestroy(playerid, HPBar[playerid]);
-	for(new i = 0; i < MAX_INVENTORY_SLOTS; i++)
+	for(new i = 0; i < MAX_PAGE_SLOTS; i++)
 	{
 		PlayerTextDrawDestroy(playerid, ChrInfInvSlot[playerid][i]);
 		PlayerTextDrawDestroy(playerid, ChrInfInvSlotCount[playerid][i]);
@@ -11878,7 +15019,11 @@ stock DeletePlayerTextDraws(playerid)
 	PlayerTextDrawDestroy(playerid, EqInfDelim4[playerid]);
 	PlayerTextDrawDestroy(playerid, EqInfDelim5[playerid]);
 	PlayerTextDrawDestroy(playerid, EqInfPrice[playerid]);
-	for(new i = 0; i < 2; i++)
+	PlayerTextDrawDestroy(playerid, EqInfItemType[playerid]);
+	PlayerTextDrawDestroy(playerid, EqInfItemMinRank[playerid]);
+	PlayerTextDrawDestroy(playerid, EqInfItemGrade[playerid]);
+	PlayerTextDrawDestroy(playerid, EqInfTrading[playerid]);
+	for(new i = 0; i < 3; i++)
 	{
 		PlayerTextDrawDestroy(playerid, EqInfBonusStat[playerid][i]);
 	}
@@ -11886,7 +15031,7 @@ stock DeletePlayerTextDraws(playerid)
 	{
 		PlayerTextDrawDestroy(playerid, EqInfDescriptionStr[playerid][i]);
 	}
-	for(new i = 0; i < 4; i++)
+	for(new i = 0; i < 2; i++)
 	{
 		PlayerTextDrawDestroy(playerid, EqInfModStat[playerid][i]);
 	}
@@ -11902,6 +15047,7 @@ stock DeletePlayerTextDraws(playerid)
 	PlayerTextDrawDestroy(playerid, InfDelim3[playerid]);
 	PlayerTextDrawDestroy(playerid, InfItemEffect[playerid][0]);
 	PlayerTextDrawDestroy(playerid, InfItemEffect[playerid][1]);
+	PlayerTextDrawDestroy(playerid, InfItemEffect[playerid][2]);
 	PlayerTextDrawDestroy(playerid, InfItemType[playerid]);
 	PlayerTextDrawDestroy(playerid, InfItemName[playerid]);
 	PlayerTextDrawDestroy(playerid, InfItemIcon[playerid]);
@@ -11974,20 +15120,26 @@ stock DeletePlayerTextDraws(playerid)
 
 stock CreatePickups()
 {
-    home_enter = CreatePickup(1318,23,224.0201,-1837.3518,4.2787);
-    home_quit = CreatePickup(1318,23,-2158.6240,642.8425,1052.3750);
-    boss_tp = CreatePickup(19605,23,243.1539,-1831.6542,3.3772);
-    arena_tp = CreatePickup(19607,23,204.7617,-1831.6539,3.3772);
+	home_enter = CreatePickup(1318,23,224.0201,-1837.3518,4.2787);
+	home_quit = CreatePickup(1318,23,-2158.6240,642.8425,1052.3750);
+	boss_tp = CreatePickup(19605,23,243.1539,-1831.6542,3.3772);
+	arena_tp = CreatePickup(19607,23,204.7617,-1831.6539,3.3772);
+	war_tp = CreatePickup(19607,23,243.0740,-1824.2559,3.5772);
 	health_pickup = CreatePickup(1240,2,-2160.0583,638.8598,1057.5861);
     
-    Create3DTextLabel("Дом клоунов",0xf2622bFF,224.0201,-1837.3518,4.2787,70.0,0,1);
-    Create3DTextLabel("К боссам",0xeaeaeaFF,243.1539,-1831.6542,3.9772,70.0,0,1);
-    Create3DTextLabel("На арену",0xeaeaeaFF,204.7617,-1831.6539,4.1772,70.0,0,1);
-    Create3DTextLabel("Доска почета",0xFFCC00FF,-2171.3132,645.5896,1053.3817,10.0,0,1);
-    Create3DTextLabel("Торговец расходниками",0xFFCC00FF,-2166.7527,646.0400,1052.3750,55.0,0,1);
+	Create3DTextLabel("Дом клоунов",0xf2622bFF,224.0201,-1837.3518,4.2787,70.0,0,1);
+	Create3DTextLabel("К боссам",0xeaeaeaFF,243.1539,-1831.6542,3.9772,70.0,0,1);
+	Create3DTextLabel("Территория войны",0xeaeaeaFF,243.0740,-1824.2559,4.1772,70.0,0,1);
+	Create3DTextLabel("Дом Клоунов",0xeaeaeaFF,-66.2243,1516.9169,12.9772,70.0,0,1);
+	Create3DTextLabel("На арену",0xeaeaeaFF,204.7617,-1831.6539,4.1772,70.0,0,1);
+	Create3DTextLabel("Доска почета",0xFFCC00FF,-2171.3132,645.5896,1053.3817,10.0,0,1);
+	Create3DTextLabel("Торговец расходниками",0xFFCC00FF,-2166.7527,646.0400,1052.3750,55.0,0,1);
 	Create3DTextLabel("Оружейник",0xFFCC00FF,189.2644,-1825.4902,4.1411,55.0,0,1);
 	Create3DTextLabel("Портной",0xFFCC00FF,262.6658,-1825.2792,3.9126,55.0,0,1);
 	Create3DTextLabel("Буржуа",0x9933CCFF,221.0985,-1838.1259,3.6268,55.0,0,1);
+	Create3DTextLabel("Коллекционер",0x99CC00FF,218.1786,-1835.7053,3.7114,55.0,0,1);
+	Create3DTextLabel("Поставщик территории войны",0x993366FF,237.1899,-1827.0797,3.8839,55.0,0,1);
+	//Create3DTextLabel("Новогодний Шажок",0xFF0000FF,198.3415,-1854.9188,3.2889,55.0,0,1);
 	Create3DTextLabel("Заведующий турнирами",0x3366FFFF,226.7674,-1837.6835,3.6120,55.0,0,1);
 	Create3DTextLabel("Почта",0x3366CCFF,212.3999,-1838.2000,3.0000,55.0,0,0);
 	Create3DTextLabel("Рынок",0xFF9900FF,231.7,-1840.6,4.2,55.0,0,0);
@@ -11995,8 +15147,11 @@ stock CreatePickups()
 	Actors[0] =	CreateActor(26,-2166.7527,646.0400,1052.3750,179.9041);
 	Actors[1] =	CreateActor(6,189.2644,-1825.4902,4.1411,185.0134);
 	Actors[2] =	CreateActor(60,262.6658,-1825.2792,3.9126,181.2770);
-	Actors[3] =	CreateActor(5,221.0985,-1838.1259,3.6268,177.8066);
+	Actors[3] =	CreateActor(249,221.0985,-1838.1259,3.6268,177.8066);
 	Actors[4] =	CreateActor(61,226.7674,-1837.6835,3.6120,188.3151);
+	Actors[5] =	CreateActor(1,218.1786,-1835.7053,3.7114,178.7002);
+	Actors[6] =	CreateActor(33,237.1899,-1827.0797,3.8839,270.2349);
+	//Actors[6] = CreateActor(5,198.3415,-1854.9188,3.2889,271.9724);
 }
 
 stock CreateMap()
@@ -12165,4 +15320,33 @@ stock CreateMap()
 	CreateObject(2611,-2171.6001000,645.5999800,1053.3000000,0.0000000,0.0000000,90.0000000); //object(police_nb1) (1)
 	CreateObject(1291,212.3999900,-1838.2000000,3.0000000,0.0000000,0.0000000,270.0000000); //object(postbox1) (1)
 	CreateObject(3077,231.7000000,-1840.6000000,2.5000000,0.0000000,0.0000000,0.0000000); //object(nf_blackboard) (1)
+	CreateObject(1344,218.9003900,-1834.4004000,3.6000000,0.0000000,0.0000000,0.0000000); //object(cj_dumpster2) (1)
+	CreateObject(1343,217.2998000,-1834.2998000,3.5000000,0.0000000,0.0000000,0.0000000); //object(cj_dumpster3) (1)
+	CreateObject(3524,1446.8000000,1496.1000000,12.7000000,0.0000000,0.0000000,0.0000000); //object(skullpillar01_lvs) (1)
+	CreateObject(3524,1419.4000000,1495.5000000,12.7000000,0.0000000,0.0000000,0.0000000); //object(skullpillar01_lvs) (2)
+	CreateObject(3524,1419.4000000,1514.5000000,12.7000000,0.0000000,0.0000000,180.0000000); //object(skullpillar01_lvs) (3)
+	CreateObject(3524,1446.2000000,1514.8000000,12.7000000,0.0000000,0.0000000,179.9950000); //object(skullpillar01_lvs) (4)
+	CreateObject(9833,1432.2000000,1504.6000000,12.8000000,0.0000000,0.0000000,0.0000000); //object(fountain_sfw) (1)
+	CreateObject(2745,1432.6000000,1504.9000000,10.9000000,0.0000000,0.0000000,0.0000000); //object(cj_stat_3) (1)
+	CreateObject(8131,1432.1000000,1636.1000000,20.0500000,0.0000000,0.0000000,0.0000000); //object(vgschurch02_lvs) (1)
+	CreateObject(8131,1433.2000000,1382.2000000,20.0500000,0.0000000,0.0000000,0.0000000); //object(vgschurch02_lvs) (2)
+	CreateObject(3884,1442.5996000,1381.2002000,9.4000000,0.0000000,0.0000000,0.0000000); //object(samsite_sfxrf) (1)
+	CreateObject(3884,1423.9000000,1380.9000000,9.4000000,0.0000000,0.0000000,0.0000000); //object(samsite_sfxrf) (2)
+	CreateObject(3884,1444.1000000,1637.9000000,9.4000000,0.0000000,0.0000000,180.0000000); //object(samsite_sfxrf) (3)
+	CreateObject(3884,1421.2000000,1638.2000000,9.4000000,0.0000000,0.0000000,179.9950000); //object(samsite_sfxrf) (4)
+	CreateObject(2098,-66.8000000,1516.8000000,13.7000000,0.0000000,0.0000000,278.0000000); //object(cj_slotcover1) (1)
+	CreateObject(2755,-66.7000000,1516.9000000,11.8000000,90.0000000,0.0000000,10.0000000); //object(dojo_wall) (1)
+	CreateObject(2755,243.0000000,-1823.3000000,3.0000000,90.0000000,0.0000000,0.0000000); //object(dojo_wall) (2)
+	CreateObject(2098,243.1000100,-1823.7000000,4.8900000,0.0000000,0.0000000,0.0000000); //object(cj_slotcover1) (2)
+
+	//CreateObject(19076,195.8000000,-1854.9000000,2.3000000,0.0000000,0.0000000,0.0000000); //object(xmas) (1)
+	//CreateObject(19054,195.6082,-1856.1352,2.7000000,0.0000000,0.0000000,20.0000000); //object(xmas) (1)
+	//CreateObject(19056,195.5078,-1853.9680,2.7000000,0.0000000,0.0000000,30.0000000); //object(xmas) (1)
+	//CreateObject(19057,197.0055,-1854.7861,2.7000000,0.0000000,0.0000000,40.0000000); //object(xmas) (1)
+
+	//new cola_veh_id = CreateVehicle(515,183.7026,-1861.7371,3.9194,359.9408,39,47,3); //Roadtrain
+	//new cola_trailer_veh_id = CreateVehicle(435,183.7002000,-1872.4004000,3.4000000,0.0000000,245,245,3); //Trailer 1
+
+	//SetVehicleParamsEx(cola_veh_id, 0, 0, 0, 1, 0, 0, 0);
+	//SetVehicleParamsEx(cola_trailer_veh_id, 0, 0, 0, 1, 0, 0, 0);
 }
