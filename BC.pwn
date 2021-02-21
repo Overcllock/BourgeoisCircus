@@ -67,7 +67,7 @@
 //Limits
 #define MAX_TOUR 5
 #define MAX_PARTICIPANTS 20
-#define MAX_OWNERS 1
+#define MAX_OWNERS 2
 #define MAX_TEAMCOLORS 5
 #define MAX_SLOTS 125
 #define MAX_PAGE_SLOTS 25
@@ -86,8 +86,8 @@
 #define MAX_LOOT 36
 //x1 - 6, x1.5 - 10, x2 - 12, x3 - 16
 #define MAX_WALKER_LOOT 6
-//x1 - 20, x1.5 - 28, x2 - 36, x3 - 48
-#define MAX_DUNGEON_LOOT 20
+//x1 - 16, x1.5 - 22, x2 - 28, x3 - 36
+#define MAX_DUNGEON_LOOT 16
 
 #define MAX_PVP_PANEL_ITEMS 5
 #define MAX_RELIABLE_TARGETS 5
@@ -243,6 +243,7 @@ forward Time();
 forward OnPlayerLogin(playerid);
 forward OnTourEnd(finished);
 forward OnTournamentEnd();
+forward OnBattleEnd(winner[], finished);
 forward OnPhaseChanged(oldphase, newphase);
 forward Float:GetDistanceBetweenPoints(Float:p1_x,Float:p1_y,Float:p1_z,Float:p2_x,Float:p2_y,Float:p2_z);
 forward Float:GetDistanceBetweenPlayers(p1, p2);
@@ -392,7 +393,8 @@ enum pDungeon
 {
 	Mobs[MAX_PLAYERS],
 	Bosses[MAX_PLAYERS],
-	BossesIds[MAX_PLAYERS]
+	BossesIds[MAX_PLAYERS],
+	Text3D:PortalLabel
 };
 enum pInfo 
 {
@@ -1359,6 +1361,63 @@ public OnTournamentEnd()
 	SendClientMessageToAll(COLOR_LIGHTRED, "Начинается фаза мира.");
 }
 
+public OnBattleEnd(winner[], finished)
+{
+	/*if(IsValidTimer(BattleEndTimer))
+		KillTimer(BattleEndTimer);
+	if(IsValidTimer(PvpTableUpdTimer))
+		KillTimer(PvpTableUpdTimer);
+
+	for(new i = 0; i < MAX_DEATH_MESSAGES; i++)
+		SendDeathMessage(-1, MAX_PLAYERS + 1, 0);
+
+	StopBattleCapture();
+	IsBattleStarted = false;
+	ResetAllSpecialAbilites();
+
+	for(new i = 0; i < MAX_PLAYERS; i++)
+	{
+		if(FCNPC_IsValid(i))
+		{
+			if(IsValidTimer(DeadCheckTimer[i]))
+				KillTimer(DeadCheckTimer[i]);
+			for(new j = 0; j < MAX_OWNERS; j++)
+				FCNPC_HideInTabListForPlayer(i, BattlePlayers[j]);
+			FCNPC_Destroy(i);
+			ResetPlayerVariables(i);
+		}
+	}
+	for(new i = 0; i < MAX_OWNERS; i++)
+	{
+		SetBattleTableVisibility(BattlePlayers[i], false);
+		SetPvpTableVisibility(BattlePlayers[i], false);
+		TeleportToHome(BattlePlayers[i]);
+		UpdatePlayerVisual(BattlePlayers[i]);
+		SetPVarFloat(BattlePlayers[i], "HP", MaxHP[BattlePlayers[i]]);
+		SetPlayerHP(BattlePlayers[i], MaxHP[BattlePlayers[i]]);
+	}
+
+	if(finished == 0)
+	{
+		SendClientMessageToAll(COLOR_LIGHTRED, "Захват прерван.");
+		return 0;
+	}
+
+	new string[255];
+	format(string, sizeof(string), "%s - победитель в войне.", winner);
+	SendClientMessageToAll(COLOR_WHITE, string);
+
+	Tournament[Phase] = PHASE_PEACE;
+
+	UpdateSpecialEffects(winner);
+	GiveBattleRewards(winner);
+
+	OnPhaseChanged(PHASE_BATTLE, PHASE_PEACE);
+	SendClientMessageToAll(COLOR_LIGHTRED, "Начинается фаза мира.");
+
+	return 1;*/
+}
+
 stock AddSimulationLimit()
 {
 	new query[512] = "UPDATE `players` SET `Simulations` = Simulations+1";
@@ -1647,6 +1706,7 @@ public OnVehicleDeath(vehicleid, killerid)
 public OnPlayerSpawn(playerid)
 {
 	SetPlayerTeam(playerid, 10);
+	SetPlayerVirtualWorld(playerid, 0);
 	SetPVarFloat(playerid, "HP", MaxHP[playerid]);
 	SetPlayerHP(playerid, MaxHP[playerid]);
 	SetPVarInt(playerid, "Invulnearable", 0);
@@ -4644,8 +4704,9 @@ public TeleportToHome(playerid)
 	ResetWorldBounds(playerid);
 	SetPlayerPos(playerid, 224.0761,-1839.8217,3.6037);
 	SetPlayerInterior(playerid, 0);
+	SetPlayerVirtualWorld(playerid, 0);
 	SetPlayerTourTeam(playerid, NO_TEAM);
-	DestroyDungeonEnemies(playerid);
+	DestroyDungeon(playerid);
 }
 
 public CancelBossAttack()
@@ -5015,6 +5076,114 @@ stock StartTour()
 	PvpTableUpdTimer = SetTimer("UpdatePvpTable", 1000, true);
 
 	print("Tour started.");
+}
+
+stock StartBattle()
+{
+	/*new string[255];
+	//reset all
+	for(new i = 0; i < MAX_PARTICIPANTS; i++)
+	{
+		new name[255];
+		PvpInfo[i][ID] = -1;
+		PvpInfo[i][Name] = name;
+		PvpInfo[i][Score] = 0;
+		PvpInfo[i][Kills] = 0;
+		PvpInfo[i][Deaths] = 0;
+	}
+
+	ResetAllSpecialAbilites();
+	SpecialAbilityDelay = 10;
+	IsBattleStarted = true;
+
+	//teleport all
+	new npcid = -1;
+	for(new i = 0; i < BattleParticipantsCount; i++)
+	{
+		new player[pInfo];
+		player = GetPlayer(Battle[ParticipantsIDs][i]);
+		new playerid = GetPlayerInGameID(player[ID]);
+		if(playerid != -1 && !FCNPC_IsValid(playerid))
+		{
+			PvpInfo[i][ID] = playerid;
+			format(PvpInfo[i][Name], 255, "%s", player[Name]);
+			TeleportToRandomArenaPos(playerid);
+			SetPlayerColor(playerid, HexTeamColors[PlayerInfo[playerid][TeamColor]][0]);
+			SetPVarFloat(playerid, "HP", MaxHP[playerid]);
+			SetPlayerHP(playerid, MaxHP[playerid]);
+			SetPvpTableVisibility(playerid, true);
+			continue;
+		}
+
+		npcid = FCNPC_Create(player[Name]);
+		if(!FCNPC_IsValid(npcid))
+		{
+			print("Failed to create NPC.");
+			continue;
+		}
+
+		InitBattleNPC(npcid);
+		PvpInfo[i][ID] = npcid;
+		format(PvpInfo[i][Name], 255, "%s", player[Name]);
+		TeleportToRandomArenaPos(npcid);
+	}
+
+	//set teams
+	new query[255] = "SELECT * FROM `accounts` WHERE `admin` = '0'";
+	new Cache:q_result = mysql_query(sql_handle, query);
+
+	new row_count = 0;
+	cache_get_row_count(row_count);
+	q_result = cache_save();
+	cache_unset_active();
+	for(new i = 0; i < row_count; i++)
+	{
+		cache_set_active(q_result);
+		new owner[255];
+		cache_get_value_name(i, "login", owner);
+		cache_unset_active();
+
+        format(query, sizeof(query), "SELECT * FROM `players` WHERE `Owner` = '%s' AND `IsWatcher`=0", owner);
+		new Cache:result = mysql_query(sql_handle, query);
+		
+		new rows = 0;
+		cache_get_row_count(rows);
+		if(rows <= 0)
+		{
+			cache_delete(result);
+			continue;
+		}
+
+		result = cache_save();
+		cache_unset_active();
+
+		for(new j = 0; j < rows; j++)
+		{
+			new id = -1;
+			cache_set_active(result);
+			cache_get_value_name_int(j, "ID", id);
+			cache_unset_active();
+			if(id == -1) continue;
+
+			new playerid = GetPlayerInGameID(id);
+			if(playerid != -1)
+				SetPlayerTourTeam(playerid, i+1);
+		}
+		
+		cache_delete(result);
+	}
+
+	cache_delete(q_result);
+	
+	format(string, sizeof(string), "Начинается %d тур!", Tournament[Tour]);
+	SendClientMessageToAll(COLOR_LIGHTRED, string);
+
+	new tour_time = MAX_TOUR_TIME - (20 * (Tournament[Tour] - 1));
+	PvpTtl = tour_time;
+	TourEndTimer = SetTimerEx("OnTourEnd", tour_time * 1000, false, "i", 1);
+	PvpTableUpdTimer = SetTimer("UpdatePvpTable", 1000, true);
+
+	print("Battle started.");*/
 }
 
 stock GetScoreDiff(rate1, rate2, bool:is_killer)
@@ -7065,7 +7234,8 @@ stock OpenLockbox(playerid, lockboxid)
 				case 3900..5199: { itemid = 294; count = 2; }
 				case 5200..6499: { itemid = 295; count = 2; }
 				case 6500..7799: { itemid = 296; count = 2; }
-				case 7800..8299: { itemid = 286; count = 1; }
+				case 7800..8199: { itemid = 286; count = 1; }
+				case 8200..8299: { itemid = GetKeyByRank(rank, GRADE_N); count = 1; }
 				case 8300..8699: { itemid = GetRandomEquip(rank, rank, RND_EQUIP_TYPE_WEAPON, GRADE_N); count = 1; }
 				case 8700..9099: { itemid = GetRandomEquip(rank, rank, RND_EQUIP_TYPE_ARMORHAT, GRADE_N); count = 1; }
 				case 9100..9299: { itemid = GetRandomEquip(rank, rank, RND_EQUIP_TYPE_WEAPON, GRADE_B); count = 1; }
@@ -7086,7 +7256,8 @@ stock OpenLockbox(playerid, lockboxid)
 				case 3600..4799: { itemid = 294; count = 5; }
 				case 4800..5999: { itemid = 295; count = 5; }
 				case 6000..7199: { itemid = 296; count = 5; }
-				case 7200..7699: { itemid = 286; count = 2; }
+				case 7200..7599: { itemid = 286; count = 2; }
+				case 7600..7699: { itemid = GetKeyByRank(rank, GRADE_B); count = 1; }
 				case 7700..8099: { itemid = GetRandomEquip(rank, rank, RND_EQUIP_TYPE_WEAPON, GRADE_N); count = 1; }
 				case 8100..8499: { itemid = GetRandomEquip(rank, rank, RND_EQUIP_TYPE_ARMORHAT, GRADE_N); count = 1; }
 				case 8500..8699: { itemid = GetRandomEquip(rank, rank, RND_EQUIP_TYPE_WEAPON, GRADE_B); count = 1; }
@@ -7790,14 +7961,16 @@ stock EnterToDungeon(playerid, dungeonid)
 	SetPVarInt(playerid, "DungeonEnemiesKilled", 0);
 	SetPVarInt(playerid, "DungeonEnemiesRequired", dungeon[MobsCount] + dungeon[BossesCount]);
 	
-	FillDungeon(playerid, dungeonid);
-	TeleportToDungeon(playerid);
+	new worldid = 1001 + playerid;
+
+	FillDungeon(playerid, dungeonid, worldid);
+	TeleportToDungeon(playerid, worldid);
 
 	SendClientMessage(playerid, COLOR_WHITE, "Вы попали на территорию войны.");
 	SendClientMessage(playerid, COLOR_YELLOW, "Убейте всех врагов чтобы получить награду!");
 }
 
-stock FillDungeon(playerid, dungeonid)
+stock FillDungeon(playerid, dungeonid, worldid)
 {
 	new dungeon[BaseDungeon];
 	dungeon = GetDungeon(dungeonid);
@@ -7820,7 +7993,7 @@ stock FillDungeon(playerid, dungeonid)
 		npc_name = ResolveMobName(mobid);
 
 		new suffix[8];
-		format(suffix, sizeof(suffix), "_%d", i+1);
+		format(suffix, sizeof(suffix), "_%d_%d", i+1, playerid);
 		strcat(npc_name, suffix);
 
 		new npcid = FCNPC_Create(npc_name);
@@ -7849,6 +8022,7 @@ stock FillDungeon(playerid, dungeonid)
 		SetRandomMobPos(npcid);
 		FCNPC_SetInvulnerable(npcid, false);
 		FCNPC_SetInterior(npcid, 0);
+		FCNPC_SetVirtualWorld(npcid, worldid);
 		UpdatePlayerWeapon(npcid);
 		SetMobDestPoint(npcid);
 	}
@@ -7863,7 +8037,7 @@ stock FillDungeon(playerid, dungeonid)
 		boss = GetBoss(bossid);
 
 		new npc_name[64];
-		format(npc_name, sizeof(npc_name), "%s_%d", BossesNames[bossid], i+1);
+		format(npc_name, sizeof(npc_name), "%s_%d_%d", BossesNames[bossid], i+1, playerid);
 
 		new npcid = FCNPC_Create(npc_name);
 		PlayerDungeon[playerid][Bosses][i] = npcid;
@@ -7892,11 +8066,14 @@ stock FillDungeon(playerid, dungeonid)
 		SetPlayerHP(npcid, boss[HP]);
 		SetPlayerSkills(npcid);
 		FCNPC_SetInterior(npcid, 0);
+		FCNPC_SetVirtualWorld(npcid, worldid);
 
 		UpdatePlayerSkin(npcid);
 		UpdatePlayerWeapon(npcid);
 		SetMobDestPoint(npcid);
 	}
+
+	PlayerDungeon[playerid][PortalLabel] = Create3DTextLabel("Дом Клоунов",0xeaeaeaFF,-66.2243,1516.9169,12.9772,100.0,worldid,1);
 }
 
 stock CompleteDungeon(playerid, bool:is_win)
@@ -7908,12 +8085,13 @@ stock CompleteDungeon(playerid, bool:is_win)
 	{
 		SendClientMessage(playerid, COLOR_GREEN, "Победа! Территория войны пройдена.");
 		SendClientMessage(playerid, COLOR_WHITE, "Чтобы вернуться домой воспользуйтесь порталом или меню N.");
+		SetPVarInt(playerid, "TeleportCooldown", 0);
 		ClaimDungeonReward(playerid, dungeonid);
 	}
 	else
 	{
 		SendClientMessage(playerid, COLOR_RED, "Поражение. Территория войны закрыта.");
-		DestroyDungeonEnemies(playerid);
+		DestroyDungeon(playerid);
 	}
 
 	SetPVarInt(playerid, "ActiveDungeon", -1);
@@ -7921,8 +8099,10 @@ stock CompleteDungeon(playerid, bool:is_win)
 	SetPVarInt(playerid, "DungeonEnemiesRequired", 0);
 }
 
-stock DestroyDungeonEnemies(playerid)
+stock DestroyDungeon(playerid)
 {
+	Delete3DTextLabel(PlayerDungeon[playerid][PortalLabel]);
+	
 	for(new i = 0; i < MAX_PLAYERS; i++)
 	{
 		new id = PlayerDungeon[playerid][Mobs][i];
@@ -7951,7 +8131,750 @@ stock DestroyDungeonEnemies(playerid)
 
 stock ClaimDungeonReward(playerid, dungeonid)
 {
-	
+	new chance = random(10001);
+	new itemid = -1;
+	new count = 0;
+
+	switch(dungeonid)
+	{
+		case 0:
+		{
+			switch(chance)
+			{
+				case 0..999: { itemid = GetRandomEquip(1, 1, RND_EQUIP_TYPE_RANDOM, GRADE_B); count = 1; }
+				case 1000..1499: { itemid = 200; count = 1; } //часы
+				case 1500..1999: { itemid = 317; count = 1; } //коробка с бижутерией низкого качества
+				case 2000..4699: { itemid = 320; count = 1; } //коробка с эликсиром
+				case 4700..4799: { itemid = 427; count = 1; } //золотой слиток
+				case 4800..5299: { itemid = 387; count = 1; } //ключ N
+				case 5300..5599: { itemid = 384; count = 1; } //ключ B
+				default: { itemid = 290; count = 10; } //усилитель
+			}
+		}
+		case 1:
+		{
+			switch(chance)
+			{
+				case 0..999: { itemid = GetRandomEquip(1, 1, RND_EQUIP_TYPE_RANDOM, GRADE_C); count = 1; }
+				case 1000..1499: { itemid = 200; count = 1; } //часы
+				case 1500..1999: { itemid = 317; count = 1; } //коробка с бижутерией низкого качества
+				case 2000..4699: { itemid = 320; count = 2; } //коробка с эликсиром
+				case 4700..4799: { itemid = 427; count = 1; } //золотой слиток
+				case 4800..5299: { itemid = 388; count = 1; } //ключ B
+				case 5300..5599: { itemid = 385; count = 1; } //ключ C
+				case 5600..5899: { itemid = 191; count = 1; } //очки
+				case 5900..6099: { itemid = 288; count = 1; } //эликсир удачи мастера
+				default: { itemid = 290; count = 20; } //усилитель
+			}
+		}
+		case 2:
+		{
+			switch(chance)
+			{
+				case 0..999: { itemid = GetRandomEquip(1, 1, RND_EQUIP_TYPE_RANDOM, GRADE_C); count = 1; }
+				case 1000..1699: { itemid = 200; count = 1; } //часы
+				case 1700..2699: { itemid = 317; count = 1; } //коробка с бижутерией низкого качества
+				case 2700..5199: { itemid = 320; count = 4; } //коробка с эликсиром
+				case 5200..5299: { itemid = 427; count = 2; } //золотой слиток
+				case 5300..5799: { itemid = 389; count = 1; } //ключ C
+				case 5800..6099: { itemid = 386; count = 1; } //ключ L
+				case 6100..6599: { itemid = 191; count = 1; } //очки
+				case 6600..6999: { itemid = 288; count = 1; } //эликсир удачи мастера
+				case 7000..7099: { itemid = 315; count = 1; } //коробка со средним модификатором
+				default: { itemid = 290; count = 40; } //усилитель
+			}
+		}
+		case 3:
+		{
+			switch(chance)
+			{
+				case 0..999: { itemid = 297; count = 3; } //оружие L
+				case 1000..1699: { itemid = 200; count = 1; } //часы
+				case 1700..2699: { itemid = 317; count = 1; } //коробка с бижутерией низкого качества
+				case 2700..5199: { itemid = 320; count = 8; } //коробка с эликсиром
+				case 5200..5299: { itemid = 427; count = 3; } //золотой слиток
+				case 5300..5799: { itemid = 389; count = 1; } //ключ C
+				case 5800..6099: { itemid = 386; count = 1; } //ключ L
+				case 6100..6599: { itemid = 191; count = 1; } //очки
+				case 6600..6999: { itemid = 288; count = 2; } //эликсир удачи мастера
+				case 7000..7099: { itemid = 315; count = 1; } //коробка со средним модификатором
+				default: { itemid = 290; count = 80; } //усилитель
+			}
+		}
+		case 4:
+		{
+			switch(chance)
+			{
+				case 0..999: { itemid = GetRandomEquip(2, 2, RND_EQUIP_TYPE_RANDOM, GRADE_B); count = 1; }
+				case 1000..1499: { itemid = 201; count = 1; } //часы
+				case 1500..1999: { itemid = 317; count = 1; } //коробка с бижутерией низкого качества
+				case 2000..4699: { itemid = 320; count = 1; } //коробка с эликсиром
+				case 4700..4799: { itemid = 427; count = 1; } //золотой слиток
+				case 4800..5299: { itemid = 391; count = 1; } //ключ N
+				case 5300..5599: { itemid = 388; count = 1; } //ключ B
+				default: { itemid = 290; count = 20; } //усилитель
+			}
+		}
+		case 5:
+		{
+			switch(chance)
+			{
+				case 0..999: { itemid = GetRandomEquip(2, 2, RND_EQUIP_TYPE_RANDOM, GRADE_C); count = 1; }
+				case 1000..1499: { itemid = 201; count = 1; } //часы
+				case 1500..1999: { itemid = 317; count = 2; } //коробка с бижутерией низкого качества
+				case 2000..4699: { itemid = 320; count = 3; } //коробка с эликсиром
+				case 4700..4799: { itemid = 427; count = 2; } //золотой слиток
+				case 4800..5299: { itemid = 392; count = 1; } //ключ B
+				case 5300..5599: { itemid = 389; count = 1; } //ключ C
+				case 5600..5899: { itemid = 192; count = 1; } //очки
+				case 5900..6099: { itemid = 288; count = 1; } //эликсир удачи мастера
+				default: { itemid = 290; count = 40; } //усилитель
+			}
+		}
+		case 6:
+		{
+			switch(chance)
+			{
+				case 0..999: { itemid = GetRandomEquip(2, 2, RND_EQUIP_TYPE_RANDOM, GRADE_C); count = 1; }
+				case 1000..1699: { itemid = 201; count = 1; } //часы
+				case 1700..2699: { itemid = 317; count = 3; } //коробка с бижутерией низкого качества
+				case 2700..5199: { itemid = 320; count = 7; } //коробка с эликсиром
+				case 5200..5299: { itemid = 427; count = 3; } //золотой слиток
+				case 5300..5799: { itemid = 393; count = 1; } //ключ C
+				case 5800..6099: { itemid = 390; count = 1; } //ключ L
+				case 6100..6599: { itemid = 192; count = 1; } //очки
+				case 6600..6999: { itemid = 288; count = 2; } //эликсир удачи мастера
+				case 7000..7099: { itemid = 315; count = 1; } //коробка со средним модификатором
+				default: { itemid = 290; count = 70; } //усилитель
+			}
+		}
+		case 7:
+		{
+			switch(chance)
+			{
+				case 0..999: { itemid = 298; count = 3; } //оружие L
+				case 1000..1699: { itemid = 201; count = 1; } //часы
+				case 1700..2699: { itemid = 317; count = 4; } //коробка с бижутерией низкого качества
+				case 2700..5199: { itemid = 320; count = 11; } //коробка с эликсиром
+				case 5200..5299: { itemid = 427; count = 5; } //золотой слиток
+				case 5300..5799: { itemid = 393; count = 1; } //ключ C
+				case 5800..6099: { itemid = 390; count = 1; } //ключ L
+				case 6100..6599: { itemid = 192; count = 1; } //очки
+				case 6600..6999: { itemid = 288; count = 3; } //эликсир удачи мастера
+				case 7000..7099: { itemid = 315; count = 1; } //коробка со средним модификатором
+				default: { itemid = 290; count = 110; } //усилитель
+			}
+		}
+		case 8:
+		{
+			switch(chance)
+			{
+				case 0..999: { itemid = GetRandomEquip(3, 3, RND_EQUIP_TYPE_RANDOM, GRADE_B); count = 1; }
+				case 1000..1499: { itemid = 202; count = 1; } //часы
+				case 1500..1999: { itemid = 317; count = 1; } //коробка с бижутерией низкого качества
+				case 2000..4699: { itemid = 320; count = 2; } //коробка с эликсиром
+				case 4700..4799: { itemid = 427; count = 2; } //золотой слиток
+				case 4800..5299: { itemid = 395; count = 1; } //ключ N
+				case 5300..5599: { itemid = 392; count = 1; } //ключ B
+				default: { itemid = 290; count = 30; } //усилитель
+			}
+		}
+		case 9:
+		{
+			switch(chance)
+			{
+				case 0..999: { itemid = GetRandomEquip(3, 3, RND_EQUIP_TYPE_RANDOM, GRADE_C); count = 1; }
+				case 1000..1499: { itemid = 202; count = 1; } //часы
+				case 1500..1999: { itemid = 317; count = 2; } //коробка с бижутерией низкого качества
+				case 2000..4699: { itemid = 320; count = 4; } //коробка с эликсиром
+				case 4700..4799: { itemid = 427; count = 3; } //золотой слиток
+				case 4800..5299: { itemid = 396; count = 1; } //ключ B
+				case 5300..5599: { itemid = 393; count = 1; } //ключ C
+				case 5600..5899: { itemid = 193; count = 1; } //очки
+				case 5900..6099: { itemid = 288; count = 1; } //эликсир удачи мастера
+				default: { itemid = 290; count = 60; } //усилитель
+			}
+		}
+		case 10:
+		{
+			switch(chance)
+			{
+				case 0..999: { itemid = GetRandomEquip(3, 3, RND_EQUIP_TYPE_RANDOM, GRADE_C); count = 1; }
+				case 1000..1699: { itemid = 202; count = 1; } //часы
+				case 1700..2699: { itemid = 317; count = 3; } //коробка с бижутерией низкого качества
+				case 2700..5199: { itemid = 320; count = 9; } //коробка с эликсиром
+				case 5200..5299: { itemid = 427; count = 4; } //золотой слиток
+				case 5300..5799: { itemid = 397; count = 1; } //ключ C
+				case 5800..6099: { itemid = 394; count = 1; } //ключ L
+				case 6100..6599: { itemid = 193; count = 1; } //очки
+				case 6600..6999: { itemid = 288; count = 2; } //эликсир удачи мастера
+				case 7000..7099: { itemid = 315; count = 1; } //коробка со средним модификатором
+				default: { itemid = 290; count = 90; } //усилитель
+			}
+		}
+		case 11:
+		{
+			switch(chance)
+			{
+				case 0..999: { itemid = 299; count = 3; } //оружие L
+				case 1000..1699: { itemid = 202; count = 1; } //часы
+				case 1700..2699: { itemid = 317; count = 4; } //коробка с бижутерией низкого качества
+				case 2700..5199: { itemid = 320; count = 13; } //коробка с эликсиром
+				case 5200..5299: { itemid = 427; count = 6; } //золотой слиток
+				case 5300..5799: { itemid = 397; count = 1; } //ключ C
+				case 5800..6099: { itemid = 394; count = 1; } //ключ L
+				case 6100..6599: { itemid = 193; count = 1; } //очки
+				case 6600..6999: { itemid = 288; count = 3; } //эликсир удачи мастера
+				case 7000..7099: { itemid = 315; count = 1; } //коробка со средним модификатором
+				default: { itemid = 290; count = 140; } //усилитель
+			}
+		}
+		case 12:
+		{
+			switch(chance)
+			{
+				case 0..999: { itemid = GetRandomEquip(4, 4, RND_EQUIP_TYPE_RANDOM, GRADE_B); count = 1; }
+				case 1000..1499: { itemid = 203; count = 1; } //часы
+				case 1500..1999: { itemid = 317; count = 2; } //коробка с бижутерией низкого качества
+				case 2000..4699: { itemid = 320; count = 3; } //коробка с эликсиром
+				case 4700..4799: { itemid = 427; count = 3; } //золотой слиток
+				case 4800..5299: { itemid = 399; count = 1; } //ключ N
+				case 5300..5599: { itemid = 396; count = 1; } //ключ B
+				default: { itemid = 290; count = 40; } //усилитель
+			}
+		}
+		case 13:
+		{
+			switch(chance)
+			{
+				case 0..999: { itemid = GetRandomEquip(4, 4, RND_EQUIP_TYPE_RANDOM, GRADE_C); count = 1; }
+				case 1000..1499: { itemid = 203; count = 1; } //часы
+				case 1500..1999: { itemid = 317; count = 3; } //коробка с бижутерией низкого качества
+				case 2000..4699: { itemid = 320; count = 6; } //коробка с эликсиром
+				case 4700..4799: { itemid = 427; count = 4; } //золотой слиток
+				case 4800..5299: { itemid = 400; count = 1; } //ключ B
+				case 5300..5599: { itemid = 397; count = 1; } //ключ C
+				case 5600..5899: { itemid = 194; count = 1; } //очки
+				case 5900..6099: { itemid = 288; count = 1; } //эликсир удачи мастера
+				default: { itemid = 290; count = 80; } //усилитель
+			}
+		}
+		case 14:
+		{
+			switch(chance)
+			{
+				case 0..999: { itemid = GetRandomEquip(4, 4, RND_EQUIP_TYPE_RANDOM, GRADE_C); count = 1; }
+				case 1000..1699: { itemid = 203; count = 1; } //часы
+				case 1700..2699: { itemid = 318; count = 1; } //коробка с бижутерией среднего качества
+				case 2700..5199: { itemid = 320; count = 11; } //коробка с эликсиром
+				case 5200..5299: { itemid = 427; count = 5; } //золотой слиток
+				case 5300..5799: { itemid = 401; count = 1; } //ключ C
+				case 5800..6099: { itemid = 398; count = 1; } //ключ L
+				case 6100..6599: { itemid = 194; count = 1; } //очки
+				case 6600..6999: { itemid = 288; count = 2; } //эликсир удачи мастера
+				case 7000..7099: { itemid = 315; count = 1; } //коробка со средним модификатором
+				default: { itemid = 290; count = 110; } //усилитель
+			}
+		}
+		case 15:
+		{
+			switch(chance)
+			{
+				case 0..999: { itemid = 299; count = 5; } //оружие L
+				case 1000..1699: { itemid = 203; count = 1; } //часы
+				case 1700..2699: { itemid = 318; count = 1; } //коробка с бижутерией среднего качества
+				case 2700..5199: { itemid = 320; count = 15; } //коробка с эликсиром
+				case 5200..5299: { itemid = 427; count = 6; } //золотой слиток
+				case 5300..5799: { itemid = 401; count = 1; } //ключ C
+				case 5800..6099: { itemid = 398; count = 1; } //ключ L
+				case 6100..6599: { itemid = 194; count = 1; } //очки
+				case 6600..6999: { itemid = 288; count = 3; } //эликсир удачи мастера
+				case 7000..7099: { itemid = 315; count = 1; } //коробка со средним модификатором
+				default: { itemid = 290; count = 160; } //усилитель
+			}
+		}
+		case 16:
+		{
+			switch(chance)
+			{
+				case 0..999: { itemid = GetRandomEquip(5, 5, RND_EQUIP_TYPE_RANDOM, GRADE_B); count = 1; }
+				case 1000..1499: { itemid = 204; count = 1; } //часы
+				case 1500..1999: { itemid = 318; count = 1; } //коробка с бижутерией среднего качества
+				case 2000..4699: { itemid = 320; count = 4; } //коробка с эликсиром
+				case 4700..4799: { itemid = 427; count = 4; } //золотой слиток
+				case 4800..5299: { itemid = 403; count = 1; } //ключ N
+				case 5300..5599: { itemid = 400; count = 1; } //ключ B
+				default: { itemid = 290; count = 60; } //усилитель
+			}
+		}
+		case 17:
+		{
+			switch(chance)
+			{
+				case 0..999: { itemid = GetRandomEquip(5, 5, RND_EQUIP_TYPE_RANDOM, GRADE_C); count = 1; }
+				case 1000..1499: { itemid = 204; count = 1; } //часы
+				case 1500..1999: { itemid = 318; count = 1; } //коробка с бижутерией среднего качества
+				case 2000..4699: { itemid = 320; count = 7; } //коробка с эликсиром
+				case 4700..4799: { itemid = 427; count = 5; } //золотой слиток
+				case 4800..5299: { itemid = 404; count = 1; } //ключ B
+				case 5300..5599: { itemid = 401; count = 1; } //ключ C
+				case 5600..5899: { itemid = 195; count = 1; } //очки
+				case 5900..6099: { itemid = 288; count = 1; } //эликсир удачи мастера
+				default: { itemid = 290; count = 100; } //усилитель
+			}
+		}
+		case 18:
+		{
+			switch(chance)
+			{
+				case 0..999: { itemid = GetRandomEquip(5, 5, RND_EQUIP_TYPE_RANDOM, GRADE_C); count = 1; }
+				case 1000..1699: { itemid = 204; count = 1; } //часы
+				case 1700..2699: { itemid = 318; count = 1; } //коробка с бижутерией среднего качества
+				case 2700..5199: { itemid = 320; count = 12; } //коробка с эликсиром
+				case 5200..5299: { itemid = 427; count = 6; } //золотой слиток
+				case 5300..5799: { itemid = 405; count = 1; } //ключ C
+				case 5800..6099: { itemid = 402; count = 1; } //ключ L
+				case 6100..6599: { itemid = 195; count = 1; } //очки
+				case 6600..6999: { itemid = 288; count = 2; } //эликсир удачи мастера
+				case 7000..7099: { itemid = 315; count = 1; } //коробка со средним модификатором
+				default: { itemid = 290; count = 130; } //усилитель
+			}
+		}
+		case 19:
+		{
+			switch(chance)
+			{
+				case 0..999: { itemid = 300; count = 3; } //оружие L
+				case 1000..1699: { itemid = 204; count = 1; } //часы
+				case 1700..2699: { itemid = 318; count = 2; } //коробка с бижутерией среднего качества
+				case 2700..5199: { itemid = 320; count = 15; } //коробка с эликсиром
+				case 5200..5299: { itemid = 427; count = 7; } //золотой слиток
+				case 5300..5799: { itemid = 405; count = 1; } //ключ C
+				case 5800..6099: { itemid = 402; count = 1; } //ключ L
+				case 6100..6599: { itemid = 195; count = 1; } //очки
+				case 6600..6999: { itemid = 288; count = 3; } //эликсир удачи мастера
+				case 7000..7099: { itemid = 315; count = 1; } //коробка со средним модификатором
+				default: { itemid = 290; count = 180; } //усилитель
+			}
+		}
+		case 20:
+		{
+			switch(chance)
+			{
+				case 0..999: { itemid = GetRandomEquip(6, 6, RND_EQUIP_TYPE_RANDOM, GRADE_B); count = 1; }
+				case 1000..1499: { itemid = 205; count = 1; } //часы
+				case 1500..1999: { itemid = 318; count = 1; } //коробка с бижутерией среднего качества
+				case 2000..4699: { itemid = 320; count = 5; } //коробка с эликсиром
+				case 4700..4799: { itemid = 427; count = 5; } //золотой слиток
+				case 4800..5299: { itemid = 409; count = 1; } //ключ N
+				case 5300..5599: { itemid = 404; count = 1; } //ключ B
+				default: { itemid = 290; count = 80; } //усилитель
+			}
+		}
+		case 21:
+		{
+			switch(chance)
+			{
+				case 0..999: { itemid = GetRandomEquip(6, 6, RND_EQUIP_TYPE_RANDOM, GRADE_C); count = 1; }
+				case 1000..1499: { itemid = 205; count = 1; } //часы
+				case 1500..1999: { itemid = 318; count = 2; } //коробка с бижутерией среднего качества
+				case 2000..4699: { itemid = 320; count = 7; } //коробка с эликсиром
+				case 4700..4799: { itemid = 427; count = 6; } //золотой слиток
+				case 4800..5299: { itemid = 410; count = 1; } //ключ B
+				case 5300..5599: { itemid = 405; count = 1; } //ключ C
+				case 5600..5899: { itemid = 196; count = 1; } //очки
+				case 5900..6099: { itemid = 288; count = 2; } //эликсир удачи мастера
+				default: { itemid = 290; count = 120; } //усилитель
+			}
+		}
+		case 22:
+		{
+			switch(chance)
+			{
+				case 0..999: { itemid = GetRandomEquip(6, 6, RND_EQUIP_TYPE_RANDOM, GRADE_C); count = 1; }
+				case 1000..1699: { itemid = 205; count = 1; } //часы
+				case 1700..2699: { itemid = 318; count = 2; } //коробка с бижутерией среднего качества
+				case 2700..5199: { itemid = 320; count = 13; } //коробка с эликсиром
+				case 5200..5299: { itemid = 427; count = 7; } //золотой слиток
+				case 5300..5799: { itemid = 411; count = 1; } //ключ C
+				case 5800..6099: { itemid = 406; count = 1; } //ключ L
+				case 6100..6599: { itemid = 196; count = 1; } //очки
+				case 6600..6999: { itemid = 288; count = 3; } //эликсир удачи мастера
+				case 7000..7099: { itemid = 315; count = 1; } //коробка со средним модификатором
+				default: { itemid = 290; count = 140; } //усилитель
+			}
+		}
+		case 23:
+		{
+			switch(chance)
+			{
+				case 0..999: { itemid = 301; count = 3; } //оружие L
+				case 1000..1699: { itemid = 205; count = 1; } //часы
+				case 1700..2699: { itemid = 318; count = 2; } //коробка с бижутерией среднего качества
+				case 2700..5199: { itemid = 320; count = 16; } //коробка с эликсиром
+				case 5200..5299: { itemid = 427; count = 8; } //золотой слиток
+				case 5300..5799: { itemid = 411; count = 1; } //ключ C
+				case 5800..6099: { itemid = 407; count = 1; } //ключ R
+				case 6100..6599: { itemid = 196; count = 1; } //очки
+				case 6600..6999: { itemid = 288; count = 4; } //эликсир удачи мастера
+				case 7000..7099: { itemid = 315; count = 2; } //коробка со средним модификатором
+				default: { itemid = 290; count = 190; } //усилитель
+			}
+		}
+		case 24:
+		{
+			switch(chance)
+			{
+				case 0..99: { itemid = 308; count = 1; } //оружие R
+				case 100..1199: { itemid = 205; count = 1; } //часы
+				case 1200..2199: { itemid = 318; count = 3; } //коробка с бижутерией среднего качества
+				case 2200..4899: { itemid = 320; count = 21; } //коробка с эликсиром
+				case 4900..5099: { itemid = 427; count = 10; } //золотой слиток
+				case 5100..5399: { itemid = 412; count = 1; } //ключ L
+				case 5400..5599: { itemid = 408; count = 1; } //ключ S
+				case 5600..6399: { itemid = 196; count = 1; } //очки
+				case 6400..6799: { itemid = 288; count = 5; } //эликсир удачи мастера
+				case 6800..6999: { itemid = 315; count = 3; } //коробка со средним модификатором
+				default: { itemid = 290; count = 230; } //усилитель
+			}
+		}
+		case 25:
+		{
+			switch(chance)
+			{
+				case 0..99: { itemid = 308; count = 1; } //оружие R
+				case 100..199: { itemid = 379; count = 1; } //часы
+				case 200..499: { itemid = GetRandomAccessory(4); count = 1; } //бижутерия сил земли
+				case 500..5199: { itemid = 320; count = 25; } //коробка с эликсиром
+				case 5200..5499: { itemid = 427; count = 13; } //золотой слиток
+				case 5500..5699: { itemid = 413; count = 1; } //ключ R
+				case 5700..5799: { itemid = 414; count = 1; } //ключ S
+				case 5800..5899: { itemid = 375; count = 1; } //очки
+				case 5900..6399: { itemid = 288; count = 6; } //эликсир удачи мастера
+				case 6400..6599: { itemid = 315; count = 4; } //коробка со средним модификатором
+				default: { itemid = 290; count = 260; } //усилитель
+			}
+		}
+		case 26:
+		{
+			switch(chance)
+			{
+				case 0..999: { itemid = GetRandomEquip(7, 7, RND_EQUIP_TYPE_RANDOM, GRADE_B); count = 1; }
+				case 1000..1499: { itemid = 206; count = 1; } //часы
+				case 1500..1999: { itemid = 318; count = 2; } //коробка с бижутерией среднего качества
+				case 2000..4699: { itemid = 320; count = 7; } //коробка с эликсиром
+				case 4700..4799: { itemid = 427; count = 6; } //золотой слиток
+				case 4800..5299: { itemid = 415; count = 1; } //ключ N
+				case 5300..5599: { itemid = 410; count = 1; } //ключ B
+				default: { itemid = 290; count = 100; } //усилитель
+			}
+		}
+		case 27:
+		{
+			switch(chance)
+			{
+				case 0..999: { itemid = GetRandomEquip(7, 7, RND_EQUIP_TYPE_RANDOM, GRADE_C); count = 1; }
+				case 1000..1499: { itemid = 206; count = 1; } //часы
+				case 1500..1999: { itemid = 318; count = 3; } //коробка с бижутерией среднего качества
+				case 2000..4699: { itemid = 320; count = 9; } //коробка с эликсиром
+				case 4700..4799: { itemid = 427; count = 7; } //золотой слиток
+				case 4800..5299: { itemid = 416; count = 1; } //ключ B
+				case 5300..5599: { itemid = 411; count = 1; } //ключ C
+				case 5600..5899: { itemid = 197; count = 1; } //очки
+				case 5900..6099: { itemid = 288; count = 3; } //эликсир удачи мастера
+				default: { itemid = 290; count = 140; } //усилитель
+			}
+		}
+		case 28:
+		{
+			switch(chance)
+			{
+				case 0..999: { itemid = GetRandomEquip(7, 7, RND_EQUIP_TYPE_RANDOM, GRADE_C); count = 1; }
+				case 1000..1699: { itemid = 206; count = 1; } //часы
+				case 1700..2699: { itemid = 318; count = 3; } //коробка с бижутерией среднего качества
+				case 2700..5199: { itemid = 320; count = 15; } //коробка с эликсиром
+				case 5200..5299: { itemid = 427; count = 8; } //золотой слиток
+				case 5300..5799: { itemid = 417; count = 1; } //ключ C
+				case 5800..6099: { itemid = 412; count = 1; } //ключ L
+				case 6100..6599: { itemid = 197; count = 1; } //очки
+				case 6600..6999: { itemid = 288; count = 4; } //эликсир удачи мастера
+				case 7000..7099: { itemid = 315; count = 1; } //коробка со средним модификатором
+				default: { itemid = 290; count = 160; } //усилитель
+			}
+		}
+		case 29:
+		{
+			switch(chance)
+			{
+				case 0..999: { itemid = 302; count = 3; } //оружие L
+				case 1000..1699: { itemid = 206; count = 1; } //часы
+				case 1700..2699: { itemid = 318; count = 3; } //коробка с бижутерией среднего качества
+				case 2700..5199: { itemid = 320; count = 18; } //коробка с эликсиром
+				case 5200..5299: { itemid = 427; count = 10; } //золотой слиток
+				case 5300..5799: { itemid = 417; count = 1; } //ключ C
+				case 5800..6099: { itemid = 413; count = 1; } //ключ R
+				case 6100..6599: { itemid = 197; count = 1; } //очки
+				case 6600..6999: { itemid = 288; count = 5; } //эликсир удачи мастера
+				case 7000..7099: { itemid = 315; count = 2; } //коробка со средним модификатором
+				default: { itemid = 290; count = 210; } //усилитель
+			}
+		}
+		case 30:
+		{
+			switch(chance)
+			{
+				case 0..99: { itemid = 309; count = 1; } //оружие R
+				case 100..1199: { itemid = 206; count = 1; } //часы
+				case 1200..2199: { itemid = 318; count = 4; } //коробка с бижутерией среднего качества
+				case 2200..4899: { itemid = 320; count = 24; } //коробка с эликсиром
+				case 4900..5099: { itemid = 427; count = 12; } //золотой слиток
+				case 5100..5399: { itemid = 418; count = 1; } //ключ L
+				case 5400..5599: { itemid = 414; count = 1; } //ключ S
+				case 5600..6399: { itemid = 197; count = 1; } //очки
+				case 6400..6799: { itemid = 288; count = 6; } //эликсир удачи мастера
+				case 6800..6999: { itemid = 315; count = 3; } //коробка со средним модификатором
+				default: { itemid = 290; count = 250; } //усилитель
+			}
+		}
+		case 31:
+		{
+			switch(chance)
+			{
+				case 0..99: { itemid = 309; count = 1; } //оружие R
+				case 100..199: { itemid = 380; count = 1; } //часы
+				case 200..499: { itemid = GetRandomAccessory(4); count = 1; } //бижутерия сил земли
+				case 500..5199: { itemid = 320; count = 29; } //коробка с эликсиром
+				case 5200..5499: { itemid = 427; count = 15; } //золотой слиток
+				case 5500..5699: { itemid = 419; count = 1; } //ключ R
+				case 5700..5799: { itemid = 420; count = 1; } //ключ S
+				case 5800..5899: { itemid = 376; count = 1; } //очки
+				case 5900..6399: { itemid = 288; count = 7; } //эликсир удачи мастера
+				case 6400..6599: { itemid = 315; count = 4; } //коробка со средним модификатором
+				default: { itemid = 290; count = 280; } //усилитель
+			}
+		}
+		case 32:
+		{
+			switch(chance)
+			{
+				case 0..999: { itemid = GetRandomEquip(8, 8, RND_EQUIP_TYPE_RANDOM, GRADE_B); count = 1; }
+				case 1000..1499: { itemid = 207; count = 1; } //часы
+				case 1500..1999: { itemid = 318; count = 3; } //коробка с бижутерией среднего качества
+				case 2000..4699: { itemid = 320; count = 9; } //коробка с эликсиром
+				case 4700..4799: { itemid = 427; count = 8; } //золотой слиток
+				case 4800..5299: { itemid = 421; count = 1; } //ключ N
+				case 5300..5599: { itemid = 416; count = 1; } //ключ B
+				default: { itemid = 290; count = 120; } //усилитель
+			}
+		}
+		case 33:
+		{
+			switch(chance)
+			{
+				case 0..999: { itemid = GetRandomEquip(8, 8, RND_EQUIP_TYPE_RANDOM, GRADE_C); count = 1; }
+				case 1000..1499: { itemid = 207; count = 1; } //часы
+				case 1500..1999: { itemid = 318; count = 4; } //коробка с бижутерией среднего качества
+				case 2000..4699: { itemid = 320; count = 11; } //коробка с эликсиром
+				case 4700..4799: { itemid = 427; count = 9; } //золотой слиток
+				case 4800..5299: { itemid = 422; count = 1; } //ключ B
+				case 5300..5599: { itemid = 417; count = 1; } //ключ C
+				case 5600..5899: { itemid = 198; count = 1; } //очки
+				case 5900..6099: { itemid = 288; count = 3; } //эликсир удачи мастера
+				default: { itemid = 290; count = 150; } //усилитель
+			}
+		}
+		case 34:
+		{
+			switch(chance)
+			{
+				case 0..999: { itemid = GetRandomEquip(8, 8, RND_EQUIP_TYPE_RANDOM, GRADE_C); count = 1; }
+				case 1000..1699: { itemid = 207; count = 1; } //часы
+				case 1700..2699: { itemid = 318; count = 5; } //коробка с бижутерией среднего качества
+				case 2700..5199: { itemid = 320; count = 16; } //коробка с эликсиром
+				case 5200..5299: { itemid = 427; count = 10; } //золотой слиток
+				case 5300..5799: { itemid = 423; count = 1; } //ключ C
+				case 5800..6099: { itemid = 418; count = 1; } //ключ L
+				case 6100..6599: { itemid = 198; count = 1; } //очки
+				case 6600..6999: { itemid = 288; count = 5; } //эликсир удачи мастера
+				case 7000..7099: { itemid = 315; count = 2; } //коробка со средним модификатором
+				default: { itemid = 290; count = 170; } //усилитель
+			}
+		}
+		case 35:
+		{
+			switch(chance)
+			{
+				case 0..999: { itemid = 303; count = 3; } //оружие L
+				case 1000..1699: { itemid = 207; count = 1; } //часы
+				case 1700..2699: { itemid = 319; count = 1; } //коробка с бижутерией высокого качества
+				case 2700..5199: { itemid = 320; count = 21; } //коробка с эликсиром
+				case 5200..5299: { itemid = 427; count = 12; } //золотой слиток
+				case 5300..5799: { itemid = 423; count = 1; } //ключ C
+				case 5800..6099: { itemid = 419; count = 1; } //ключ R
+				case 6100..6599: { itemid = 198; count = 1; } //очки
+				case 6600..6999: { itemid = 288; count = 6; } //эликсир удачи мастера
+				case 7000..7099: { itemid = 315; count = 3; } //коробка со средним модификатором
+				default: { itemid = 290; count = 230; } //усилитель
+			}
+		}
+		case 36:
+		{
+			switch(chance)
+			{
+				case 0..99: { itemid = 310; count = 1; } //оружие R
+				case 100..1199: { itemid = 207; count = 1; } //часы
+				case 1200..2199: { itemid = 319; count = 1; } //коробка с бижутерией высокого качества
+				case 2200..4899: { itemid = 320; count = 26; } //коробка с эликсиром
+				case 4900..5099: { itemid = 427; count = 15; } //золотой слиток
+				case 5100..5399: { itemid = 424; count = 1; } //ключ L
+				case 5400..5599: { itemid = 420; count = 1; } //ключ S
+				case 5600..6399: { itemid = 198; count = 1; } //очки
+				case 6400..6799: { itemid = 288; count = 7; } //эликсир удачи мастера
+				case 6800..6999: { itemid = 316; count = 1; } //коробка с крупным модификатором
+				default: { itemid = 290; count = 270; } //усилитель
+			}
+		}
+		case 37:
+		{
+			switch(chance)
+			{
+				case 0..99: { itemid = 310; count = 1; } //оружие R
+				case 100..199: { itemid = 381; count = 1; } //часы
+				case 200..499: { itemid = GetRandomAccessory(5); count = 1; } //бижутерия Древних
+				case 500..5199: { itemid = 320; count = 34; } //коробка с эликсиром
+				case 5200..5499: { itemid = 427; count = 19; } //золотой слиток
+				case 5500..5699: { itemid = 425; count = 1; } //ключ R
+				case 5700..5799: { itemid = 420; count = 1; } //ключ S
+				case 5800..5899: { itemid = 377; count = 1; } //очки
+				case 5900..6399: { itemid = 288; count = 9; } //эликсир удачи мастера
+				case 6400..6599: { itemid = 316; count = 1; } //коробка с крупным модификатором
+				default: { itemid = 290; count = 320; } //усилитель
+			}
+		}
+		case 38:
+		{
+			switch(chance)
+			{
+				case 0..999: { itemid = GetRandomEquip(9, 9, RND_EQUIP_TYPE_RANDOM, GRADE_B); count = 1; }
+				case 1000..1499: { itemid = 208; count = 1; } //часы
+				case 1500..1999: { itemid = 318; count = 4; } //коробка с бижутерией среднего качества
+				case 2000..4699: { itemid = 320; count = 12; } //коробка с эликсиром
+				case 4700..4799: { itemid = 427; count = 10; } //золотой слиток
+				case 4800..5299: { itemid = 421; count = 1; } //ключ N
+				case 5300..5599: { itemid = 422; count = 1; } //ключ B
+				default: { itemid = 290; count = 140; } //усилитель
+			}
+		}
+		case 39:
+		{
+			switch(chance)
+			{
+				case 0..999: { itemid = GetRandomEquip(9, 9, RND_EQUIP_TYPE_RANDOM, GRADE_C); count = 1; }
+				case 1000..1499: { itemid = 208; count = 1; } //часы
+				case 1500..1999: { itemid = 319; count = 1; } //коробка с бижутерией высокого качества
+				case 2000..4699: { itemid = 320; count = 14; } //коробка с эликсиром
+				case 4700..4799: { itemid = 427; count = 11; } //золотой слиток
+				case 4800..5299: { itemid = 422; count = 1; } //ключ B
+				case 5300..5599: { itemid = 423; count = 1; } //ключ C
+				case 5600..5899: { itemid = 199; count = 1; } //очки
+				case 5900..6099: { itemid = 288; count = 4; } //эликсир удачи мастера
+				default: { itemid = 290; count = 170; } //усилитель
+			}
+		}
+		case 40:
+		{
+			switch(chance)
+			{
+				case 0..999: { itemid = GetRandomEquip(9, 9, RND_EQUIP_TYPE_RANDOM, GRADE_C); count = 1; }
+				case 1000..1699: { itemid = 208; count = 1; } //часы
+				case 1700..2699: { itemid = 319; count = 1; } //коробка с бижутерией высокого качества
+				case 2700..5199: { itemid = 320; count = 18; } //коробка с эликсиром
+				case 5200..5299: { itemid = 427; count = 13; } //золотой слиток
+				case 5300..5799: { itemid = 423; count = 1; } //ключ C
+				case 5800..6099: { itemid = 424; count = 1; } //ключ L
+				case 6100..6599: { itemid = 199; count = 1; } //очки
+				case 6600..6999: { itemid = 288; count = 6; } //эликсир удачи мастера
+				case 7000..7099: { itemid = 315; count = 3; } //коробка со средним модификатором
+				default: { itemid = 290; count = 190; } //усилитель
+			}
+		}
+		case 41:
+		{
+			switch(chance)
+			{
+				case 0..999: { itemid = 304; count = 3; } //оружие L
+				case 1000..1699: { itemid = 208; count = 1; } //часы
+				case 1700..2699: { itemid = 319; count = 2; } //коробка с бижутерией высокого качества
+				case 2700..5199: { itemid = 320; count = 24; } //коробка с эликсиром
+				case 5200..5299: { itemid = 427; count = 15; } //золотой слиток
+				case 5300..5799: { itemid = 423; count = 1; } //ключ C
+				case 5800..6099: { itemid = 425; count = 1; } //ключ R
+				case 6100..6599: { itemid = 199; count = 1; } //очки
+				case 6600..6999: { itemid = 288; count = 7; } //эликсир удачи мастера
+				case 7000..7099: { itemid = 316; count = 1; } //коробка с крупным модификатором
+				default: { itemid = 290; count = 250; } //усилитель
+			}
+		}
+		case 42:
+		{
+			switch(chance)
+			{
+				case 0..99: { itemid = 311; count = 1; } //оружие R
+				case 100..1199: { itemid = 208; count = 1; } //часы
+				case 1200..2199: { itemid = 319; count = 3; } //коробка с бижутерией высокого качества
+				case 2200..4899: { itemid = 320; count = 32; } //коробка с эликсиром
+				case 4900..5099: { itemid = 427; count = 19; } //золотой слиток
+				case 5100..5399: { itemid = 424; count = 1; } //ключ L
+				case 5400..5599: { itemid = 426; count = 1; } //ключ S
+				case 5600..6399: { itemid = 199; count = 1; } //очки
+				case 6400..6799: { itemid = 288; count = 9; } //эликсир удачи мастера
+				case 6800..6999: { itemid = 316; count = 1; } //коробка с крупным модификатором
+				default: { itemid = 290; count = 300; } //усилитель
+			}
+		}
+		case 43:
+		{
+			switch(chance)
+			{
+				case 0..99: { itemid = 311; count = 1; } //оружие R
+				case 100..199: { itemid = 382; count = 1; } //часы
+				case 200..499: { itemid = GetRandomAccessory(6); count = 1; } //бижутерия священной горы
+				case 500..5199: { itemid = 320; count = 42; } //коробка с эликсиром
+				case 5200..5499: { itemid = 427; count = 24; } //золотой слиток
+				case 5500..5699: { itemid = 425; count = 1; } //ключ R
+				case 5700..5799: { itemid = 426; count = 1; } //ключ S
+				case 5800..5899: { itemid = 378; count = 1; } //очки
+				case 5900..6399: { itemid = 288; count = 12; } //эликсир удачи мастера
+				case 6400..6599: { itemid = 316; count = 2; } //коробка с крупным модификатором
+				default: { itemid = 290; count = 360; } //усилитель
+			}
+		}
+	}
+
+	if(itemid == -1) return;
+
+	new item[BaseItem];
+	item = GetItem(itemid);
+
+	new string[255];
+	if(IsEquip(itemid))
+	{
+		AddEquip(playerid, itemid, MOD_CLEAR);
+		if(item[Grade] >= GRADE_C)
+		{
+			format(string, sizeof(string), "{%s}%s {ffffff}приобрел {%s}[%s]{ffffff}.", 
+				GetColorByRate(PlayerInfo[playerid][Rate]), PlayerInfo[playerid][Name], GetGradeColor(item[Grade]), item[Name]
+			);
+			SendClientMessageToAll(0xFFFFFFFF, string);
+		}
+	}
+	else
+		AddItem(playerid, itemid, count);
+
+	format(string, sizeof(string), "Получено: {%s}[%s] {ffffff}x%d.", 
+		GetGradeColor(item[Grade]), item[Name], count
+	);
+	SendClientMessage(playerid, 0xFFFFFFFF, string);
 }
 
 stock ResolveMobName(mobid)
@@ -8387,8 +9310,9 @@ stock RollDungeonLoot(npcid, playerid)
 	new loot_mult = 4;
 	if(HasItem(playerid, 280, 1))
 		loot_mult /= 2;
-
-	new iterations = random(MAX_DUNGEON_LOOT / loot_mult) + MAX_DUNGEON_LOOT / loot_mult + 1;
+	
+	new max_loot = IsDungeonBoss[npcid] ? MAX_DUNGEON_LOOT : MAX_DUNGEON_LOOT / 2;
+	new iterations = random(max_loot / loot_mult) + max_loot / loot_mult + 1;
 	for(new i = 0; i < iterations; i++)
 	{
 		new loot[LootInfo];
@@ -8406,7 +9330,7 @@ stock RollDungeonLoot(npcid, playerid)
 
 		new Float:x, Float:y, Float:z;
 		FCNPC_GetPosition(npcid, x, y, z);
-		DungeonLootPickups[npcid][i] = CreatePickup(19055, 1, x + random(6), y + random(6), z, 0);
+		DungeonLootPickups[npcid][i] = CreatePickup(19055, 1, x + random(6), y + random(6), z, 1001 + playerid);
 	}
 }
 
@@ -8715,17 +9639,17 @@ stock RollBossLootItem(bossid)
 		{
 			switch(chance)
 			{
-				case 0..49: itemid = 269;
-				case 50..99: itemid = 270;
-				case 100..149: itemid = 271;
-				case 150..199: itemid = 272;
-				case 200..249: itemid = GetRandomAccessory(5); //бижутерия Древних
-				case 250..399: itemid = GetRandomAccessory(4); //бижутерия сил земли
+				case 0..24: itemid = 308;
+				case 25..49: itemid = 309;
+				case 50..74: itemid = 310;
+				case 75..99: itemid = 311;
+				case 200..224: itemid = GetRandomAccessory(5); //бижутерия Древних
+				case 250..299: itemid = GetRandomAccessory(4); //бижутерия сил земли
 				case 400..799: { itemid = 315; count = 3; } //коробка с модификатором
 				case 800..849: itemid = 316; //коробка с крупным модификатором
 				case 850..5149: { itemid = 307; count = 5; } //печать Древних
 				case 5150..5349: { itemid = 288; count = 5; } //эликсир удачи мастера
-				case 5350..5399: { itemid = 289; count = 2; } //редкий эликсир удачи
+				case 5350..5374: { itemid = 289; count = 2; } //редкий эликсир удачи
 				case 5400..5899: { itemid = 427; count = 5; } //золотой слиток
 				default: { itemid = 320; count = 10; } //коробка с эликсиром
 			}
@@ -8738,7 +9662,7 @@ stock RollBossLootItem(bossid)
 				case 100..199: itemid = 376;
 				case 200..299: itemid = 379;
 				case 300..399: itemid = 380;
-				case 400..599: itemid = GetRandomAccessory(6); //бижутерия священной горы
+				case 400..449: itemid = GetRandomAccessory(6); //бижутерия священной горы
 				case 600..1099: { itemid = 315; count = 4; } //коробка с модификатором
 				case 1100..1149: { itemid = 316; count = 2; } //коробка с крупным модификатором
 				case 1150..5249: { itemid = 307; count = 7; } //печать Древних
@@ -8756,7 +9680,7 @@ stock RollBossLootItem(bossid)
 				case 100..199: itemid = 378;
 				case 200..299: itemid = 381;
 				case 300..399: itemid = 382;
-				case 400..599: itemid = GetRandomAccessory(6); //бижутерия священной горы
+				case 400..499: itemid = GetRandomAccessory(6); //бижутерия священной горы
 				case 600..1099: { itemid = 315; count = 6; } //коробка с модификатором
 				case 1100..1149: { itemid = 316; count = 3; } //коробка с крупным модификатором
 				case 1150..5249: { itemid = 307; count = 10; } //печать Древних
@@ -8797,6 +9721,14 @@ stock GetRandomEquip(minrank, maxrank, eq_type = RND_EQUIP_TYPE_RANDOM, grade = 
 		return baseid + rank * 8 + (grade == RND_EQUIP_GRADE_RANDOM ? random(8) : grade-1);
 	else
 		return baseid + rank * 6 + (grade == RND_EQUIP_GRADE_RANDOM ? random(6) : grade-1);
+}
+
+stock GetKeyByRank(rank, grade)
+{
+	if(rank < 6)
+		return 383 + (rank-1) * 4 + grade - 1;
+	else
+		return 403 + (rank-6) * 6 + grade - 1;
 }
 
 stock GetRandomGlasses(minrank, maxrank)
@@ -10304,11 +11236,12 @@ stock RemoveWorldBounds(playerid)
 	SetPlayerWorldBounds(playerid, 20000.0000, -20000.0000, 20000.0000, -20000.0000);
 }
 
-stock TeleportToDungeon(playerid)
+stock TeleportToDungeon(playerid, worldid)
 {
 	RemoveWorldBounds(playerid);
 	SetPlayerInterior(playerid, 0);
 	SetPlayerPos(playerid, -63.6603,1518.1443,12.7500);
+	SetPlayerVirtualWorld(playerid, worldid);
 	SetPlayerFacingAngle(playerid, 292.1078);
 	SetCameraBehindPlayer(playerid);
 	SetPlayerWorldBounds(playerid, 93.0163, -75.3017, 1584.2813, 1463.9381);
@@ -15130,7 +16063,6 @@ stock CreatePickups()
 	Create3DTextLabel("Дом клоунов",0xf2622bFF,224.0201,-1837.3518,4.2787,70.0,0,1);
 	Create3DTextLabel("К боссам",0xeaeaeaFF,243.1539,-1831.6542,3.9772,70.0,0,1);
 	Create3DTextLabel("Территория войны",0xeaeaeaFF,243.0740,-1824.2559,4.1772,70.0,0,1);
-	Create3DTextLabel("Дом Клоунов",0xeaeaeaFF,-66.2243,1516.9169,12.9772,70.0,0,1);
 	Create3DTextLabel("На арену",0xeaeaeaFF,204.7617,-1831.6539,4.1772,70.0,0,1);
 	Create3DTextLabel("Доска почета",0xFFCC00FF,-2171.3132,645.5896,1053.3817,10.0,0,1);
 	Create3DTextLabel("Торговец расходниками",0xFFCC00FF,-2166.7527,646.0400,1052.3750,55.0,0,1);
