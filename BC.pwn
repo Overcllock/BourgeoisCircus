@@ -1,4 +1,4 @@
-//Bourgeois Circus 3.0
+//Bourgeois Circus 4.0
 
 #include <a_samp>
 #include <a_mail>
@@ -18,7 +18,7 @@
 
 #pragma dynamic 31294
 
-#define VERSION 3.001
+#define VERSION 4.001
 
 //Mysql settings
 
@@ -67,14 +67,14 @@
 //Limits
 #define MAX_TOUR 5
 #define MAX_PARTICIPANTS 20
-#define MAX_OWNERS 2
+#define MAX_OWNERS 1
 #define MAX_TEAMCOLORS 5
-#define MAX_SLOTS 125
+#define MAX_SLOTS 175
 #define MAX_PAGE_SLOTS 25
 #define MAX_SLOTS_X 5
 #define MAX_SLOTS_Y 5
-#define MAX_INV_PAGES 5
-#define MAX_RANK 9
+#define MAX_INV_PAGES 7
+#define MAX_RANK 14
 #define MAX_MOD 7
 #define MAX_PROPERTIES 3
 #define MAX_DESCRIPTION_SIZE 40
@@ -82,16 +82,16 @@
 #define MAX_BOSSES 8
 #define MAX_ITEM_ID 1000
 
-//x1 - 36, x1.5 - 48, x2 - 54, x3 - 70
-#define MAX_LOOT 36
-//x1 - 6, x1.5 - 10, x2 - 12, x3 - 16
-#define MAX_WALKER_LOOT 6
-//x1 - 16, x1.5 - 22, x2 - 28, x3 - 36
-#define MAX_DUNGEON_LOOT 16
+//x1 - 10, x1.5 - 14, x2 - 20, x3 - 30
+#define MAX_LOOT 10
+//x1 - 4, x1.5 - 6, x2 - 8, x3 - 12
+#define MAX_WALKER_LOOT 4
+//x1 - 6, x1.5 - 8, x2 - 12, x3 - 16
+#define MAX_DUNGEON_LOOT 6
 
 #define MAX_PVP_PANEL_ITEMS 5
 #define MAX_RELIABLE_TARGETS 5
-#define MAX_RATE 3000
+#define MAX_RATE 9000
 #define MAX_DEATH_MESSAGES 5
 #define MAX_NPC_MOVING_TICKS 60
 #define MAX_NPC_IDLE_TICKS 30
@@ -144,6 +144,8 @@
 #define ITEMTYPE_MATERIAL 9
 #define ITEMTYPE_BOX 10
 #define ITEMTYPE_MODIFIER 11
+#define ITEMTYPE_WEAPON_MELEE 12
+#define ITEMTYPE_ABILITY 12
 
 //Item grades
 #define GRADE_N 1
@@ -178,6 +180,7 @@
 #define MOD_RESULT_FAIL 1
 #define MOD_RESULT_RESET 2
 #define MOD_RESULT_DESTROY 3
+#define MOD_RESULT_UNDO 4
 
 //Hierarchy
 #define HIERARCHY_STATUSES_COUNT 5
@@ -201,42 +204,42 @@
 
 //Delays
 #define DEFAULT_SHOOT_DELAY 	200
-#define COLT_SHOOT_DELAY 		190
+#define COLT_SHOOT_DELAY 			190
 #define DEAGLE_SHOOT_DELAY 		260
-#define MP5_SHOOT_DELAY 		130
-#define TEC_SHOOT_DELAY 		70
-#define AK_SHOOT_DELAY 			185
-#define M4_SHOOT_DELAY 			175
+#define MP5_SHOOT_DELAY 			130
+#define TEC_SHOOT_DELAY 			70
+#define AK_SHOOT_DELAY 				185
+#define M4_SHOOT_DELAY 				175
 #define SHOTGUN_SHOOT_DELAY 	410
 #define SAWNOFF_SHOOT_DELAY 	380
 #define COMBAT_SHOOT_DELAY 		350
-#define RIFLE_SHOOT_DELAY		420
+#define RIFLE_SHOOT_DELAY			420
 
 //Static items
-#define ITEM_GEN_HP_ID 			277
+#define ITEM_GEN_HP_ID 				277
 #define ITEM_GEN_ATTACK_ID 		278
 #define ITEM_GEN_DEFENSE_ID 	279
 #define ITEM_LUCKY_CARD_ID 		280
-#define ITEM_SHAZOK_LETTER_ID 	281
+#define ITEM_SHAZOK_LETTER_ID 281
 
 //Special abilites
-#define SPECIAL_AB_EFFECT_NONE 			0
-#define SPECIAL_AB_EFFECT_CONFUSION 	1
+#define SPECIAL_AB_EFFECT_NONE 					0
+#define SPECIAL_AB_EFFECT_CONFUSION 		1
 #define SPECIAL_AB_EFFECT_SHAZOK_FORCE 	2
 
 //Special activites
-#define SPECIAL_ACTIVITY_NONE 		0
+#define SPECIAL_ACTIVITY_NONE 			0
 #define SPECIAL_ACTIVITY_S_DELIVERY 1
 #define SPECIAL_ACTIVITY_COOLDOWN 	10
 
 //Special effects
-#define SPECIAL_EFFECT_NONE					0
+#define SPECIAL_EFFECT_NONE								0
 #define SPECIAL_EFFECT_VICTORY_FLAG_I 		1
 #define SPECIAL_EFFECT_VICTORY_FLAG_II 		2
 #define SPECIAL_EFFECT_VICTORY_FLAG_III 	3
 #define SPECIAL_EFFECT_SCAR_OF_DEFEAT_I 	4
 #define SPECIAL_EFFECT_SCAR_OF_DEFEAT_II 	5
-#define SPECIAL_EFFECT_SCAR_OF_DEFEAT_III 	6
+#define SPECIAL_EFFECT_SCAR_OF_DEFEAT_III 6
 
 /* Forwards */
 forward Time();
@@ -299,7 +302,8 @@ enum MarketItem
 	Price,
 	rTime,
 	Owner[255],
-	Mod[MAX_MOD]
+	Mod[MAX_MOD],
+	Stage
 };
 enum tInfo
 {
@@ -355,6 +359,7 @@ enum iInfo
 {
 	ID,
 	Mod[MAX_MOD],
+	Stage,
 	Count,
 };
 enum BaseItem 
@@ -429,19 +434,29 @@ enum pInfo
 	WalkersLimit,
 	Crit,
 	WeaponSlotID,
+	MeleeWeaponSlotID,
+	AbilitySlotID,
 	ArmorSlotID,
-    HatSlotID,
-    GlassesSlotID,
-    WatchSlotID,
+	HatSlotID,
+	GlassesSlotID,
+	WatchSlotID,
 	RingSlot1ID,
 	RingSlot2ID,
-    AmuletteSlot1ID,
+	AmuletteSlot1ID,
 	AmuletteSlot2ID,
 	WeaponMod[MAX_MOD],
+	MeleeWeaponMod[MAX_MOD],
 	ArmorMod[MAX_MOD],
-    HatMod[MAX_MOD],
-    GlassesMod[MAX_MOD],
-    WatchMod[MAX_MOD]
+	HatMod[MAX_MOD],
+	GlassesMod[MAX_MOD],
+	WatchMod[MAX_MOD],
+	WeaponStage,
+	MeleeWeaponStage,
+	ArmorStage,
+	HatStage,
+	GlassesStage,
+	WatchStage,
+	AbilityStage
 };
 enum wInfo
 {
@@ -578,7 +593,8 @@ new EmptyMarketSellingItem[MarketItem] = {
 	0,
 	0,
 	"None",
-	{0,0,0,0,0,0,0}
+	{0,0,0,0,0,0,0},
+	0
 };
 new BossesNames[MAX_BOSSES][128] = {
 	{"BOSS_Edemsky"},
@@ -635,7 +651,12 @@ new RateColors[MAX_RANK][16] = {
 	{"bf9000"},
 	{"b7b7b7"},
 	{"76a5af"},
-	{"6d9eeb"}
+	{"6d9eeb"},
+	{"d520d5"},
+	{"9900ff"},
+	{"0aa73b"},
+	{"cc0000"},
+	{"f37e00"}
 };
 new HexRateColors[MAX_RANK][1] = {
 	{0x85200cff},
@@ -646,7 +667,12 @@ new HexRateColors[MAX_RANK][1] = {
 	{0xbf9000ff},
 	{0xb7b7b7ff},
 	{0x76a5afff},
-	{0x6d9eebff}
+	{0x6d9eebff},
+	{0xd520d5ff},
+	{0x9900ffff},
+	{0x0aa73bff},
+	{0xcc0000ff},
+	{0xf37e00ff}
 };
 new HexGradeColors[MAX_GRADES][1] = {
 	{0xCCCCCCFF},
@@ -2499,7 +2525,7 @@ public OnDialogResponse(playerid, dialogid, response, listitem, inputtext[])
 	switch (dialogid) 
 	{
 		//Пустой
-	    case 1: { return 1; }
+		case 1: { return 1; }
 		//Регистрация
 		case 100:
 		{
@@ -2662,7 +2688,7 @@ public OnDialogResponse(playerid, dialogid, response, listitem, inputtext[])
 								if(IsInventoryFull(playerid))
 								{
 									if(IsEquip(w_loot[ItemID]))
-										PendingItem(PlayerInfo[playerid][Name], w_loot[ItemID], MOD_CLEAR, w_loot[Count], "Награда симуляции");
+										PendingItem(PlayerInfo[playerid][Name], w_loot[ItemID], MOD_CLEAR, 0, w_loot[Count], "Награда симуляции");
 									continue;
 								}
 
@@ -3514,7 +3540,7 @@ public OnDialogResponse(playerid, dialogid, response, listitem, inputtext[])
 					{
 						SwitchPlayer(playerid);
 					}
-                    case 2:
+					case 2:
 					{
 						SwitchToWatcher(playerid);
 					}
@@ -4960,6 +4986,7 @@ stock IsValidTimer(timerid)
 	if(timerid < 0) return false;
 	return true;
 }
+
 stock StartTour()
 {
 	new string[255];
@@ -5035,7 +5062,7 @@ stock StartTour()
 		cache_get_value_name(i, "login", owner);
 		cache_unset_active();
 
-        format(query, sizeof(query), "SELECT * FROM `players` WHERE `Owner` = '%s' AND `IsWatcher`=0", owner);
+		format(query, sizeof(query), "SELECT * FROM `players` WHERE `Owner` = '%s' AND `IsWatcher`=0", owner);
 		new Cache:result = mysql_query(sql_handle, query);
 		
 		new rows = 0;
@@ -5815,7 +5842,7 @@ stock GiveSpecialActivityRewards(activityid)
 			if(count >= MAX_OWNERS) break;
 			if(!IsPlayerConnected(i) || FCNPC_IsValid(i)) continue;
 
-			PendingItem(PlayerInfo[i][Name], 368, MOD_CLEAR, random(6) + 5, "Награда за доставку S-а");
+			PendingItem(PlayerInfo[i][Name], 368, MOD_CLEAR, 0, random(6) + 5, "Награда за доставку S-а");
 			count++;
 		}
 	}
@@ -5913,7 +5940,7 @@ stock GiveTournamentRewards()
 			{
 				new string[255];
 				format(string, sizeof(string), "Награда за %d место", place);
-				PendingItem(name, reward[ItemID], MOD_CLEAR, reward[ItemsCount], string);
+				PendingItem(name, reward[ItemID], MOD_CLEAR, 0, reward[ItemsCount], string);
 			}
 			if(reward[Money] > 0)
 				GivePlayerMoneyOffline(name, reward[Money]);
@@ -5927,7 +5954,7 @@ stock GiveTournamentRewards()
 					new string[255];
 					format(string, sizeof(string), "Награда за %d место", place);
 					SendClientMessage(id, COLOR_GREY, "Инвентарь полон, награды отправлены на почту.");
-					PendingItem(name, reward[ItemID], MOD_CLEAR, reward[ItemsCount], string);
+					PendingItem(name, reward[ItemID], MOD_CLEAR, 0, reward[ItemsCount], string);
 					continue;
 				}
 				if(IsEquip(reward[ItemID]))
@@ -5939,7 +5966,7 @@ stock GiveTournamentRewards()
 				AddPlayerMoney(id, reward[Money]);
 		}
 
-		//PendingItem(name, 368, MOD_CLEAR, 1, "С Новым годом!");
+		//PendingItem(name, 368, MOD_CLEAR, 1, 0, "С Новым годом!");
 	}
 }
 
@@ -5953,14 +5980,14 @@ stock SellAllUselessItems(playerid)
 		new itemid = PlayerInventory[playerid][i][ID];
 		new item[BaseItem];
 		item = GetItem(itemid);
-		if(PlayerInventory[playerid][i][ID] == 366)
+		if(PlayerInventory[playerid][i][ID] == 1060)
 		{
 			money += PlayerInventory[playerid][i][Count] * (item[Price] / 7);
 			items++;
 			DeleteItem(playerid, i, PlayerInventory[playerid][i][Count]);
 			continue;
 		}
-		if(item[Grade] == GRADE_N && IsModifiableEquip(itemid) && GetModLevel(PlayerInventory[playerid][i][Mod]) == 0)
+		if(item[Grade] == GRADE_N && IsModifiableEquip(itemid) && PlayerInventory[playerid][i][Mod] == 0 && PlayerInventory[playerid][i][Stage] == 0)
 		{
 			money += item[Price] / 7;
 			items++;
@@ -6007,7 +6034,7 @@ stock HappyBirthday(owner[])
 		cache_get_value_name_int(i, "LocalTopPos", place);
 		cache_unset_active();
 
-		PendingItem(name, 367, MOD_CLEAR, MAX_PARTICIPANTS / 2 + 1 - place, "С Днем рождения!");
+		PendingItem(name, 367, MOD_CLEAR, 0, MAX_PARTICIPANTS / 2 + 1 - place, "С Днем рождения!");
 	}
 
 	cache_delete(q_result);
@@ -6139,19 +6166,21 @@ stock UpdateMarketItems()
 		{
 			new itemid = -1;
 			new count = 0;
+			new stage = 0;
 			new owner[255];
 			new mod[MAX_MOD];
 			new string[255];
 
 			cache_get_value_name_int(i, "ItemID", itemid);
 			cache_get_value_name_int(i, "ItemCount", count);
+			cache_get_value_name_int(i, "Stage", stage);
 			cache_get_value_name(i, "Owner", owner);
 			cache_get_value_name(i, "ItemMod", string);
 			sscanf(string, "a<i>[7]", mod);
 
 			cache_unset_active();
 
-			PendingItem(owner, itemid, mod, count, "Срок регистрации предмета истек");
+			PendingItem(owner, itemid, mod, stage, count, "Срок регистрации предмета истек");
 
 			new sub_query[255];
 			format(sub_query, sizeof(sub_query), "DELETE FROM `marketplace` WHERE `ID` = '%d'", id);
@@ -6193,6 +6222,7 @@ stock GetMarketItem(id, category)
 	cache_get_value_name_int(id, "Price", item[Price]);
 	cache_get_value_name_int(id, "Time", item[rTime]);
 	cache_get_value_name_int(id, "ItemCount", item[Count]);
+	cache_get_value_name_int(id, "Stage", item[Stage]);
 	cache_get_value_name(id, "Owner", string);
 	sscanf(string, "s[255]", item[Owner]);
 	cache_get_value_name(id, "ItemMod", string);
@@ -6223,6 +6253,7 @@ stock GetMarketItemByLotID(id)
 	cache_get_value_name_int(0, "Price", item[Price]);
 	cache_get_value_name_int(0, "Time", item[rTime]);
 	cache_get_value_name_int(0, "ItemCount", item[Count]);
+	cache_get_value_name_int(0, "Stage", item[Stage]);
 	cache_get_value_name(0, "Owner", string);
 	sscanf(string, "s[255]", item[Owner]);
 	cache_get_value_name(0, "ItemMod", string);
@@ -6251,8 +6282,8 @@ stock AddItemToMarket(playerid, slotid, lotid, category, time = 2)
 
 	id++;
 
-	format(query, sizeof(query), "INSERT INTO `marketplace`(`ID`, `Owner`, `ItemID`, `Category`, `ItemCount`, `ItemMod`, `Price`, `Time`) VALUES ('%d','%s','%d','%d','%d','%s','%d','%d')",
-		id, item[Owner], item[ID], category, item[Count], ArrayToString(item[Mod]), item[Price], time
+	format(query, sizeof(query), "INSERT INTO `marketplace`(`ID`, `Owner`, `ItemID`, `Category`, `ItemCount`, `ItemMod`, `Stage`, `Price`, `Time`) VALUES ('%d','%s','%d','%d','%d','%s','%d','%d','%d')",
+		id, item[Owner], item[ID], category, item[Count], ArrayToString(item[Mod]), item[Stage], item[Price], time
 	);
 	new Cache:sq_result = mysql_query(sql_handle, query);
 	cache_delete(sq_result);
@@ -6338,9 +6369,9 @@ stock RegisterMarketItem(playerid, category)
 	}
 
 	new query[255];
-	format(query, sizeof(query), "INSERT INTO `marketplace`(`ID`, `Owner`, `ItemID`, `Category`, `ItemCount`, `ItemMod`, `Price`, `Time`) VALUES ('%d', '%s', '%d', '%d', '%d', '%s', '%d', '%d')",
+	format(query, sizeof(query), "INSERT INTO `marketplace`(`ID`, `Owner`, `ItemID`, `Category`, `ItemCount`, `ItemMod`, `Stage`, `Price`, `Time`) VALUES ('%d', '%s', '%d', '%d', '%d', '%s', '%d', '%d', '%d')",
 		MarketSellingItem[playerid][LotID], MarketSellingItem[playerid][Owner], MarketSellingItem[playerid][ID], category, MarketSellingItem[playerid][Count],
-		ArrayToString(MarketSellingItem[playerid][Mod], MAX_MOD), MarketSellingItem[playerid][Price], MarketSellingItem[playerid][rTime]
+		ArrayToString(MarketSellingItem[playerid][Mod], MAX_MOD), MarketSellingItem[playerid][Stage], MarketSellingItem[playerid][Price], MarketSellingItem[playerid][rTime]
 	);
 	new Cache:q_result = mysql_query(sql_handle, query);
 	cache_delete(q_result);
@@ -6424,7 +6455,7 @@ stock BuyItem(playerid, lotid, count = 1)
 	amount -= comission;
 
 	if(IsEquip(item[ID]))
-		AddEquip(playerid, item[ID], item[Mod]);
+		AddEquip(playerid, item[ID], item[Mod], item[Stage]);
 	else
 		AddItem(playerid, item[ID], count);
 	
@@ -6500,7 +6531,7 @@ stock CancelItem(playerid, listitem)
 	}
 
 	SendClientMessage(playerid, COLOR_GREEN, "Регистрация отменена. Предметы отправлены на почту.");
-	PendingItem(item[Owner], item[ID], item[Mod], item[Count], "Предмет возвращен");
+	PendingItem(item[Owner], item[ID], item[Mod], item[Stage], item[Count], "Предмет возвращен");
 
 	DeleteItemFromMarket(item[LotID], item[Count]);
 	ShowMarketMenu(playerid);
@@ -6614,8 +6645,8 @@ stock ShowMarketBuyList(playerid, category)
 		}
 		else
 		{
-			format(buf, sizeof(buf), "\n{%s}[%s]%s\t{ffffff}[{%s}%s{ffffff}] {00CC00}%s$\t{ffffff}%s\t{ffffff}%d",
-				GetGradeColor(item[Grade]), item[Name], GetModString(m_item[Mod]), GetColorByRank(item[MinRank]), GetRankInterval(item[MinRank]), FormatMoney(m_item[Price]), m_item[Owner], m_item[rTime]
+			format(buf, sizeof(buf), "\n{%s}[S%d][%s]%s\t{ffffff}[{%s}%s{ffffff}] {00CC00}%s$\t{ffffff}%s\t{ffffff}%d",
+				GetGradeColor(item[Grade]), m_item[Stage], item[Name], GetModString(m_item[Mod]), GetColorByRank(item[MinRank]), GetRankInterval(item[MinRank]), FormatMoney(m_item[Price]), m_item[Owner], m_item[rTime]
 			);
 		}
 
@@ -6780,7 +6811,7 @@ stock GiveTourRewards(tour)
 				if(IsInventoryFull(id))
 				{
 					SendClientMessage(id, COLOR_GREY, "Инвентарь полон, награды отправлены на почту.");
-					PendingItem(PvpInfo[i][Name], reward[ItemID], MOD_CLEAR, reward[ItemsCount], "Награда за тур");
+					PendingItem(PvpInfo[i][Name], reward[ItemID], MOD_CLEAR, 0, reward[ItemsCount], "Награда за тур");
 					continue;
 				}
 				if(IsEquip(reward[ItemID]))
@@ -6794,7 +6825,7 @@ stock GiveTourRewards(tour)
 		else
 		{
 			if(reward[ItemID] != -1 && reward[ItemsCount] > 0)
-				PendingItem(PvpInfo[i][Name], reward[ItemID], MOD_CLEAR, reward[ItemsCount], "Награда за тур");
+				PendingItem(PvpInfo[i][Name], reward[ItemID], MOD_CLEAR, 0, reward[ItemsCount], "Награда за тур");
 			if(reward[Money] > 0)
 				GivePlayerMoneyOffline(PvpInfo[i][Name], reward[Money]);
 		}
@@ -6892,10 +6923,12 @@ stock ClaimMail(playerid, num)
 	}
 
 	new reward[RewardInfo];
+	new stage;
 	new p_id = -1;
 	cache_get_value_name_int(num, "ItemID", reward[ItemID]);
 	cache_get_value_name_int(num, "Count", reward[ItemsCount]);
 	cache_get_value_name_int(num, "PendingID", p_id);
+	cache_get_value_name_int(num, "Stage", stage);
 
 	new string[255];
 	new mod[MAX_MOD];
@@ -6913,7 +6946,7 @@ stock ClaimMail(playerid, num)
 	if(reward[ItemID] != -1)
 	{
 		if(IsEquip(reward[ItemID]))
-			AddEquip(playerid, reward[ItemID], mod);
+			AddEquip(playerid, reward[ItemID], mod, stage);
 		else
 			AddItem(playerid, reward[ItemID], reward[ItemsCount]);
 	}
@@ -7076,90 +7109,90 @@ stock GetRateDifference(playerid, tour, pos, up_mid_rate, down_mid_rate)
 		{
 			switch(pos)
 			{
-				case 1: rate = 30;
-				case 2: rate = 27;
-				case 3: rate = 24;
-				case 4: rate = 21;
-				case 5: rate = 16;
-				case 6: rate = 13;
-				case 7: rate = 10;
-				case 8: rate = 7;
-				case 9: rate = 5;
-				case 10: rate = 2;
-				case 11: rate = -2;
-				case 12: rate = -5;
-				case 13: rate = -7;
-				case 14: rate = -10;
-				case 15: rate = -13;
-				case 16: rate = -16;
-				case 17: rate = -21;
-				case 18: rate = -24;
-				case 19: rate = -27;
-				case 20: rate = -30;
+				case 1: rate = 15;
+				case 2: rate = 13;
+				case 3: rate = 12;
+				case 4: rate = 10;
+				case 5: rate = 7;
+				case 6: rate = 6;
+				case 7: rate = 5;
+				case 8: rate = 4;
+				case 9: rate = 3;
+				case 10: rate = 1;
+				case 11: rate = -1;
+				case 12: rate = -2;
+				case 13: rate = -4;
+				case 14: rate = -5;
+				case 15: rate = -7;
+				case 16: rate = -9;
+				case 17: rate = -11;
+				case 18: rate = -13;
+				case 19: rate = -14;
+				case 20: rate = -15;
 			}
 		}
 		case 2:
 		{
 			switch(pos)
 			{
-				case 1: rate = 32;
-				case 2: rate = 28;
-				case 3: rate = 25;
-				case 4: rate = 22;
-				case 5: rate = 17;
-				case 6: rate = 14;
-				case 7: rate = 11;
-				case 8: rate = 6;
+				case 1: rate = 18;
+				case 2: rate = 17;
+				case 3: rate = 15;
+				case 4: rate = 13;
+				case 5: rate = 11;
+				case 6: rate = 8;
+				case 7: rate = 6;
+				case 8: rate = 3;
 				case 9: rate = 1;
-				case 10: rate = -2;
-				case 11: rate = -4;
-				case 12: rate = -7;
-				case 13: rate = -11;
-				case 14: rate = -14;
-				case 15: rate = -16;
-				case 16: rate = -20;
+				case 10: rate = -1;
+				case 11: rate = -2;
+				case 12: rate = -5;
+				case 13: rate = -7;
+				case 14: rate = -9;
+				case 15: rate = -11;
+				case 16: rate = -14;
 			}
 		}
 		case 3:
 		{
 			switch(pos)
 			{
-				case 1: rate = 36;
-				case 2: rate = 34;
-				case 3: rate = 32;
-				case 4: rate = 26;
-				case 5: rate = 20;
-				case 6: rate = 14;
-				case 7: rate = 7;
-				case 8: rate = -1;
-				case 9: rate = -4;
-				case 10: rate = -7;
-				case 11: rate = -11;
-				case 12: rate = -15;
+				case 1: rate = 24;
+				case 2: rate = 22;
+				case 3: rate = 20;
+				case 4: rate = 17;
+				case 5: rate = 14;
+				case 6: rate = 10;
+				case 7: rate = 6;
+				case 8: rate = 1;
+				case 9: rate = -2;
+				case 10: rate = -4;
+				case 11: rate = -7;
+				case 12: rate = -12;
 			}
 		}
 		case 4:
 		{
 			switch(pos)
 			{
-				case 1: rate = 40;
-				case 2: rate = 37;
-				case 3: rate = 34;
-				case 4: rate = 28;
-				case 5: rate = 20;
-				case 6: rate = 6;
-				case 7: rate = -4;
-				case 8: rate = -10;
+				case 1: rate = 28;
+				case 2: rate = 26;
+				case 3: rate = 23;
+				case 4: rate = 19;
+				case 5: rate = 13;
+				case 6: rate = 4;
+				case 7: rate = -3;
+				case 8: rate = -7;
 			}
 		}
 		case 5:
 		{
 			switch(pos)
 			{
-				case 1: rate = 50;
-				case 2: rate = 35;
+				case 1: rate = 35;
+				case 2: rate = 30;
 				case 3: rate = 20;
-				case 4: rate = 0;
+				case 4: rate = 5;
 			}
 		}
 	}
@@ -7167,12 +7200,12 @@ stock GetRateDifference(playerid, tour, pos, up_mid_rate, down_mid_rate)
 	new up_rate_diff = up_mid_rate - PlayerInfo[playerid][Rate];
 	new down_rate_diff = down_mid_rate - PlayerInfo[playerid][Rate];
 	if(down_rate_diff > 0)
-		rate += down_rate_diff / 20;
+		rate += down_rate_diff / 25;
 	if(up_rate_diff < 0)
-		rate += up_rate_diff / 25;
+		rate += up_rate_diff / 30;
 
-	if(rate > 65) rate = 65;
-	if(rate < -65) rate = -65;
+	if(rate > 50) rate = 50;
+	if(rate < -70) rate = -70;
 
 	return rate;
 }
@@ -10187,7 +10220,7 @@ stock UndressEquip(playerid, type)
 		case ITEMTYPE_WEAPON:
 		{
 			if(PlayerInfo[playerid][WeaponSlotID] == 0) return;
-			AddEquip(playerid, PlayerInfo[playerid][WeaponSlotID], PlayerInfo[playerid][WeaponMod]);
+			AddEquip(playerid, PlayerInfo[playerid][WeaponSlotID], PlayerInfo[playerid][WeaponMod], PlayerInfo[playerid][WeaponStage]);
 			PlayerInfo[playerid][WeaponSlotID] = 0;
 			PlayerInfo[playerid][WeaponMod] = MOD_CLEAR;
 			UpdatePlayerWeapon(playerid);
@@ -10195,31 +10228,31 @@ stock UndressEquip(playerid, type)
 		case ITEMTYPE_ARMOR:
 		{
 			if(PlayerInfo[playerid][ArmorSlotID] == 81) return;
-			AddEquip(playerid, PlayerInfo[playerid][ArmorSlotID], PlayerInfo[playerid][ArmorMod]);
+			AddEquip(playerid, PlayerInfo[playerid][ArmorSlotID], PlayerInfo[playerid][ArmorMod], PlayerInfo[playerid][ArmorStage]);
 			PlayerInfo[playerid][ArmorSlotID] = 81;
 			PlayerInfo[playerid][ArmorMod] = MOD_CLEAR;
 			UpdatePlayerSkin(playerid);
 		}
-        case ITEMTYPE_HAT:
+		case ITEMTYPE_HAT:
 		{
 			if(PlayerInfo[playerid][HatSlotID] == 136) return;
-			AddEquip(playerid, PlayerInfo[playerid][HatSlotID], PlayerInfo[playerid][HatMod]);
+			AddEquip(playerid, PlayerInfo[playerid][HatSlotID], PlayerInfo[playerid][HatMod], PlayerInfo[playerid][HatStage]);
 			PlayerInfo[playerid][HatSlotID] = 136;
 			PlayerInfo[playerid][HatMod] = MOD_CLEAR;
 			UpdatePlayerHat(playerid);
 		}
-        case ITEMTYPE_GLASSES:
+		case ITEMTYPE_GLASSES:
 		{
 			if(PlayerInfo[playerid][GlassesSlotID] == -1) return;
-			AddEquip(playerid, PlayerInfo[playerid][GlassesSlotID], PlayerInfo[playerid][GlassesMod]);
+			AddEquip(playerid, PlayerInfo[playerid][GlassesSlotID], PlayerInfo[playerid][GlassesMod], PlayerInfo[playerid][GlassesStage]);
 			PlayerInfo[playerid][GlassesSlotID] = -1;
 			PlayerInfo[playerid][GlassesMod] = MOD_CLEAR;
 			UpdatePlayerGlasses(playerid);
 		}
-        case ITEMTYPE_WATCH:
+		case ITEMTYPE_WATCH:
 		{
 			if(PlayerInfo[playerid][WatchSlotID] == -1) return;
-			AddEquip(playerid, PlayerInfo[playerid][WatchSlotID], PlayerInfo[playerid][WatchMod]);
+			AddEquip(playerid, PlayerInfo[playerid][WatchSlotID], PlayerInfo[playerid][WatchMod], PlayerInfo[playerid][WatchStage]);
 			PlayerInfo[playerid][WatchSlotID] = -1;
 			PlayerInfo[playerid][WatchMod] = MOD_CLEAR;
 			UpdatePlayerWatch(playerid);
@@ -10238,7 +10271,7 @@ stock UndressEquip(playerid, type)
 			}
 			else return;
 		}
-        case ITEMTYPE_AMULETTE:
+		case ITEMTYPE_AMULETTE:
 		{
 			if(PlayerInfo[playerid][AmuletteSlot1ID] != -1)
 			{
@@ -10823,7 +10856,7 @@ stock PendingMessage(name[], text[])
 		UpdatePlayerPost(id);
 }
 
-stock PendingItem(name[], id, mod[], count = 1, text[])
+stock PendingItem(name[], id, text[], count = 1, stats[] = STATS_CLEAR, mod = 0, stage = 0)
 {
 	new sub_query[255] = "SELECT MAX(`PendingID`) AS `PendingID` FROM `pendings`";
 	new Cache:sq_result = mysql_query(sql_handle, sub_query);
@@ -10838,8 +10871,8 @@ stock PendingItem(name[], id, mod[], count = 1, text[])
 	p_id++;
 
 	new query[255];
-	format(query, sizeof(query), "INSERT INTO `pendings`(`PendingID`, `PlayerName`, `ItemID`, `Count`, `ItemMod`, `Text`) VALUES ('%d','%s','%d','%d','%s','%s')",
-		p_id, name, id, count, ArrayToString(mod, MAX_MOD), text
+	format(query, sizeof(query), "INSERT INTO `pendings`(`PendingID`, `PlayerName`, `ItemID`, `Count`, `ItemMod`, `Stage`, `Text`) VALUES ('%d','%s','%d','%d','%s','%d','%s')",
+		p_id, name, id, count, ArrayToString(mod, MAX_MOD), stage, text
 	);
 	new Cache:q_result = mysql_query(sql_handle, query);
 	cache_delete(q_result);
@@ -10849,13 +10882,14 @@ stock PendingItem(name[], id, mod[], count = 1, text[])
 		UpdatePlayerPost(playerid);
 }
 
-stock AddEquip(playerid, id, mod[])
+stock AddEquip(playerid, id, mod[], stage = 0)
 {
 	if(IsInventoryFull(playerid))
 		return false;
 	
 	new slot = GetInvEmptySlotID(playerid);
 	PlayerInventory[playerid][slot][ID] = id;
+	PlayerInventory[playerid][slot][Stage] = stage;
 	PlayerInventory[playerid][slot][Count] = 1;
 	for(new i = 0; i < MAX_MOD; i++)
 		PlayerInventory[playerid][slot][Mod][i] = mod[i];
@@ -12993,14 +13027,19 @@ stock GetRateInterval(rate)
 	new interval[32];
 	switch(rate) 
 	{
-	    case 500..999: interval = "Камень";
-	    case 1000..1199: interval = "Железо";
+	    case 300..699: interval = "Камень";
+	    case 700..1199: interval = "Железо";
 	    case 1200..1399: interval = "Бронза";
 	    case 1400..1599: interval = "Серебро";
-	    case 1600..1999: interval = "Золото";
-	    case 2000..2299: interval = "Платина";
+	    case 1600..1899: interval = "Золото";
+	    case 1900..2299: interval = "Платина";
 	    case 2300..2699: interval = "Алмаз";
-	    case 2700..3000: interval = "Бриллиант";
+	    case 2700..3099: interval = "Бриллиант";
+			case 3100..3499: interval = "Мастер";
+			case 3500..4199: interval = "Грандмастер";
+			case 4200..4999: interval = "Претендент";
+			case 5000..5999: interval = "Чемпион";
+			case 6000..9000: interval = "Легенда";
 	    default: interval = "Дерево";
 	}
 	return interval;
@@ -13019,6 +13058,11 @@ stock GetRankInterval(rank)
 	    case 7: interval = "Платина";
 	    case 8: interval = "Алмаз";
 	    case 9: interval = "Бриллиант";
+			case 10: interval = "Мастер";
+			case 11: interval = "Грандмастер";
+			case 12: interval = "Претендент";
+			case 13: interval = "Чемпион";
+			case 13: interval = "Легенда";
 	    default: interval = "Дерево";
 	}
 	return interval;
@@ -13029,15 +13073,20 @@ stock GetRankByRate(rate)
 	new rank;
 	switch(rate)
 	{
-		case 500..999: rank = 2;
-	    case 1000..1199: rank = 3;
-	    case 1200..1399: rank = 4;
-	    case 1400..1599: rank = 5;
-	    case 1600..1999: rank = 6;
-	    case 2000..2299: rank = 7;
-	    case 2300..2699: rank = 8;
-	    case 2700..3000: rank = 9;
-	    default: rank = 1;
+		case 300..699: rank = 2;
+		case 700..1199: rank = 3;
+		case 1200..1399: rank = 4;
+		case 1400..1599: rank = 5;
+		case 1600..1899: rank = 6;
+		case 1900..2299: rank = 7;
+		case 2300..2699: rank = 8;
+		case 2700..3099: rank = 9;
+		case 3100..3499: rank = 10;
+		case 3500..4199: rank = 11;
+		case 4200..4999: rank = 12;
+		case 5000..5999: rank = 13;
+		case 6000..9000: rank = 14;
+		default: rank = 1;
 	}
 	return rank;
 }
@@ -13140,14 +13189,17 @@ stock SavePlayer(playerid, bool:with_pos = true)
 	strcat(query, tmp);
 	format(tmp, sizeof(tmp), "`Crit` = '%d', `GlobalTopPos` = '%d', `LocalTopPos` = '%d', `WalkersLimit` = '%d', ", PlayerInfo[playerid][Crit], PlayerInfo[playerid][GlobalTopPosition], PlayerInfo[playerid][LocalTopPosition], PlayerInfo[playerid][WalkersLimit]);
 	strcat(query, tmp);
-	format(tmp, sizeof(tmp), "`WeaponSlotID` = '%d', `ArmorSlotID` = '%d', `HatSlotID` = '%d', `GlassesSlotID` = '%d', `WatchSlotID` = '%d', ", PlayerInfo[playerid][WeaponSlotID], 
-    PlayerInfo[playerid][ArmorSlotID], PlayerInfo[playerid][HatSlotID], PlayerInfo[playerid][GlassesSlotID], PlayerInfo[playerid][WatchSlotID]);
+	format(tmp, sizeof(tmp), "`WeaponSlotID` = '%d', `MeleeWeaponSlotID` = '%d', `ArmorSlotID` = '%d', `HatSlotID` = '%d', `GlassesSlotID` = '%d', `WatchSlotID` = '%d', ", PlayerInfo[playerid][WeaponSlotID], 
+    PlayerInfo[playerid][MeleeWeaponSlotID], PlayerInfo[playerid][ArmorSlotID], PlayerInfo[playerid][HatSlotID], PlayerInfo[playerid][GlassesSlotID], PlayerInfo[playerid][WatchSlotID]);
 	strcat(query, tmp);
-    format(tmp, sizeof(tmp), "`RingSlot1ID` = '%d', `RingSlot2ID` = '%d', `AmuletteSlot1ID` = '%d', `AmuletteSlot2ID` = '%d', ", PlayerInfo[playerid][RingSlot1ID], PlayerInfo[playerid][RingSlot2ID], PlayerInfo[playerid][AmuletteSlot1ID], PlayerInfo[playerid][AmuletteSlot2ID]);
+	format(tmp, sizeof(tmp), "`AbilitySlotID` = '%d', `RingSlot1ID` = '%d', `RingSlot2ID` = '%d', `AmuletteSlot1ID` = '%d', `AmuletteSlot2ID` = '%d', ", PlayerInfo[playerid][AbilitySlotID], PlayerInfo[playerid][RingSlot1ID], PlayerInfo[playerid][RingSlot2ID], PlayerInfo[playerid][AmuletteSlot1ID], PlayerInfo[playerid][AmuletteSlot2ID]);
 	strcat(query, tmp);
-    format(tmp, sizeof(tmp), "`WeaponMod` = '%s', `ArmorMod` = '%s', ", ArrayToString(PlayerInfo[playerid][WeaponMod], MAX_MOD), ArrayToString(PlayerInfo[playerid][ArmorMod], MAX_MOD));
+	format(tmp, sizeof(tmp), "`WeaponStage` = '%d', `MeleeWeaponStage` = '%d', `ArmorStage` = '%d', `HatStage` = '%d', `GlassesStage` = '%d', `WatchStage` = '%d', `AbilityStage` = '%d', ", PlayerInfo[playerid][WeaponStage], 
+		PlayerInfo[playerid][MeleeWeaponStage], PlayerInfo[playerid][ArmorStage], PlayerInfo[playerid][HatStage], PlayerInfo[playerid][GlassesStage], PlayerInfo[playerid][WatchStage], PlayerInfo[playerid][AbilityStage]);
 	strcat(query, tmp);
-    format(tmp, sizeof(tmp), "`HatMod` = '%s', `GlassesMod` = '%s', `WatchMod` = '%s' ", ArrayToString(PlayerInfo[playerid][HatMod], MAX_MOD), ArrayToString(PlayerInfo[playerid][GlassesMod], MAX_MOD), ArrayToString(PlayerInfo[playerid][WatchMod], MAX_MOD));
+	format(tmp, sizeof(tmp), "`WeaponMod` = '%s', `MeleeWeaponMod` = '%s', `ArmorMod` = '%s', ", ArrayToString(PlayerInfo[playerid][WeaponMod], MAX_MOD), ArrayToString(PlayerInfo[playerid][MeleeWeaponMod], MAX_MOD), ArrayToString(PlayerInfo[playerid][ArmorMod], MAX_MOD));
+	strcat(query, tmp);
+	format(tmp, sizeof(tmp), "`HatMod` = '%s', `GlassesMod` = '%s', `WatchMod` = '%s' ", ArrayToString(PlayerInfo[playerid][HatMod], MAX_MOD), ArrayToString(PlayerInfo[playerid][GlassesMod], MAX_MOD), ArrayToString(PlayerInfo[playerid][WatchMod], MAX_MOD));
 	strcat(query, tmp);
 	format(tmp, sizeof(tmp), "WHERE `Name` = '%s' LIMIT 1", name);
 	strcat(query, tmp);
@@ -13164,8 +13216,8 @@ stock CreateInventory(name[])
 
 	for(new i = 0; i < MAX_SLOTS; i++)
 	{
-		format(query, sizeof(query), "INSERT INTO `inventories`(`PlayerName`, `SlotID`, `ItemID`, `SlotMod`, `Count`) VALUES ('%s','%d','%d','%s','%d')",
-			name, i, -1, "0 0 0 0 0 0 0", 0
+		format(query, sizeof(query), "INSERT INTO `inventories`(`PlayerName`, `SlotID`, `ItemID`, `SlotMod`, `Stage`, `Count`) VALUES ('%s','%d','%d','%s','%d','%d')",
+			name, i, -1, "0 0 0 0 0 0 0", 0, 0
 		);
 
 		new Cache:q_result = mysql_query(sql_handle, query);
@@ -13183,8 +13235,8 @@ stock SaveInventory(playerid)
 
 	for(new i = 0; i < MAX_SLOTS; i++)
 	{
-		format(query, sizeof(query), "UPDATE `inventories` SET `ItemID` = '%d', `SlotMod` = '%s', `Count` = '%d' WHERE `PlayerName` = '%s' AND `SlotID` = '%d' LIMIT 1", 
-			PlayerInventory[playerid][i][ID], ArrayToString(PlayerInventory[playerid][i][Mod], MAX_MOD), PlayerInventory[playerid][i][Count], name, i
+		format(query, sizeof(query), "UPDATE `inventories` SET `ItemID` = '%d', `SlotMod` = '%s', `Stage` = '%d', `Count` = '%d' WHERE `PlayerName` = '%s' AND `SlotID` = '%d' LIMIT 1", 
+			PlayerInventory[playerid][i][ID], ArrayToString(PlayerInventory[playerid][i][Mod], MAX_MOD), PlayerInventory[playerid][i][Stage], PlayerInventory[playerid][i][Count], name, i
 		);
 		new Cache:q_result = mysql_query(sql_handle, query);
 		cache_delete(q_result);
@@ -13220,6 +13272,7 @@ stock LoadInventory(playerid)
 			continue;
 
 		cache_get_value_name_int(i, "ItemID", PlayerInventory[playerid][slot_id][ID]);
+		cache_get_value_name_int(i, "Stage", PlayerInventory[playerid][slot_id][Stage]);
 		cache_get_value_name_int(i, "Count", PlayerInventory[playerid][slot_id][Count]);
 
 		new string[255];
@@ -13253,9 +13306,9 @@ stock LoadPlayer(playerid)
 	cache_get_value_name_int(0, "Sex", PlayerInfo[playerid][Sex]);
 	cache_get_value_name_int(0, "Rate", PlayerInfo[playerid][Rate]);
 	cache_get_value_name_int(0, "Rank", PlayerInfo[playerid][Rank]);
-    cache_get_value_name_int(0, "Status", PlayerInfo[playerid][Status]);
-    cache_get_value_name_int(0, "Simulations", PlayerInfo[playerid][Simulations]);
-    cache_get_value_name_int(0, "IsWatcher", PlayerInfo[playerid][IsWatcher]);
+	cache_get_value_name_int(0, "Status", PlayerInfo[playerid][Status]);
+	cache_get_value_name_int(0, "Simulations", PlayerInfo[playerid][Simulations]);
+	cache_get_value_name_int(0, "IsWatcher", PlayerInfo[playerid][IsWatcher]);
 	cache_get_value_name_int(0, "Cash", PlayerInfo[playerid][Cash]);
 	cache_get_value_name_float(0, "PosX", PlayerInfo[playerid][PosX]);
 	cache_get_value_name_float(0, "PosY", PlayerInfo[playerid][PosY]);
@@ -13276,13 +13329,22 @@ stock LoadPlayer(playerid)
 	cache_get_value_name_int(0, "WalkersLimit", PlayerInfo[playerid][WalkersLimit]);
 	cache_get_value_name_int(0, "WeaponSlotID", PlayerInfo[playerid][WeaponSlotID]);
 	cache_get_value_name_int(0, "ArmorSlotID", PlayerInfo[playerid][ArmorSlotID]);
-    cache_get_value_name_int(0, "HatSlotID", PlayerInfo[playerid][HatSlotID]);
-    cache_get_value_name_int(0, "GlassesSlotID", PlayerInfo[playerid][GlassesSlotID]);
-    cache_get_value_name_int(0, "WatchSlotID", PlayerInfo[playerid][WatchSlotID]);
+	cache_get_value_name_int(0, "HatSlotID", PlayerInfo[playerid][HatSlotID]);
+	cache_get_value_name_int(0, "GlassesSlotID", PlayerInfo[playerid][GlassesSlotID]);
+	cache_get_value_name_int(0, "WatchSlotID", PlayerInfo[playerid][WatchSlotID]);
 	cache_get_value_name_int(0, "RingSlot1ID", PlayerInfo[playerid][RingSlot1ID]);
 	cache_get_value_name_int(0, "RingSlot2ID", PlayerInfo[playerid][RingSlot2ID]);
-    cache_get_value_name_int(0, "AmuletteSlot1ID", PlayerInfo[playerid][AmuletteSlot1ID]);
+	cache_get_value_name_int(0, "AmuletteSlot1ID", PlayerInfo[playerid][AmuletteSlot1ID]);
 	cache_get_value_name_int(0, "AmuletteSlot2ID", PlayerInfo[playerid][AmuletteSlot2ID]);
+	cache_get_value_name_int(0, "MeleeWeaponSlotID", PlayerInfo[playerid][MeleeWeaponSlotID]);
+	cache_get_value_name_int(0, "AbilitySlotID", PlayerInfo[playerid][AbilitySlotID]);
+	cache_get_value_name_int(0, "WeaponStage", PlayerInfo[playerid][WeaponStage]);
+	cache_get_value_name_int(0, "MeleeWeaponStage", PlayerInfo[playerid][MeleeWeaponStage]);
+	cache_get_value_name_int(0, "ArmorStage", PlayerInfo[playerid][ArmorStage]);
+	cache_get_value_name_int(0, "HatStage", PlayerInfo[playerid][HatStage]);
+	cache_get_value_name_int(0, "GlassesStage", PlayerInfo[playerid][GlassesStage]);
+	cache_get_value_name_int(0, "WatchStage", PlayerInfo[playerid][WatchStage]);
+	cache_get_value_name_int(0, "AbilityStage", PlayerInfo[playerid][AbilityStage]);
 
 	new owner[255];
 	cache_get_value_name(0, "Owner", owner);
@@ -13293,12 +13355,14 @@ stock LoadPlayer(playerid)
 	sscanf(string, "a<i>[7]", PlayerInfo[playerid][WeaponMod]);
 	cache_get_value_name(0, "ArmorMod", string);
 	sscanf(string, "a<i>[7]", PlayerInfo[playerid][ArmorMod]);
-    cache_get_value_name(0, "HatMod", string);
+	cache_get_value_name(0, "HatMod", string);
 	sscanf(string, "a<i>[7]", PlayerInfo[playerid][HatMod]);
-    cache_get_value_name(0, "GlassesMod", string);
+	cache_get_value_name(0, "GlassesMod", string);
 	sscanf(string, "a<i>[7]", PlayerInfo[playerid][GlassesMod]);
-    cache_get_value_name(0, "WatchMod", string);
+	cache_get_value_name(0, "WatchMod", string);
 	sscanf(string, "a<i>[7]", PlayerInfo[playerid][WatchMod]);
+	cache_get_value_name(0, "MeleeWeaponMod", string);
+	sscanf(string, "a<i>[7]", PlayerInfo[playerid][MeleeWeaponMod]);
 
 	cache_delete(q_result);
 
@@ -13312,10 +13376,16 @@ stock CreatePlayer(playerid, name[], owner[], sex)
 	new query[2048] = "INSERT INTO `players`( \
 		`ID`, `Name`, `Owner`, `Sex`, `Rate`, `Rank`, `Status`, `Simulations`, `IsWatcher`, `Cash`, \
 		`PosX`, `PosY`, `PosZ`, `Angle`, `Interior`, `Skin`, `Kills`, `Deaths`, `DamageMin`, `DamageMax`, `Defense`, ";
+
 	new query2[512] = "`Dodge`, `Accuracy`, `Crit`, `GlobalTopPos`, `LocalTopPos`, `WalkersLimit`, `WeaponSlotID`, `WeaponMod`, \
 		`ArmorSlotID`, `ArmorMod`, `HatSlotID`, `HatMod`, `GlassesSlotID`, `GlassesMod`, `WatchSlotID`, `WatchMod`, \
-		`RingSlot1ID`, `RingSlot2ID`, `AmuletteSlot1ID`, `AmuletteSlot2ID`) VALUES (";
+		`RingSlot1ID`, `RingSlot2ID`, `AmuletteSlot1ID`, `AmuletteSlot2ID`, ";
+
+	new query3[256] = "`MeleeWeaponSlotID`, `MeleeWeaponMod`, `AbilitySlotID`, `WeaponStage`, `MeleeWeaponStage`, `ArmorStage` \
+		`HatStage`, `GlassesStage`, `WatchStage`, `AbilityStage`) VALUES (";
+
 	strcat(query, query2);
+	strcat(query, query3);
 
 	new tmp[1024];
 
@@ -13334,9 +13404,11 @@ stock CreatePlayer(playerid, name[], owner[], sex)
 	id++;
 
 	format(tmp, sizeof(tmp), "'%d','%s','%s','%d','%d','%d','%d','%d','%d','%d','%f','%f','%f','%f','%d','%d','%d', \
-        '%d','%d','%d','%d','%d','%d','%d','%d','%d','%d','%d','%s','%d','%s','%d','%s','%d','%s','%d','%s','%d','%d','%d','%d')",
+        '%d','%d','%d','%d','%d','%d','%d','%d','%d','%d','%d','%s','%d','%s','%d','%s','%d','%s','%d','%s','%d','%d','%d','%d', \
+				'%d','%s','%d','%d','%d','%d','%d','%d','%d','%d')",
 		id, name, owner, sex, 0, 1, 0, 0, 0, 0, DEFAULT_POS_X, DEFAULT_POS_Y, DEFAULT_POS_Z, 180, 1, 78, 0, 0, 13, 15, 5, 0, 5, 5, 20, 10, MAX_WALKERS, 
-        0, "0 0 0 0 0 0 0", 81, "0 0 0 0 0 0 0", 136, "0 0 0 0 0 0 0", -1, "0 0 0 0 0 0 0", -1, "0 0 0 0 0 0 0", -1, -1, -1, -1
+        0, "0 0 0 0 0 0 0", 81, "0 0 0 0 0 0 0", 136, "0 0 0 0 0 0 0", -1, "0 0 0 0 0 0 0", -1, "0 0 0 0 0 0 0", -1, -1, -1, -1,
+				505, "0 0 0 0 0 0 0", -1, 0, 0, 0, 0, 0, 0, 0
 	);
 	strcat(query, tmp);
 
@@ -13354,13 +13426,19 @@ stock CreateWatcher(login[])
 	strcat(name, login);
 	strcat(name, "_Watcher");
 
-    new query[2048] = "INSERT INTO `players`( \
+	new query[2048] = "INSERT INTO `players`( \
 		`ID`, `Name`, `Owner`, `Sex`, `Rate`, `Rank`, `Status`, `Simulations`, `IsWatcher`, `Cash`, \
 		`PosX`, `PosY`, `PosZ`, `Angle`, `Interior`, `Skin`, `Kills`, `Deaths`, `DamageMin`, `DamageMax`, `Defense`, ";
+
 	new query2[512] = "`Dodge`, `Accuracy`, `Crit`, `GlobalTopPos`, `LocalTopPos`, `WalkersLimit`, `WeaponSlotID`, `WeaponMod`, \
 		`ArmorSlotID`, `ArmorMod`, `HatSlotID`, `HatMod`, `GlassesSlotID`, `GlassesMod`, `WatchSlotID`, `WatchMod`, \
-		`RingSlot1ID`, `RingSlot2ID`, `AmuletteSlot1ID`, `AmuletteSlot2ID`) VALUES (";
+		`RingSlot1ID`, `RingSlot2ID`, `AmuletteSlot1ID`, `AmuletteSlot2ID`, ";
+
+	new query3[256] = "`MeleeWeaponSlotID`, `MeleeWeaponMod`, `AbilitySlotID`, `WeaponStage`, `MeleeWeaponStage`, `ArmorStage` \
+		`HatStage`, `GlassesStage`, `WatchStage`, `AbilityStage`) VALUES (";
+
 	strcat(query, query2);
+	strcat(query, query3);
 	
 	new tmp[1024];
 
@@ -13379,9 +13457,11 @@ stock CreateWatcher(login[])
 	id++;
 
     format(tmp, sizeof(tmp), "'%d','%s','%s','%d','%d','%d','%d','%d','%d','%d','%f','%f','%f','%f','%d','%d','%d', \
-        '%d','%d','%d','%d','%d','%d','%d','%d','%d','%d','%d','%s','%d','%s','%d','%s','%d','%s','%d','%s','%d','%d','%d','%d')",
+        '%d','%d','%d','%d','%d','%d','%d','%d','%d','%d','%d','%s','%d','%s','%d','%s','%d','%s','%d','%s','%d','%d','%d','%d', \
+				'%d','%s','%d','%d','%d','%d','%d','%d','%d','%d')",
 		id, name, login, 0, 0, 1, 0, 0, 1, 0, DEFAULT_POS_X, DEFAULT_POS_Y, DEFAULT_POS_Z, 180, 1, 78, 0, 0, 13, 15, 5, 0, 5, 5, 20, 10, MAX_WALKERS, 
-        0, "0 0 0 0 0 0 0", 81, "0 0 0 0 0 0 0", 136, "0 0 0 0 0 0 0", -1, "0 0 0 0 0 0 0", -1, "0 0 0 0 0 0 0", -1, -1, -1, -1
+        0, "0 0 0 0 0 0 0", 81, "0 0 0 0 0 0 0", 136, "0 0 0 0 0 0 0", -1, "0 0 0 0 0 0 0", -1, "0 0 0 0 0 0 0", -1, -1, -1, -1,
+				505, "0 0 0 0 0 0 0", -1, 0, 0, 0, 0, 0, 0, 0
 	);
 	strcat(query, tmp);
 
@@ -13556,8 +13636,8 @@ stock UpdateHierarchy()
 
 		if(i+1 == HIERARCHY_LEADER)
 		{
-			PendingItem(name, 274, MOD_CLEAR, 1, "Награда Патриарха");
-			PendingItem(name, 276, MOD_CLEAR, 1, "Награда Патриарха");
+			PendingItem(name, 274, MOD_CLEAR, 0, 1, "Награда Патриарха");
+			PendingItem(name, 276, MOD_CLEAR, 0, 1, "Награда Патриарха");
 
 			new p_query[255];
 			format(p_query, sizeof(p_query), "UPDATE `hierarchy` SET `LeaderName` = '%s', `Money` = '0' LIMIT 1", name);
@@ -13566,8 +13646,8 @@ stock UpdateHierarchy()
 		}
 		else
 		{
-			PendingItem(name, 273, MOD_CLEAR, 1, "Награда основателя");
-			PendingItem(name, 275, MOD_CLEAR, 1, "Награда основателя");
+			PendingItem(name, 273, MOD_CLEAR, 0, 1, "Награда основателя");
+			PendingItem(name, 275, MOD_CLEAR, 0, 1, "Награда основателя");
 		}
 
 		new playerid = GetPlayerInGameID(pretendets[i]);
