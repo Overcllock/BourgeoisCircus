@@ -64,6 +64,9 @@
 #define DEFAULT_POS_Y 645.6729
 #define DEFAULT_POS_Z 1057.5938
 
+//Tweaks. 0 = off, 1 = on
+#define IS_BNS_MODE 0
+
 //Limits
 #define MAX_TOUR 5
 #define MAX_PARTICIPANTS 20
@@ -113,6 +116,21 @@
 #define MAX_DUNGEON_MOBS 3
 #define MAX_DUNGEON_BOSSES 2
 #define MAX_DUNGEON_REWARDS 13
+
+//Market
+#define MARKET_CATEGORY_WEAPON 0
+#define MARKET_CATEGORY_ARMOR 1
+#define MARKET_CATEGORY_HAT 2
+#define MARKET_CATEGORY_GLASSES 3
+#define MARKET_CATEGORY_WATCH 4
+#define MARKET_CATEGORY_ACCESSORY 5
+#define MARKET_CATEGORY_MATERIAL 6
+#define MARKET_CATEGORY_MYLOTS 7
+
+//Phases
+#define PHASE_PEACE 0
+#define PHASE_WAR 1
+#define PHASE_BATTLE 2
 
 //Player params
 #define PARAM_DAMAGE 1
@@ -520,7 +538,6 @@ new DungeonLootPickups[MAX_PLAYERS][MAX_DUNGEON_LOOT];
 new DungeonLootItems[MAX_PLAYERS][MAX_DUNGEON_LOOT][LootInfo];
 
 new ModItemSlot[MAX_PLAYERS] = -1;
-new ModStone[MAX_PLAYERS] = -1;
 new ModPotion[MAX_PLAYERS] = -1;
 new IsSlotsBlocked[MAX_PLAYERS] = false;
 
@@ -944,7 +961,7 @@ cmd:giveitem(playerid, params[])
 	
 	new ok = false;
 	if(IsEquip(itemid))
-		ok = AddEquip(playerid, itemid);
+		ok = AddEquip(playerid, itemid, STATS_CLEAR);
 	else
 		ok = AddItem(playerid, itemid, count);
 
@@ -1205,7 +1222,6 @@ public OnPlayerLogin(playerid)
 	if(!FCNPC_IsValid(playerid))
 	{
 		InitPlayerTextDraws(playerid);
-		PlayerTextDrawShow(playerid, HPBar[playerid]);
 		HideAllWindows(playerid);
 		ResetPlayerMoney(playerid);
 		GivePlayerMoney(playerid, PlayerInfo[playerid][Cash]);
@@ -2089,7 +2105,7 @@ public RespawnWalker(walkerid)
 	PlayerInfo[walkerid][Sex] = 0;
 	PlayerInfo[walkerid][Skin] = Walkers[i][Skin];
 	PlayerInfo[walkerid][WeaponSlotID] = Walkers[i][WeaponID];
-  PlayerInfo[walkerid][CritMult] = 1.2;
+  PlayerInfo[walkerid][CritMult] = 120;
   PlayerInfo[walkerid][CritReduction] = 0;
   PlayerInfo[walkerid][CritMultReduction] = 0;
   PlayerInfo[walkerid][Vamp] = 0;
@@ -2173,7 +2189,7 @@ public OnPlayerPickUpPickup(playerid, pickupid)
 
 			if(IsEquip(BossLootItems[i][ItemID]))
 			{
-				AddEquip(playerid, BossLootItems[i][ItemID]);
+				AddEquip(playerid, BossLootItems[i][ItemID], STATS_CLEAR);
 				if(item[Grade] >= GRADE_C)
 				{
 					format(string, sizeof(string), "{%s}%s {ffffff}приобрел {%s}[%s]{ffffff}.", 
@@ -2213,7 +2229,7 @@ public OnPlayerPickUpPickup(playerid, pickupid)
 
 				if(IsEquip(WalkerLootItems[j][i][ItemID]))
 				{
-					AddEquip(playerid, WalkerLootItems[j][i][ItemID]);
+					AddEquip(playerid, WalkerLootItems[j][i][ItemID], STATS_CLEAR);
 					if(item[Grade] >= GRADE_C)
 					{
 						format(string, sizeof(string), "{%s}%s {ffffff}приобрел {%s}[%s]{ffffff}.", 
@@ -2262,7 +2278,7 @@ public OnPlayerPickUpPickup(playerid, pickupid)
 
 			if(IsEquip(DungeonLootItems[j][i][ItemID]))
 			{
-				AddEquip(playerid, DungeonLootItems[j][i][ItemID]);
+				AddEquip(playerid, DungeonLootItems[j][i][ItemID], STATS_CLEAR);
 				if(item[Grade] >= GRADE_C)
 				{
 					format(string, sizeof(string), "{%s}%s {ffffff}приобрел {%s}[%s]{ffffff}.", 
@@ -2702,12 +2718,12 @@ public OnDialogResponse(playerid, dialogid, response, listitem, inputtext[])
 								if(IsInventoryFull(playerid))
 								{
 									if(IsEquip(w_loot[ItemID]))
-										PendingItem(PlayerInfo[playerid][Name], w_loot[ItemID], "Награда симуляции", w_loot[Count]);
+										PendingItem(PlayerInfo[playerid][Name], w_loot[ItemID], "Награда симуляции", STATS_CLEAR, w_loot[Count]);
 									continue;
 								}
 
 								if(IsEquip(w_loot[ItemID]))
-									AddEquip(playerid, w_loot[ItemID]);
+									AddEquip(playerid, w_loot[ItemID], STATS_CLEAR);
 								else
 									AddItem(playerid, w_loot[ItemID], w_loot[Count]);
 							}
@@ -2990,7 +3006,7 @@ public OnDialogResponse(playerid, dialogid, response, listitem, inputtext[])
 				item = GetItem(itemid);
 				PlayerInfo[playerid][Cash] -= item[Price];
 				GivePlayerMoney(playerid, -item[Price]);
-				AddEquip(playerid, itemid);
+				AddEquip(playerid, itemid, STATS_CLEAR);
 				ShowPlayerDialog(playerid, 1, DIALOG_STYLE_MSGBOX, "Покупка", "{66CC00}Предмет куплен.", "Закрыть", "");
 			}
 			return 1;
@@ -3054,7 +3070,7 @@ public OnDialogResponse(playerid, dialogid, response, listitem, inputtext[])
 				item = GetItem(itemid);
 				PlayerInfo[playerid][Cash] -= item[Price];
 				GivePlayerMoney(playerid, -item[Price]);
-				AddEquip(playerid, itemid);
+				AddEquip(playerid, itemid, STATS_CLEAR);
 				ShowPlayerDialog(playerid, 1, DIALOG_STYLE_MSGBOX, "Покупка", "{66CC00}Предмет куплен.", "Закрыть", "");
 			}
 			return 1;
@@ -3794,7 +3810,7 @@ public OnPlayerClickPlayer(playerid, clickedplayerid, source)
 
 public OnPlayerClickPlayerTextDraw(playerid, PlayerText:playertextid)
 {
-	if(playertextid == ChrInfClose[playerid])
+	if(playertextid == ChrInfoClose[playerid])
 	{
 		HideCharInfo(playerid);
 		CancelSelectTextDraw(playerid);
@@ -3844,8 +3860,10 @@ public OnPlayerClickPlayerTextDraw(playerid, PlayerText:playertextid)
 		}
 
 		MarketSellingItem[playerid][ID] = itemid;
-		for(new i = 0; i < MAX_MOD; i++)
-			MarketSellingItem[playerid][Mod][i] = PlayerInventory[playerid][SelectedSlot[playerid]][Mod][i];
+		MarketSellingItem[playerid][Stage] = PlayerInventory[playerid][SelectedSlot[playerid]][Stage];
+		MarketSellingItem[playerid][Mod] = PlayerInventory[playerid][SelectedSlot[playerid]][Mod];
+		for(new i = 0; i < MAX_STATS; i++)
+			MarketSellingItem[playerid][Stats][i] = PlayerInventory[playerid][SelectedSlot[playerid]][Stats][i];
 		MarketSellingItem[playerid][Count] = 1;
 		MarketSellingItem[playerid][Price] = item[Price] / 2;
 		MarketSellingItem[playerid][rTime] = 10;
@@ -4028,23 +4046,13 @@ public OnPlayerClickPlayerTextDraw(playerid, PlayerText:playertextid)
 		{
 			new equip[BaseItem];
 			equip = GetItem(itemid);
-			if((HasItem(playerid, ITEM_SHAZOK_LETTER_ID, 1) ? PlayerInfo[playerid][Rank] + 1 : PlayerInfo[playerid][Rank]) < equip[MinRank])
+			if(PlayerInfo[playerid][Rank] < equip[MinRank])
 			{
 				new string[255];
 				format(string, sizeof(string), "{ffffff}Ваш ранг не соответствует минимальному для этого предмета.\nМинимальный ранг - {%s}%s", 
 					RateColors[equip[MinRank]-1], GetRankInterval(equip[MinRank])
 				);
 				ShowPlayerDialog(playerid, 1, DIALOG_STYLE_MSGBOX, "Инвентарь", string, "Закрыть", "");
-				return 0;
-			}
-			if((itemid == 274 || itemid == 276) && PlayerInfo[playerid][Status] != HIERARCHY_LEADER)
-			{
-				ShowPlayerDialog(playerid, 1, DIALOG_STYLE_MSGBOX, "Инвентарь", "{ffffff}Данная экипировка доступна только Патриарху.", "Закрыть", "");
-				return 0;
-			}
-			if((itemid == 273 || itemid == 275) && PlayerInfo[playerid][Status] == HIERARCHY_NONE)
-			{
-				ShowPlayerDialog(playerid, 1, DIALOG_STYLE_MSGBOX, "Инвентарь", "{ffffff}Данная экипировка доступна только лидерам Цирка.", "Закрыть", "");
 				return 0;
 			}
 			EquipItem(playerid, equip[Type], SelectedSlot[playerid]);
@@ -4115,7 +4123,7 @@ public OnPlayerClickPlayerTextDraw(playerid, PlayerText:playertextid)
 			new itemid = PlayerInventory[playerid][SelectedSlot[playerid]][ID];
 			if(IsModifiableEquip(itemid))
 			{
-				if(GetModLevel(PlayerInventory[playerid][SelectedSlot[playerid]][Mod]) == MAX_MOD)
+				if(PlayerInventory[playerid][SelectedSlot[playerid]][Mod] >= MAX_MOD)
 				{
 					ShowPlayerDialog(playerid, 1, DIALOG_STYLE_MSGBOX, "Модификация", "Этот предмет достиг максимального уровня модификации.", "Закрыть", "");
 					return 0;
@@ -4226,14 +4234,8 @@ public OnPlayerClickPlayerTextDraw(playerid, PlayerText:playertextid)
 /* Public functions */
 public Time()
 {
-    new hour, minute, second;
-	new string[25];
+	new hour, minute, second;
 	gettime(hour, minute, second);
-	if(minute <= 9)
-		format(string, 25, "%d:0%d", hour, minute);
-	else
-		format(string, 25, "%d:%d", hour, minute);
-	TextDrawSetString(WorldTime, string);
 
 	TickSecondGlobal();
 	if(minute == 0 && second == 0)
@@ -5770,7 +5772,7 @@ stock GiveTournamentRewards()
 			{
 				new string[255];
 				format(string, sizeof(string), "Награда за %d место", place);
-				PendingItem(name, reward[ItemID], string, reward[ItemsCount]);
+				PendingItem(name, reward[ItemID], string, STATS_CLEAR, reward[ItemsCount]);
 			}
 			if(reward[Money] > 0)
 				GivePlayerMoneyOffline(name, reward[Money]);
@@ -5784,11 +5786,11 @@ stock GiveTournamentRewards()
 					new string[255];
 					format(string, sizeof(string), "Награда за %d место", place);
 					SendClientMessage(id, COLOR_GREY, "Инвентарь полон, награды отправлены на почту.");
-					PendingItem(name, reward[ItemID], string, reward[ItemsCount]);
+					PendingItem(name, reward[ItemID], string, STATS_CLEAR, reward[ItemsCount]);
 					continue;
 				}
 				if(IsEquip(reward[ItemID]))
-					AddEquip(id, reward[ItemID]);
+					AddEquip(id, reward[ItemID], STATS_CLEAR);
 				else
 					AddItem(id, reward[ItemID], reward[ItemsCount]);
 			}
@@ -5938,7 +5940,7 @@ stock UpdateMarketItems()
 
 			cache_unset_active();
 
-			PendingItem(owner, itemid, "Срок регистрации предмета истек", count, stats, mod, stage);
+			PendingItem(owner, itemid, "Срок регистрации предмета истек", stats, count, mod, stage);
 
 			new sub_query[255];
 			format(sub_query, sizeof(sub_query), "DELETE FROM `marketplace` WHERE `ID` = '%d'", id);
@@ -6291,7 +6293,7 @@ stock CancelItem(playerid, listitem)
 	}
 
 	SendClientMessage(playerid, COLOR_GREEN, "Регистрация отменена. Предметы отправлены на почту.");
-	PendingItem(item[Owner], item[ID], "Предмет возвращен", item[Count], item[Stats], item[Mod], item[Stage]);
+	PendingItem(item[Owner], item[ID], "Предмет возвращен", item[Stats], item[Count], item[Mod], item[Stage]);
 
 	DeleteItemFromMarket(item[LotID], item[Count]);
 	ShowMarketMenu(playerid);
@@ -6546,11 +6548,11 @@ stock GiveTourRewards(tour)
 				if(IsInventoryFull(id))
 				{
 					SendClientMessage(id, COLOR_GREY, "Инвентарь полон, награды отправлены на почту.");
-					PendingItem(PvpInfo[i][Name], reward[ItemID], "Награда за тур", reward[ItemsCount]);
+					PendingItem(PvpInfo[i][Name], reward[ItemID], "Награда за тур", STATS_CLEAR, reward[ItemsCount]);
 					continue;
 				}
 				if(IsEquip(reward[ItemID]))
-					AddEquip(id, reward[ItemID]);
+					AddEquip(id, reward[ItemID], STATS_CLEAR);
 				else
 					AddItem(id, reward[ItemID], reward[ItemsCount]);
 			}
@@ -6560,7 +6562,7 @@ stock GiveTourRewards(tour)
 		else
 		{
 			if(reward[ItemID] != -1 && reward[ItemsCount] > 0)
-				PendingItem(PvpInfo[i][Name], reward[ItemID], "Награда за тур", reward[ItemsCount]);
+				PendingItem(PvpInfo[i][Name], reward[ItemID], "Награда за тур", STATS_CLEAR, reward[ItemsCount]);
 			if(reward[Money] > 0)
 				GivePlayerMoneyOffline(PvpInfo[i][Name], reward[Money]);
 		}
@@ -7044,7 +7046,7 @@ stock OpenLockbox(playerid, lockboxid)
 		return;
 
 	if(IsEquip(loot[ItemID]))
-		AddEquip(playerid, loot[ItemID]);
+		AddEquip(playerid, loot[ItemID], STATS_CLEAR);
 	else
 		AddItem(playerid, loot[ItemID], loot[Count]);
 
@@ -7821,7 +7823,7 @@ stock ClaimDungeonReward(playerid, dungeonid)
 	new string[255];
 	if(IsEquip(loot[ItemID]))
 	{
-		AddEquip(playerid, loot[ItemID]);
+		AddEquip(playerid, loot[ItemID], STATS_CLEAR);
 		if(item[Grade] >= GRADE_C)
 		{
 			format(string, sizeof(string), "{%s}%s {ffffff}приобрел {%s}[%s]{ffffff}.", 
@@ -8313,11 +8315,11 @@ stock RollWalkerLootItem(rank, ownerid)
 	return loot;
 }
 
-stock RollBossLootItem(rank, ownerid)
+stock RollBossLootItem(rank)
 {
 	new loot[LootInfo];
 	loot = GenerateLoot(11000 + rank);
-	loot[OwnerID] = ownerid;
+	loot[OwnerID] = -1;
 	return loot;
 }
 
@@ -8395,7 +8397,7 @@ stock UpdateHPBar(playerid)
 	new percents = floatround(floatmul(floatdiv(hp, max_hp), 100));
 	new string[64];
 	format(string, sizeof(string), "%d%% %d/%d", percents, floatround(hp), floatround(max_hp));
-	PlayerTextDrawSetStringRus(playerid, HPBar[playerid], string);
+	//TODO
 }
 
 stock UpdatePlayerRank(playerid)
@@ -8544,7 +8546,8 @@ stock UpdatePlayerStats(playerid)
 	
 	new spec_damage = GetPlayerSpecialDamage(playerid);
 
-	weapon_damage = GetEquipModifiedValue(default_damage, PlayerInfo[playerid][WeaponMod]);
+	weapon_damage[0] = GetEquipModifiedValue(default_damage[0], PlayerInfo[playerid][WeaponMod]);
+	weapon_damage[1] = GetEquipModifiedValue(default_damage[1], PlayerInfo[playerid][WeaponMod]);
 	PlayerInfo[playerid][DamageMin] = weapon_damage[0] + spec_damage;
 	PlayerInfo[playerid][DamageMax] = weapon_damage[1] + spec_damage;
 	
@@ -9422,7 +9425,7 @@ stock PendingMessage(name[], text[])
 		UpdatePlayerPost(id);
 }
 
-stock PendingItem(name[], id, text[], count = 1, stats[] = STATS_CLEAR, mod = 0, stage = 0)
+stock PendingItem(name[], id, text[], stats[], count = 1, mod = 0, stage = 0)
 {
 	new sub_query[255] = "SELECT MAX(`PendingID`) AS `PendingID` FROM `pendings`";
 	new Cache:sq_result = mysql_query(sql_handle, sub_query);
@@ -9450,7 +9453,7 @@ stock PendingItem(name[], id, text[], count = 1, stats[] = STATS_CLEAR, mod = 0,
 		UpdatePlayerPost(playerid);
 }
 
-stock AddEquip(playerid, id, stats[] = STATS_CLEAR, stage = 0, mod = 0)
+stock AddEquip(playerid, id, stats[], stage = 0, mod = 0)
 {
 	if(IsInventoryFull(playerid))
 		return false;
@@ -9849,6 +9852,15 @@ stock GetDungeon(id)
 	return dungeon;
 }
 
+stock IsModPotion(item_id)
+{
+	switch(item_id)
+	{
+		case 1007: return true;
+	}
+	return false;
+}
+
 stock IsModifiableEquip(item_id)
 {
 	if(item_id == -1)
@@ -10010,7 +10022,6 @@ stock ResolveItemType(type)
 		case ITEMTYPE_AMULETTE: string = "Амулет";
 		case ITEMTYPE_RING: string = "Кольцо";
 		case ITEMTYPE_BOX: string = "Коробка";
-		case ITEMTYPE_MODIFIER: string = "Модификатор";
 		case ITEMTYPE_PASSIVE: string = "Пассивный предмет";
 		default: string = "Материал";
 	}
@@ -10114,6 +10125,8 @@ stock ShowEquipInfo(playerid, slotid)
 	new string[255];
 	item = GetItem(PlayerInventory[playerid][slotid][ID]);
 
+	new itemid = item[ID];
+
 	new mod = PlayerInventory[playerid][slotid][Mod];
 	new stage = PlayerInventory[playerid][slotid][Stage];
 	new stats[MAX_STATS];
@@ -10141,24 +10154,26 @@ stock ShowEquipInfo(playerid, slotid)
 	PlayerTextDrawSetStringRus(playerid, EqInfItemType[playerid], string);
 
 	format(string, sizeof(string), "Мин. ранг: %s", GetRankInterval(item[MinRank]));
-	PlayerTextDrawSetStringRus(playerid, EqInfItemMinRank[playerid], string);
+	PlayerTextDrawSetStringRus(playerid, EqInfMinRank[playerid], string);
 	new min_rank = item[MinRank];
 	if(PlayerInfo[playerid][Rank] >= min_rank)
-		PlayerTextDrawColor(playerid, EqInfItemMinRank[playerid], -1);
+		PlayerTextDrawColor(playerid, EqInfMinRank[playerid], -1);
 	else
-		PlayerTextDrawColor(playerid, EqInfItemMinRank[playerid], 0xFF0000FF);
+		PlayerTextDrawColor(playerid, EqInfMinRank[playerid], 0xFF0000FF);
 
 	format(string, sizeof(string), "Грейд: %s", ResolveItemGrade(item[Grade]));
-	PlayerTextDrawSetStringRus(playerid, EqInfItemGrade[playerid], string);
+	PlayerTextDrawSetStringRus(playerid, EqInfGrade[playerid], string);
 
 	format(string, sizeof(string), "Стадия: %d", stage);
-	PlayerTextDrawSetStringRus(playerid, EqInfItemStage[playerid], string);
+	PlayerTextDrawSetStringRus(playerid, EqInfStage[playerid], string);
 
 	new start_idx = 1;
 	if(item[Type] == ITEMTYPE_AMULETTE || item[Type] == ITEMTYPE_RING)
 		start_idx = 0;
 	
-	for(new i = start_idx, new j = 0; i < MAX_PROPERTIES + 1; i++, j++)
+	new j = 0;
+	
+	for(new i = start_idx; i < MAX_PROPERTIES + 1; i++)
 	{
 		if(item[Property][j] == PROPERTY_HEAL || item[Property][j] == PROPERTY_INVUL)
 			PlayerTextDrawColor(playerid, EqInfMainStats[playerid][i], 16711935);
@@ -10167,6 +10182,8 @@ stock ShowEquipInfo(playerid, slotid)
 
 		PlayerTextDrawSetStringRus(playerid, EqInfMainStats[playerid][i], GetPropertyString(item[Property][j], item[PropertyVal][j]));
 		PlayerTextDrawShow(playerid, EqInfMainStats[playerid][i]);
+
+		j++;
 	}
 
 	format(string, sizeof(string), "Цена: %s$", FormatMoney(item[Price]));
@@ -10183,9 +10200,9 @@ stock ShowEquipInfo(playerid, slotid)
 	PlayerTextDrawShow(playerid, EqInfItemIcon[playerid]);
 	PlayerTextDrawShow(playerid, EqInfItemName[playerid]);
 	PlayerTextDrawShow(playerid, EqInfItemType[playerid]);
-	PlayerTextDrawShow(playerid, EqInfItemMinRank[playerid]);
-	PlayerTextDrawShow(playerid, EqInfItemGrade[playerid]);
-	PlayerTextDrawShow(playerid, EqInfItemStage[playerid]);
+	PlayerTextDrawShow(playerid, EqInfMinRank[playerid]);
+	PlayerTextDrawShow(playerid, EqInfGrade[playerid]);
+	PlayerTextDrawShow(playerid, EqInfStage[playerid]);
 	PlayerTextDrawShow(playerid, EqInfDelim2[playerid]);
 	PlayerTextDrawShow(playerid, EqInfDelim3[playerid]);
 	PlayerTextDrawShow(playerid, EqInfDelim4[playerid]);
@@ -10214,7 +10231,10 @@ stock ShowEquipInfo(playerid, slotid)
 			new damage[2];
 			damage = GetWeaponBaseDamage(itemid, stage);
 			if(mod > 0)
-				damage = GetEquipModifiedValue(damage, mod);
+			{
+				damage[0] = GetEquipModifiedValue(damage[0], mod);
+				damage[1] = GetEquipModifiedValue(damage[1], mod);
+			}
 			format(string, sizeof(string), "Атака: {CCCC00}%d-%d", damage[0], damage[1]);
 		}
 		else if(item[Type] == ITEMTYPE_GLASSES)
@@ -10266,9 +10286,9 @@ stock HideEquipInfo(playerid)
 	PlayerTextDrawHide(playerid, EqInfPrice[playerid]);
 	PlayerTextDrawHide(playerid, EqInfClose[playerid]);
 	PlayerTextDrawHide(playerid, EqInfItemType[playerid]);
-	PlayerTextDrawHide(playerid, EqInfItemMinRank[playerid]);
-	PlayerTextDrawHide(playerid, EqInfItemGrade[playerid]);
-	PlayerTextDrawHide(playerid, EqInfItemStage[playerid]);
+	PlayerTextDrawHide(playerid, EqInfMinRank[playerid]);
+	PlayerTextDrawHide(playerid, EqInfGrade[playerid]);
+	PlayerTextDrawHide(playerid, EqInfStage[playerid]);
 	PlayerTextDrawHide(playerid, EqInfSpecialParamsText[playerid]);
 	PlayerTextDrawHide(playerid, EqInfTrading[playerid]);
 	for(new i = 0; i < 4; i++)
@@ -10350,12 +10370,12 @@ stock ShowCharInfo(playerid)
 
 	PlayerTextDrawShow(playerid, ChrInfoBox[playerid]);
 	PlayerTextDrawShow(playerid, ChrInfoHeader[playerid]);
-	PlayerTextDrawShow(playerid, ChrInfDelim1[playerid]);
-	PlayerTextDrawShow(playerid, ChrInfDelim2[playerid]);
-	PlayerTextDrawShow(playerid, ChrInfDelim3[playerid]);
-	PlayerTextDrawShow(playerid, ChrInfDelim4[playerid]);
-	PlayerTextDrawShow(playerid, ChrInfDelim5[playerid]);
-	PlayerTextDrawShow(playerid, ChrInfDelim6[playerid]);
+	PlayerTextDrawShow(playerid, ChrInfoDelim1[playerid]);
+	PlayerTextDrawShow(playerid, ChrInfoDelim2[playerid]);
+	PlayerTextDrawShow(playerid, ChrInfoDelim3[playerid]);
+	PlayerTextDrawShow(playerid, ChrInfoDelim4[playerid]);
+	PlayerTextDrawShow(playerid, ChrInfoDelim5[playerid]);
+	PlayerTextDrawShow(playerid, ChrInfoDelim6[playerid]);
 	PlayerTextDrawShow(playerid, ChrInfDamage[playerid]);
 	PlayerTextDrawShow(playerid, ChrInfDefense[playerid]);
 	PlayerTextDrawShow(playerid, ChrInfAccuracy[playerid]);
@@ -10376,7 +10396,7 @@ stock ShowCharInfo(playerid)
 	PlayerTextDrawShow(playerid, ChrInfRingSlot1[playerid]);
 	PlayerTextDrawShow(playerid, ChrInfAmuletteSlot1[playerid]);
 	PlayerTextDrawShow(playerid, ChrInfAmuletteSlot2[playerid]);
-	PlayerTextDrawShow(playerid, ChrInfClose[playerid]);
+	PlayerTextDrawShow(playerid, ChrInfoClose[playerid]);
 	PlayerTextDrawShow(playerid, ChrInfText1[playerid]);
 	PlayerTextDrawShow(playerid, ChrInfText2[playerid]);
 	PlayerTextDrawShow(playerid, ChrInfRateIcon[playerid]);
@@ -10407,12 +10427,12 @@ stock HideCharInfo(playerid)
 	PlayerTextDrawHide(playerid, ChrInfoSkin[playerid]);
 	PlayerTextDrawHide(playerid, ChrInfoBox[playerid]);
 	PlayerTextDrawHide(playerid, ChrInfoHeader[playerid]);
-	PlayerTextDrawHide(playerid, ChrInfDelim1[playerid]);
-	PlayerTextDrawHide(playerid, ChrInfDelim2[playerid]);
-	PlayerTextDrawHide(playerid, ChrInfDelim3[playerid]);
-	PlayerTextDrawHide(playerid, ChrInfDelim4[playerid]);
-	PlayerTextDrawHide(playerid, ChrInfDelim5[playerid]);
-	PlayerTextDrawHide(playerid, ChrInfDelim6[playerid]);
+	PlayerTextDrawHide(playerid, ChrInfoDelim1[playerid]);
+	PlayerTextDrawHide(playerid, ChrInfoDelim2[playerid]);
+	PlayerTextDrawHide(playerid, ChrInfoDelim3[playerid]);
+	PlayerTextDrawHide(playerid, ChrInfoDelim4[playerid]);
+	PlayerTextDrawHide(playerid, ChrInfoDelim5[playerid]);
+	PlayerTextDrawHide(playerid, ChrInfoDelim6[playerid]);
 	PlayerTextDrawHide(playerid, ChrInfDamage[playerid]);
 	PlayerTextDrawHide(playerid, ChrInfDefense[playerid]);
 	PlayerTextDrawHide(playerid, ChrInfAccuracy[playerid]);
@@ -10433,7 +10453,7 @@ stock HideCharInfo(playerid)
 	PlayerTextDrawHide(playerid, ChrInfRingSlot2[playerid]);
 	PlayerTextDrawHide(playerid, ChrInfAmuletteSlot1[playerid]);
 	PlayerTextDrawHide(playerid, ChrInfAmuletteSlot2[playerid]);
-	PlayerTextDrawHide(playerid, ChrInfClose[playerid]);
+	PlayerTextDrawHide(playerid, ChrInfoClose[playerid]);
 	PlayerTextDrawHide(playerid, ChrInfText1[playerid]);
 	PlayerTextDrawHide(playerid, ChrInfText2[playerid]);
 	PlayerTextDrawHide(playerid, ChrInfAllRate[playerid]);
@@ -11041,7 +11061,7 @@ stock CombineItems(playerid)
 			new eq_item[BaseItem];
 			eq_item = GetItem(result_id);
 
-			AddEquip(playerid, result_id);
+			AddEquip(playerid, result_id, STATS_CLEAR);
 
 			if(eq_item[Grade] >= GRADE_C)
 			{
@@ -11330,7 +11350,7 @@ stock GetArmorBaseDefense(armorid)
 		case 68: defense = 2550;
 		case 69: defense = 2990;
 
-		case 70: defense = 33
+		case 70: defense = 33;
 		case 71: defense = 67;
 		case 72: defense = 87;
 		case 73: defense = 93;
@@ -11366,27 +11386,27 @@ stock GetArmorBaseDefense(armorid)
 		case 103: defense = 1700;
 		case 104: defense = 1993;
 
-		case 128: defense = 25
+		case 128: defense = 25;
 		case 129: defense = 35;
 		case 130: defense = 70;
 		case 131: defense = 110;
 		case 132: defense = 150;
-		case 133: defense = 240
+		case 133: defense = 240;
 		case 134: defense = 355;
 		case 135: defense = 490;
 		case 136: defense = 670;
 		case 137: defense = 810;
-		case 138: defense = 1045
+		case 138: defense = 1045;
 		case 139: defense = 1320;
 		case 140: defense = 1610;
 		case 141: defense = 1865;
 		case 142: defense = 620;
-		case 143: defense = 795
+		case 143: defense = 795;
 		case 144: defense = 1005;
 		case 145: defense = 1290;
 		case 146: defense = 1575;
 		case 147: defense = 1830;
-		case 148: defense = 2355
+		case 148: defense = 2355;
 		case 149: defense = 2710;
 		case 150: defense = 3235;
 
@@ -11614,7 +11634,7 @@ stock GetRankInterval(rank)
 			case 11: interval = "Грандмастер";
 			case 12: interval = "Претендент";
 			case 13: interval = "Чемпион";
-			case 13: interval = "Легенда";
+			case 14: interval = "Легенда";
 	    default: interval = "Дерево";
 	}
 	return interval;
@@ -12157,7 +12177,6 @@ stock PatriarchPayday()
 stock UpdateHierarchy()
 {
 	PatriarchPayday();
-	UpdateTempHierarchyItems();
 
 	UpdateGlobalRatingTop();
 	ResetHierarchy();
@@ -12217,7 +12236,7 @@ stock UpdateHierarchy()
 
 		if(i+1 == HIERARCHY_LEADER)
 		{
-			PendingItem(name, 1035, "Награда Патриарха", 40);
+			PendingItem(name, 1035, "Награда Патриарха", STATS_CLEAR, 40);
 
 			new p_query[255];
 			format(p_query, sizeof(p_query), "UPDATE `hierarchy` SET `LeaderName` = '%s', `Money` = '0' LIMIT 1", name);
@@ -12226,7 +12245,7 @@ stock UpdateHierarchy()
 		}
 		else
 		{
-			PendingItem(name, 1035, "Награда основателя", 30);
+			PendingItem(name, 1035, "Награда основателя", STATS_CLEAR, 30);
 		}
 
 		new playerid = GetPlayerInGameID(pretendets[i]);
