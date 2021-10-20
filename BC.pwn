@@ -830,7 +830,7 @@ new PlayerText:MpBtn2Box[MAX_PLAYERS];
 new PlayerText:MpBtn1[MAX_PLAYERS];
 new PlayerText:MpBtn2[MAX_PLAYERS];
 new PlayerText:MpBtnBox[MAX_PLAYERS];
-new PlayerText:MpBtn[MAX_PLAYERS];
+new Text:MpBtn[MAX_PLAYERS];
 
 main()
 {
@@ -3910,6 +3910,15 @@ public OnPlayerClickPlayer(playerid, clickedplayerid, source)
 	return 1;
 }
 
+public OnPlayerClickTextDraw(playerid, Text:clickedid)
+{
+	if(clickedid == MpBtn[playerid])
+	{
+		new category = GetMarketCategoryByItem(MarketSellingItem[playerid][ID]);
+		RegisterMarketItem(playerid, category);
+	}
+}
+
 public OnPlayerClickPlayerTextDraw(playerid, PlayerText:playertextid)
 {
 	if(playertextid == ChrInfClose[playerid])
@@ -3932,11 +3941,6 @@ public OnPlayerClickPlayerTextDraw(playerid, PlayerText:playertextid)
 	else if(playertextid == MpClose[playerid])
 	{
 		HideMarketSellWindow(playerid);
-	}
-	else if(playertextid == MpBtn[playerid])
-	{
-		new category = GetMarketCategoryByItem(MarketSellingItem[playerid][ID]);
-		RegisterMarketItem(playerid, category);
 	}
 	else if(playertextid == MpBtn1[playerid])
 	{
@@ -11844,7 +11848,7 @@ stock HideMarketSellWindow(playerid)
 	PlayerTextDrawHide(playerid, MpBtn1[playerid]);
 	PlayerTextDrawHide(playerid, MpBtn2[playerid]);
 	PlayerTextDrawHide(playerid, MpBtnBox[playerid]);
-	PlayerTextDrawHide(playerid, MpBtn[playerid]);
+	TextDrawHideForPlayer(playerid, MpBtn[playerid]);
 	PlayerTextDrawHide(playerid, MpItem[playerid]);
 	PlayerTextDrawHide(playerid, MpItemCount[playerid]);
 
@@ -11897,7 +11901,7 @@ stock UpdateMarketSellWindow(playerid)
 		PlayerTextDrawShow(playerid, MpBtn1[playerid]);
 		PlayerTextDrawShow(playerid, MpBtnBox[playerid]);
 
-		PlayerTextDrawShow(playerid, MpBtn[playerid]);
+		TextDrawShowForPlayer(playerid, MpBtn[playerid]);
 	}
 	else
 	{
@@ -11908,7 +11912,7 @@ stock UpdateMarketSellWindow(playerid)
 		PlayerTextDrawHide(playerid, MpBtn1[playerid]);
 		PlayerTextDrawHide(playerid, MpBtn2[playerid]);
 		PlayerTextDrawHide(playerid, MpBtnBox[playerid]);
-		PlayerTextDrawHide(playerid, MpBtn[playerid]);
+		TextDrawHideForPlayer(playerid, MpBtn[playerid]);
 	}
 
 	PlayerTextDrawShow(playerid, MpItem[playerid]);
@@ -15943,19 +15947,19 @@ stock InitPlayerTextDraws(playerid)
 	PlayerTextDrawSetOutline(playerid, MpBtnBox[playerid], 0);
 	PlayerTextDrawFont(playerid, MpBtnBox[playerid], 0);
 
-	MpBtn[playerid] = CreatePlayerTextDraw(playerid, 317.866638, 244.874221, "Зарегистрировать");
-	PlayerTextDrawLetterSize(playerid, MpBtn[playerid], 0.213533, 0.988148);
-	PlayerTextDrawTextSize(playerid, MpBtn[playerid], 7.833320, 77.985191);
-	PlayerTextDrawAlignment(playerid, MpBtn[playerid], 2);
-	PlayerTextDrawColor(playerid, MpBtn[playerid], 255);
-	PlayerTextDrawUseBox(playerid, MpBtn[playerid], true);
-	PlayerTextDrawBoxColor(playerid, MpBtn[playerid], 0);
-	PlayerTextDrawSetShadow(playerid, MpBtn[playerid], 0);
-	PlayerTextDrawSetOutline(playerid, MpBtn[playerid], 0);
-	PlayerTextDrawBackgroundColor(playerid, MpBtn[playerid], 51);
-	PlayerTextDrawFont(playerid, MpBtn[playerid], 1);
-	PlayerTextDrawSetProportional(playerid, MpBtn[playerid], 1);
-	PlayerTextDrawSetSelectable(playerid, MpBtn[playerid], true);
+	MpBtn[playerid] = TextDrawCreate(317.866638, 244.874221, "Зарегистрировать");
+	TextDrawLetterSize(MpBtn[playerid], 0.213533, 0.988148);
+	TextDrawTextSize(MpBtn[playerid], 7.833320, 77.985191);
+	TextDrawAlignment(MpBtn[playerid], 2);
+	TextDrawColor(MpBtn[playerid], 255);
+	TextDrawUseBox(MpBtn[playerid], true);
+	TextDrawBoxColor(MpBtn[playerid], 0);
+	TextDrawSetShadow(MpBtn[playerid], 0);
+	TextDrawSetOutline(MpBtn[playerid], 0);
+	TextDrawBackgroundColor(playerid, MpBtn[playerid], 51);
+	TextDrawFont(MpBtn[playerid], 1);
+	TextDrawSetProportional(MpBtn[playerid], 1);
+	TextDrawSetSelectable(MpBtn[playerid], true);
 }
 
 stock ShowTextDraws(playerid)
@@ -16115,7 +16119,7 @@ stock DeletePlayerTextDraws(playerid)
 	PlayerTextDrawDestroy(playerid, MpBtn1[playerid]);
 	PlayerTextDrawDestroy(playerid, MpBtn2[playerid]);
 	PlayerTextDrawDestroy(playerid, MpBtnBox[playerid]);
-	PlayerTextDrawDestroy(playerid, MpBtn[playerid]);
+	TextDrawDestroy(playerid, MpBtn[playerid]);
 
 	PlayerTextDrawDestroy(playerid, PvpPanelBox[playerid]);
 	PlayerTextDrawDestroy(playerid, PvpPanelHeader[playerid]);

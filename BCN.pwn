@@ -1,4 +1,4 @@
-//Bourgeois Circus 4.0
+//Bourgeois Circus 4.02
 
 #include <a_samp>
 #include <a_mail>
@@ -20,7 +20,7 @@
 
 #pragma dynamic 31294
 
-#define VERSION 4.001
+#define VERSION 4.021
 
 //Mysql settings
 #define SQL_HOST "212.22.93.13"
@@ -88,9 +88,9 @@
 #define MAX_BOSSES 9
 #define MAX_ITEM_ID 2000
 
-#define MAX_LOOT 16
+#define MAX_LOOT 26
 #define MAX_WALKER_LOOT 4
-#define MAX_DUNGEON_LOOT 8
+#define MAX_DUNGEON_LOOT 22
 
 #define MAX_LOOT_VARIANTS 60
 #define MAX_STAT_VARIANTS 60
@@ -220,7 +220,7 @@
 //Delays
 #define DEFAULT_SHOOT_DELAY 	200
 #define COLT_SHOOT_DELAY 			190
-#define DEAGLE_SHOOT_DELAY 		260
+#define DEAGLE_SHOOT_DELAY 		240
 #define MP5_SHOOT_DELAY 			130
 #define TEC_SHOOT_DELAY 			70
 #define AK_SHOOT_DELAY 				185
@@ -525,6 +525,7 @@ new SpecialActivityTimer = 0;
 new SpecialActivityVehicleID = -1;
 
 new AttackedBoss = -1;
+new bool:IsBossHelpRequred = false;
 new bool:IsBossAttacker[MAX_PLAYERS] = false;
 new BossAttackersCount = 0;
 new BossNPC = -1;
@@ -859,7 +860,7 @@ new PlayerText:MpBtn2Box[MAX_PLAYERS];
 new PlayerText:MpBtn1[MAX_PLAYERS];
 new PlayerText:MpBtn2[MAX_PLAYERS];
 new PlayerText:MpBtnBox[MAX_PLAYERS];
-new PlayerText:MpBtn[MAX_PLAYERS];
+new Text:MpBtn[MAX_PLAYERS];
 
 new PlayerText:UpgBox[MAX_PLAYERS];
 new PlayerText:UpgTxt1[MAX_PLAYERS];
@@ -1958,7 +1959,7 @@ public OnPlayerDeath(playerid, killerid, reason)
 	}
 	else
 	{
-		if(IsBossAttacker[playerid])
+		if(IsBossAttacker[playerid] && killerid == BossNPC)
 		{
 			IsBossAttacker[playerid] = false;
 			BossAttackersCount--;
@@ -2508,6 +2509,11 @@ public OnPlayerKeyStateChange(playerid, newkeys, oldkeys)
 				ShowPlayerDialog(playerid, 1, DIALOG_STYLE_MSGBOX, "Боссы", "Сражения с боссами недоступны во время фазы войны.", "Закрыть", "");
 				return 1;
 			}
+			if(AttackedBoss != -1 && !IsBossHelpRequred)
+			{
+				ShowPlayerDialog(playerid, 1, DIALOG_STYLE_MSGBOX, "Боссы", "Телепорт занят или сражение уже идет.", "Закрыть", "");
+				return 1;
+			}
 			if(BossNPC != -1)
 			{
 				ShowPlayerDialog(playerid, 1, DIALOG_STYLE_MSGBOX, "Боссы", "Сражение уже идет.", "Закрыть", "");
@@ -2947,7 +2953,8 @@ public OnDialogResponse(playerid, dialogid, response, listitem, inputtext[])
 				SellItem(playerid, SelectedSlot[playerid], count);
 				
 				new string[255];
-				new price = (item[Price] * count) / 5;	
+				new price = (item[Price] * count) / 7;
+				price -= price / 99;
 				format(string, sizeof(string), "{ffffff}Вы продали: [{%s}%s{ffffff}] (x%d).\n{66CC00}Получено: %s$.", GetGradeColor(item[Grade]), item[Name], count, FormatMoney(price));
 				ShowPlayerDialog(playerid, 1, DIALOG_STYLE_MSGBOX, "Инвентарь", string, "Закрыть", "");
 			}
@@ -3225,7 +3232,13 @@ public OnDialogResponse(playerid, dialogid, response, listitem, inputtext[])
 			{
 				if(AttackedBoss != -1 && listitem != AttackedBoss)
 				{
-					ShowPlayerDialog(playerid, 1, DIALOG_STYLE_MSGBOX, "Боссы", "На одного из боссов уже идет атака.", "Закрыть", "");
+					ShowPlayerDialog(playerid, 802, DIALOG_STYLE_MSGBOX, "Боссы", "На одного из боссов уже идет атака. Отменить?", "Да", "Нет");
+					return 0;
+				}
+
+				if(AttackedBoss != -1 && listitem == AttackedBoss && !IsBossHelpRequred)
+				{
+					ShowPlayerDialog(playerid, 1, DIALOG_STYLE_MSGBOX, "Боссы", "Сражение с этим боссом уже идет, ваша помощь не требуется.", "Закрыть", "");
 					return 0;
 				}
 
@@ -3241,6 +3254,7 @@ public OnDialogResponse(playerid, dialogid, response, listitem, inputtext[])
 
 				if(IsBossAttacker[playerid])
 					return 0;
+
 				BossAttackersCount++;
 				IsBossAttacker[playerid] = true;
 				AttackedBoss = bossid;
@@ -3254,16 +3268,50 @@ public OnDialogResponse(playerid, dialogid, response, listitem, inputtext[])
 						KillTimer(PrepareBossAttackTimer);
 					PrepareBossAttackTimer = -1;
 					StartBossAttack();
-					return 1;
 				}
+				else
+					ShowPlayerDialog(playerid, 801, DIALOG_STYLE_MSGBOX, "Боссы", "Запросить поддержку?", "Да", "Нет");
+			}
+			return 1;
+		}
+		case 801:
+		{
+			new msg[255];
+			new bossid = AttackedBoss;
 
+			if(bossid == -1)
+				return 0;
+
+			new boss[BossInfo];
+			boss = GetBoss(bossid);
+
+			if(response)
+			{
 				PrepareBossAttackTimer = SetTimer("CancelBossAttack", 120000, false);
 				new name[255];
 				GetPlayerName(playerid, name, sizeof(name));
 				format(msg, sizeof(msg), "%s начал атаку на %s!", name, boss[Name]);
 				SendClientMessageToAll(0x990099FF, msg);
+				IsBossHelpRequred = true;
 			}
-			return 1;
+			else
+			{
+				format(msg, sizeof(msg), "Появляется %s!", boss[Name]);
+				SendClientMessageToAll(0x990099FF, msg);
+				if(IsValidTimer(PrepareBossAttackTimer))
+					KillTimer(PrepareBossAttackTimer);
+				PrepareBossAttackTimer = -1;
+				StartBossAttack();
+			}
+		}
+		case 802:
+		{
+			if(response)
+				CancelBossAttack();
+
+			new listitems[1024];
+			listitems = GetBossesList();
+			ShowPlayerDialog(playerid, 800, DIALOG_STYLE_TABLIST_HEADERS, "Боссы", listitems, "Атака", "Закрыть");
 		}
 		//данжи
 		case 810:
@@ -4018,6 +4066,15 @@ public OnPlayerClickPlayer(playerid, clickedplayerid, source)
 	return 1;
 }
 
+public OnPlayerClickTextDraw(playerid, Text:clickedid)
+{
+	if(clickedid == MpBtn[playerid])
+	{
+		new category = GetMarketCategoryByItem(MarketSellingItem[playerid][ID]);
+		RegisterMarketItem(playerid, category);
+	}
+}
+
 public OnPlayerClickPlayerTextDraw(playerid, PlayerText:playertextid)
 {
 	if(playertextid == ChrInfoClose[playerid])
@@ -4044,11 +4101,6 @@ public OnPlayerClickPlayerTextDraw(playerid, PlayerText:playertextid)
 	else if(playertextid == MpClose[playerid])
 	{
 		HideMarketSellWindow(playerid);
-	}
-	else if(playertextid == MpBtn[playerid])
-	{
-		new category = GetMarketCategoryByItem(MarketSellingItem[playerid][ID]);
-		RegisterMarketItem(playerid, category);
 	}
 	else if(playertextid == MpBtn1[playerid])
 	{
@@ -4797,6 +4849,7 @@ public CancelBossAttack()
 		KillTimer(PrepareBossAttackTimer);
 	PrepareBossAttackTimer = -1;
 	AttackedBoss = -1;
+	IsBossHelpRequred = false;
 	for(new i = 0; i < MAX_PLAYERS; i++)
 		IsBossAttacker[i] = false;
 	BossAttackersCount = 0;
@@ -4811,6 +4864,7 @@ public FinishBossAttack()
 		KillTimer(BossAttackTimer);
 	PrepareBossAttackTimer = -1;
 	BossAttackTimer = -1;
+	IsBossHelpRequred = false;
 
 	if(FCNPC_IsDead(BossNPC))
 	{
@@ -4823,6 +4877,8 @@ public FinishBossAttack()
 		SendClientMessageToAll(COLOR_RED, "Поражение. Все участники телепортированы.");
 		TeleportBossAttackersToHome();
 	}
+
+	AttackedBoss = -1;
 }
 
 public TeleportBossAttackersToHome()
@@ -4946,7 +5002,7 @@ public RegeneratePlayerHP(playerid)
 		if(HasItem(playerid, 1000, 1))
 			reg += 2;
 
-		hp = floatmul(GetPlayerMaxHP(playerid), floatdiv(PlayerInfo[playerid][Regeneration], 100));
+		hp = floatmul(GetPlayerMaxHP(playerid), floatdiv(reg, 100));
 	}
 	GivePlayerHP(playerid, hp);
 }
@@ -5944,50 +6000,50 @@ stock GiveTournamentRewards()
 			case 1:
 			{
 				reward[ItemID] = 1036;
-				reward[ItemsCount] = 15;
-				money = 4000;
+				reward[ItemsCount] = 20;
+				money = 6000;
 			}
 			case 2:
 			{
 				reward[ItemID] = 1036;
-				reward[ItemsCount] = 13;
-				money = 3800;
+				reward[ItemsCount] = 17;
+				money = 5000;
 			}
 			case 3:
 			{
 				reward[ItemID] = 1036;
-				reward[ItemsCount] = 11;
-				money = 3500;
+				reward[ItemsCount] = 15;
+				money = 4500;
 			}
 			case 4..5:
 			{
 				reward[ItemID] = 1036;
-				reward[ItemsCount] = 7;
-				money = 2750;
+				reward[ItemsCount] = 12;
+				money = 3750;
 			}
 			case 6..8:
 			{
 				reward[ItemID] = 1035;
-				reward[ItemsCount] = 10;
-				money = 2200;
+				reward[ItemsCount] = 20;
+				money = 3200;
 			}
 			case 9..12:
 			{
 				reward[ItemID] = 1035;
-				reward[ItemsCount] = 8;
-				money = 1600;
+				reward[ItemsCount] = 16;
+				money = 2600;
 			}
 			case 13..16:
 			{
 				reward[ItemID] = 1035;
-				reward[ItemsCount] = 6;
-				money = 1350;
+				reward[ItemsCount] = 12;
+				money = 2350;
 			}
 			default:
 			{
 				reward[ItemID] = 1035;
-				reward[ItemsCount] = 4;
-				money = 1000;
+				reward[ItemsCount] = 8;
+				money = 1700;
 			}
 		}
 
@@ -6815,14 +6871,14 @@ stock GetTourReward(tour, place, name[])
 	new rank = GetPlayerRankOffline(name);
 	switch(place)
 	{
-		case 1: money = 400;
-		case 2: money = 320; 
-		case 3: money = 240;
-		case 4..5: money = 140;
-		case 6..8: money = 120;
-		case 9..12: money = 80;
-		case 13..16: money = 40;
-		case 17..20: money = 20;
+		case 1: money = 800;
+		case 2: money = 640; 
+		case 3: money = 480;
+		case 4..5: money = 280;
+		case 6..8: money = 240;
+		case 9..12: money = 160;
+		case 13..16: money = 80;
+		case 17..20: money = 40;
 	}
 	money = money * floatround(floatpower(rank + tour, 2));
 	reward[Money] = money;
@@ -8057,14 +8113,15 @@ stock DestroyBoss()
 		IsBossAttacker[i] = false;
 	BossAttackersCount = 0;
 	AttackedBoss = -1;
+	IsBossHelpRequred = false;
 	print("Boss destroyed.");
 }
 
 stock GetAvailableDungeonsList(playerid)
 {
 	new listitems[2048] = "";
-	new min_id = 383;
-	new max_id = 426;
+	new min_id = 1057;
+	new max_id = 1064;
 
 	new query[255];
 	new Cache:q_result;
@@ -8297,7 +8354,7 @@ stock DestroyDungeon(playerid)
 stock ClaimDungeonReward(playerid, dungeonid)
 {
 	new loot[LootInfo];
-	loot = GenerateLoot(playerid, dungeonid);
+	loot = GenerateLoot(playerid, 12000 + dungeonid);
 
 	if(loot[ItemID] == -1) return;
 
@@ -8390,8 +8447,10 @@ stock GetBossesList()
 		if(bossid == -1 || resp_time == -1) continue;
 		new boss[BossInfo];
 		boss = GetBoss(bossid);
-		if(bossid == AttackedBoss)
+		if(bossid == AttackedBoss && IsBossHelpRequred)
 			format(bossinfo, sizeof(bossinfo), "\n{%s}%s\t{FFCC00}Идет сбор", GetGradeColor(boss[Grade]), boss[Name]);
+		else if(bossid == AttackedBoss && !IsBossHelpRequred)
+			format(bossinfo, sizeof(bossinfo), "\n{%s}%s\t{FFCC00}Идет атака", GetGradeColor(boss[Grade]), boss[Name]);
 		else if(resp_time == 0)
 			format(bossinfo, sizeof(bossinfo), "\n{%s}%s\t{66CC00}Можно атаковать", GetGradeColor(boss[Grade]), boss[Name]);
 		else
@@ -8409,15 +8468,15 @@ stock SetBossCooldown(bossid)
 	new resp_time;
 	switch(bossid)
 	{
-		case 1: resp_time = 10;
-		case 2: resp_time = 15;
-		case 3: resp_time = 20;
-		case 4: resp_time = 30;
-		case 5: resp_time = 45;
-		case 6: resp_time = 60;
-		case 7: resp_time = 90;
-		case 8: resp_time = 120;
-		default: resp_time = 5;
+		case 1: resp_time = 6;
+		case 2: resp_time = 9;
+		case 3: resp_time = 12;
+		case 4: resp_time = 15;
+		case 5: resp_time = 18;
+		case 6: resp_time = 21;
+		case 7: resp_time = 24;
+		case 8: resp_time = 27;
+		default: resp_time = 3;
 	}
 
 	new query[255];
@@ -8909,7 +8968,7 @@ stock GetWeaponIDByItemID(itemid)
 	new weaponid;
 	switch(itemid)
 	{
-		case 3,4: weaponid = 24;
+		case 3,4,212..214: weaponid = 24;
 		case 5..7: weaponid = 28;
 		case 8..10,31,215..217,234,243: weaponid = 32;
 		case 11..13,32,218..220,235,244: weaponid = 29;
@@ -9995,11 +10054,11 @@ stock DisassembleEquip(playerid, slotid)
 		new chance;
 		switch(item[Grade])
 		{
-			case GRADE_B: chance = 30;
-			case GRADE_C: chance = 35;
-			case GRADE_R: chance = 40;
-			case GRADE_S: chance = 50;
-			default: chance = 25;
+			case GRADE_B: chance = 40;
+			case GRADE_C: chance = 45;
+			case GRADE_R: chance = 50;
+			case GRADE_S: chance = 60;
+			default: chance = 35;
 		}
 
 		new string[255];
@@ -11251,7 +11310,7 @@ stock HideMarketSellWindow(playerid)
 	PlayerTextDrawHide(playerid, MpBtn1[playerid]);
 	PlayerTextDrawHide(playerid, MpBtn2[playerid]);
 	PlayerTextDrawHide(playerid, MpBtnBox[playerid]);
-	PlayerTextDrawHide(playerid, MpBtn[playerid]);
+	TextDrawHideForPlayer(playerid, MpBtn[playerid]);
 	PlayerTextDrawHide(playerid, MpItem[playerid]);
 	PlayerTextDrawHide(playerid, MpItemCount[playerid]);
 
@@ -11304,7 +11363,7 @@ stock UpdateMarketSellWindow(playerid)
 		PlayerTextDrawShow(playerid, MpBtn1[playerid]);
 		PlayerTextDrawShow(playerid, MpBtnBox[playerid]);
 
-		PlayerTextDrawShow(playerid, MpBtn[playerid]);
+		TextDrawShowForPlayer(playerid, MpBtn[playerid]);
 	}
 	else
 	{
@@ -11315,7 +11374,7 @@ stock UpdateMarketSellWindow(playerid)
 		PlayerTextDrawHide(playerid, MpBtn1[playerid]);
 		PlayerTextDrawHide(playerid, MpBtn2[playerid]);
 		PlayerTextDrawHide(playerid, MpBtnBox[playerid]);
-		PlayerTextDrawHide(playerid, MpBtn[playerid]);
+		TextDrawHideForPlayer(playerid, MpBtn[playerid]);
 	}
 
 	PlayerTextDrawShow(playerid, MpItem[playerid]);
@@ -11698,8 +11757,8 @@ stock UpStage(playerid)
 	new item[BaseItem];
 	item = GetItem(CmbItem[playerid][0]);
 
-	new required_essence = item[MinRank] * 10;
-	new required_boosters = item[MinRank] * 10 + item[Grade] * 10;
+	new required_essence = item[MinRank] * 2;
+	new required_boosters = item[MinRank] * 2 + item[Grade] * 2;
 
 	new essence_id = 1008 + item[Grade] - 1;
 	new booster_id = 1013;
@@ -11730,16 +11789,16 @@ stock UpStage(playerid)
 	new current_stage = PlayerInventory[playerid][CmbItemInvSlot[playerid][0]][Stage];
 	switch(current_stage)
 	{
-		case 1: chance = 60;
-		case 2: chance = 40;
-		case 3: chance = 30;
-		case 4: chance = 20;
-		case 5: chance = 10;
-		case 6: chance = 8;
-		case 7: chance = 6;
-		case 8: chance = 4;
-		case 9: chance = 2;
-		default: chance = 80;
+		case 1: chance = 80;
+		case 2: chance = 70;
+		case 3: chance = 50;
+		case 4: chance = 40;
+		case 5: chance = 30;
+		case 6: chance = 15;
+		case 7: chance = 10;
+		case 8: chance = 8;
+		case 9: chance = 5;
+		default: chance = 90;
 	}
 
 	new bool:success = CheckChance(chance);
@@ -12010,21 +12069,21 @@ stock GetWeaponBaseDamage(weaponid, stage)
 	{
 		case 1: { damage[0] = 19; damage[1] = 24; }
 		case 2: { damage[0] = 22; damage[1] = 28; }
-		case 3: { damage[0] = 101; damage[1] = 149; }
-		case 4: { damage[0] = 130; damage[1] = 177; }
+		case 3: { damage[0] = 191; damage[1] = 259; }
+		case 4: { damage[0] = 238; damage[1] = 327; }
 		case 5: { damage[0] = 10; damage[1] = 19; }
 		case 6: { damage[0] = 13; damage[1] = 24; }
 		case 7: { damage[0] = 15; damage[1] = 27; }
-		case 8: { damage[0] = 16; damage[1] = 34; }
-		case 9: { damage[0] = 21; damage[1] = 42; }
-		case 10: { damage[0] = 24; damage[1] = 47; }
+		case 8: { damage[0] = 13; damage[1] = 24; }
+		case 9: { damage[0] = 15; damage[1] = 27; }
+		case 10: { damage[0] = 19; damage[1] = 34; }
 		case 11: { damage[0] = 30; damage[1] = 59; }
 		case 12: { damage[0] = 35; damage[1] = 71; }
 		case 13: { damage[0] = 39; damage[1] = 76; }
-		case 14: { damage[0] = 46; damage[1] = 59; }
-		case 15: { damage[0] = 58; damage[1] = 73; }
-		case 16: { damage[0] = 63; damage[1] = 79; }
-		case 17: { damage[0] = 70; damage[1] = 88; }
+		case 14: { damage[0] = 78; damage[1] = 93; }
+		case 15: { damage[0] = 89; damage[1] = 116; }
+		case 16: { damage[0] = 101; damage[1] = 138; }
+		case 17: { damage[0] = 127; damage[1] = 159; }
 		case 18: { damage[0] = 321; damage[1] = 479; }
 		case 19: { damage[0] = 419; damage[1] = 609; }
 		case 20: { damage[0] = 451; damage[1] = 655; }
@@ -12046,18 +12105,18 @@ stock GetWeaponBaseDamage(weaponid, stage)
 		case 209: { damage[0] = 26; damage[1] = 63; }
 		case 210: { damage[0] = 26; damage[1] = 63; }
 		case 211: { damage[0] = 26; damage[1] = 63; }
-		case 212: { damage[0] = 152; damage[1] = 391; }
-		case 213: { damage[0] = 152; damage[1] = 391; }
-		case 214: { damage[0] = 152; damage[1] = 391; }
-		case 215: { damage[0] = 19; damage[1] = 84; }
-		case 216: { damage[0] = 19; damage[1] = 84; }
-		case 217: { damage[0] = 19; damage[1] = 84; }
+		case 212: { damage[0] = 206; damage[1] = 487; }
+		case 213: { damage[0] = 206; damage[1] = 487; }
+		case 214: { damage[0] = 206; damage[1] = 487; }
+		case 215: { damage[0] = 19; damage[1] = 54; }
+		case 216: { damage[0] = 19; damage[1] = 54; }
+		case 217: { damage[0] = 19; damage[1] = 54; }
 		case 218: { damage[0] = 29; damage[1] = 99; }
 		case 219: { damage[0] = 29; damage[1] = 99; }
 		case 220: { damage[0] = 29; damage[1] = 99; }
-		case 221: { damage[0] = 51; damage[1] = 154; }
-		case 222: { damage[0] = 51; damage[1] = 154; }
-		case 223: { damage[0] = 51; damage[1] = 154; }
+		case 221: { damage[0] = 106; damage[1] = 249; }
+		case 222: { damage[0] = 106; damage[1] = 249; }
+		case 223: { damage[0] = 106; damage[1] = 249; }
 		case 224: { damage[0] = 418; damage[1] = 1081; }
 		case 225: { damage[0] = 418; damage[1] = 1081; }
 		case 226: { damage[0] = 418; damage[1] = 1081; }
@@ -12072,7 +12131,7 @@ stock GetWeaponBaseDamage(weaponid, stage)
 		case 235: { damage[0] = 331; damage[1] = 630; }
 		case 236: { damage[0] = 651; damage[1] = 902; }
 		case 237: { damage[0] = 2119; damage[1] = 2785; }
-		case 238: { damage[0] = 165; damage[1] = 276; }
+		case 238: { damage[0] = 225; damage[1] = 336; }
 		case 239: { damage[0] = 1102; damage[1] = 1956; }
 		case 240: { damage[0] = 931; damage[1] = 1286; }
 		case 241: { damage[0] = 363; damage[1] = 991; }
@@ -13713,10 +13772,10 @@ stock InitTextDraws()
 
 stock InitPlayerTextDraws(playerid)
 {
-	PlayerHPBar[playerid] = CreatePlayerProgressBar(playerid, 535.000000, 20.000000, 80.000000, 5.500000, -16776961, 100.000000, 0);
+	PlayerHPBar[playerid] = CreatePlayerProgressBar(playerid, 547.000000, 39.000000, 67.500000, 5.500000, -16776961, 100.000000, 0);
 	SetPlayerProgressBarValue(playerid, PlayerHPBar[playerid], 100.000000);
 
-	RankRing[playerid] = CreatePlayerTextDraw(playerid, 610.000000, -3.000000, "ld_beat:cring");
+	RankRing[playerid] = CreatePlayerTextDraw(playerid, 610.000000, 20.000000, "ld_beat:cring");
 	PlayerTextDrawFont(playerid, RankRing[playerid], 4);
 	PlayerTextDrawLetterSize(playerid, RankRing[playerid], 0.600000, 2.000000);
 	PlayerTextDrawTextSize(playerid, RankRing[playerid], 31.500000, 38.000000);
@@ -13730,9 +13789,9 @@ stock InitPlayerTextDraws(playerid)
 	PlayerTextDrawSetProportional(playerid, RankRing[playerid], 1);
 	PlayerTextDrawSetSelectable(playerid, RankRing[playerid], 0);
 
-	RankText[playerid] = CreatePlayerTextDraw(playerid, 626.000000, 9.000000, "14");
+	RankText[playerid] = CreatePlayerTextDraw(playerid, 626.000000, 32.000000, "14");
 	PlayerTextDrawFont(playerid, RankText[playerid], 1);
-	PlayerTextDrawLetterSize(playerid, RankText[playerid], 0.329165, 1.399999);
+	PlayerTextDrawLetterSize(playerid, RankText[playerid], 0.270831, 1.299999);
 	PlayerTextDrawTextSize(playerid, RankText[playerid], 400.000000, 17.000000);
 	PlayerTextDrawSetOutline(playerid, RankText[playerid], 1);
 	PlayerTextDrawSetShadow(playerid, RankText[playerid], 0);
@@ -13744,21 +13803,21 @@ stock InitPlayerTextDraws(playerid)
 	PlayerTextDrawSetProportional(playerid, RankText[playerid], 1);
 	PlayerTextDrawSetSelectable(playerid, RankText[playerid], 0);
 
-	PlayerNameText[playerid] = CreatePlayerTextDraw(playerid, 612.000000, 4.000000, "ShazokVsemog");
+	PlayerNameText[playerid] = CreatePlayerTextDraw(playerid, 612.000000, 27.000000, "ShazokVsemog");
 	PlayerTextDrawFont(playerid, PlayerNameText[playerid], 1);
-	PlayerTextDrawLetterSize(playerid, PlayerNameText[playerid], 0.316666, 1.200000);
-	PlayerTextDrawTextSize(playerid, PlayerNameText[playerid], 400.000000, 17.000000);
+	PlayerTextDrawLetterSize(playerid, PlayerNameText[playerid], 0.224999, 0.850000);
+	PlayerTextDrawTextSize(playerid, PlayerNameText[playerid], 400.000000, 15.000000);
 	PlayerTextDrawSetOutline(playerid, PlayerNameText[playerid], 1);
 	PlayerTextDrawSetShadow(playerid, PlayerNameText[playerid], 0);
 	PlayerTextDrawAlignment(playerid, PlayerNameText[playerid], 3);
 	PlayerTextDrawColor(playerid, PlayerNameText[playerid], -1);
-	PlayerTextDrawBackgroundColor(playerid, PlayerNameText[playerid], 255);
+	PlayerTextDrawBackgroundColor(playerid, PlayerNameText[playerid], 220);
 	PlayerTextDrawBoxColor(playerid, PlayerNameText[playerid], 50);
 	PlayerTextDrawUseBox(playerid, PlayerNameText[playerid], 0);
 	PlayerTextDrawSetProportional(playerid, PlayerNameText[playerid], 1);
 	PlayerTextDrawSetSelectable(playerid, PlayerNameText[playerid], 0);
 
-	PlayerHPBarNumbers[playerid] = CreatePlayerTextDraw(playerid, 573.000000, 27.000000, "30.000/30.000");
+	PlayerHPBarNumbers[playerid] = CreatePlayerTextDraw(playerid, 579.000000, 46.000000, "30.000/30.000");
 	PlayerTextDrawFont(playerid, PlayerHPBarNumbers[playerid], 1);
 	PlayerTextDrawLetterSize(playerid, PlayerHPBarNumbers[playerid], 0.220833, 0.899999);
 	PlayerTextDrawTextSize(playerid, PlayerHPBarNumbers[playerid], 400.000000, 17.000000);
@@ -13772,7 +13831,7 @@ stock InitPlayerTextDraws(playerid)
 	PlayerTextDrawSetProportional(playerid, PlayerHPBarNumbers[playerid], 1);
 	PlayerTextDrawSetSelectable(playerid, PlayerHPBarNumbers[playerid], 0);
 
-	CashIcon[playerid] = CreatePlayerTextDraw(playerid, 626.000000, 43.000000, "HUD:radar_cash");
+	CashIcon[playerid] = CreatePlayerTextDraw(playerid, 622.000000, 59.000000, "HUD:radar_cash");
 	PlayerTextDrawFont(playerid, CashIcon[playerid], 4);
 	PlayerTextDrawLetterSize(playerid, CashIcon[playerid], 0.600000, 2.000000);
 	PlayerTextDrawTextSize(playerid, CashIcon[playerid], 12.000000, 14.000000);
@@ -13786,7 +13845,7 @@ stock InitPlayerTextDraws(playerid)
 	PlayerTextDrawSetProportional(playerid, CashIcon[playerid], 1);
 	PlayerTextDrawSetSelectable(playerid, CashIcon[playerid], 0);
 
-	PlayerCashText[playerid] = CreatePlayerTextDraw(playerid, 624.000000, 45.000000, "25.000.000");
+	PlayerCashText[playerid] = CreatePlayerTextDraw(playerid, 620.000000, 61.000000, "25.000.000");
 	PlayerTextDrawFont(playerid, PlayerCashText[playerid], 1);
 	PlayerTextDrawLetterSize(playerid, PlayerCashText[playerid], 0.308333, 1.100000);
 	PlayerTextDrawTextSize(playerid, PlayerCashText[playerid], 400.000000, 17.000000);
@@ -15855,25 +15914,23 @@ stock InitPlayerTextDraws(playerid)
 	PlayerTextDrawSetOutline(playerid, MpBtnBox[playerid], 0);
 	PlayerTextDrawFont(playerid, MpBtnBox[playerid], 0);
 
-	MpBtn[playerid] = CreatePlayerTextDraw(playerid, 317.866638, 244.874221, "Зарегистрировать");
-	PlayerTextDrawLetterSize(playerid, MpBtn[playerid], 0.213533, 0.988148);
-	PlayerTextDrawTextSize(playerid, MpBtn[playerid], 7.833320, 77.985191);
-	PlayerTextDrawAlignment(playerid, MpBtn[playerid], 2);
-	PlayerTextDrawColor(playerid, MpBtn[playerid], 255);
-	PlayerTextDrawUseBox(playerid, MpBtn[playerid], true);
-	PlayerTextDrawBoxColor(playerid, MpBtn[playerid], 0);
-	PlayerTextDrawSetShadow(playerid, MpBtn[playerid], 0);
-	PlayerTextDrawSetOutline(playerid, MpBtn[playerid], 0);
-	PlayerTextDrawBackgroundColor(playerid, MpBtn[playerid], 51);
-	PlayerTextDrawFont(playerid, MpBtn[playerid], 1);
-	PlayerTextDrawSetProportional(playerid, MpBtn[playerid], 1);
-	PlayerTextDrawSetSelectable(playerid, MpBtn[playerid], true);
+	MpBtn[playerid] = TextDrawCreate(317.866638, 244.874221, "Зарегистрировать");
+	TextDrawLetterSize(MpBtn[playerid], 0.213533, 0.988148);
+	TextDrawTextSize(MpBtn[playerid], 7.833320, 77.985191);
+	TextDrawAlignment(MpBtn[playerid], 2);
+	TextDrawColor(MpBtn[playerid], 255);
+	TextDrawUseBox(MpBtn[playerid], true);
+	TextDrawBoxColor(MpBtn[playerid], 0);
+	TextDrawSetShadow(MpBtn[playerid], 0);
+	TextDrawSetOutline(MpBtn[playerid], 0);
+	TextDrawBackgroundColor(playerid, MpBtn[playerid], 51);
+	TextDrawFont(MpBtn[playerid], 1);
+	TextDrawSetProportional(MpBtn[playerid], 1);
+	TextDrawSetSelectable(MpBtn[playerid], true);
 }
 
 stock HideNativeHUD(playerid)
 {
-	ToggleHUDComponentForPlayer(playerid, HUD_COMPONENT_AMMO, false);
-	ToggleHUDComponentForPlayer(playerid, HUD_COMPONENT_WEAPON, false);
 	ToggleHUDComponentForPlayer(playerid, HUD_COMPONENT_HEALTH, false);
 	ToggleHUDComponentForPlayer(playerid, HUD_COMPONENT_BREATH, false);
 	ToggleHUDComponentForPlayer(playerid, HUD_COMPONENT_ARMOUR, false);
@@ -16108,7 +16165,7 @@ stock DeletePlayerTextDraws(playerid)
 	PlayerTextDrawDestroy(playerid, MpBtn1[playerid]);
 	PlayerTextDrawDestroy(playerid, MpBtn2[playerid]);
 	PlayerTextDrawDestroy(playerid, MpBtnBox[playerid]);
-	PlayerTextDrawDestroy(playerid, MpBtn[playerid]);
+	TextDrawDestroy(playerid, MpBtn[playerid]);
 
 	PlayerTextDrawDestroy(playerid, PvpPanelBox[playerid]);
 	PlayerTextDrawDestroy(playerid, PvpPanelHeader[playerid]);
