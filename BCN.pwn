@@ -1,4 +1,4 @@
-//Bourgeois Circus 4.02
+//Bourgeois Circus 4.1
 
 #include <a_samp>
 #include <a_mail>
@@ -20,7 +20,7 @@
 
 #pragma dynamic 31294
 
-#define VERSION 4.021
+#define VERSION 4.101
 
 //Mysql settings
 #define SQL_HOST "212.22.93.13"
@@ -71,7 +71,7 @@
 //Limits
 #define MAX_TOUR 5
 #define MAX_PARTICIPANTS 20
-#define MAX_OWNERS 2
+#define MAX_OWNERS 1
 #define MAX_TEAMCOLORS 5
 #define MAX_SLOTS 294
 #define MAX_PAGE_SLOTS 42
@@ -88,9 +88,9 @@
 #define MAX_BOSSES 9
 #define MAX_ITEM_ID 2000
 
-#define MAX_LOOT 26
-#define MAX_WALKER_LOOT 4
-#define MAX_DUNGEON_LOOT 22
+#define MAX_LOOT 30
+#define MAX_WALKER_LOOT 6
+#define MAX_DUNGEON_LOOT 26
 
 #define MAX_LOOT_VARIANTS 60
 #define MAX_STAT_VARIANTS 60
@@ -306,6 +306,7 @@ enum TopItem
 	Name[255],
 	Kills,
 	Deaths,
+  Assists,
 	Score,
 	Rate,
 	RateDiff
@@ -360,6 +361,8 @@ enum pvpInf
 	Name[255],
 	Kills,
 	Deaths,
+  Assists,
+  KillStreak,
 	Score,
 	RateDiff
 };
@@ -1220,6 +1223,7 @@ public OnPlayerLogin(playerid)
 {
 	SetPlayerTeam(playerid, 10);
 	SetPlayerTourTeam(playerid, NO_TEAM);
+  SetPlayerScore(playerid, 0);
 
 	if(!FCNPC_IsValid(playerid))
 	{
@@ -1499,6 +1503,9 @@ stock SortPvpData()
       }
     }
   }
+
+  for(new i = 0; i < MAX_PARTICIPANTS; i++)
+    SetPlayerScore(PvpInfo[i][ID], i+1);
 }
 
 public UpdatePvpTable()
@@ -1947,7 +1954,11 @@ public OnPlayerDeath(playerid, killerid, reason)
 		}
 
 		PvpInfo[killer_idx][Kills]++;
+    PvpInfo[killer_idx][KillStreak]++;
+    ShowKillStreakMessage(_killerid, PvpInfo[killer_idx][KillStreak]);
+
 		PvpInfo[player_idx][Deaths]++;
+    PvpInfo[player_idx][KillStreak] = 0;
 		
 		GiveKillScore(playerid, _killerid);
 		if((PlayerInfo[_killerid][Rate] - PlayerInfo[playerid][Rate]) < 100)
@@ -2074,7 +2085,11 @@ public FCNPC_OnDeath(npcid, killerid, reason)
 		return 1;
 	}
 	if(IsTourStarted)
-		DeadCheckTimer[npcid] = SetTimerEx("CheckDead", 3000, false, "i", npcid);
+  {
+    new idx = GetPvpIndex(npcid);
+    new time = floatround(floatmul(floatadd(3, floatmul(0.75, PvpInfo[idx][Kills])), 1000));
+		DeadCheckTimer[npcid] = SetTimerEx("CheckDead", time, false, "i", npcid);
+  }
 	return 1;
 }
 
@@ -5117,6 +5132,7 @@ stock StartTour()
 		PvpInfo[i][Score] = 0;
 		PvpInfo[i][Kills] = 0;
 		PvpInfo[i][Deaths] = 0;
+    PvpInfo[i][Assists] = 0;
 	}
 
 	ResetAllSpecialAbilites();
@@ -5140,6 +5156,7 @@ stock StartTour()
 			SetPlayerHP(playerid, MaxHP[playerid]);
 			SetPlayerInvulnearable(playerid, TOUR_INVULNEARABLE_TIME);
 			SetPvpTableVisibility(playerid, true);
+      SetPlayerScore(playerid, 0);
 			continue;
 		}
 
@@ -5156,7 +5173,7 @@ stock StartTour()
 		TeleportToRandomArenaPos(npcid);
 	}
 
-    for(new i = 0; i < MAX_PLAYERS; i++)
+  for(new i = 0; i < MAX_PLAYERS; i++)
 	{
 		if(PlayerInfo[i][IsWatcher] <= 0)
 			continue;
@@ -7156,8 +7173,8 @@ stock UpdateTournamentTable()
 		new id = PvpInfo[i][ID];
 		if(id == -1) break;
 		
-		format(query, sizeof(query), "INSERT INTO `tournament_tab`(`ID`, `Name`, `Score`, `Kills`, `Deaths`, `Owner`, `RateDiff`) VALUES ('%d','%s','%d','%d','%d','%s','%d')",
-			PlayerInfo[id][ID], PlayerInfo[id][Name], PvpInfo[i][Score], PvpInfo[i][Kills], PvpInfo[i][Deaths], PlayerInfo[id][Owner], PvpInfo[i][RateDiff]
+		format(query, sizeof(query), "INSERT INTO `tournament_tab`(`ID`, `Name`, `Score`, `Kills`, `Deaths`, `Assists`, `Owner`, `RateDiff`) VALUES ('%d','%s','%d','%d','%d','%d','%s','%d')",
+			PlayerInfo[id][ID], PlayerInfo[id][Name], PvpInfo[i][Score], PvpInfo[i][Kills], PvpInfo[i][Deaths], PvpInfo[i][Assists], PlayerInfo[id][Owner], PvpInfo[i][RateDiff]
 		);
 		new Cache:q_res = mysql_query(sql_handle, query);
 		cache_delete(q_res);
@@ -8407,6 +8424,21 @@ stock ResolveMobName(mobid)
 	return name;
 }
 
+stock ShowKillStreakMessage(playerid, count)
+{
+  new msg[128];
+  switch(count)
+  {
+    case 3: format(msg, sizeof(msg), "{%s}%s {ffffff}раскладывает!", GetColorByRate(PlayerInfo[playerid][Rate]), PlayerInfo[playerid][Name]);
+    case 7: format(msg, sizeof(msg), "{%s}%s {ffffff}обретает могущество Шажка!", GetColorByRate(PlayerInfo[playerid][Rate]), PlayerInfo[playerid][Name]);
+    case 10: format(msg, sizeof(msg), "{%s}%s {ffffff}сильнее Буржуев!", GetColorByRate(PlayerInfo[playerid][Rate]), PlayerInfo[playerid][Name]);
+    case 15: format(msg, sizeof(msg), "{%s}%s {ffffff}ЦАРЬ!!!", GetColorByRate(PlayerInfo[playerid][Rate]), PlayerInfo[playerid][Name]);
+    default: return;
+  }
+
+  SendClientMessageToAll(COLOR_WHITE, msg);
+}
+
 public bool:IsPlayerInDungeon(playerid)
 {
 	if(playerid == INVALID_PLAYER_ID) return false;
@@ -8644,10 +8676,18 @@ stock GiveKillScore(playerid, killerid)
 {
 	new base_score = GetScoreDiff(PlayerInfo[playerid][Rate], PlayerInfo[killerid][Rate], true);
 	new killer_idx = GetPvpIndex(killerid);
+  new player_idx = GetPvpIndex(playerid);
 
 	new kills_diff = PvpInfo[killer_idx][Kills] - PvpInfo[killer_idx][Deaths];
 	if(kills_diff > 1)
 		base_score = floatround(floatmul(base_score, floatpower(0.97, kills_diff)));
+
+  if(PvpInfo[player_idx][KillStreak] > 1)
+  {
+    new streak_score = floatround(floatmul(25, floatpower(PvpInfo[player_idx][KillStreak], 2)));
+    base_score += streak_score;
+  }
+
 	PvpInfo[killer_idx][Score] += base_score;
 
 	new damagers_ids[MAX_PARTICIPANTS];
@@ -8685,6 +8725,7 @@ stock GiveKillScore(playerid, killerid)
 		
 		base_score = floatround(floatmul(base_score, 0.75));
 		PvpInfo[damagers_ids[i]][Score] += base_score;
+    PvpInfo[damagers_ids[i]][Assists]++;
 	}
 }
 
@@ -8965,7 +9006,7 @@ stock UpdatePlayerSkin(playerid)
 
 stock GetWeaponIDByItemID(itemid)
 {
-	new weaponid;
+	/*new weaponid;
 	switch(itemid)
 	{
 		case 3,4,212..214: weaponid = 24;
@@ -8977,9 +9018,9 @@ stock GetWeaponIDByItemID(itemid)
 		case 22..25,34,227..229,237,240,246: weaponid = 27;
 		case 26..29,230..232,241: weaponid = 26;
 		default: weaponid = 22;
-	}
+	}*/
 
-	return weaponid;
+	return 31;
 }
 
 stock UpdatePlayerWeapon(playerid)
@@ -12069,77 +12110,77 @@ stock GetWeaponBaseDamage(weaponid, stage)
 	{
 		case 1: { damage[0] = 19; damage[1] = 24; }
 		case 2: { damage[0] = 22; damage[1] = 28; }
-		case 3: { damage[0] = 191; damage[1] = 259; }
-		case 4: { damage[0] = 238; damage[1] = 327; }
-		case 5: { damage[0] = 10; damage[1] = 19; }
-		case 6: { damage[0] = 13; damage[1] = 24; }
-		case 7: { damage[0] = 15; damage[1] = 27; }
-		case 8: { damage[0] = 13; damage[1] = 24; }
-		case 9: { damage[0] = 15; damage[1] = 27; }
-		case 10: { damage[0] = 19; damage[1] = 34; }
-		case 11: { damage[0] = 30; damage[1] = 59; }
-		case 12: { damage[0] = 35; damage[1] = 71; }
-		case 13: { damage[0] = 39; damage[1] = 76; }
-		case 14: { damage[0] = 78; damage[1] = 93; }
-		case 15: { damage[0] = 89; damage[1] = 116; }
-		case 16: { damage[0] = 101; damage[1] = 138; }
-		case 17: { damage[0] = 127; damage[1] = 159; }
-		case 18: { damage[0] = 321; damage[1] = 479; }
-		case 19: { damage[0] = 419; damage[1] = 609; }
-		case 20: { damage[0] = 451; damage[1] = 655; }
-		case 21: { damage[0] = 536; damage[1] = 773; }
-		case 22: { damage[0] = 186; damage[1] = 392; }
-		case 23: { damage[0] = 233; damage[1] = 441; }
-		case 24: { damage[0] = 267; damage[1] = 490; }
-		case 25: { damage[0] = 299; damage[1] = 541; }
-		case 26: { damage[0] = 127; damage[1] = 329; }
-		case 27: { damage[0] = 164; damage[1] = 386; }
-		case 28: { damage[0] = 182; damage[1] = 410; }
-		case 29: { damage[0] = 205; damage[1] = 435; }
-		case 30: { damage[0] = 183; damage[1] = 401; }
-		case 31: { damage[0] = 114; damage[1] = 247; }
-		case 32: { damage[0] = 170; damage[1] = 342; }
-		case 33: { damage[0] = 299; damage[1] = 446; }
-		case 34: { damage[0] = 1044; damage[1] = 1801; }
+		case 3: { damage[0] = 24; damage[1] = 31; }
+		case 4: { damage[0] = 30; damage[1] = 38; }
+		case 5: { damage[0] = 33; damage[1] = 42; }
+		case 6: { damage[0] = 41; damage[1] = 51; }
+		case 7: { damage[0] = 52; damage[1] = 63; }
+		case 8: { damage[0] = 43; damage[1] = 54; }
+		case 9: { damage[0] = 53; damage[1] = 65; }
+		case 10: { damage[0] = 65; damage[1] = 78; }
+		case 11: { damage[0] = 55; damage[1] = 68; }
+		case 12: { damage[0] = 66; damage[1] = 79; }
+		case 13: { damage[0] = 80; damage[1] = 94; }
+		case 14: { damage[0] = 69; damage[1] = 83; }
+		case 15: { damage[0] = 83; damage[1] = 98; }
+		case 16: { damage[0] = 98; damage[1] = 114; }
+		case 17: { damage[0] = 115; damage[1] = 133; }
+		case 18: { damage[0] = 92; damage[1] = 108; }
+		case 19: { damage[0] = 110; damage[1] = 129; }
+		case 20: { damage[0] = 130; damage[1] = 151; }
+		case 21: { damage[0] = 153; damage[1] = 176; }
+		case 22: { damage[0] = 124; damage[1] = 146; }
+		case 23: { damage[0] = 148; damage[1] = 172; }
+		case 24: { damage[0] = 175; damage[1] = 203; }
+		case 25: { damage[0] = 205; damage[1] = 234; }
+		case 26: { damage[0] = 163; damage[1] = 192; }
+		case 27: { damage[0] = 191; damage[1] = 222; }
+		case 28: { damage[0] = 223; damage[1] = 256; }
+		case 29: { damage[0] = 255; damage[1] = 289; }
+		case 30: { damage[0] = 283; damage[1] = 322; }
+		case 31: { damage[0] = 336; damage[1] = 380; }
+		case 32: { damage[0] = 401; damage[1] = 449; }
+		case 33: { damage[0] = 470; damage[1] = 532; }
+		case 34: { damage[0] = 557; damage[1] = 631; }
 
-		case 209: { damage[0] = 26; damage[1] = 63; }
-		case 210: { damage[0] = 26; damage[1] = 63; }
-		case 211: { damage[0] = 26; damage[1] = 63; }
-		case 212: { damage[0] = 206; damage[1] = 487; }
-		case 213: { damage[0] = 206; damage[1] = 487; }
-		case 214: { damage[0] = 206; damage[1] = 487; }
-		case 215: { damage[0] = 19; damage[1] = 54; }
-		case 216: { damage[0] = 19; damage[1] = 54; }
-		case 217: { damage[0] = 19; damage[1] = 54; }
-		case 218: { damage[0] = 29; damage[1] = 99; }
-		case 219: { damage[0] = 29; damage[1] = 99; }
-		case 220: { damage[0] = 29; damage[1] = 99; }
-		case 221: { damage[0] = 106; damage[1] = 249; }
-		case 222: { damage[0] = 106; damage[1] = 249; }
-		case 223: { damage[0] = 106; damage[1] = 249; }
-		case 224: { damage[0] = 418; damage[1] = 1081; }
-		case 225: { damage[0] = 418; damage[1] = 1081; }
-		case 226: { damage[0] = 418; damage[1] = 1081; }
-		case 227: { damage[0] = 230; damage[1] = 696; }
-		case 228: { damage[0] = 230; damage[1] = 696; }
-		case 229: { damage[0] = 230; damage[1] = 696; }
-		case 230: { damage[0] = 155; damage[1] = 613; }
-		case 231: { damage[0] = 155; damage[1] = 613; }
-		case 232: { damage[0] = 155; damage[1] = 613; }
-		case 233: { damage[0] = 409; damage[1] = 808; }
-		case 234: { damage[0] = 223; damage[1] = 440; }
-		case 235: { damage[0] = 331; damage[1] = 630; }
-		case 236: { damage[0] = 651; damage[1] = 902; }
-		case 237: { damage[0] = 2119; damage[1] = 2785; }
-		case 238: { damage[0] = 225; damage[1] = 336; }
-		case 239: { damage[0] = 1102; damage[1] = 1956; }
-		case 240: { damage[0] = 931; damage[1] = 1286; }
-		case 241: { damage[0] = 363; damage[1] = 991; }
-		case 242: { damage[0] = 341; damage[1] = 699; }
-		case 243: { damage[0] = 186; damage[1] = 392; }
-		case 244: { damage[0] = 276; damage[1] = 550; }
-		case 245: { damage[0] = 543; damage[1] = 777; }
-		case 246: { damage[0] = 1766; damage[1] = 2488; }
+		case 209: { damage[0] = 17; damage[1] = 36; }
+		case 210: { damage[0] = 17; damage[1] = 36; }
+		case 211: { damage[0] = 17; damage[1] = 36; }
+		case 212: { damage[0] = 25; damage[1] = 49; }
+		case 213: { damage[0] = 25; damage[1] = 49; }
+		case 214: { damage[0] = 25; damage[1] = 49; }
+		case 215: { damage[0] = 41; damage[1] = 85; }
+		case 216: { damage[0] = 41; damage[1] = 85; }
+		case 217: { damage[0] = 41; damage[1] = 85; }
+		case 218: { damage[0] = 69; damage[1] = 132; }
+		case 219: { damage[0] = 69; damage[1] = 132; }
+		case 220: { damage[0] = 69; damage[1] = 132; }
+		case 221: { damage[0] = 95; damage[1] = 170; }
+		case 222: { damage[0] = 95; damage[1] = 170; }
+		case 223: { damage[0] = 95; damage[1] = 170; }
+		case 224: { damage[0] = 134; damage[1] = 218; }
+		case 225: { damage[0] = 134; damage[1] = 218; }
+		case 226: { damage[0] = 134; damage[1] = 218; }
+		case 227: { damage[0] = 176; damage[1] = 267; }
+		case 228: { damage[0] = 176; damage[1] = 267; }
+		case 229: { damage[0] = 176; damage[1] = 267; }
+		case 230: { damage[0] = 211; damage[1] = 336; }
+		case 231: { damage[0] = 211; damage[1] = 336; }
+		case 232: { damage[0] = 211; damage[1] = 336; }
+		case 233: { damage[0] = 446; damage[1] = 515; }
+		case 234: { damage[0] = 531; damage[1] = 609; }
+		case 235: { damage[0] = 636; damage[1] = 724; }
+		case 236: { damage[0] = 750; damage[1] = 844; }
+		case 237: { damage[0] = 888; damage[1] = 1002; }
+		case 238: { damage[0] = 157; damage[1] = 180; }
+		case 239: { damage[0] = 210; damage[1] = 239; }
+		case 240: { damage[0] = 259; damage[1] = 294; }
+		case 241: { damage[0] = 288; damage[1] = 329; }
+		case 242: { damage[0] = 341; damage[1] = 385; }
+		case 243: { damage[0] = 408; damage[1] = 455; }
+		case 244: { damage[0] = 479; damage[1] = 550; }
+		case 245: { damage[0] = 567; damage[1] = 642; }
+		case 246: { damage[0] = 673; damage[1] = 757; }
 
 		default: { damage[0] = 13; damage[1] = 15; }
 	}
@@ -13430,11 +13471,13 @@ stock ShowTournamentTab(playerid)
 		new score = 0;
 		new kills = 0;
 		new deaths = 0;
+    new assists = 0;
 		new r_diff = 0;
 		cache_get_value_name_int(i, "ID", id);
 		cache_get_value_name_int(i, "Score", score);
 		cache_get_value_name_int(i, "Kills", kills);
 		cache_get_value_name_int(i, "Deaths", deaths);
+    cache_get_value_name_int(i, "Assists", assists);
 		cache_get_value_name_int(i, "RateDiff", r_diff);
 		if(id == -1) continue;
 
@@ -13447,12 +13490,13 @@ stock ShowTournamentTab(playerid)
 		TournamentTab[i][Score] = score;
 		TournamentTab[i][Kills] = kills;
 		TournamentTab[i][Deaths] = deaths;
+    TournamentTab[i][Assists] = assists;
 		TournamentTab[i][Pos] = i+1;
 	}
 
 	cache_delete(q_result);
 
-	new top[4000] = "№ п\\п\tИмя\tРезультат\tОчки (рейтинг)";
+	new top[4000] = "№ п\\п\tИмя\tK/D/A\tОчки (рейтинг)";
 	new string[255];
 	for (new i = 0; i < row_count; i++) 
 	{
@@ -13470,9 +13514,9 @@ stock ShowTournamentTab(playerid)
 			format(rate_str, sizeof(rate_str), "%d", rate_diff);
 		}
 
-		format(string, sizeof(string), "\n{%s}%d\t{%s}%s\t{00CC00}%d {ffffff}- {CC0000}%d\t{9900CC}%d {ffffff}({%s}%s{ffffff})", 
+		format(string, sizeof(string), "\n{%s}%d\t{%s}%s\t{00CC00}%d{ffffff}/{CC0000}%d{ffffff}/{FFCC00}%d\t{9900CC}%d {ffffff}({%s}%s{ffffff})", 
 			GetPlaceColor(i+1), i+1, GetColorByRate(TournamentTab[i][Rate]), TournamentTab[i][Name],
-			TournamentTab[i][Kills], TournamentTab[i][Deaths], TournamentTab[i][Score], rate_color, rate_str
+			TournamentTab[i][Kills], TournamentTab[i][Deaths], TournamentTab[i][Assists], TournamentTab[i][Score], rate_color, rate_str
 		);
 		strcat(top, string);
 	}
