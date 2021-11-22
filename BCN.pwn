@@ -1,4 +1,4 @@
-//Bourgeois Circus 4.1
+//Bourgeois Circus 4.11
 
 #include <a_samp>
 #include <a_mail>
@@ -20,7 +20,7 @@
 
 #pragma dynamic 31294
 
-#define VERSION 4.101
+#define VERSION 4.111
 
 //Mysql settings
 #define SQL_HOST "212.22.93.13"
@@ -71,7 +71,7 @@
 //Limits
 #define MAX_TOUR 5
 #define MAX_PARTICIPANTS 20
-#define MAX_OWNERS 1
+#define MAX_OWNERS 2
 #define MAX_TEAMCOLORS 5
 #define MAX_SLOTS 294
 #define MAX_PAGE_SLOTS 42
@@ -88,9 +88,9 @@
 #define MAX_BOSSES 9
 #define MAX_ITEM_ID 2000
 
-#define MAX_LOOT 30
+#define MAX_LOOT 26
 #define MAX_WALKER_LOOT 6
-#define MAX_DUNGEON_LOOT 26
+#define MAX_DUNGEON_LOOT 22
 
 #define MAX_LOOT_VARIANTS 60
 #define MAX_STAT_VARIANTS 60
@@ -2087,7 +2087,7 @@ public FCNPC_OnDeath(npcid, killerid, reason)
 	if(IsTourStarted)
   {
     new idx = GetPvpIndex(npcid);
-    new time = floatround(floatmul(floatadd(3, floatmul(0.75, PvpInfo[idx][Kills])), 1000));
+    new time = floatround(floatmul(floatadd(3, floatmul(1.15, PvpInfo[idx][Kills])), 1000));
 		DeadCheckTimer[npcid] = SetTimerEx("CheckDead", time, false, "i", npcid);
   }
 	return 1;
@@ -5353,34 +5353,34 @@ stock GetScoreDiff(rate1, rate2, bool:is_killer)
 {
 	new diff = rate1 - rate2;
   if(diff > 6000)
-		diff = floatround(floatmul(diff, 0.75));
+		diff = floatround(floatmul(diff, 0.95));
   else if(diff > 5000)
-		diff = floatround(floatmul(diff, 0.7));
+		diff = floatround(floatmul(diff, 0.9));
   else if(diff > 4000)
-		diff = floatround(floatmul(diff, 0.65));
+		diff = floatround(floatmul(diff, 0.85));
   else if(diff > 3500)
-		diff = floatround(floatmul(diff, 0.6));
+		diff = floatround(floatmul(diff, 0.8));
   else if(diff > 3000)
-		diff = floatround(floatmul(diff, 0.55));
+		diff = floatround(floatmul(diff, 0.75));
 	else if(diff > 2500)
-		diff = floatround(floatmul(diff, 0.5));
+		diff = floatround(floatmul(diff, 0.7));
 	else if(diff > 2000)
-		diff = floatround(floatmul(diff, 0.45));
+		diff = floatround(floatmul(diff, 0.65));
 	else if(diff > 1500)
-		diff = floatround(floatmul(diff, 0.4));
+		diff = floatround(floatmul(diff, 0.6));
 	else if(diff > 1000)
-		diff = floatround(floatmul(diff, 0.35));
+		diff = floatround(floatmul(diff, 0.5));
 	else if(diff > 500)
-		diff = floatround(floatmul(diff, 0.3));
+		diff = floatround(floatmul(diff, 0.4));
 	else if(diff > 0)
-		diff = floatround(floatmul(diff, 0.2));
+		diff = floatround(floatmul(diff, 0.25));
 	else
 		diff = floatround(floatabs(floatmul(MAX_RATE + 1 - floatabs(diff), 0.007)));
 
 	if(is_killer)
-		diff += 40;
+		diff += 30;
 	else
-		diff = floatround(floatmul(diff, 0.5));
+		diff = floatround(floatmul(diff, 0.75));
 	return diff;
 }
 
@@ -6018,49 +6018,49 @@ stock GiveTournamentRewards()
 			{
 				reward[ItemID] = 1036;
 				reward[ItemsCount] = 20;
-				money = 6000;
+				money = 9000;
 			}
 			case 2:
 			{
 				reward[ItemID] = 1036;
 				reward[ItemsCount] = 17;
-				money = 5000;
+				money = 7500;
 			}
 			case 3:
 			{
 				reward[ItemID] = 1036;
 				reward[ItemsCount] = 15;
-				money = 4500;
+				money = 6500;
 			}
 			case 4..5:
 			{
 				reward[ItemID] = 1036;
 				reward[ItemsCount] = 12;
-				money = 3750;
+				money = 5750;
 			}
 			case 6..8:
 			{
 				reward[ItemID] = 1035;
 				reward[ItemsCount] = 20;
-				money = 3200;
+				money = 4200;
 			}
 			case 9..12:
 			{
 				reward[ItemID] = 1035;
 				reward[ItemsCount] = 16;
-				money = 2600;
+				money = 3600;
 			}
 			case 13..16:
 			{
 				reward[ItemID] = 1035;
 				reward[ItemsCount] = 12;
-				money = 2350;
+				money = 2950;
 			}
 			default:
 			{
 				reward[ItemID] = 1035;
 				reward[ItemsCount] = 8;
-				money = 1700;
+				money = 2300;
 			}
 		}
 
@@ -6888,14 +6888,14 @@ stock GetTourReward(tour, place, name[])
 	new rank = GetPlayerRankOffline(name);
 	switch(place)
 	{
-		case 1: money = 800;
-		case 2: money = 640; 
-		case 3: money = 480;
-		case 4..5: money = 280;
-		case 6..8: money = 240;
-		case 9..12: money = 160;
-		case 13..16: money = 80;
-		case 17..20: money = 40;
+		case 1: money = 1400;
+		case 2: money = 1240; 
+		case 3: money = 980;
+		case 4..5: money = 580;
+		case 6..8: money = 440;
+		case 9..12: money = 360;
+		case 13..16: money = 280;
+		case 17..20: money = 140;
 	}
 	money = money * floatround(floatpower(rank + tour, 2));
 	reward[Money] = money;
@@ -9158,7 +9158,7 @@ stock UpdatePlayerStats(playerid)
 		}
 		case HIERARCHY_DEFENSE:
 		{
-			damage_multiplier += 30;
+			defense_multiplier += 30;
 		}
 		case HIERARCHY_SUPPORT:
 		{
@@ -11789,7 +11789,16 @@ stock UpStage(playerid)
 		return;
 	}
 
-	if(PlayerInventory[playerid][CmbItemInvSlot[playerid][0]][Stage] == MAX_STAGE)
+  new max_stage = MAX_STAGE;
+  switch(PlayerInventory[playerid][CmbItemInvSlot[playerid][0]][Grade])
+  {
+    case GRADE_N: max_stage = 3;
+    case GRADE_B: max_stage = 5;
+    case GRADE_C: max_stage = 7;
+    default: max_stage = MAX_STAGE;
+  }
+
+	if(PlayerInventory[playerid][CmbItemInvSlot[playerid][0]][Stage] == max_stage)
 	{
 		ShowPlayerDialog(playerid, 1, DIALOG_STYLE_MSGBOX, "Повышение стадии", "Данный предмет достиг максимальной стадии.", "Закрыть", "");
 		return;
@@ -11830,15 +11839,15 @@ stock UpStage(playerid)
 	new current_stage = PlayerInventory[playerid][CmbItemInvSlot[playerid][0]][Stage];
 	switch(current_stage)
 	{
-		case 1: chance = 80;
-		case 2: chance = 70;
-		case 3: chance = 50;
-		case 4: chance = 40;
-		case 5: chance = 30;
-		case 6: chance = 15;
-		case 7: chance = 10;
-		case 8: chance = 8;
-		case 9: chance = 5;
+		case 1: chance = 95;
+		case 2: chance = 85;
+		case 3: chance = 70;
+		case 4: chance = 60;
+		case 5: chance = 50;
+		case 6: chance = 35;
+		case 7: chance = 20;
+		case 8: chance = 15;
+		case 9: chance = 8;
 		default: chance = 90;
 	}
 
@@ -13195,7 +13204,7 @@ stock UpdateHierarchy()
 
 		if(i+1 == HIERARCHY_LEADER)
 		{
-			PendingItem(name, 1035, "Награда Патриарха", STATS_CLEAR, 40);
+			PendingItem(name, 1036, "Награда Патриарха", STATS_CLEAR, 80);
 
 			new p_query[255];
 			format(p_query, sizeof(p_query), "UPDATE `hierarchy` SET `LeaderName` = '%s', `Money` = '0' LIMIT 1", name);
@@ -13204,7 +13213,7 @@ stock UpdateHierarchy()
 		}
 		else
 		{
-			PendingItem(name, 1035, "Награда основателя", STATS_CLEAR, 30);
+			PendingItem(name, 1036, "Награда основателя", STATS_CLEAR, 40);
 		}
 
 		new playerid = GetPlayerInGameID(pretendets[i]);
