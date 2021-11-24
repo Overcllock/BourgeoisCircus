@@ -1065,6 +1065,15 @@ cmd:updhier(playerid, params[])
 	return 1;
 }
 
+cmd:lottery(playerid, params[])
+{
+	if(PlayerInfo[playerid][Admin] == 0)
+		return 0;
+		
+	MakeLottery();
+	return 1;
+}
+
 cmd:kill(playerid, params[])
 {
 	if(PlayerInfo[playerid][Admin] == 0)
@@ -1402,7 +1411,10 @@ public OnTournamentEnd()
 	SendClientMessageToAll(COLOR_LIGHTRED, string);
 
 	if(Tournament[Number] % 10 == 0)
+  {
 		UpdateHierarchy();
+    MakeLottery();
+  }
 
 	Tournament[Tour] = 1;
 	Tournament[Number]++;
@@ -6179,7 +6191,7 @@ stock UpdateBossesCooldowns()
 
 stock UpdateTempItems()
 {
-	new query[255] = "UPDATE `inventories` SET `ItemID` = '-1', `Count` = '0' WHERE `ItemID` >= '1000' AND `ItemID` <= '1004'";
+	new query[255] = "UPDATE `inventories` SET `ItemID` = '-1', `Count` = '0' WHERE `ItemID` >= '1000' AND `ItemID` <= '1004' OR `ItemID` = '1067'";
 	new Cache:q_result = mysql_query(sql_handle, query);
 	cache_delete(q_result);
 
@@ -10617,6 +10629,7 @@ stock IsModPotion(item_id)
 	switch(item_id)
 	{
 		case 1007: return true;
+		case 1067: return true;
 	}
 	return false;
 }
@@ -13140,6 +13153,43 @@ stock PatriarchPayday()
 		GivePlayerCash(playerid, money);
 	else
 		GivePlayerMoneyOffline(name, money);
+}
+
+stock MakeLottery()
+{
+	new query[255];
+	format(query, sizeof(query), "SELECT * FROM `players` WHERE `Owner` <> 'Admin' AND `IsWatcher`=0 LIMIT %d", MAX_PARTICIPANTS);
+	new Cache:q_result = mysql_query(sql_handle, query);
+
+	new row_count = 0;
+  cache_get_row_count(row_count);
+  if(row_count <= 0)
+  {
+    print("Lottery making error.");
+    cache_delete(q_result);
+    return;
+  }
+
+  new row = random(row_count);
+
+  new name[255];
+	cache_get_value_name(row, "Name", name);
+  cache_delete(q_result);
+
+  PendingItem(name, 1067, "Поздравляем! Вы выиграли в лотерее!", STATS_CLEAR, 1);
+
+  SendClientMessageToAll(COLOR_WHITE, "");
+	SendClientMessageToAll(COLOR_WHITE, "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~");
+  SendClientMessageToAll(COLOR_WHITE, "");
+
+  new str[255];
+  format(str, sizeof(str), "%s - поздравляем победителя!!!", name);
+  SendClientMessageToAll(0xFFCC00FF, "Проведена всемогущая лотерея им. Шажка!");
+  SendClientMessageToAll(COLOR_WHITE, str);
+
+  SendClientMessageToAll(COLOR_WHITE, "");
+  SendClientMessageToAll(COLOR_WHITE, "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~");
+  SendClientMessageToAll(COLOR_WHITE, "");
 }
 
 stock UpdateHierarchy()

@@ -701,3 +701,5 @@ INSERT INTO `items`(`ID`, `IsTradeble`, `Name`, `Type`, `Grade`, `MinRank`, `Des
 VALUES (1065, 1, "Хлам", 9, 1, 1, "Можно продать торговцу", "0 0 0", "0 0 0", 100, 2866, 0, 0, 0);
 INSERT INTO `items`(`ID`, `IsTradeble`, `Name`, `Type`, `Grade`, `MinRank`, `Description`, `Property`, `PropertyVal`, `Price`, `Model`, `ModelRotX`, `ModelRotY`, `ModelRotZ`) 
 VALUES (1066, 1, "Золотой слиток", 9, 4, 1, "Можно выгодно продать торговцу", "0 0 0", "0 0 0", 500000, 19941, 0, 0, 135);
+INSERT INTO `items`(`ID`, `IsTradeble`, `Name`, `Type`, `Grade`, `MinRank`, `Description`, `Property`, `PropertyVal`, `Price`, `Model`, `ModelRotX`, `ModelRotY`, `ModelRotZ`) 
+VALUES (1067, 1, "Могущественный дар силы Шажка", 9, 5, 1, "Гарантированая заточка на любой уровень", "0 0 0", "0 0 0", 0, 1254, 0, 0, 0);
