@@ -105,6 +105,32 @@ INSERT INTO `lootboxes`(`BoxID`, `ItemID`, `ItemsCount`, `Chance`) VALUES (1055,
 INSERT INTO `lootboxes`(`BoxID`, `ItemID`, `ItemsCount`, `Chance`) VALUES (1055, 203, 1, 1000);
 INSERT INTO `lootboxes`(`BoxID`, `ItemID`, `ItemsCount`, `Chance`) VALUES (1055, 204, 1, 1000);
 
+INSERT INTO `lootboxes`(`BoxID`, `ItemID`, `ItemsCount`, `Chance`) VALUES (1068, 1063, 1, 20);
+INSERT INTO `lootboxes`(`BoxID`, `ItemID`, `ItemsCount`, `Chance`) VALUES (1068, 1064, 1, 20);
+INSERT INTO `lootboxes`(`BoxID`, `ItemID`, `ItemsCount`, `Chance`) VALUES (1068, 1057, 1, 200);
+INSERT INTO `lootboxes`(`BoxID`, `ItemID`, `ItemsCount`, `Chance`) VALUES (1068, 1007, 5, 400);
+INSERT INTO `lootboxes`(`BoxID`, `ItemID`, `ItemsCount`, `Chance`) VALUES (1068, 1006, 10, 400);
+INSERT INTO `lootboxes`(`BoxID`, `ItemID`, `ItemsCount`, `Chance`) VALUES (1068, 1066, 50, 50);
+INSERT INTO `lootboxes`(`BoxID`, `ItemID`, `ItemsCount`, `Chance`) VALUES (1068, 1065, 500, 1000);
+
+INSERT INTO `lootboxes`(`BoxID`, `ItemID`, `ItemsCount`, `Chance`) VALUES (1069, 1067, 1, 10);
+INSERT INTO `lootboxes`(`BoxID`, `ItemID`, `ItemsCount`, `Chance`) VALUES (1069, 1054, 1, 20);
+INSERT INTO `lootboxes`(`BoxID`, `ItemID`, `ItemsCount`, `Chance`) VALUES (1069, 1055, 1, 20);
+INSERT INTO `lootboxes`(`BoxID`, `ItemID`, `ItemsCount`, `Chance`) VALUES (1069, 1051, 1, 50);
+INSERT INTO `lootboxes`(`BoxID`, `ItemID`, `ItemsCount`, `Chance`) VALUES (1069, 1050, 1, 50);
+INSERT INTO `lootboxes`(`BoxID`, `ItemID`, `ItemsCount`, `Chance`) VALUES (1069, 1012, 50, 50);
+INSERT INTO `lootboxes`(`BoxID`, `ItemID`, `ItemsCount`, `Chance`) VALUES (1069, 1011, 50, 80);
+INSERT INTO `lootboxes`(`BoxID`, `ItemID`, `ItemsCount`, `Chance`) VALUES (1069, 1006, 1000, 20);
+INSERT INTO `lootboxes`(`BoxID`, `ItemID`, `ItemsCount`, `Chance`) VALUES (1069, 1006, 500, 50);
+INSERT INTO `lootboxes`(`BoxID`, `ItemID`, `ItemsCount`, `Chance`) VALUES (1069, 1006, 100, 100);
+INSERT INTO `lootboxes`(`BoxID`, `ItemID`, `ItemsCount`, `Chance`) VALUES (1069, 1007, 250, 20);
+INSERT INTO `lootboxes`(`BoxID`, `ItemID`, `ItemsCount`, `Chance`) VALUES (1069, 1007, 50, 60);
+INSERT INTO `lootboxes`(`BoxID`, `ItemID`, `ItemsCount`, `Chance`) VALUES (1069, 1007, 10, 120);
+INSERT INTO `lootboxes`(`BoxID`, `ItemID`, `ItemsCount`, `Chance`) VALUES (1069, 1024, 1, 70);
+INSERT INTO `lootboxes`(`BoxID`, `ItemID`, `ItemsCount`, `Chance`) VALUES (1069, 1022, 1, 140);
+INSERT INTO `lootboxes`(`BoxID`, `ItemID`, `ItemsCount`, `Chance`) VALUES (1069, 1034, 100, 70);
+INSERT INTO `lootboxes`(`BoxID`, `ItemID`, `ItemsCount`, `Chance`) VALUES (1069, 1065, 1000, 1000);
+
 /* bosses */
 
 INSERT INTO `lootboxes`(`BoxID`, `ItemID`, `ItemsCount`, `Chance`) VALUES (11001, 1005, 2, 1000);

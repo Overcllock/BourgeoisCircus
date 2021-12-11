@@ -1,4 +1,4 @@
-//Bourgeois Circus 4.11
+//Bourgeois Circus 4.12
 
 #include <a_samp>
 #include <a_mail>
@@ -20,7 +20,7 @@
 
 #pragma dynamic 31294
 
-#define VERSION 4.111
+#define VERSION 4.121
 
 //Mysql settings
 #define SQL_HOST "212.22.93.13"
@@ -87,10 +87,11 @@
 #define MAX_GRADES 5
 #define MAX_BOSSES 9
 #define MAX_ITEM_ID 2000
+#define MAX_ITEM_TYPES 10
 
-#define MAX_LOOT 26
-#define MAX_WALKER_LOOT 6
-#define MAX_DUNGEON_LOOT 22
+#define MAX_LOOT 36
+#define MAX_WALKER_LOOT 8
+#define MAX_DUNGEON_LOOT 28
 
 #define MAX_LOOT_VARIANTS 60
 #define MAX_STAT_VARIANTS 60
@@ -1110,7 +1111,7 @@ public OnGameModeInit()
 	ShowPlayerMarkers(PLAYER_MARKERS_MODE_GLOBAL);
 	DisableNameTagLOS();
 	SetNameTagDrawDistance(300.0);
-	//SetWorldTime(1);
+	SetWorldTime(1);
 
 	CreateMap();
 	CreatePickups();
@@ -2728,7 +2729,7 @@ public OnDialogResponse(playerid, dialogid, response, listitem, inputtext[])
 					{
 						ShowTourParticipants(playerid);
 					}
-                    case 3:
+          case 3:
 					{
 						if(PlayerInfo[playerid][IsWatcher] != 0)
 						{
@@ -2908,7 +2909,7 @@ public OnDialogResponse(playerid, dialogid, response, listitem, inputtext[])
 						new item[BaseItem];
 						item = GetItem(itemid);
 						new price = item[Price] / 7;
-						price -= price / 99;
+						price -= price / 95;
 						new string[255];
 						format(string, sizeof(string), "{ffffff}Вы продали: [{%s}%s{ffffff}].\n{66CC00}Получено: %s$.", GetGradeColor(item[Grade]), item[Name], FormatMoney(price));
 						ShowPlayerDialog(playerid, 1, DIALOG_STYLE_MSGBOX, "Инвентарь", string, "Закрыть", "");
@@ -2981,7 +2982,7 @@ public OnDialogResponse(playerid, dialogid, response, listitem, inputtext[])
 				
 				new string[255];
 				new price = (item[Price] * count) / 7;
-				price -= price / 99;
+				price -= price / 95;
 				format(string, sizeof(string), "{ffffff}Вы продали: [{%s}%s{ffffff}] (x%d).\n{66CC00}Получено: %s$.", GetGradeColor(item[Grade]), item[Name], count, FormatMoney(price));
 				ShowPlayerDialog(playerid, 1, DIALOG_STYLE_MSGBOX, "Инвентарь", string, "Закрыть", "");
 			}
@@ -3172,9 +3173,20 @@ public OnDialogResponse(playerid, dialogid, response, listitem, inputtext[])
 					return 0;
 				}
 
-				SetPVarInt(playerid, "BuyedItemID", itemid);
+        new price = item[Price];
+        if(itemid == 1068)
+        {
+          new med_rank = GetMedianPlayersRank();
+          if(med_rank < 1)
+            med_rank = 1;
 
-				new available_count = PlayerInfo[playerid][Cash] / item[Price];
+          price = item[Price] * med_rank;
+        }
+
+				SetPVarInt(playerid, "BuyedItemID", itemid);
+        SetPVarInt(playerid, "BuyedItemPrice", price);
+
+				new available_count = PlayerInfo[playerid][Cash] / price;
 				if(item[Type] == ITEMTYPE_PASSIVE)
 					available_count = available_count >= 1 ? 1 : 0;
 
@@ -3211,7 +3223,8 @@ public OnDialogResponse(playerid, dialogid, response, listitem, inputtext[])
 					return 0;
 				}
 
-				if(PlayerInfo[playerid][Cash] < item[Price] * count)
+        new price = GetPVarInt(playerid, "BuyedItemPrice");
+				if(PlayerInfo[playerid][Cash] < price * count)
 				{
 					ShowPlayerDialog(playerid, 1, DIALOG_STYLE_MSGBOX, "Ошибка", "Недостаточно денег.", "Закрыть", "");
 					return 0;
@@ -3239,10 +3252,11 @@ public OnDialogResponse(playerid, dialogid, response, listitem, inputtext[])
 				new item[BaseItem];
 				item = GetItem(itemid);
 
-				new price = item[Price] * count;
+        new price = GetPVarInt(playerid, "BuyedItemPrice");
+				new final_price = price * count;
 
-				PlayerInfo[playerid][Cash] -= price;
-				GivePlayerCash(playerid, -price);
+				PlayerInfo[playerid][Cash] -= final_price;
+				GivePlayerCash(playerid, -final_price);
 
 				AddItem(playerid, itemid, count);
 				ShowPlayerDialog(playerid, 1, DIALOG_STYLE_MSGBOX, "Покупка", "{66CC00}Предмет куплен.", "Закрыть", "");
@@ -4555,7 +4569,7 @@ stock TryUseHealProp(playerid)
 	if(prop <= 0)
 		return;
 	
-	if(!CheckChance(8))
+	if(!CheckChance(5 + prop * 3))
 		return;
 	
 	new Float:hp;
@@ -4572,7 +4586,7 @@ stock TryUseRegenProp(playerid)
 	if(prop <= 0)
 		return;
 	
-	if(!CheckChance(prop * 3))
+	if(!CheckChance(5 + prop * 3))
 		return;
 	
 	new Float:hp = GetPlayerMaxHP(playerid);
@@ -4588,7 +4602,7 @@ stock TryUseInvulProp(playerid)
 	if(prop <= 0)
 		return;
 	
-	if(!CheckChance(8))
+	if(!CheckChance(5 + prop * 3))
 		return;
 	
 	SetPlayerInvulnearable(playerid, 2 * prop);
@@ -4639,11 +4653,11 @@ stock TryUseSpecialAbility(playerid, chance)
 
 			IsSpecialAbilityUsed = true;
 			SpecialAbilityEffect = SPECIAL_AB_EFFECT_CONFUSION;
-			SpecialAbilityEffectTime = 7;
+			SpecialAbilityEffectTime = 6;
 			SpecialAbilityEffectTeam = team;
 			ResetAllTeamTargets(team);
 
-			SetPVarInt(playerid, "SpecialAbilityCooldown", 40);
+			SetPVarInt(playerid, "SpecialAbilityCooldown", 45);
 
 			new string[255];
 			format(string, sizeof(string), "{cc0000}[Патриарх] {ffffff}%s использует {cc0000}<Растерянность>", PlayerInfo[playerid][Name]);
@@ -4654,7 +4668,7 @@ stock TryUseSpecialAbility(playerid, chance)
 			//ядерная бомба
 			new team = GetPlayerTourTeam(playerid);
 			ExplodeNuclearBomb(team);
-			SetPVarInt(playerid, "SpecialAbilityCooldown", 40);
+			SetPVarInt(playerid, "SpecialAbilityCooldown", 60);
 
 			new string[255];
 			format(string, sizeof(string), "{674ea7}[Архонт] {ffffff}%s использует {674ea7}<Ядерная ракета>", PlayerInfo[playerid][Name]);
@@ -4667,7 +4681,7 @@ stock TryUseSpecialAbility(playerid, chance)
 			
 			IsSpecialAbilityUsed = true;
 			SpecialAbilityEffect = SPECIAL_AB_EFFECT_SHAZOK_FORCE;
-			SpecialAbilityEffectTime = 5;
+			SpecialAbilityEffectTime = 7;
 			SpecialAbilityEffectTeam = team;
 
 			SetPVarInt(playerid, "SpecialAbilityCooldown", 45);
@@ -4692,7 +4706,7 @@ stock TryUseSpecialAbility(playerid, chance)
 			//целитель
 			new team = GetPlayerTourTeam(playerid);
 			HealAllTeam(team);
-			SetPVarInt(playerid, "SpecialAbilityCooldown", 40);
+			SetPVarInt(playerid, "SpecialAbilityCooldown", 35);
 
 			new string[255];
 			format(string, sizeof(string), "{c27ba0}[Поддержка] {ffffff}%s использует {c27ba0}<Целитель>", PlayerInfo[playerid][Name]);
@@ -4925,7 +4939,7 @@ public TeleportBossAttackersToHome()
 public UpdatePlayerMaxHP(playerid)
 {
 	new Float:max_hp = 1000.0;
-	max_hp = floatadd(max_hp, floatmul(500.0, PlayerInfo[playerid][Rank] - 1));
+	max_hp = floatadd(max_hp, floatmul(750.0, PlayerInfo[playerid][Rank] - 1));
 	max_hp = floatadd(max_hp, GetPlayerPropValue(playerid, PROPERTY_MAXHP));
 	if(max_hp < 1000)
 	    max_hp = 1000.0;
@@ -5053,7 +5067,7 @@ public GivePlayerRate(playerid, rate)
 
 public GivePlayerMoneyOffline(name[], money)
 {
-	new tax = money / 99;
+	new tax = money / 95;
 	money -= tax;
 	GivePatriarchMoney(tax);
 
@@ -5622,12 +5636,15 @@ stock ParticipantBehaviour(id)
 	//If NPC's HP is low, but target's HP is not critical - run away
 	if(fix_target == -1 && GetPlayerHPPercent(id) < 10 && !FCNPC_IsMoving(id))
 	{
+    if(target != -1 && target != INVALID_PLAYER_ID && FCNPC_IsShooting(id) && GetPlayerHPPercent(target) < 30)
+      return 1;
+
 		MoveAround(id, true);
 		return 1;
 	}
 
 	//If NPC has a lot of aimers - run away
-	if(GetAimingPlayersCount(id) > 3 && GetPlayerHPPercent(id) < 50 && !FCNPC_IsMoving(id))
+	if(GetAimingPlayersCount(id) > 3 && GetPlayerHPPercent(id) < 30 && !FCNPC_IsMoving(id))
 	{
 		MoveAround(id, true);
 		return 1;
@@ -5654,18 +5671,19 @@ stock ParticipantBehaviour(id)
 		return 1;
 	}
 
-	//If current target's HP > 30%, trying to find common target
+	//If current target's HP > 50%, trying to find common target
 	new common_finded = -1;
-	if(fix_target == -1 && GetPlayerHPPercent(target) > 30 && GetAimingPlayersCount(target) < 3)
+	if(fix_target == -1 && GetPlayerHPPercent(target) > 50 && GetAimingPlayersCount(target) < 2)
 		common_finded = TryFindCommonTarget(id, target);
 
 	//If there are targets with less HP beside player - change target
-	if(common_finded == -1 && fix_target == -1 && GetPlayerHPPercent(target) >= 20)
+	if(common_finded == -1 && fix_target == -1 && GetPlayerHPPercent(target) > 30)
 	{
 		new potential_target = FindPlayerTarget(id, true);
 		if(potential_target != -1 && potential_target != target)
 		{
-			if(GetPlayerHPPercent(potential_target) < 20)
+      new Float:p_dist = GetDistanceBetweenPlayers(id, potential_target);
+			if(p_dist < 10.0 && GetPlayerHPPercent(potential_target) < 20)
 				SetPlayerTarget(id, potential_target);
 		}
 	}
@@ -5680,7 +5698,7 @@ stock ParticipantBehaviour(id)
 	}
 
 	//If player so close to target - attack it
-	if(dist <= 10)
+	if(dist <= 10.0)
 	{
 		if(FCNPC_IsMoving(id))
 			FCNPC_Stop(id);
@@ -6030,49 +6048,49 @@ stock GiveTournamentRewards()
 			{
 				reward[ItemID] = 1036;
 				reward[ItemsCount] = 20;
-				money = 9000;
+				money = 14000;
 			}
 			case 2:
 			{
 				reward[ItemID] = 1036;
 				reward[ItemsCount] = 17;
-				money = 7500;
+				money = 13000;
 			}
 			case 3:
 			{
 				reward[ItemID] = 1036;
 				reward[ItemsCount] = 15;
-				money = 6500;
+				money = 12000;
 			}
 			case 4..5:
 			{
 				reward[ItemID] = 1036;
 				reward[ItemsCount] = 12;
-				money = 5750;
+				money = 10500;
 			}
 			case 6..8:
 			{
 				reward[ItemID] = 1035;
 				reward[ItemsCount] = 20;
-				money = 4200;
+				money = 9000;
 			}
 			case 9..12:
 			{
 				reward[ItemID] = 1035;
 				reward[ItemsCount] = 16;
-				money = 3600;
+				money = 8000;
 			}
 			case 13..16:
 			{
 				reward[ItemID] = 1035;
 				reward[ItemsCount] = 12;
-				money = 2950;
+				money = 7000;
 			}
 			default:
 			{
 				reward[ItemID] = 1035;
 				reward[ItemsCount] = 8;
-				money = 2300;
+				money = 5000;
 			}
 		}
 
@@ -6124,7 +6142,7 @@ stock SellAllUselessItems(playerid)
 		new itemid = PlayerInventory[playerid][i][ID];
 		new item[BaseItem];
 		item = GetItem(itemid);
-		if(PlayerInventory[playerid][i][ID] == 1060)
+		if(PlayerInventory[playerid][i][ID] == 1065)
 		{
 			money += PlayerInventory[playerid][i][Count] * (item[Price] / 7);
 			items++;
@@ -6140,7 +6158,7 @@ stock SellAllUselessItems(playerid)
 		}
 	}
 	
-	new tax = money / 99;
+	new tax = money / 95;
 	money -= tax;
 	PlayerInfo[playerid][Cash] += money;
 	GivePlayerCash(playerid, money);
@@ -6900,17 +6918,29 @@ stock GetTourReward(tour, place, name[])
 	new rank = GetPlayerRankOffline(name);
 	switch(place)
 	{
-		case 1: money = 1400;
-		case 2: money = 1240; 
-		case 3: money = 980;
-		case 4..5: money = 580;
-		case 6..8: money = 440;
-		case 9..12: money = 360;
-		case 13..16: money = 280;
-		case 17..20: money = 140;
+		case 1: money = 1900;
+		case 2: money = 1740; 
+		case 3: money = 1580;
+		case 4..5: money = 1080;
+		case 6..8: money = 840;
+		case 9..12: money = 560;
+		case 13..16: money = 480;
+		case 17..20: money = 340;
 	}
+
 	money = money * floatround(floatpower(rank + tour, 2));
 	reward[Money] = money;
+
+  if(tour == 5)
+  {
+    switch(place)
+    {
+      case 1: { reward[ItemID] = 1069; reward[ItemsCount] = 3; }
+      case 2: { reward[ItemID] = 1069; reward[ItemsCount] = 2; }
+      case 3: { reward[ItemID] = 1069; reward[ItemsCount] = 1; }
+    }
+  }
+
 	return reward;
 }
 
@@ -6954,7 +6984,7 @@ stock GiveTourRewards(tour)
 
 stock AddPlayerMoney(playerid, money)
 {
-	new tax = money / 99;
+	new tax = money / 95;
 	money -= tax;
 
 	new string[255];
@@ -7122,6 +7152,12 @@ stock UpdateTourParticipants()
 	{
 		new ejected_count = is_bns_mode > 0 ? 5 : 4;
 		new p_count = MAX_PARTICIPANTS - (ejected_count * (Tournament[Tour]-1));
+    if(is_bns_mode > 0 && Tournament[Tour] == 5)
+    {
+      p_count = ejected_count;
+      ejected_count = 0;
+    }
+
 		new query[255] = "SELECT * FROM `accounts` WHERE `admin` = '0'";
 		new Cache:q_result = mysql_query(sql_handle, query);
 
@@ -7629,6 +7665,18 @@ stock OpenLockbox(playerid, lockboxid)
 	if(loot[ItemID] == -1)
 		return;
 
+  if(lockboxid == 1068 && loot[ItemID] == 1057)
+  {
+    switch(PlayerInfo[playerid][Rank])
+    {
+      case 3..5: loot[ItemID] = 1058;
+      case 6..7: loot[ItemID] = 1059;
+      case 8..9: loot[ItemID] = 1060;
+      case 10..11: loot[ItemID] = 1061;
+      case 12..15: loot[ItemID] = 1062;
+    }
+  }
+
 	if(IsEquip(loot[ItemID]))
 		AddEquip(playerid, loot[ItemID], STATS_CLEAR);
 	else
@@ -7883,7 +7931,7 @@ stock FindPlayerTarget(npcid, bool:by_minhp = false)
 	SortArrayAscending(distances);
 	available_dist = distances[MAX_RELIABLE_TARGETS-1];
 
-    for(new i = 0; i < MAX_PARTICIPANTS; i++) 
+  for(new i = 0; i < MAX_PARTICIPANTS; i++) 
 	{
 		if(PvpInfo[i][ID] == -1) continue;
 		if(PvpInfo[i][ID] == npcid || FCNPC_IsDead(PvpInfo[i][ID]))
@@ -7908,19 +7956,38 @@ stock FindPlayerTarget(npcid, bool:by_minhp = false)
 
 	if(targets_count <= 0)
 		targetid = FindPlayerNearestTarget(npcid);
+  else
+  {
+    new Float:min_dist = 1000.0;
+    for(new i = 0; i < MAX_RELIABLE_TARGETS; i++)
+    {
+      if(nearest_targets[i] == -1)
+			  break;
+
+      new Float:n_dist = GetDistanceBetweenPlayers(nearest_targets[i], npcid);
+      if(n_dist < min_dist)
+      {
+        targetid = nearest_targets[i];
+        min_dist = n_dist;
+      }
+    }
+  }
 
 	if(!by_minhp)
-		return nearest_targets[0];
+		return targetid;
 
+  new Float:min_hp = 150001;
 	for(new i = 0; i < MAX_RELIABLE_TARGETS; i++)
 	{
-		new Float:min_hp = 50001;
 		if(nearest_targets[i] == -1)
 			break;
 		
 		new Float:hp = FCNPC_GetHealth(nearest_targets[i]);
 		if(hp < min_hp)
+    {
 			targetid = nearest_targets[i];
+      min_hp = hp;
+    }
 	}
 
 	return targetid;
@@ -7965,7 +8032,7 @@ stock TryFindCommonTarget(playerid, current_target)
 		if(invulnearable > 0)
 			continue;
 		
-		if(GetDistanceBetweenPlayers(playerid, part_id) > 15.0)
+		if(GetDistanceBetweenPlayers(playerid, part_id) > 20.0)
 			continue;
 		
 		new aimers = GetAimingPlayersCount(part_id);
@@ -8529,6 +8596,45 @@ stock SetBossCooldown(bossid)
 	cache_delete(q_result);
 }
 
+stock GetMedianPlayersRank()
+{
+  new query[255];
+	format(query, sizeof(query), "SELECT * FROM `players` WHERE `Owner` <> 'Admin' AND `IsWatcher`=0 LIMIT %d", MAX_PARTICIPANTS);
+	new Cache:q_result = mysql_query(sql_handle, query);
+
+	new row_count = 0;
+	cache_get_row_count(row_count);
+	if(row_count <= 0)
+	{
+		print("GetMedianPlayersRank() error.");
+		cache_delete(q_result);
+		return 1;
+	}
+
+  new rank_sum = 0;
+
+	q_result = cache_save();
+	cache_unset_active();
+
+	for(new i = 0; i < row_count; i++)
+	{
+		new name[255];
+		new rank;
+
+		cache_set_active(q_result);
+		cache_get_value_name(i, "Name", name);
+		cache_get_value_name_int(i, "Rank", rank);
+		cache_unset_active();
+
+		rank_sum += rank;
+	}
+
+	cache_delete(q_result);
+
+  new med_rank = rank_sum / row_count;
+  return med_rank;
+}
+
 stock GetMaterialsSellerItemsList(playerid)
 {
 	new listitems[2048] = "Предмет\tЦена";
@@ -8558,7 +8664,19 @@ stock GetMaterialsSellerItemsList(playerid)
 		if(itemid == -1) continue;
 		new item[BaseItem];
 		item = GetItem(itemid);
-		format(iteminfo, sizeof(iteminfo), "\n{%s}%s\t{66CC00}%s$", GetGradeColor(item[Grade]), item[Name], FormatMoney(item[Price]));
+
+    new price = item[Price];
+
+    if(itemid == 1068)
+    {
+      new med_rank = GetMedianPlayersRank();
+      if(med_rank < 1)
+        med_rank = 1;
+
+      price = item[Price] * med_rank;
+    }
+
+		format(iteminfo, sizeof(iteminfo), "\n{%s}%s\t{66CC00}%s$", GetGradeColor(item[Grade]), item[Name], FormatMoney(price));
 		strcat(listitems, iteminfo);
 	}
 
@@ -9013,6 +9131,12 @@ stock UpdatePlayerSkin(playerid)
 		case 69: PlayerInfo[playerid][Skin] = PlayerInfo[playerid][Sex] == 0 ? 83 : 216;
 		default: PlayerInfo[playerid][Skin] = PlayerInfo[playerid][Sex] == 0 ? DEFAULT_SKIN_MALE : DEFAULT_SKIN_FEMALE;
 	}
+
+  if(PlayerInfo[playerid][Status] == HIERARCHY_LEADER)
+    PlayerInfo[playerid][Skin] = PlayerInfo[playerid][Sex] == 0 ? 165 : 141;
+  else if(PlayerInfo[playerid][Status] != HIERARCHY_NONE)
+    PlayerInfo[playerid][Skin] = PlayerInfo[playerid][Sex] == 0 ? 113 : 91;
+
 	SetPlayerSkin(playerid, PlayerInfo[playerid][Skin]);
 }
 
@@ -9139,7 +9263,7 @@ stock UpdatePlayerStats(playerid)
 
 	PlayerInfo[playerid][Defense] = armor_defense + hat_defense + watch_defense;
 	PlayerInfo[playerid][Accuracy] = DEFAULT_ACCURACY + GetPlayerPropValue(playerid, PROPERTY_ACCURACY) + PlayerInfo[playerid][Rank] * 5 + GetPlayerStatValue(playerid, STAT_ACCURACY);
-	PlayerInfo[playerid][Dodge] = DEFAULT_DODGE + GetPlayerPropValue(playerid, PROPERTY_DODGE) + PlayerInfo[playerid][Rank] * 3 + GetPlayerStatValue(playerid, STAT_DODGE);
+	PlayerInfo[playerid][Dodge] = DEFAULT_DODGE + GetPlayerPropValue(playerid, PROPERTY_DODGE) + PlayerInfo[playerid][Rank] * 5 + GetPlayerStatValue(playerid, STAT_DODGE);
 	PlayerInfo[playerid][Crit] = DEFAULT_CRIT + GetPlayerPropValue(playerid, PROPERTY_CRIT) + PlayerInfo[playerid][Rank] * 2 + GetPlayerStatValue(playerid, STAT_CRIT_CHANCE);
 	PlayerInfo[playerid][Vamp] = GetPlayerPropValue(playerid, PROPERTY_VAMP) + GetPlayerStatValue(playerid, STAT_VAMP);
 	PlayerInfo[playerid][CritMult] = DEFAULT_CRIT_MULT + GetPlayerStatValue(playerid, STAT_CRIT_MULT);
@@ -9825,7 +9949,7 @@ stock SortInventory(playerid)
 
 	new tmpitem1[BaseItem];
 	new tmpitem2[BaseItem];
-	//sort by type
+
 	for(new i = 0; i < MAX_SLOTS; i++)
 	{
 		for(new j = MAX_SLOTS-1; j > i; j--)
@@ -9840,52 +9964,11 @@ stock SortInventory(playerid)
 
 			tmpitem1 = GetItem(PlayerInventory[playerid][j][ID]);
 			tmpitem2 = GetItem(PlayerInventory[playerid][j-1][ID]);
-			if(tmpitem2[Type] > tmpitem1[Type])
-			{
-				SwapInventoryItems(playerid, j, j-1);
-			}
-		}
-	}
-	//sort by rank
-	for(new i = 0; i < MAX_SLOTS; i++)
-	{
-		for(new j = MAX_SLOTS-1; j > i; j--)
-		{
-			if(IsInvSlotEmpty(playerid, j) && IsInvSlotEmpty(playerid, j-1)) continue;
-			if(IsInvSlotEmpty(playerid, j)) continue;
-			if(IsInvSlotEmpty(playerid, j-1))
-			{
-				SwapInventoryItems(playerid, j, j-1);
-				continue;
-			}
 
-			tmpitem1 = GetItem(PlayerInventory[playerid][j][ID]);
-			tmpitem2 = GetItem(PlayerInventory[playerid][j-1][ID]);
-			if(tmpitem2[Type] == tmpitem1[Type] && tmpitem2[MinRank] < tmpitem1[MinRank])
-			{
+      new value_1 = (100000 * (MAX_ITEM_TYPES + 1 - tmpitem1[Type])) + (1000 * tmpitem1[MinRank]) + (100 * tmpitem1[Grade]) + tmpitem1[ID] + tmpitem1[Mod];
+      new value_2 = (100000 * (MAX_ITEM_TYPES + 1 - tmpitem2[Type])) + (1000 * tmpitem2[MinRank]) + (100 * tmpitem2[Grade]) + tmpitem2[ID] + tmpitem2[Mod];
+			if(value_1 > value_2)
 				SwapInventoryItems(playerid, j, j-1);
-			}
-		}
-	}
-	//sort by grade
-	for(new i = 0; i < MAX_SLOTS; i++)
-	{
-		for(new j = MAX_SLOTS-1; j > i; j--)
-		{
-			if(IsInvSlotEmpty(playerid, j) && IsInvSlotEmpty(playerid, j-1)) continue;
-			if(IsInvSlotEmpty(playerid, j)) continue;
-			if(IsInvSlotEmpty(playerid, j-1))
-			{
-				SwapInventoryItems(playerid, j, j-1);
-				continue;
-			}
-
-			tmpitem1 = GetItem(PlayerInventory[playerid][j][ID]);
-			tmpitem2 = GetItem(PlayerInventory[playerid][j-1][ID]);
-			if(tmpitem2[Type] == tmpitem1[Type] && tmpitem2[MinRank] == tmpitem1[MinRank] && tmpitem2[Grade] < tmpitem1[Grade])
-			{
-				SwapInventoryItems(playerid, j, j-1);
-			}
 		}
 	}
 
@@ -10107,11 +10190,11 @@ stock DisassembleEquip(playerid, slotid)
 		new chance;
 		switch(item[Grade])
 		{
-			case GRADE_B: chance = 40;
-			case GRADE_C: chance = 45;
-			case GRADE_R: chance = 50;
-			case GRADE_S: chance = 60;
-			default: chance = 35;
+			case GRADE_B: chance = 50;
+			case GRADE_C: chance = 60;
+			case GRADE_R: chance = 70;
+			case GRADE_S: chance = 80;
+			default: chance = 40;
 		}
 
 		new string[255];
@@ -10119,8 +10202,8 @@ stock DisassembleEquip(playerid, slotid)
 		if(success)
 		{
 			new count = item[MinRank];
-			if(PlayerInventory[playerid][slotid][Mod] >= 5)
-				count += PlayerInventory[playerid][slotid][Mod];
+			if(PlayerInventory[playerid][slotid][Mod] >= 4)
+				count += (PlayerInventory[playerid][slotid][Mod] * PlayerInventory[playerid][slotid][Mod]) / 4;
 
 			new itemid = 1008 + item[Grade] - 1;
 			AddItem(playerid, itemid, count);
@@ -10376,7 +10459,7 @@ stock SellItem(playerid, slotid, count = 1)
 	new item[BaseItem];
 	item = GetItem(PlayerInventory[playerid][slotid][ID]);
 	new price = (item[Price] * count) / 7;
-	new tax = price / 99;
+	new tax = price / 95;
 	price -= tax;
 
 	PlayerInventory[playerid][slotid][Count] -= count;
@@ -12165,30 +12248,30 @@ stock GetWeaponBaseDamage(weaponid, stage)
 		case 33: { damage[0] = 470; damage[1] = 532; }
 		case 34: { damage[0] = 557; damage[1] = 631; }
 
-		case 209: { damage[0] = 17; damage[1] = 36; }
-		case 210: { damage[0] = 17; damage[1] = 36; }
-		case 211: { damage[0] = 17; damage[1] = 36; }
-		case 212: { damage[0] = 25; damage[1] = 49; }
-		case 213: { damage[0] = 25; damage[1] = 49; }
-		case 214: { damage[0] = 25; damage[1] = 49; }
-		case 215: { damage[0] = 41; damage[1] = 85; }
-		case 216: { damage[0] = 41; damage[1] = 85; }
-		case 217: { damage[0] = 41; damage[1] = 85; }
-		case 218: { damage[0] = 69; damage[1] = 132; }
-		case 219: { damage[0] = 69; damage[1] = 132; }
-		case 220: { damage[0] = 69; damage[1] = 132; }
-		case 221: { damage[0] = 95; damage[1] = 170; }
-		case 222: { damage[0] = 95; damage[1] = 170; }
-		case 223: { damage[0] = 95; damage[1] = 170; }
-		case 224: { damage[0] = 134; damage[1] = 218; }
-		case 225: { damage[0] = 134; damage[1] = 218; }
-		case 226: { damage[0] = 134; damage[1] = 218; }
-		case 227: { damage[0] = 176; damage[1] = 267; }
-		case 228: { damage[0] = 176; damage[1] = 267; }
-		case 229: { damage[0] = 176; damage[1] = 267; }
-		case 230: { damage[0] = 211; damage[1] = 336; }
-		case 231: { damage[0] = 211; damage[1] = 336; }
-		case 232: { damage[0] = 211; damage[1] = 336; }
+		case 209: { damage[0] = 17; damage[1] = 28; }
+		case 210: { damage[0] = 17; damage[1] = 28; }
+		case 211: { damage[0] = 17; damage[1] = 28; }
+		case 212: { damage[0] = 25; damage[1] = 39; }
+		case 213: { damage[0] = 25; damage[1] = 39; }
+		case 214: { damage[0] = 25; damage[1] = 39; }
+		case 215: { damage[0] = 41; damage[1] = 71; }
+		case 216: { damage[0] = 41; damage[1] = 71; }
+		case 217: { damage[0] = 41; damage[1] = 71; }
+		case 218: { damage[0] = 69; damage[1] = 109; }
+		case 219: { damage[0] = 69; damage[1] = 109; }
+		case 220: { damage[0] = 69; damage[1] = 109; }
+		case 221: { damage[0] = 95; damage[1] = 143; }
+		case 222: { damage[0] = 95; damage[1] = 143; }
+		case 223: { damage[0] = 95; damage[1] = 143; }
+		case 224: { damage[0] = 134; damage[1] = 188; }
+		case 225: { damage[0] = 134; damage[1] = 188; }
+		case 226: { damage[0] = 134; damage[1] = 188; }
+		case 227: { damage[0] = 176; damage[1] = 224; }
+		case 228: { damage[0] = 176; damage[1] = 224; }
+		case 229: { damage[0] = 176; damage[1] = 224; }
+		case 230: { damage[0] = 211; damage[1] = 298; }
+		case 231: { damage[0] = 211; damage[1] = 298; }
+		case 232: { damage[0] = 211; damage[1] = 298; }
 		case 233: { damage[0] = 446; damage[1] = 515; }
 		case 234: { damage[0] = 531; damage[1] = 609; }
 		case 235: { damage[0] = 636; damage[1] = 724; }
@@ -16500,14 +16583,14 @@ stock CreateMap()
 	CreateObject(2755,243.0000000,-1823.3000000,3.0000000,90.0000000,0.0000000,0.0000000); //object(dojo_wall) (2)
 	CreateObject(2098,243.1000100,-1823.7000000,4.8900000,0.0000000,0.0000000,0.0000000); //object(cj_slotcover1) (2)
 
-	//CreateObject(19076,195.8000000,-1854.9000000,2.3000000,0.0000000,0.0000000,0.0000000); //object(xmas) (1)
-	//CreateObject(19054,195.6082,-1856.1352,2.7000000,0.0000000,0.0000000,20.0000000); //object(xmas) (1)
-	//CreateObject(19056,195.5078,-1853.9680,2.7000000,0.0000000,0.0000000,30.0000000); //object(xmas) (1)
-	//CreateObject(19057,197.0055,-1854.7861,2.7000000,0.0000000,0.0000000,40.0000000); //object(xmas) (1)
+	CreateObject(19076,195.8000000,-1854.9000000,2.3000000,0.0000000,0.0000000,0.0000000); //object(xmas) (1)
+	CreateObject(19054,195.6082,-1856.1352,2.7000000,0.0000000,0.0000000,20.0000000); //object(xmas) (1)
+	CreateObject(19056,195.5078,-1853.9680,2.7000000,0.0000000,0.0000000,30.0000000); //object(xmas) (1)
+	CreateObject(19057,197.0055,-1854.7861,2.7000000,0.0000000,0.0000000,40.0000000); //object(xmas) (1)
 
-	//new cola_veh_id = CreateVehicle(515,183.7026,-1861.7371,3.9194,359.9408,39,47,3); //Roadtrain
-	//new cola_trailer_veh_id = CreateVehicle(435,183.7002000,-1872.4004000,3.4000000,0.0000000,245,245,3); //Trailer 1
+	new cola_veh_id = CreateVehicle(515,183.7026,-1861.7371,3.9194,359.9408,39,47,3); //Roadtrain
+	new cola_trailer_veh_id = CreateVehicle(435,183.7002000,-1872.4004000,3.4000000,0.0000000,245,245,3); //Trailer 1
 
-	//SetVehicleParamsEx(cola_veh_id, 0, 0, 0, 1, 0, 0, 0);
-	//SetVehicleParamsEx(cola_trailer_veh_id, 0, 0, 0, 1, 0, 0, 0);
+	SetVehicleParamsEx(cola_veh_id, 0, 0, 0, 1, 0, 0, 0);
+	SetVehicleParamsEx(cola_trailer_veh_id, 0, 0, 0, 1, 0, 0, 0);
 }
