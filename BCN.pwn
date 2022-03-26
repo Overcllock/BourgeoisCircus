@@ -1,4 +1,4 @@
-//Bourgeois Circus 4.12
+//Bourgeois Circus 5.0
 
 #include <a_samp>
 #include <a_mail>
@@ -20,7 +20,7 @@
 
 #pragma dynamic 31294
 
-#define VERSION 4.121
+#define VERSION 5.001
 
 //Mysql settings
 #define SQL_HOST "212.22.93.13"
@@ -86,12 +86,12 @@
 #define MAX_DESCRIPTION_SIZE 40
 #define MAX_GRADES 5
 #define MAX_BOSSES 9
-#define MAX_ITEM_ID 2000
+#define MAX_ITEM_ID 1100
 #define MAX_ITEM_TYPES 10
 
-#define MAX_LOOT 36
+#define MAX_LOOT 40
 #define MAX_WALKER_LOOT 8
-#define MAX_DUNGEON_LOOT 28
+#define MAX_DUNGEON_LOOT 34
 
 #define MAX_LOOT_VARIANTS 60
 #define MAX_STAT_VARIANTS 60
@@ -509,6 +509,9 @@ enum wInfo
 //Global
 new is_bns_mode = IS_BNS_MODE;
 
+new ItemsDatabase[MAX_ITEM_ID][BaseItem];
+new bool:items_database_loaded = false;
+
 new WalkersRefreshTimer = -1;
 new WorldTime_Timer = -1;
 new PrepareBossAttackTimer = -1;
@@ -587,6 +590,7 @@ new health_pickup = 0;
 
 //Player
 new PlayerInventory[MAX_PLAYERS][MAX_SLOTS][iInfo];
+new bool:PlayerInventorySelectionList[MAX_PLAYERS][MAX_SLOTS];
 new PlayerInfo[MAX_PLAYERS][pInfo];
 new AvailableDungeons[MAX_PLAYERS][MAX_DUNGEONS];
 new PlayerDungeon[MAX_PLAYERS][pDungeon];
@@ -1111,7 +1115,7 @@ public OnGameModeInit()
 	ShowPlayerMarkers(PLAYER_MARKERS_MODE_GLOBAL);
 	DisableNameTagLOS();
 	SetNameTagDrawDistance(300.0);
-	SetWorldTime(1);
+	//SetWorldTime(1);
 
 	CreateMap();
 	CreatePickups();
@@ -1135,6 +1139,8 @@ public OnGameModeInit()
 
 	print("Database connection success.");
 	mysql_set_charset("cp1251");
+
+  LoadItemsDatabase();
 
 	LoadTournamentInfo();
 	if(Tournament[Phase] == PHASE_PEACE)
@@ -1190,6 +1196,15 @@ public OnPlayerEnterDynamicArea(playerid, areaid)
 public OnPlayerRequestClass(playerid, classid)
 {
 	SendClientMessage(playerid, COLOR_WHITE, "Добро пожаловать в Bourgeois Circus.");
+
+  if(!items_database_loaded)
+  {
+    SendClientMessage(playerid, COLOR_LIGHTRED, "Ошибка сервера: items database is not loaded.");
+    SendClientMessage(playerid, COLOR_GREY, "При текущем статусе сервера вход невозможен. Повторите попытку позднее.");
+    SendClientMessage(playerid, COLOR_GREEN, "Введите /q для выхода.");
+    return 1;
+  }
+
 	new login[64];
 	GetPlayerName(playerid, login, sizeof(login));
 	new ok = LoadAccount(playerid, login);
@@ -1243,6 +1258,7 @@ public OnPlayerLogin(playerid)
 		GivePlayerCash(playerid, PlayerInfo[playerid][Cash]);
 		UpdatePlayerPost(playerid);
 		SetPVarInt(playerid, "InvPage", 1);
+    DisableInvSelectionMode(playerid);
 	}
 
 	PlayerConnect[playerid] = true;
@@ -1486,6 +1502,61 @@ public OnBattleEnd(winner[], finished)
 	SendClientMessageToAll(COLOR_LIGHTRED, "Начинается фаза мира.");
 
 	return 1;*/
+}
+
+stock GetInvSelectedItemsCount(playerid)
+{
+  if(!IsInvSelectionModeEnabled(playerid))
+  {
+    if(SelectedSlot[playerid] == -1)
+      return 0;
+    
+    return 1;
+  }
+
+  new count = 0;
+  for(new i = 0; i < MAX_SLOTS; i++)
+  {
+    if(PlayerInventorySelectionList[playerid][i])
+      count++;
+  }
+
+  return count;
+}
+
+stock IsInvSelectionModeEnabled(playerid)
+{
+  new enabled = GetPVarInt(playerid, "InvSelectionMode");
+  if(enabled > 0)
+    return true;
+
+  return false;
+}
+
+stock DisableInvSelectionMode(playerid)
+{
+  SetPVarInt(playerid, "InvSelectionMode", 0);
+  ResetInvSelectionData(playerid);
+}
+
+stock EnableInvSelectionMode(playerid)
+{
+  SetPVarInt(playerid, "InvSelectionMode", 1);
+  ResetInvSelectionData(playerid);
+}
+
+stock ResetInvSelectionData(playerid)
+{
+  for(new i = 0; i < MAX_SLOTS; i++)
+    PlayerInventorySelectionList[playerid][i] = false;
+
+  if(IsInventoryOpen[playerid])
+  {
+    for(new i = 0; i < MAX_SLOTS; i++)
+      SetSlotSelection(playerid, i, false);
+  }
+
+  SelectedSlot[playerid] = -1;
 }
 
 stock AddSimulationLimit()
@@ -2904,7 +2975,7 @@ public OnDialogResponse(playerid, dialogid, response, listitem, inputtext[])
 				if(IsEquip(itemid))
 				{
 					new ok = SellItem(playerid, SelectedSlot[playerid], 1);
-					if(ok)
+					if(ok > 0)
 					{
 						new item[BaseItem];
 						item = GetItem(itemid);
@@ -2978,11 +3049,9 @@ public OnDialogResponse(playerid, dialogid, response, listitem, inputtext[])
 					return 0;
 				}
 
-				SellItem(playerid, SelectedSlot[playerid], count);
+				new price = SellItem(playerid, SelectedSlot[playerid], count);
 				
 				new string[255];
-				new price = (item[Price] * count) / 7;
-				price -= price / 95;
 				format(string, sizeof(string), "{ffffff}Вы продали: [{%s}%s{ffffff}] (x%d).\n{66CC00}Получено: %s$.", GetGradeColor(item[Grade]), item[Name], count, FormatMoney(price));
 				ShowPlayerDialog(playerid, 1, DIALOG_STYLE_MSGBOX, "Инвентарь", string, "Закрыть", "");
 			}
@@ -3006,6 +3075,49 @@ public OnDialogResponse(playerid, dialogid, response, listitem, inputtext[])
 			}
 			return 1;
 		}
+    case 405:
+    {
+      if(response)
+			{
+        new sel_count = GetInvSelectedItemsCount(playerid);
+				if(sel_count <= 0)
+					return 0;
+
+        new cash_amount = 0;
+        for(new i = 0; i < MAX_SLOTS; i++)
+        {
+          if(!PlayerInventorySelectionList[playerid][i])
+            continue;
+
+          new itemid = PlayerInventory[playerid][i][ID];
+          if(itemid == -1)
+            continue;
+          
+          if(IsPlayerBesideNPC(playerid))
+          {
+            new cash = SellItem(playerid, i, PlayerInventory[playerid][i][Count]);
+            cash_amount += cash;
+          }
+          else
+          {
+            if(!IsModifiableEquip(itemid))
+              DeleteItem(playerid, i, PlayerInventory[playerid][i][Count]);
+
+            DisassembleEquip(playerid, i);
+          }
+        }
+
+        DisableInvSelectionMode(playerid);
+
+        new string[255];
+        if(cash_amount > 0)
+        {
+          format(string, sizeof(string), "{66CC00}Получено: %s$.", FormatMoney(cash_amount));
+				  ShowPlayerDialog(playerid, 1, DIALOG_STYLE_MSGBOX, "Инвентарь", string, "Закрыть", "");
+        }
+			}
+			return 1;
+    }
 
 		//оружейник
 		case 500:
@@ -4021,6 +4133,55 @@ public OnDialogResponse(playerid, dialogid, response, listitem, inputtext[])
 				ShowPlayerDialog(playerid, 1301, DIALOG_STYLE_LIST, "Буржуа", listitems, "Далее", "Закрыть");
 			}
 		}
+    //особые действия
+    case 1400:
+    {
+      if(response)
+      {
+        switch(listitem)
+        {
+          case 0:
+          {
+            SortInventory(playerid);
+          }
+          case 1:
+          {
+            SortInventory(playerid, true);
+          }
+          case 2:
+          {
+            SendClientMessage(playerid, COLOR_WHITE, "Режим выбора: укажите предметы для массовых действий");
+            EnableInvSelectionMode(playerid);
+          }
+        }
+      }
+    }
+    //массовое открытие кейсов
+    case 1500:
+    {
+      if(response)
+      {
+        new itemid = PlayerInventory[playerid][SelectedSlot[playerid]][ID];
+
+        switch(listitem)
+        {
+          case 0:
+          {
+            DeleteItem(playerid, SelectedSlot[playerid], 1);
+			      OpenLockbox(playerid, itemid);
+          }
+          case 1:
+          {
+            new count = PlayerInventory[playerid][SelectedSlot[playerid]][Count];
+            for(new i = 0; i < count; i++)
+            {
+              DeleteItem(playerid, SelectedSlot[playerid], 1);
+			        OpenLockbox(playerid, itemid);
+            }
+          }
+        }
+      }
+    }
 	}
 	return 1;
 }
@@ -4184,6 +4345,7 @@ public OnPlayerClickPlayerTextDraw(playerid, PlayerText:playertextid)
 	{
 		if(PlayerInfo[playerid][WeaponSlotID] == 0) return 0;
 		if(IsSlotsBlocked[playerid]) return 0;
+    if(IsInvSelectionModeEnabled(playerid)) return 0;
 		if(IsInventoryFull(playerid))
 		{
 			ShowPlayerDialog(playerid, 1, DIALOG_STYLE_MSGBOX, "Ошибка", "Инвентарь полон.", "Закрыть", "");
@@ -4196,6 +4358,7 @@ public OnPlayerClickPlayerTextDraw(playerid, PlayerText:playertextid)
 	{
 		if(PlayerInfo[playerid][ArmorSlotID] == 81) return 0;
 		if(IsSlotsBlocked[playerid]) return 0;
+    if(IsInvSelectionModeEnabled(playerid)) return 0;
 		if(IsInventoryFull(playerid))
 		{
 			ShowPlayerDialog(playerid, 1, DIALOG_STYLE_MSGBOX, "Ошибка", "Инвентарь полон.", "Закрыть", "");
@@ -4208,6 +4371,7 @@ public OnPlayerClickPlayerTextDraw(playerid, PlayerText:playertextid)
 	{
 		if(PlayerInfo[playerid][HatSlotID] == 136) return 0;
 		if(IsSlotsBlocked[playerid]) return 0;
+    if(IsInvSelectionModeEnabled(playerid)) return 0;
 		if(IsInventoryFull(playerid))
 		{
 			ShowPlayerDialog(playerid, 1, DIALOG_STYLE_MSGBOX, "Ошибка", "Инвентарь полон.", "Закрыть", "");
@@ -4220,6 +4384,7 @@ public OnPlayerClickPlayerTextDraw(playerid, PlayerText:playertextid)
 	{
 		if(PlayerInfo[playerid][WatchSlotID] == -1) return 0;
 		if(IsSlotsBlocked[playerid]) return 0;
+    if(IsInvSelectionModeEnabled(playerid)) return 0;
 		if(IsInventoryFull(playerid))
 		{
 			ShowPlayerDialog(playerid, 1, DIALOG_STYLE_MSGBOX, "Ошибка", "Инвентарь полон.", "Закрыть", "");
@@ -4232,6 +4397,7 @@ public OnPlayerClickPlayerTextDraw(playerid, PlayerText:playertextid)
 	{
 		if(PlayerInfo[playerid][ArmorSlotID] == -1) return 0;
 		if(IsSlotsBlocked[playerid]) return 0;
+    if(IsInvSelectionModeEnabled(playerid)) return 0;
 		if(IsInventoryFull(playerid))
 		{
 			ShowPlayerDialog(playerid, 1, DIALOG_STYLE_MSGBOX, "Ошибка", "Инвентарь полон.", "Закрыть", "");
@@ -4244,6 +4410,7 @@ public OnPlayerClickPlayerTextDraw(playerid, PlayerText:playertextid)
 	{
 		if(PlayerInfo[playerid][RingSlot1ID] == -1) return 0;
 		if(IsSlotsBlocked[playerid]) return 0;
+    if(IsInvSelectionModeEnabled(playerid)) return 0;
 		if(IsInventoryFull(playerid))
 		{
 			ShowPlayerDialog(playerid, 1, DIALOG_STYLE_MSGBOX, "Ошибка", "Инвентарь полон.", "Закрыть", "");
@@ -4262,6 +4429,7 @@ public OnPlayerClickPlayerTextDraw(playerid, PlayerText:playertextid)
 	{
 		if(PlayerInfo[playerid][RingSlot2ID] == -1) return 0;
 		if(IsSlotsBlocked[playerid]) return 0;
+    if(IsInvSelectionModeEnabled(playerid)) return 0;
 		if(IsInventoryFull(playerid))
 		{
 			ShowPlayerDialog(playerid, 1, DIALOG_STYLE_MSGBOX, "Ошибка", "Инвентарь полон.", "Закрыть", "");
@@ -4280,6 +4448,7 @@ public OnPlayerClickPlayerTextDraw(playerid, PlayerText:playertextid)
 	{
 		if(PlayerInfo[playerid][AmuletteSlot1ID] == -1) return 0;
 		if(IsSlotsBlocked[playerid]) return 0;
+    if(IsInvSelectionModeEnabled(playerid)) return 0;
 		if(IsInventoryFull(playerid))
 		{
 			ShowPlayerDialog(playerid, 1, DIALOG_STYLE_MSGBOX, "Ошибка", "Инвентарь полон.", "Закрыть", "");
@@ -4298,6 +4467,7 @@ public OnPlayerClickPlayerTextDraw(playerid, PlayerText:playertextid)
 	{
 		if(PlayerInfo[playerid][AmuletteSlot2ID] == -1) return 0;
 		if(IsSlotsBlocked[playerid]) return 0;
+    if(IsInvSelectionModeEnabled(playerid)) return 0;
 		if(IsInventoryFull(playerid))
 		{
 			ShowPlayerDialog(playerid, 1, DIALOG_STYLE_MSGBOX, "Ошибка", "Инвентарь полон.", "Закрыть", "");
@@ -4348,6 +4518,7 @@ public OnPlayerClickPlayerTextDraw(playerid, PlayerText:playertextid)
 	{
 		if(SelectedSlot[playerid] == -1) return 0;
 		if(IsSlotsBlocked[playerid]) return 0;
+    if(IsInvSelectionModeEnabled(playerid)) return 0;
 
 		new itemid = PlayerInventory[playerid][SelectedSlot[playerid]][ID];
 		if(itemid == -1)
@@ -4376,18 +4547,22 @@ public OnPlayerClickPlayerTextDraw(playerid, PlayerText:playertextid)
 				ShowPlayerDialog(playerid, 1, DIALOG_STYLE_MSGBOX, "Ошибка", "Инвентарь полон.", "Закрыть", "");
 				return 0;
 			}
-			DeleteItem(playerid, SelectedSlot[playerid], 1);
-			OpenLockbox(playerid, itemid);
+
+      ShowPlayerDialog(playerid, 1500, DIALOG_STYLE_LIST, "Инвентарь", "Открыть один\nОткрыть все", "Выбрать", "Закрыть");
 		}
 	}
 	else if(playertextid == ChrInfButSort[playerid])
 	{
 		if(IsSlotsBlocked[playerid]) return 0;
-		SortInventory(playerid);
+    if(IsInvSelectionModeEnabled(playerid))
+      DisableInvSelectionMode(playerid);
+
+    ShowPlayerDialog(playerid, 1400, DIALOG_STYLE_LIST, "Инвентарь", "Сортировать всё\nСортировать текущую страницу\nРежим выбора", "Выбрать", "Закрыть");
 	}
 	else if(playertextid == ChrInfButInfo[playerid])
 	{
 		if(IsSlotsBlocked[playerid]) return 0;
+    if(IsInvSelectionModeEnabled(playerid)) return 0;
 		if(SelectedSlot[playerid] == -1)
 			return 0;
 		if(PlayerInventory[playerid][SelectedSlot[playerid]][ID] == -1)
@@ -4402,33 +4577,53 @@ public OnPlayerClickPlayerTextDraw(playerid, PlayerText:playertextid)
 	else if(playertextid == ChrInfButDel[playerid])
 	{
 		if(IsSlotsBlocked[playerid]) return 0;
-		if(SelectedSlot[playerid] == -1)
-			return 0;
-		if(PlayerInventory[playerid][SelectedSlot[playerid]][ID] == -1)
-			return 0;
 
-		new item[BaseItem];
-		item = GetItem(PlayerInventory[playerid][SelectedSlot[playerid]][ID]);
-		new desc[255];
-		if(IsPlayerBesideNPC(playerid))
-		{
-			format(desc, sizeof(desc), "{ffffff}[{%s}%s{ffffff}] - продать?", GetGradeColor(item[Grade]), item[Name]);
-			ShowPlayerDialog(playerid, 401, DIALOG_STYLE_MSGBOX, "Инвентарь", desc, "Далее", "Закрыть");
-		}
-		else if(IsModifiableEquip(item[ID]))
-		{
-			format(desc, sizeof(desc), "{ffffff}[{%s}%s{ffffff}] - разобрать?", GetGradeColor(item[Grade]), item[Name]);
-			ShowPlayerDialog(playerid, 404, DIALOG_STYLE_MSGBOX, "Инвентарь", desc, "Далее", "Закрыть");
-		}
-		else
-		{
-			format(desc, sizeof(desc), "{ffffff}[{%s}%s{ffffff}] - выбросить?", GetGradeColor(item[Grade]), item[Name]);
-			ShowPlayerDialog(playerid, 400, DIALOG_STYLE_MSGBOX, "Инвентарь", desc, "Далее", "Закрыть");
-		}
+    new desc[255];
+    if(IsInvSelectionModeEnabled(playerid))
+    {
+      new selected_count = GetInvSelectedItemsCount(playerid);
+      if(IsPlayerBesideNPC(playerid))
+      {
+        format(desc, sizeof(desc), "{ffffff}Продать предметы [%d]?", selected_count);
+        ShowPlayerDialog(playerid, 405, DIALOG_STYLE_MSGBOX, "Инвентарь", desc, "Далее", "Закрыть");
+      }
+      else
+      {
+        format(desc, sizeof(desc), "{ffffff}Выбросить/разобрать предметы [%d]?", selected_count);
+        ShowPlayerDialog(playerid, 405, DIALOG_STYLE_MSGBOX, "Инвентарь", desc, "Далее", "Закрыть");
+      }
+    }
+    else
+    {
+      if(SelectedSlot[playerid] == -1)
+        return 0;
+      if(PlayerInventory[playerid][SelectedSlot[playerid]][ID] == -1)
+        return 0;
+
+      new item[BaseItem];
+      item = GetItem(PlayerInventory[playerid][SelectedSlot[playerid]][ID]);
+      if(IsPlayerBesideNPC(playerid))
+      {
+        format(desc, sizeof(desc), "{ffffff}[{%s}%s{ffffff}] - продать?", GetGradeColor(item[Grade]), item[Name]);
+        ShowPlayerDialog(playerid, 401, DIALOG_STYLE_MSGBOX, "Инвентарь", desc, "Далее", "Закрыть");
+      }
+      else if(IsModifiableEquip(item[ID]))
+      {
+        format(desc, sizeof(desc), "{ffffff}[{%s}%s{ffffff}] - разобрать?", GetGradeColor(item[Grade]), item[Name]);
+        ShowPlayerDialog(playerid, 404, DIALOG_STYLE_MSGBOX, "Инвентарь", desc, "Далее", "Закрыть");
+      }
+      else
+      {
+        format(desc, sizeof(desc), "{ffffff}[{%s}%s{ffffff}] - выбросить?", GetGradeColor(item[Grade]), item[Name]);
+        ShowPlayerDialog(playerid, 400, DIALOG_STYLE_MSGBOX, "Инвентарь", desc, "Далее", "Закрыть");
+      }
+    }
 		return 1;
 	}
 	else if(playertextid == ChrInfButMod[playerid])
 	{
+    if(IsInvSelectionModeEnabled(playerid)) return 0;
+
 		if(Windows[playerid][Mod])
 		{
 			HideModWindow(playerid);
@@ -4524,7 +4719,7 @@ public OnPlayerClickPlayerTextDraw(playerid, PlayerText:playertextid)
 			if(playertextid == ChrInfInvSlot[playerid][i]) 
 			{
 				new inv_slotid = GetSlotIdByPage(playerid, i);
-				if(SelectedSlot[playerid] != -1) 
+				if(SelectedSlot[playerid] != -1 && !IsInvSelectionModeEnabled(playerid)) 
 				{
 					if(!IsSlotsBlocked[playerid] && PlayerInventory[playerid][SelectedSlot[playerid]][ID] != -1 && PlayerInventory[playerid][inv_slotid][ID] == -1) 
 					{
@@ -4538,8 +4733,17 @@ public OnPlayerClickPlayerTextDraw(playerid, PlayerText:playertextid)
 					}
 					SetSlotSelection(playerid, SelectedSlot[playerid], false);
 				}
-				SelectedSlot[playerid] = inv_slotid;
-				SetSlotSelection(playerid, inv_slotid, true);
+
+        if(IsInvSelectionModeEnabled(playerid))
+        {
+          PlayerInventorySelectionList[playerid][inv_slotid] = !PlayerInventorySelectionList[playerid][inv_slotid];
+          SetSlotSelection(playerid, inv_slotid, PlayerInventorySelectionList[playerid][inv_slotid]);
+        }
+        else
+        {
+          SelectedSlot[playerid] = inv_slotid;
+          SetSlotSelection(playerid, inv_slotid, true);
+        }
 				break;
 			}
 		}
@@ -4597,12 +4801,13 @@ stock TryUseInvulProp(playerid)
 {
 	if(IsDeath[playerid]) return;
 	if(FCNPC_IsValid(playerid) && FCNPC_IsDead(playerid)) return;
+	if(GetPVarInt(playerid, "Invulnearable") > 0) return;
 
 	new prop = GetPlayerPropValue(playerid, PROPERTY_INVUL);
 	if(prop <= 0)
 		return;
 	
-	if(!CheckChance(5 + prop * 3))
+	if(!CheckChance(3 + prop * 3))
 		return;
 	
 	SetPlayerInvulnearable(playerid, 2 * prop);
@@ -5067,7 +5272,7 @@ public GivePlayerRate(playerid, rate)
 
 public GivePlayerMoneyOffline(name[], money)
 {
-	new tax = money / 95;
+	new tax = floatround(floatmul(money, 0.05));
 	money -= tax;
 	GivePatriarchMoney(tax);
 
@@ -6158,7 +6363,7 @@ stock SellAllUselessItems(playerid)
 		}
 	}
 	
-	new tax = money / 95;
+	new tax = floatround(floatmul(money, 0.05));
 	money -= tax;
 	PlayerInfo[playerid][Cash] += money;
 	GivePlayerCash(playerid, money);
@@ -6535,7 +6740,26 @@ stock RegisterMarketItem(playerid, category)
 
 	new slotid = GetPVarInt(playerid, "MarketSellingItemInvSlot");
 	DeleteItem(playerid, slotid, MarketSellingItem[playerid][Count]);
-	SendClientMessageToAll(0xFFCC66FF, "Зарегистрирован новый предмет на рынке.");
+
+  new item[BaseItem];
+  item = GetItem(MarketSellingItem[playerid][ID]);
+
+  new buf[255];
+  if(category == MARKET_CATEGORY_MATERIAL)
+    format(buf, sizeof(buf), "{%s}[%s]{ffffff}[x%d]", GetGradeColor(item[Grade]), item[Name], MarketSellingItem[playerid][Count]);
+  else
+  {
+    if(category == MARKET_CATEGORY_ACCESSORY)
+      format(buf, sizeof(buf), "{%s}[%s]\t{ffffff}[{%s}%s{ffffff}]", GetGradeColor(item[Grade]), item[Name], GetColorByRank(item[MinRank]), GetRankInterval(item[MinRank]));
+    else if(MarketSellingItem[playerid][Mod] == 0)
+      format(buf, sizeof(buf), "{%s}[S%d][%s]\t{ffffff}[{%s}%s{ffffff}]", GetGradeColor(item[Grade]), MarketSellingItem[playerid][Stage], item[Name], GetColorByRank(item[MinRank]), GetRankInterval(item[MinRank]));
+    else
+      format(buf, sizeof(buf), "{%s}[S%d][+%d %s]\t{ffffff}[{%s}%s{ffffff}]", GetGradeColor(item[Grade]), MarketSellingItem[playerid][Stage], MarketSellingItem[playerid][Mod], item[Name], GetColorByRank(item[MinRank]), GetRankInterval(item[MinRank]));
+  }
+
+  new item_str[255];
+  format(item_str, sizeof(item_str), "[Рынок]: Зарегистрирован новый предмет: %s", buf);
+	SendClientMessageToAll(0xFFCC66FF, item_str);
 
 	MarketSellingItem[playerid] = EmptyMarketSellingItem;
 	UpdateMarketSellWindow(playerid);
@@ -6984,7 +7208,7 @@ stock GiveTourRewards(tour)
 
 stock AddPlayerMoney(playerid, money)
 {
-	new tax = money / 95;
+	new tax = floatround(floatmul(money, 0.05));
 	money -= tax;
 
 	new string[255];
@@ -9940,7 +10164,7 @@ stock SetSlotSelection(playerid, slotid, bool:selection)
 	PlayerTextDrawShow(playerid, ChrInfInvSlot[playerid][txd_slotid]);
 }
 
-stock SortInventory(playerid)
+stock SortInventory(playerid, bool:current_page = false)
 {
 	if(!IsInventoryOpen[playerid]) return;
 
@@ -9950,25 +10174,37 @@ stock SortInventory(playerid)
 	new tmpitem1[BaseItem];
 	new tmpitem2[BaseItem];
 
-	for(new i = 0; i < MAX_SLOTS; i++)
+  new max_slots = MAX_SLOTS;
+  if(current_page)
+    max_slots = MAX_PAGE_SLOTS;
+
+	for(new i = 0; i < max_slots; i++)
 	{
-		for(new j = MAX_SLOTS-1; j > i; j--)
+		for(new j = max_slots-1; j > i; j--)
 		{
-			if(IsInvSlotEmpty(playerid, j) && IsInvSlotEmpty(playerid, j-1)) continue;
-			if(IsInvSlotEmpty(playerid, j)) continue;
-			if(IsInvSlotEmpty(playerid, j-1))
+      new slotid = j;
+      new prev_slotid = j - 1;
+      if(current_page)
+      {
+        slotid = GetSlotIdByPage(playerid, j);
+        prev_slotid = GetSlotIdByPage(playerid, j-1);
+      }
+
+			if(IsInvSlotEmpty(playerid, slotid) && IsInvSlotEmpty(playerid, prev_slotid)) continue;
+			if(IsInvSlotEmpty(playerid, slotid)) continue;
+			if(IsInvSlotEmpty(playerid, prev_slotid))
 			{
-				SwapInventoryItems(playerid, j, j-1);
+				SwapInventoryItems(playerid, slotid, prev_slotid);
 				continue;
 			}
 
-			tmpitem1 = GetItem(PlayerInventory[playerid][j][ID]);
-			tmpitem2 = GetItem(PlayerInventory[playerid][j-1][ID]);
+			tmpitem1 = GetItem(PlayerInventory[playerid][slotid][ID]);
+			tmpitem2 = GetItem(PlayerInventory[playerid][prev_slotid][ID]);
 
       new value_1 = (100000 * (MAX_ITEM_TYPES + 1 - tmpitem1[Type])) + (1000 * tmpitem1[MinRank]) + (100 * tmpitem1[Grade]) + tmpitem1[ID] + tmpitem1[Mod];
       new value_2 = (100000 * (MAX_ITEM_TYPES + 1 - tmpitem2[Type])) + (1000 * tmpitem2[MinRank]) + (100 * tmpitem2[Grade]) + tmpitem2[ID] + tmpitem2[Mod];
 			if(value_1 > value_2)
-				SwapInventoryItems(playerid, j, j-1);
+				SwapInventoryItems(playerid, slotid, prev_slotid);
 		}
 	}
 
@@ -10003,7 +10239,9 @@ stock UpdateInventory(playerid)
 	for(new i = 0; i < MAX_PAGE_SLOTS; i++) 
 	{
 		new inv_slot = GetSlotIdByPage(playerid, i);
-		new bool:selection = inv_slot == SelectedSlot[playerid];
+
+		new bool:selection = inv_slot == SelectedSlot[playerid] || (IsInvSelectionModeEnabled(playerid) && PlayerInventorySelectionList[playerid][inv_slot]);
+    SetSlotSelection(playerid, inv_slot, selection);
 
 		PlayerTextDrawHide(playerid, ChrInfInvSlot[playerid][i]);
 		PlayerTextDrawHide(playerid, ChrInfInvSlotCount[playerid][i]);
@@ -10454,12 +10692,12 @@ stock AddEquipStats(playerid, slotid)
 
 stock SellItem(playerid, slotid, count = 1)
 {
-	if(slotid == -1) return false;
+	if(slotid == -1) return 0;
 
 	new item[BaseItem];
 	item = GetItem(PlayerInventory[playerid][slotid][ID]);
 	new price = (item[Price] * count) / 7;
-	new tax = price / 95;
+	new tax = floatround(floatmul(price, 0.05));
 	price -= tax;
 
 	PlayerInventory[playerid][slotid][Count] -= count;
@@ -10482,7 +10720,7 @@ stock SellItem(playerid, slotid, count = 1)
 	GivePlayerCash(playerid, price);
 	GivePatriarchMoney(tax);
 
-	return true;
+	return price;
 }
 
 stock FindItem(playerid, itemid)
@@ -10604,41 +10842,32 @@ stock DbItemExists(id)
 
 stock GetItem(id)
 {
-	new string[255];
-	new query[255];
-	new item[BaseItem];
-	format(query, sizeof(query), "SELECT * FROM `items` WHERE `ID` = '%d' LIMIT 1", id);
-	new Cache:q_result = mysql_query(sql_handle, query);
+  new item[BaseItem];
+  new string[255];
 
-	new count;
-	cache_get_row_count(count);
-	if(count <= 0)
-	{
-		format(string, sizeof(string), "Cannot get item [ID = %d].", id);
+  if(!items_database_loaded)
+  {
+    format(string, sizeof(string), "Cannot get item [ID = %d]. Items database is not loaded", id);
 		print(string);
 		return item;
-	}
+  }
 
-	item[ID] = id;
-	cache_get_value_name_int(0, "IsTradeble", item[IsTradeble]);
-	cache_get_value_name(0, "Name", string);
-	sscanf(string, "s[255]", item[Name]);
-	cache_get_value_name_int(0, "Type", item[Type]);
-	cache_get_value_name_int(0, "Grade", item[Grade]);
-	cache_get_value_name_int(0, "MinRank", item[MinRank]);
-	cache_get_value_name(0, "Description", string);
-	sscanf(string, "s[255]", item[Description]);
-	cache_get_value_name(0, "Property", string);
-	sscanf(string, "a<i>[3]", item[Property]);
-	cache_get_value_name(0, "PropertyVal", string);
-	sscanf(string, "a<i>[3]", item[PropertyVal]);
-	cache_get_value_name_int(0, "Price", item[Price]);
-	cache_get_value_name_int(0, "Model", item[Model]);
-	cache_get_value_name_int(0, "ModelRotX", item[ModelRotX]);
-	cache_get_value_name_int(0, "ModelRotY", item[ModelRotY]);
-	cache_get_value_name_int(0, "ModelRotZ", item[ModelRotZ]);
+  if(id >= MAX_ITEM_ID)
+  {
+    format(string, sizeof(string), "Cannot get item [ID = %d].", id);
+		print(string);
+		return item;
+  }
 
-	cache_delete(q_result);
+  item = ItemsDatabase[id];
+
+  if(item[ID] != id)
+  {
+    format(string, sizeof(string), "Cannot get item [ID = %d]. Wrong data in database", id);
+		print(string);
+		return item;
+  }
+
 	return item;
 }
 
@@ -11277,8 +11506,9 @@ stock ShowCharInfo(playerid)
 	PlayerTextDrawShow(playerid, ChrInfoSkin[playerid]);
 
 	UpdateEquipSlots(playerid);
-	
+  
 	IsInventoryOpen[playerid] = true;
+  DisableInvSelectionMode(playerid);
 	UpdateInventory(playerid);
 
 	Windows[playerid][CharInfo] = true;
@@ -11340,6 +11570,8 @@ stock HideCharInfo(playerid)
 
 	IsInventoryOpen[playerid] = false;
 	Windows[playerid][CharInfo] = false;
+
+  DisableInvSelectionMode(playerid);
 }
 
 stock ShowCmbWindow(playerid)
@@ -11952,6 +12184,14 @@ stock UpStage(playerid)
 	{
 		PlayerInventory[playerid][CmbItemInvSlot[playerid][0]][Stage] = current_stage + 1;
 		ShowPlayerDialog(playerid, 1, DIALOG_STYLE_MSGBOX, "Комбинирование", "{33CC00}Повышение стадии успешно.", "Закрыть", "");
+
+    if(current_stage + 1 >= 5)
+    {
+      format(string, sizeof(string), "{%s}%s {ffffff}приобрел {%s}[S%d][+%d %s]{ffffff}.", 
+        GetColorByRate(PlayerInfo[playerid][Rate]), PlayerInfo[playerid][Name], GetGradeColor(item[Grade]), current_stage + 1, PlayerInventory[playerid][CmbItemInvSlot[playerid][0]][Mod], item[Name]
+      );
+      SendClientMessageToAll(0xFFFFFFFF, string);
+    }
 	}
 	else
 		ShowPlayerDialog(playerid, 1, DIALOG_STYLE_MSGBOX, "Комбинирование", "Повышение стадии неудачно.", "Закрыть", "");
@@ -12144,8 +12384,8 @@ stock UpgradeItem(playerid, itemslot, potionid = -1, bool:is_safe = false)
 			new cng_string[255];
 			new name[255];
 			GetPlayerName(playerid, name, sizeof(name));
-			format(cng_string, sizeof(cng_string), "{%s}%s{FF6347} приобрел {%s}[+%d %s]", 
-				GetColorByRate(PlayerInfo[playerid][Rate]), name, GetGradeColor(item[Grade]), level, item[Name]
+			format(cng_string, sizeof(cng_string), "{%s}%s{FF6347} приобрел {%s}[S%d][+%d %s]", 
+				GetColorByRate(PlayerInfo[playerid][Rate]), name, GetGradeColor(item[Grade]), PlayerInventory[playerid][itemslot][Stage], level, item[Name]
 			);
 			SendClientMessageToAll(COLOR_LIGHTRED, cng_string);
 		}
@@ -12463,6 +12703,9 @@ stock GetPlayerSpecialDamage(playerid)
 	new special_damage = 0;
 	new glasses_damage = GetGlassesBaseDamage(PlayerInfo[playerid][GlassesSlotID], PlayerInfo[playerid][GlassesStage]);
 
+  if(PlayerInfo[playerid][GlassesMod] > 0)
+			glasses_damage = GetEquipModifiedValue(glasses_damage, PlayerInfo[playerid][GlassesMod]);
+
 	new Float:multiplicator;
 	new weaponid = GetWeaponIDByItemID(PlayerInfo[playerid][WeaponSlotID]);
 	switch(weaponid)
@@ -12725,6 +12968,64 @@ stock GetRankByRate(rate)
 		default: rank = 1;
 	}
 	return rank;
+}
+
+stock LoadItemsDatabase()
+{
+  items_database_loaded = false;
+
+	new query[255] = "SELECT * FROM `items` WHERE 1";
+	new Cache:q_result = mysql_query(sql_handle, query);
+
+	new row_count = 0;
+	cache_get_row_count(row_count);
+	if(row_count <= 0)
+	{
+    print("LoadItemsDatabase error");
+		cache_delete(q_result);
+		return;
+	}
+
+	new id;
+  new item[BaseItem];
+  new string[255];
+	for(new i = 0; i < row_count; i++)
+	{
+    cache_get_value_name_int(i, "ID", id);
+    item[ID] = id;
+
+    cache_get_value_name_int(i, "IsTradeble", item[IsTradeble]);
+    cache_get_value_name(i, "Name", string);
+    sscanf(string, "s[255]", item[Name]);
+    cache_get_value_name_int(i, "Type", item[Type]);
+    cache_get_value_name_int(i, "Grade", item[Grade]);
+    cache_get_value_name_int(i, "MinRank", item[MinRank]);
+    cache_get_value_name(i, "Description", string);
+    sscanf(string, "s[255]", item[Description]);
+    cache_get_value_name(i, "Property", string);
+    sscanf(string, "a<i>[3]", item[Property]);
+    cache_get_value_name(i, "PropertyVal", string);
+    sscanf(string, "a<i>[3]", item[PropertyVal]);
+    cache_get_value_name_int(i, "Price", item[Price]);
+    cache_get_value_name_int(i, "Model", item[Model]);
+    cache_get_value_name_int(i, "ModelRotX", item[ModelRotX]);
+    cache_get_value_name_int(i, "ModelRotY", item[ModelRotY]);
+    cache_get_value_name_int(i, "ModelRotZ", item[ModelRotZ]);
+
+    if(id >= MAX_ITEM_ID)
+    {
+      print("LoadItemsDatabase error: MAX_ITEM_ID too low");
+      cache_delete(q_result);
+      return;
+    }
+
+    ItemsDatabase[id] = item;
+	}
+
+	cache_delete(q_result);
+
+  print("LoadItemsDatabase OK");
+  items_database_loaded = true;
 }
 
 stock LoadTournamentInfo()
@@ -16583,7 +16884,7 @@ stock CreateMap()
 	CreateObject(2755,243.0000000,-1823.3000000,3.0000000,90.0000000,0.0000000,0.0000000); //object(dojo_wall) (2)
 	CreateObject(2098,243.1000100,-1823.7000000,4.8900000,0.0000000,0.0000000,0.0000000); //object(cj_slotcover1) (2)
 
-	CreateObject(19076,195.8000000,-1854.9000000,2.3000000,0.0000000,0.0000000,0.0000000); //object(xmas) (1)
+	/*CreateObject(19076,195.8000000,-1854.9000000,2.3000000,0.0000000,0.0000000,0.0000000); //object(xmas) (1)
 	CreateObject(19054,195.6082,-1856.1352,2.7000000,0.0000000,0.0000000,20.0000000); //object(xmas) (1)
 	CreateObject(19056,195.5078,-1853.9680,2.7000000,0.0000000,0.0000000,30.0000000); //object(xmas) (1)
 	CreateObject(19057,197.0055,-1854.7861,2.7000000,0.0000000,0.0000000,40.0000000); //object(xmas) (1)
@@ -16592,5 +16893,5 @@ stock CreateMap()
 	new cola_trailer_veh_id = CreateVehicle(435,183.7002000,-1872.4004000,3.4000000,0.0000000,245,245,3); //Trailer 1
 
 	SetVehicleParamsEx(cola_veh_id, 0, 0, 0, 1, 0, 0, 0);
-	SetVehicleParamsEx(cola_trailer_veh_id, 0, 0, 0, 1, 0, 0, 0);
+	SetVehicleParamsEx(cola_trailer_veh_id, 0, 0, 0, 1, 0, 0, 0);*/
 }
