@@ -14,3 +14,5 @@ INSERT INTO `dungeons`(`ID`, `KeyID`, `Rank`, `Type`, `Damage`, `Defense`, `Mobs
 VALUES (6, 1063, 1, 5, 3050, 40000, 16, 2, 6, 2, '13 14 -1', '7 8');
 INSERT INTO `dungeons`(`ID`, `KeyID`, `Rank`, `Type`, `Damage`, `Defense`, `MobsCount`, `MobsTypesCount`, `BossesCount`, `BossesTypesCount`, `Mobs`, `Bosses`) 
 VALUES (7, 1064, 1, 5, 4400, 50000, 16, 2, 6, 2, '13 14 -1', '7 8');
+INSERT INTO `dungeons`(`ID`, `KeyID`, `Rank`, `Type`, `Damage`, `Defense`, `MobsCount`, `MobsTypesCount`, `BossesCount`, `BossesTypesCount`, `Mobs`, `Bosses`) 
+VALUES (8, 1086, 1, 5, 150, 3000, 16, 0, 6, 0, '-1 -1 -1', '-1 -1');

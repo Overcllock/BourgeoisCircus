@@ -39,3 +39,17 @@ INSERT INTO `mod_chances`(`Level`, `Potion`, `Chances`) VALUES (10, 1067, "10000
 INSERT INTO `mod_chances`(`Level`, `Potion`, `Chances`) VALUES (11, 1067, "10000 0 0");
 INSERT INTO `mod_chances`(`Level`, `Potion`, `Chances`) VALUES (12, 1067, "10000 0 0");
 INSERT INTO `mod_chances`(`Level`, `Potion`, `Chances`) VALUES (13, 1067, "10000 0 0");
+
+INSERT INTO `mod_chances`(`Level`, `Potion`, `Chances`) VALUES (1, 1072, "10000 0 0");
+INSERT INTO `mod_chances`(`Level`, `Potion`, `Chances`) VALUES (2, 1072, "10000 0 0");
+INSERT INTO `mod_chances`(`Level`, `Potion`, `Chances`) VALUES (3, 1072, "10000 0 0");
+INSERT INTO `mod_chances`(`Level`, `Potion`, `Chances`) VALUES (4, 1072, "10000 0 0");
+INSERT INTO `mod_chances`(`Level`, `Potion`, `Chances`) VALUES (5, 1072, "7300 2700 0");
+INSERT INTO `mod_chances`(`Level`, `Potion`, `Chances`) VALUES (6, 1072, "4500 5300 200");
+INSERT INTO `mod_chances`(`Level`, `Potion`, `Chances`) VALUES (7, 1072, "2100 6200 1500");
+INSERT INTO `mod_chances`(`Level`, `Potion`, `Chances`) VALUES (8, 1072, "1400 5300 3300");
+INSERT INTO `mod_chances`(`Level`, `Potion`, `Chances`) VALUES (9, 1072, "900 3800 5300");
+INSERT INTO `mod_chances`(`Level`, `Potion`, `Chances`) VALUES (10, 1072, "600 3400 6000");
+INSERT INTO `mod_chances`(`Level`, `Potion`, `Chances`) VALUES (11, 1072, "250 2200 7550");
+INSERT INTO `mod_chances`(`Level`, `Potion`, `Chances`) VALUES (12, 1072, "100 1800 8100");
+INSERT INTO `mod_chances`(`Level`, `Potion`, `Chances`) VALUES (13, 1072, "30 1100 8870");

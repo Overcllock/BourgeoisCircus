@@ -1,4 +1,4 @@
-//Bourgeois Circus 5.0
+//Bourgeois Circus 6.0
 
 #include <a_samp>
 #include <a_mail>
@@ -20,7 +20,7 @@
 
 #pragma dynamic 31294
 
-#define VERSION 5.001
+#define VERSION 6.001
 
 //Mysql settings
 #define SQL_HOST "212.22.93.13"
@@ -84,14 +84,15 @@
 #define MAX_PROPERTIES 3
 #define MAX_STATS 7
 #define MAX_DESCRIPTION_SIZE 40
-#define MAX_GRADES 5
-#define MAX_BOSSES 9
+#define MAX_GRADES 6
+#define MAX_BOSSES 18
 #define MAX_ITEM_ID 1100
 #define MAX_ITEM_TYPES 10
+#define MAX_DUNGEON_TYPES 9
 
-#define MAX_LOOT 40
-#define MAX_WALKER_LOOT 8
-#define MAX_DUNGEON_LOOT 34
+#define MAX_LOOT 24
+#define MAX_WALKER_LOOT 6
+#define MAX_DUNGEON_LOOT 18
 
 #define MAX_LOOT_VARIANTS 60
 #define MAX_STAT_VARIANTS 60
@@ -161,6 +162,7 @@
 #define GRADE_C 3
 #define GRADE_R 4
 #define GRADE_S	5
+#define GRADE_F 6
 
 //Props
 #define PROPERTY_NONE 0
@@ -176,6 +178,7 @@
 #define PROPERTY_MAXHP 10
 #define PROPERTY_VAMP 11
 #define PROPERTY_REGEN 12
+#define PROPERTY_PARADOX 13
 
 //Stats
 #define STAT_NONE 0
@@ -614,7 +617,21 @@ new Participants[MAX_PLAYERS][MAX_PARTICIPANTS][128];
 new WalkerRespawnTimer[MAX_PLAYERS] = -1;
 new SecondTimer[MAX_PLAYERS] = -1;
 
+new CandidateNameBuffer[MAX_PLAYERS][255];
+new bool:IsControllable[MAX_PLAYERS] = true;
+
 //Arrays
+new DungeonsKeysID[MAX_DUNGEON_TYPES] = {
+  1057,
+  1058,
+  1059,
+  1060,
+  1061,
+  1062,
+  1063,
+  1064,
+  1086
+};
 new EmptyInvItem[iInfo] = {
 	-1,
   0,
@@ -643,7 +660,16 @@ new BossesNames[MAX_BOSSES][128] = {
 	{"BOSS_Priest"},
 	{"BOSS_MadGrandfather"},
 	{"BOSS_CJ"},
-  {"BOSS_ZapTsar"}
+  {"BOSS_ZapTsar"},
+  {"BOSS_TimeKing"},
+  {"BOSS_RageMaximus"},
+	{"BOSS_RageShazokVsemog"},
+	{"BOSS_RageBourgeois"},
+	{"BOSS_RagePriest"},
+	{"BOSS_RageMadGrandfather"},
+	{"BOSS_RageCJ"},
+  {"BOSS_RageZapTsar"},
+  {"BOSS_RageTimeKing"}
 };
 new BossesSkins[MAX_BOSSES][1] = {
 	{78},
@@ -654,7 +680,16 @@ new BossesSkins[MAX_BOSSES][1] = {
 	{1},
 	{161},
 	{0},
-  {3}
+  {3},
+  {299},
+  {119},
+	{149},
+	{249},
+	{1},
+	{161},
+	{0},
+  {3},
+  {299}
 };
 new BossesWeapons[MAX_BOSSES][1] = {
 	{22},
@@ -665,6 +700,15 @@ new BossesWeapons[MAX_BOSSES][1] = {
 	{25},
 	{25},
 	{30},
+  {26},
+  {26},
+  {30},
+	{25},
+	{26},
+	{25},
+	{25},
+	{30},
+  {26},
   {26}
 };
 new CooperateMessages[MAX_COOPERATE_MSGS][64] = {
@@ -720,7 +764,8 @@ new HexGradeColors[MAX_GRADES][1] = {
 	{0x42a517FF},
 	{0x1155ccFF},
 	{0x9900ffFF},
-	{0xe69138FF}
+	{0xe69138FF},
+  {0xd53333FF}
 };
 new HexTeamColors[MAX_TEAMCOLORS][1] = {
 	{0x339999FF},
@@ -1427,6 +1472,12 @@ public OnTournamentEnd()
 	format(string, sizeof(string), "%d турнир завершен!", Tournament[Number]);
 	SendClientMessageToAll(COLOR_LIGHTRED, string);
 
+  if(Tournament[Number] % 5 == 0)
+  {
+    UpdateVoteStatus(1);
+    SendClientMessageToAll(COLOR_LIGHTRED, "Выборы Патриарха начались.");
+  }
+
 	if(Tournament[Number] % 10 == 0)
   {
 		UpdateHierarchy();
@@ -1872,6 +1923,9 @@ public OnPlayerSpawn(playerid)
 	SetPVarFloat(playerid, "HP", MaxHP[playerid]);
 	SetPlayerHP(playerid, MaxHP[playerid]);
 	SetPVarInt(playerid, "Invulnearable", 0);
+  SetPVarInt(playerid, "Stun", 0);
+
+  IsControllable[playerid] = true;
 	TogglePlayerControllable(playerid, 1);
 
 	TogglePlayerInfiniteRun(playerid, true);
@@ -1888,7 +1942,7 @@ public OnPlayerSpawn(playerid)
 			TeleportToRandomArenaPos(playerid);
 			SetPlayerInvulnearable(playerid, TOUR_INVULNEARABLE_TIME);
 			if(SpecialAbilityEffect == SPECIAL_AB_EFFECT_CONFUSION && GetPlayerTourTeam(playerid) != SpecialAbilityEffectTeam)
-				TogglePlayerControllable(playerid, 0);
+				TogglePlayerControllableEx(playerid, 0);
 		}
     else if(IsTourStarted && PlayerInfo[playerid][IsWatcher] != 0)
 		{
@@ -1913,6 +1967,15 @@ public OnPlayerSpawn(playerid)
 	UpdatePlayerVisual(playerid);
 	IsSpawned[playerid] = true;
 	return 1;
+}
+
+stock TogglePlayerControllableEx(playerid, controllable)
+{
+  if(controllable == 0 && IsControllable[playerid] || controllable > 0 && !IsControllable[playerid])
+  {
+    TogglePlayerControllable(playerid, controllable);
+    IsControllable[playerid] = controllable > 0 ? true : false;
+  }
 }
 
 stock UpdatePlayerVisual(playerid)
@@ -2131,6 +2194,7 @@ public FCNPC_OnSpawn(npcid)
 		return 0;
 
 	SetPVarInt(npcid, "Invulnearable", 0);
+  SetPVarInt(npcid, "Stun", 0);
 	SetPVarFloat(npcid, "HP", MaxHP[npcid]);
 	if(PlayerInfo[npcid][TeamColor] != -1 && IsTourStarted)
 		SetPlayerColor(npcid, HexTeamColors[PlayerInfo[npcid][TeamColor]][0]);
@@ -2519,10 +2583,15 @@ public OnPlayerKeyStateChange(playerid, newkeys, oldkeys)
 			new listitems[] = "Информация о турнире\nТурнирная таблица\nУчастники следующего тура\nСимуляция автопрокачки\nПодать сигнал готовности";
 			ShowPlayerDialog(playerid, 200, DIALOG_STYLE_TABLIST, "Заведующий турнирами", listitems, "Далее", "Закрыть");
 		}
+		//командующий
+		else if(IsPlayerInRangeOfPoint(playerid, 2.0, 229.6244,-1834.8005,3.6818))
+		{
+			ShowCommandoMenu(playerid);
+		}
 		//доска почета
 		else if(IsPlayerInRangeOfPoint(playerid,1.2,-2171.3132,645.5896,1052.3817)) 
 		{
-			new listitems[] = "Иерархия\nОбщий рейтинг участников\nРейтинг моих участников";
+			new listitems[] = "Общий рейтинг участников\nРейтинг моих участников";
 			ShowPlayerDialog(playerid, 300, DIALOG_STYLE_TABLIST, "Доска почета", listitems, "Далее", "Закрыть");
 		}
 		//оружейник
@@ -2913,13 +2982,9 @@ public OnDialogResponse(playerid, dialogid, response, listitem, inputtext[])
 				{
 					case 0:
 					{
-						ShowHierarchy(playerid);
-					}
-					case 1:
-					{
 						ShowGlobalRatingTop(playerid);
 					}
-					case 2:
+					case 1:
 					{
 						ShowLocalRatingTop(playerid);
 					}
@@ -4182,6 +4247,61 @@ public OnDialogResponse(playerid, dialogid, response, listitem, inputtext[])
         }
       }
     }
+    //командующий
+    case 1600:
+    {
+      if(response)
+      {
+        switch(listitem)
+        {
+          case 0:
+          {
+            ShowHierarchy(playerid);
+          }
+          case 1:
+          {
+            ShowVoteStatus(playerid);
+          }
+          case 2:
+          {
+            VoteSignUp(playerid);
+          }
+          case 3:
+          {
+            ShowVoteList(playerid);
+          }
+        }
+      }
+    }
+    case 1601:
+    {
+      if(response)
+        ShowCommandoMenu(playerid);
+    }
+    case 1602:
+    {
+      if(response)
+        TryVoteTo(playerid, listitem);
+      else
+        ShowCommandoMenu(playerid);
+    }
+    case 1603:
+    {
+      if(response)
+      {
+        new count = strval(inputtext);
+        if(!HasItem(playerid, 1071, count))
+        {
+          SendClientMessage(playerid, COLOR_GREY, "Недостаточно бюллетеней для голосования");
+          ShowVoteList(playerid);
+          return 1;
+        }
+
+        DoVote(playerid, CandidateNameBuffer[playerid], count);
+      }
+      else
+        ShowVoteList(playerid);
+    }
 	}
 	return 1;
 }
@@ -4813,6 +4933,31 @@ stock TryUseInvulProp(playerid)
 	SetPlayerInvulnearable(playerid, 2 * prop);
 }
 
+stock TryUseParadoxProp(playerid)
+{
+  if(IsDeath[playerid]) return;
+	if(FCNPC_IsValid(playerid) && FCNPC_IsDead(playerid)) return;
+
+	new prop = GetPlayerPropValue(playerid, PROPERTY_PARADOX);
+	if(prop <= 0)
+		return;
+	
+	if(!CheckChance(1 + prop))
+		return;
+	
+	for(new i = 0; i < MAX_PLAYERS; i++)
+  {
+    if(!IsPlayerConnected(i) || i == playerid)
+      continue;
+    
+    if(GetDistanceBetweenPlayers(playerid, i) > 5)
+      continue;
+
+    SetPlayerChatBubble(i, "Оглушение", 0x0033FFFF, 80.0, 1200);
+    SetPlayerStun(i, 3 + prop);
+  }
+}
+
 stock IsAllOwnersConnected()
 {
 	new connected_owners = 0;
@@ -4951,7 +5096,12 @@ stock UnfreezeAll()
 	{
 		if(!IsPlayerConnected(i) || FCNPC_IsValid(i))
 			continue;
-		TogglePlayerControllable(i, 1);
+
+    new stun_time = GetPVarInt(i, "Stun");
+    if(stun_time > 0)
+      continue;
+
+		TogglePlayerControllableEx(i, 1);
 	}
 }
 
@@ -4973,6 +5123,23 @@ public TickSecond(playerid)
 		inv_time--;
 		SetPVarInt(playerid, "Invulnearable", inv_time);
 	}
+
+  new stun_time = GetPVarInt(playerid, "Stun");
+	if(stun_time > 0)
+	{
+		stun_time--;
+		SetPVarInt(playerid, "Stun", stun_time);
+	}
+
+  new controllable = 1;
+  if(stun_time > 0)
+  {
+    SetPlayerChatBubble(playerid, "Оглушение", 0x0033FFFF, 80.0, 1200);
+    controllable = 0;
+  }
+
+  if(!FCNPC_IsValid(playerid))
+    TogglePlayerControllableEx(playerid, controllable);
 
 	new coop_cooldown = GetPVarInt(playerid, "CooperateCooldown");
 	if(coop_cooldown > 0)
@@ -5723,6 +5890,15 @@ stock SetPlayerInvulnearable(playerid, time)
 	SetPVarInt(playerid, "Invulnearable", inv + time);
 }
 
+stock SetPlayerStun(playerid, time)
+{
+	new stun_time = GetPVarInt(playerid, "Stun");
+	if(stun_time < 0)
+		stun_time = 0;
+
+	SetPVarInt(playerid, "Stun", stun_time + time);
+}
+
 stock GetRandomCooperateMessage()
 {
 	new idx = random(MAX_COOPERATE_MSGS);
@@ -5805,6 +5981,18 @@ stock ParticipantBehaviour(id)
 
 	SetPVarInt(id, "MovingTicks", moving_ticks);
 	SetPVarInt(id, "IdleTicks", idle_ticks);
+
+  new stun_time = GetPVarInt(id, "Stun");
+  if(stun_time > 0)
+  {
+    if(FCNPC_IsMoving(id))
+      FCNPC_Stop(id);
+
+    if(FCNPC_IsShooting(id) || FCNPC_IsAiming(id))
+		  FCNPC_StopAim(id);
+
+    return 1;
+  }
 
 	//If NPC is moving too long - try to find new target.
 	if(fix_target == -1 && FCNPC_IsMoving(id) && moving_ticks > MAX_NPC_MOVING_TICKS)
@@ -6085,6 +6273,18 @@ stock WalkerBehaviour(id)
 		shotting_ticks = 0;
 	SetPVarInt(id, "ShotTicks", shotting_ticks);
 
+  new stun_time = GetPVarInt(id, "Stun");
+  if(stun_time > 0)
+  {
+    if(FCNPC_IsMoving(id))
+      FCNPC_Stop(id);
+
+    if(FCNPC_IsShooting(id) || FCNPC_IsAiming(id))
+		  FCNPC_StopAim(id);
+
+    return;
+  }
+
 	new target = FCNPC_GetAimingPlayer(id);
 	if(SpecialActivity == SPECIAL_ACTIVITY_S_DELIVERY && SpecialActivityVehicleID != -1 && GetDistanceBetweenPlayerAndVeh(id, SpecialActivityVehicleID) < 5)
 	{
@@ -6173,6 +6373,18 @@ stock BossBehaviour(id)
 	else
 		shotting_ticks = 0;
 	SetPVarInt(id, "ShotTicks", shotting_ticks);
+
+  new stun_time = GetPVarInt(id, "Stun");
+  if(stun_time > 0)
+  {
+    if(FCNPC_IsMoving(id))
+      FCNPC_Stop(id);
+
+    if(FCNPC_IsShooting(id) || FCNPC_IsAiming(id))
+		  FCNPC_StopAim(id);
+
+    return;
+  }
 
 	//If NPC bumped any obstacle - move him
 	if(FCNPC_IsMoving(id) && FCNPC_GetSpeed(id) < 0.1)
@@ -6534,7 +6746,7 @@ stock GetEquipDesc(id, mod, stats[])
 				case GRADE_B: if(i > 0) color = "FFCC00";
 				case GRADE_C: if(i > 1) color = "FFCC00";
 				case GRADE_R: if(i > 2) color = "FFCC00";
-				case GRADE_S: if(i > 3) color = "FFCC00";
+				case GRADE_S,GRADE_F: if(i > 3) color = "FFCC00";
 				default: color = "FFFFFF";
 			}
 		}
@@ -8077,7 +8289,7 @@ stock ResetAllTeamTargets(team)
 			if(FCNPC_IsValid(id))
 				ResetPlayerTarget(id);
 			else
-				TogglePlayerControllable(id, 0);
+				TogglePlayerControllableEx(id, 0);
 		}
 	}
 }
@@ -8440,8 +8652,6 @@ stock DestroyBoss()
 stock GetAvailableDungeonsList(playerid)
 {
 	new listitems[2048] = "";
-	new min_id = 1057;
-	new max_id = 1064;
 
 	new query[255];
 	new Cache:q_result;
@@ -8451,8 +8661,9 @@ stock GetAvailableDungeonsList(playerid)
 	for(new i = 0; i < MAX_DUNGEONS; i++)
 		AvailableDungeons[playerid][i] = -1;
 
-	for(new cur_id = min_id; cur_id <= max_id; cur_id++)
+	for(new i = 0; i < MAX_DUNGEON_TYPES; i++)
 	{
+    new cur_id = DungeonsKeysID[i];
 		if(!HasItem(playerid, cur_id, 1)) continue;
 
 		new keys_count = GetItemsCount(playerid, cur_id);
@@ -8524,8 +8735,16 @@ stock FillDungeon(playerid, dungeonid, worldid)
 
 	for(new i = 0; i < dungeon[MobsCount]; i++)
 	{
-		new mob_type = random(dungeon[MobsTypesCount]);
-		new mobid = dungeon[Mobs][mob_type];
+    new mob_type = 1;
+    new mobid = -1;
+    if(dungeon[MobsTypesCount] == 0)
+      mobid = random(MAX_RANK) + 1;
+    else
+    {
+		  mob_type = random(dungeon[MobsTypesCount]);
+      mobid = dungeon[Mobs][mob_type];
+    }
+
 		if(mobid == -1) continue;
 		
 		new walker[wInfo];
@@ -8571,8 +8790,16 @@ stock FillDungeon(playerid, dungeonid, worldid)
 
 	for(new i = 0; i < dungeon[BossesCount]; i++)
 	{
-		new boss_type = random(dungeon[BossesTypesCount]);
-		new bossid = dungeon[Bosses][boss_type];
+    new boss_type = 1;
+    new bossid = -1;
+    if(dungeon[BossesTypesCount] == 0)
+      bossid = random(9);
+    else
+    {
+      boss_type = random(dungeon[BossesTypesCount]);
+      bossid = dungeon[Bosses][boss_type];
+    }
+		
 		if(bossid == -1) continue;
 
 		new boss[BossInfo];
@@ -8811,6 +9038,15 @@ stock SetBossCooldown(bossid)
 		case 6: resp_time = 21;
 		case 7: resp_time = 24;
 		case 8: resp_time = 27;
+    case 9: resp_time = 30;
+    case 10: resp_time = 15;
+    case 11: resp_time = 18;
+    case 12: resp_time = 21;
+    case 13: resp_time = 24;
+    case 14: resp_time = 27;
+    case 15: resp_time = 30;
+    case 16: resp_time = 33;
+    case 17: resp_time = 37;
 		default: resp_time = 3;
 	}
 
@@ -9153,7 +9389,7 @@ stock RollDungeonLoot(npcid, playerid)
 
 		new Float:x, Float:y, Float:z;
 		FCNPC_GetPosition(npcid, x, y, z);
-		DungeonLootPickups[npcid][i] = CreatePickup(19055, 1, x + random(6), y + random(6), z, 1001 + playerid);
+		DungeonLootPickups[npcid][i] = CreatePickup(GetLootPickupID(loot[ItemID]), 1, x + random(6), y + random(6), z, 1001 + playerid);
 	}
 }
 
@@ -9176,7 +9412,7 @@ stock RollWalkerLoot(walkerid, killerid)
 
 		new Float:x, Float:y, Float:z;
 		FCNPC_GetPosition(walkerid, x, y, z);
-		WalkerLootPickups[walkerid][i] = CreatePickup(19055, 1, x + random(6), y + random(6), z, 0);
+		WalkerLootPickups[walkerid][i] = CreatePickup(GetLootPickupID(loot[ItemID]), 1, x + random(6), y + random(6), z, 0);
 	}
 }
 
@@ -9197,7 +9433,7 @@ stock RollBossLoot()
 
 		new Float:x, Float:y, Float:z;
 		FCNPC_GetPosition(BossNPC, x, y, z);
-		BossLootPickups[i] = CreatePickup(19055, 4, x + random(10), y + random(10), z, 0);
+		BossLootPickups[i] = CreatePickup(GetLootPickupID(loot[ItemID]), 4, x + random(10), y + random(10), z, 0);
 	}
 }
 
@@ -9215,6 +9451,24 @@ stock RollBossLootItem(bossid)
 	loot = GenerateLoot(INVALID_PLAYER_ID, 11000 + bossid + 1);
 	loot[OwnerID] = -1;
 	return loot;
+}
+
+stock GetLootPickupID(itemid)
+{
+  new pickupid = 19054;
+
+  new item[BaseItem];
+  item = GetItem(itemid);
+
+  switch(item[Grade])
+  {
+    case GRADE_C: pickupid = 19057;
+    case GRADE_R: pickupid = 19058;
+    case GRADE_S: pickupid = 19055;
+    case GRADE_F: pickupid = 19056;
+  }
+
+  return pickupid;
 }
 
 stock GetEquipByRank(rank, type, grade)
@@ -9451,41 +9705,39 @@ stock UpdatePlayerWatch(playerid)
 
 stock UpdatePlayerStats(playerid)
 {
-	new weapon_damage[2];
-	new default_damage[2];
-	default_damage = GetWeaponBaseDamage(PlayerInfo[playerid][WeaponSlotID], PlayerInfo[playerid][WeaponStage]);
-	
-	new spec_damage = GetPlayerSpecialDamage(playerid);
+	new default_weapon_damage[2];
+	default_weapon_damage = GetWeaponBaseDamage(PlayerInfo[playerid][WeaponSlotID], PlayerInfo[playerid][WeaponStage]);
 
-	weapon_damage[0] = GetEquipModifiedValue(default_damage[0], PlayerInfo[playerid][WeaponMod]);
-	weapon_damage[1] = GetEquipModifiedValue(default_damage[1], PlayerInfo[playerid][WeaponMod]);
+  new weapon_damage[2];
+	weapon_damage[0] = GetEquipModifiedValue(default_weapon_damage[0], PlayerInfo[playerid][WeaponMod]);
+	weapon_damage[1] = GetEquipModifiedValue(default_weapon_damage[1], PlayerInfo[playerid][WeaponMod]);
+
+  new default_glasses_damage = GetGlassesBaseDamage(PlayerInfo[playerid][GlassesSlotID], PlayerInfo[playerid][GlassesStage]);
+
+  new glasses_damage = GetEquipModifiedValue(default_glasses_damage, PlayerInfo[playerid][GlassesMod]);
 
 	new damage_stat = GetPlayerStatValue(playerid, STAT_DAMAGE);
 
-	PlayerInfo[playerid][DamageMin] = weapon_damage[0] + spec_damage + damage_stat;
-	PlayerInfo[playerid][DamageMax] = weapon_damage[1] + spec_damage + damage_stat;
+	PlayerInfo[playerid][DamageMin] = default_weapon_damage[0] + default_glasses_damage + damage_stat;
+	PlayerInfo[playerid][DamageMax] = default_weapon_damage[1] + default_glasses_damage + damage_stat;
 	
-	new armor_defense;
-	new default_armor_defense;
-	default_armor_defense = GetArmorBaseDefense(PlayerInfo[playerid][ArmorSlotID], PlayerInfo[playerid][ArmorStage]);
-	armor_defense = GetEquipModifiedValue(default_armor_defense, PlayerInfo[playerid][ArmorMod]);
+	new default_armor_defense = GetArmorBaseDefense(PlayerInfo[playerid][ArmorSlotID], PlayerInfo[playerid][ArmorStage]);
+  new armor_defense = GetEquipModifiedValue(default_armor_defense, PlayerInfo[playerid][ArmorMod]);
 	if(armor_defense == 0)
 		armor_defense = DEFAULT_DEFENSE;
 
-	new hat_defense;
-	new default_hat_defense;
-	default_hat_defense = GetArmorBaseDefense(PlayerInfo[playerid][HatSlotID], PlayerInfo[playerid][HatStage]);
-	hat_defense = GetEquipModifiedValue(default_hat_defense, PlayerInfo[playerid][HatMod]);
+	new default_hat_defense = GetArmorBaseDefense(PlayerInfo[playerid][HatSlotID], PlayerInfo[playerid][HatStage]);
+  new hat_defense = GetEquipModifiedValue(default_hat_defense, PlayerInfo[playerid][HatMod]);
 	
 	new watch_defense = 0;
+  new default_watch_defense = 0;
 	if(PlayerInfo[playerid][WatchSlotID] != -1)
 	{
-		new default_watch_defense;
 		default_watch_defense = GetArmorBaseDefense(PlayerInfo[playerid][WatchSlotID], PlayerInfo[playerid][WatchStage]);
 		watch_defense = GetEquipModifiedValue(default_watch_defense, PlayerInfo[playerid][WatchMod]);
 	}
 
-	PlayerInfo[playerid][Defense] = armor_defense + hat_defense + watch_defense;
+	PlayerInfo[playerid][Defense] = default_armor_defense + default_hat_defense + default_watch_defense;
 	PlayerInfo[playerid][Accuracy] = DEFAULT_ACCURACY + GetPlayerPropValue(playerid, PROPERTY_ACCURACY) + PlayerInfo[playerid][Rank] * 5 + GetPlayerStatValue(playerid, STAT_ACCURACY);
 	PlayerInfo[playerid][Dodge] = DEFAULT_DODGE + GetPlayerPropValue(playerid, PROPERTY_DODGE) + PlayerInfo[playerid][Rank] * 5 + GetPlayerStatValue(playerid, STAT_DODGE);
 	PlayerInfo[playerid][Crit] = DEFAULT_CRIT + GetPlayerPropValue(playerid, PROPERTY_CRIT) + PlayerInfo[playerid][Rank] * 2 + GetPlayerStatValue(playerid, STAT_CRIT_CHANCE);
@@ -9528,9 +9780,9 @@ stock UpdatePlayerStats(playerid)
 		}
 	}
 
-	PlayerInfo[playerid][DamageMin] = (PlayerInfo[playerid][DamageMin] * damage_multiplier) / 100;
-	PlayerInfo[playerid][DamageMax] = (PlayerInfo[playerid][DamageMax] * damage_multiplier) / 100;
-	PlayerInfo[playerid][Defense] = (PlayerInfo[playerid][Defense] * defense_multiplier) / 100;
+	PlayerInfo[playerid][DamageMin] = ((PlayerInfo[playerid][DamageMin] * damage_multiplier) / 100) + weapon_damage[0] - default_weapon_damage[0] + glasses_damage - default_glasses_damage;
+	PlayerInfo[playerid][DamageMax] = ((PlayerInfo[playerid][DamageMax] * damage_multiplier) / 100) + weapon_damage[1] - default_weapon_damage[1] + glasses_damage - default_glasses_damage;
+	PlayerInfo[playerid][Defense] = ((PlayerInfo[playerid][Defense] * defense_multiplier) / 100) + armor_defense - default_armor_defense + hat_defense - default_hat_defense + watch_defense - default_watch_defense;
 
 	UpdatePlayerMaxHP(playerid);
 	new Float:new_max_hp = floatmul(MaxHP[playerid], floatdiv(hp_multiplier, 100));
@@ -10432,6 +10684,7 @@ stock DisassembleEquip(playerid, slotid)
 			case GRADE_C: chance = 60;
 			case GRADE_R: chance = 70;
 			case GRADE_S: chance = 80;
+      case GRADE_F: chance = 90;
 			default: chance = 40;
 		}
 
@@ -10444,6 +10697,9 @@ stock DisassembleEquip(playerid, slotid)
 				count += (PlayerInventory[playerid][slotid][Mod] * PlayerInventory[playerid][slotid][Mod]) / 4;
 
 			new itemid = 1008 + item[Grade] - 1;
+			if(item[Grade] == GRADE_F)
+				itemid = 1070;
+
 			AddItem(playerid, itemid, count);
 
 			format(string, sizeof(string), "Получено: {%s}[Цирковая эссенция] {ffffff}x%d.", 
@@ -10568,7 +10824,7 @@ stock GetMaxStatsByGrade(grade)
 		case GRADE_B: count = 1;
 		case GRADE_C: count = 2;
 		case GRADE_R: count = 3;
-		case GRADE_S: count = 4;
+		case GRADE_S, GRADE_F: count = 4;
 		default: count = 0;
 	}
 
@@ -10942,6 +11198,7 @@ stock IsModPotion(item_id)
 	{
 		case 1007: return true;
 		case 1067: return true;
+    case 1072: return true;
 	}
 	return false;
 }
@@ -11122,6 +11379,7 @@ stock ResolveItemGrade(grade)
 		case GRADE_C: string = "C";
 		case GRADE_R: string = "R";
 		case GRADE_S: string = "S";
+    case GRADE_F: string = "F";
 		default: string = "N";
 	}
 	return string;
@@ -11145,7 +11403,7 @@ stock ShowItemInfo(playerid, itemid)
 	for(new i = 0; i < MAX_PROPERTIES; i++)
 	{
 		PlayerTextDrawSetStringRus(playerid, InfItemEffect[playerid][i], GetPropertyString(item[Property][i], item[PropertyVal][i]));
-		if(item[Property][i] == PROPERTY_HEAL || item[Property][i] == PROPERTY_INVUL || item[Property][i] == PROPERTY_REGEN)
+		if(item[Property][i] == PROPERTY_HEAL || item[Property][i] == PROPERTY_INVUL || item[Property][i] == PROPERTY_REGEN || item[Property][i] == PROPERTY_PARADOX)
 			PlayerTextDrawColor(playerid, InfItemEffect[playerid][i], 16711935);
 		else
 			PlayerTextDrawColor(playerid, InfItemEffect[playerid][i], -1);
@@ -11262,7 +11520,7 @@ stock ShowEquipInfo(playerid, slotid)
 	
 	for(new i = start_idx; i < MAX_PROPERTIES + 1; i++)
 	{
-		if(item[Property][j] == PROPERTY_HEAL || item[Property][j] == PROPERTY_INVUL || item[Property][j] == PROPERTY_REGEN)
+		if(item[Property][j] == PROPERTY_HEAL || item[Property][j] == PROPERTY_INVUL || item[Property][j] == PROPERTY_REGEN || item[Property][j] == PROPERTY_PARADOX)
 			PlayerTextDrawColor(playerid, EqInfMainStats[playerid][i], 16711935);
 		else
 			PlayerTextDrawColor(playerid, EqInfMainStats[playerid][i], -1);
@@ -12126,7 +12384,7 @@ stock UpStage(playerid)
     default: max_stage = MAX_STAGE;
   }
 
-	if(PlayerInventory[playerid][CmbItemInvSlot[playerid][0]][Stage] == max_stage)
+	if(PlayerInventory[playerid][CmbItemInvSlot[playerid][0]][Stage] >= max_stage)
 	{
 		ShowPlayerDialog(playerid, 1, DIALOG_STYLE_MSGBOX, "Повышение стадии", "Данный предмет достиг максимальной стадии.", "Закрыть", "");
 		return;
@@ -12139,6 +12397,9 @@ stock UpStage(playerid)
 	new required_boosters = item[MinRank] * 2 + item[Grade] * 2;
 
 	new essence_id = 1008 + item[Grade] - 1;
+  if(item[Grade] == GRADE_F)
+    essence_id = 1070;
+
 	new booster_id = 1013;
 
 	new string[255];
@@ -12260,20 +12521,6 @@ stock CombineItems(playerid)
 	PlayerInfo[playerid][Cash] -= price;
 	GivePlayerCash(playerid, -price);
 
-	for(new i = 0; i < MAX_CMB_ITEMS; i++)
-	{
-		if(!success && IsEquip(CmbItem[playerid][i]))
-			continue;
-		
-		if(!success && CmbItem[playerid][i] >= 1014 && CmbItem[playerid][i] <= 1021)
-			continue;
-		
-		if(!success && CmbItem[playerid][i] >= 1025 && CmbItem[playerid][i] <= 1033)
-			continue;
-
-		DeleteItem(playerid, CmbItemInvSlot[playerid][i], CmbItemCount[playerid][i]);
-	}
-
 	if(success)
 	{
 		ShowPlayerDialog(playerid, 1, DIALOG_STYLE_MSGBOX, "Комбинирование", "{33CC00}Успешная комбинация.", "Закрыть", "");
@@ -12281,7 +12528,7 @@ stock CombineItems(playerid)
 		{
 			if(result_id >= 209 && result_id <= 230)
 			{
-				if(CheckChance(5))
+				if(CheckChance(10))
 					result_id += 2;
 				else if(CheckChance(25))
 					result_id += 1;
@@ -12290,7 +12537,20 @@ stock CombineItems(playerid)
 			new eq_item[BaseItem];
 			eq_item = GetItem(result_id);
 
-			AddEquip(playerid, result_id, STATS_CLEAR);
+      if(result_id >= 250 && result_id <= 256)
+      {
+        new dragon_eq_mod = PlayerInventory[playerid][CmbItemInvSlot[playerid][0]][Mod] - 2;
+        new dragon_eq_stage = PlayerInventory[playerid][CmbItemInvSlot[playerid][0]][Stage] - 1;
+
+        if(dragon_eq_mod < 0)
+          dragon_eq_mod = 0;
+        if(dragon_eq_stage < 0)
+          dragon_eq_stage = 0;
+
+        AddEquip(playerid, result_id, PlayerInventory[playerid][CmbItemInvSlot[playerid][0]][Stats], dragon_eq_stage, dragon_eq_mod);
+      }
+      else
+			  AddEquip(playerid, result_id, STATS_CLEAR);
 
 			if(eq_item[Grade] >= GRADE_C)
 			{
@@ -12306,6 +12566,23 @@ stock CombineItems(playerid)
 	}
 	else
 		ShowPlayerDialog(playerid, 1, DIALOG_STYLE_MSGBOX, "Комбинирование", "{CC3300}Комбинация неудачна.", "Закрыть", "");
+
+  for(new i = 0; i < MAX_CMB_ITEMS; i++)
+	{
+		if(!success && IsEquip(CmbItem[playerid][i]))
+			continue;
+		
+		if(!success && CmbItem[playerid][i] >= 1014 && CmbItem[playerid][i] <= 1021)
+			continue;
+		
+		if(!success && CmbItem[playerid][i] >= 1025 && CmbItem[playerid][i] <= 1033)
+			continue;
+
+    if(!success && CmbItem[playerid][i] >= 1076 && CmbItem[playerid][i] <= 1084)
+			continue;
+
+		DeleteItem(playerid, CmbItemInvSlot[playerid][i], CmbItemCount[playerid][i]);
+	}
 
 	new bool:items_exists = true;
 	for(new i = 0; i < MAX_CMB_ITEMS; i++)
@@ -12527,6 +12804,25 @@ stock GetWeaponBaseDamage(weaponid, stage)
 		case 245: { damage[0] = 567; damage[1] = 642; }
 		case 246: { damage[0] = 673; damage[1] = 757; }
 
+    case 249: { damage[0] = 378; damage[1] = 430; }
+		case 250: { damage[0] = 471; damage[1] = 535; }
+		case 251: { damage[0] = 527; damage[1] = 602; }
+		case 252: { damage[0] = 624; damage[1] = 721; }
+		case 253: { damage[0] = 743; damage[1] = 852; }
+		case 254: { damage[0] = 890; damage[1] = 1013; }
+		case 255: { damage[0] = 1050; damage[1] = 1181; }
+		case 256: { damage[0] = 1243; damage[1] = 1402; }
+
+    case 257: { damage[0] = 210; damage[1] = 239; }
+		case 258: { damage[0] = 259; damage[1] = 294; }
+		case 259: { damage[0] = 288; damage[1] = 329; }
+		case 260: { damage[0] = 341; damage[1] = 385; }
+		case 261: { damage[0] = 408; damage[1] = 455; }
+		case 262: { damage[0] = 479; damage[1] = 550; }
+		case 263: { damage[0] = 567; damage[1] = 642; }
+		case 264: { damage[0] = 673; damage[1] = 757; }
+    case 265: { damage[0] = 799; damage[1] = 884; }
+
 		default: { damage[0] = 13; damage[1] = 15; }
 	}
 
@@ -12685,6 +12981,26 @@ stock GetArmorBaseDefense(armorid, stage)
 		case 149: defense = 2710;
 		case 150: defense = 3235;
 
+    case 266: defense = 910;
+		case 267: defense = 1105;
+		case 268: defense = 1319;
+		case 269: defense = 1606;
+		case 270: defense = 1937;
+		case 271: defense = 2314;
+		case 272: defense = 2750;
+		case 273: defense = 3315;
+		case 274: defense = 3887;
+
+    case 275: defense = 607;
+		case 276: defense = 737;
+		case 277: defense = 880;
+		case 278: defense = 1070;
+		case 279: defense = 1291;
+		case 280: defense = 1543;
+		case 281: defense = 1833;
+		case 282: defense = 2210;
+		case 283: defense = 2591;
+
 		default: defense = 100;
 	}
 
@@ -12696,34 +13012,6 @@ stock GetArmorBaseDefense(armorid, stage)
 	}
 
 	return defense;
-}
-
-stock GetPlayerSpecialDamage(playerid)
-{
-	new special_damage = 0;
-	new glasses_damage = GetGlassesBaseDamage(PlayerInfo[playerid][GlassesSlotID], PlayerInfo[playerid][GlassesStage]);
-
-  if(PlayerInfo[playerid][GlassesMod] > 0)
-			glasses_damage = GetEquipModifiedValue(glasses_damage, PlayerInfo[playerid][GlassesMod]);
-
-	new Float:multiplicator;
-	new weaponid = GetWeaponIDByItemID(PlayerInfo[playerid][WeaponSlotID]);
-	switch(weaponid)
-	{
-		case 22: multiplicator = 1.05;
-		case 24: multiplicator = 1.5;
-		case 25: multiplicator = 2.3;
-		case 26: multiplicator = 1.7;
-		case 27: multiplicator = 2.0;
-		case 28,32: multiplicator = 0.35;
-		case 29: multiplicator = 0.7;
-		case 30,31: multiplicator = 1.0;
-		case 33: multiplicator = 2.4;
-	}
-
-	special_damage += floatround(floatmul(glasses_damage, multiplicator));
-
-	return special_damage;
 }
 
 stock GetEquipModifiedValue(base_value, mod_level)
@@ -12817,6 +13105,7 @@ stock GetPropertyString(prop, value)
 		case PROPERTY_MAXHP: format(string, sizeof(string), "HP +%d", value);
 		case PROPERTY_VAMP: format(string, sizeof(string), "Поглощение ХП +%d%%", value);
 		case PROPERTY_REGEN: string = "Восстановление";
+    case PROPERTY_PARADOX: string = "Временной парадокс";
 		default: string = "";
 	}
 
@@ -12859,6 +13148,7 @@ stock GetGradeColor(grade)
 		case GRADE_C: color = "1155cc";
 		case GRADE_R: color = "9900ff";
 		case GRADE_S: color = "e69138";
+    case GRADE_F: color = "d53333";
 		default: color = "CCCCCC";
 	}
 	return color;
@@ -13576,65 +13866,96 @@ stock MakeLottery()
   SendClientMessageToAll(COLOR_WHITE, "");
 }
 
+stock UpdateVoteStatus(status)
+{
+  new query[255];
+  format(query, sizeof(query), "UPDATE `tournament` SET `VoteActive`= %d", status);
+  new Cache:q_result = mysql_query(sql_handle, query);
+  cache_delete(q_result);
+}
+
+stock ResetVotingResults()
+{
+  new query[255] = "DELETE FROM `vote` WHERE 1";
+  new Cache:q_result = mysql_query(sql_handle, query);
+  cache_delete(q_result);
+}
+
 stock UpdateHierarchy()
 {
 	PatriarchPayday();
 
 	UpdateGlobalRatingTop();
 	ResetHierarchy();
+  UpdateVoteStatus(0);
+
+  new query[255] = "SELECT `CandidateName`, SUM(`Count`) as `sum_count` FROM `vote` GROUP BY `CandidateName` ORDER BY `sum_count` DESC";
+  new Cache:q_result = mysql_query(sql_handle, query);
+
+  new row_count = 0;
+  cache_get_row_count(row_count);
+  if(row_count <= 0)
+  {
+    cache_delete(q_result);
+    return;
+  }
+
+  q_result = cache_save();
+	cache_unset_active();
 
 	new pretendets[HIERARCHY_STATUSES_COUNT];
 	for(new i = 0; i < HIERARCHY_STATUSES_COUNT; i++)
 	{
-		new query[255];
-		format(query, sizeof(query), "SELECT * FROM `players` WHERE `Name` = '%s' LIMIT 1", GlobalRatingTop[i][Name]);
-		new Cache:q_result = mysql_query(sql_handle, query);
+    if(i >= row_count - 1)
+    {
+      pretendets[i] = -1;
+      continue;
+    }
 
-		new row_count = 0;
-		cache_get_row_count(row_count);
-		if(row_count <= 0)
-		{
-			print("Hierarchy update error.");
-			cache_delete(q_result);
-			return;
-		}
+    cache_set_active(q_result);
 
-		new pid;
-		cache_get_value_name_int(0, "ID", pid);
-		cache_delete(q_result);
+		new name[255];
 
-		pretendets[i] = pid;
+    cache_get_value_name(i, "CandidateName", name);
+      
+    new player[pInfo];
+		player = GetPlayerByName(name);
+
+		pretendets[i] = player[ID];
 	}
 
-	ShuffleArray(pretendets);
+  cache_delete(q_result);
 
 	SendClientMessageToAll(COLOR_WHITE, "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~");
-	SendClientMessageToAll(COLOR_WHITE, "Выборы в иерархию завершились!");
+	SendClientMessageToAll(COLOR_WHITE, "Выборы в Иерархию завершились!");
 	SendClientMessageToAll(COLOR_YELLOW, "Новые лидеры:");
 	SendClientMessageToAll(COLOR_WHITE, "");
 
 	for(new i = 0; i < HIERARCHY_STATUSES_COUNT; i++)
 	{
-		new query[255];
-		format(query, sizeof(query), "UPDATE `players` SET `Status` = '%d' WHERE `ID` = '%d' LIMIT 1", i+1, pretendets[i]);
-		new Cache:temp_result = mysql_query(sql_handle, query);
+    if(pretendets[i] == -1)
+      break;
+
+		new squery[255];
+		format(squery, sizeof(squery), "UPDATE `players` SET `Status` = '%d' WHERE `ID` = '%d' LIMIT 1", i+1, pretendets[i]);
+		new Cache:temp_result = mysql_query(sql_handle, squery);
 		cache_delete(temp_result);
 
-		format(query, sizeof(query), "SELECT * FROM `players` WHERE `ID` = '%d' LIMIT 1", pretendets[i]);
-		new Cache:q_result = mysql_query(sql_handle, query);
+		format(squery, sizeof(squery), "SELECT * FROM `players` WHERE `ID` = '%d' LIMIT 1", pretendets[i]);
+		new Cache:sq_result = mysql_query(sql_handle, squery);
 
 		new row_count = 0;
 		cache_get_row_count(row_count);
 		if(row_count <= 0)
 		{
 			print("Hierarchy update error.");
-			cache_delete(q_result);
+			cache_delete(sq_result);
 			return;
 		}
 
 		new name[255];
 		cache_get_value_name(0, "Name", name);
-		cache_delete(q_result);
+		cache_delete(sq_result);
 
 		if(i+1 == HIERARCHY_LEADER)
 		{
@@ -13665,6 +13986,8 @@ stock UpdateHierarchy()
 
 	SendClientMessageToAll(COLOR_WHITE, "");
 	SendClientMessageToAll(COLOR_WHITE, "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~");
+
+  ResetVotingResults();
 }
 
 stock UpdateGlobalRatingTop()
@@ -13734,7 +14057,7 @@ stock UpdateLocalRatingTop(playerid)
 	cache_get_value_name(0, "Owner", owner);
 	cache_delete(q_result);
 
-    format(query, sizeof(query), "SELECT * FROM `players` WHERE `Owner` = '%s' AND `IsWatcher`=0 ORDER BY `Rate` DESC LIMIT %d", owner, MAX_PARTICIPANTS / 2);
+  format(query, sizeof(query), "SELECT * FROM `players` WHERE `Owner` = '%s' AND `IsWatcher`=0 ORDER BY `Rate` DESC LIMIT %d", owner, MAX_PARTICIPANTS / 2);
 	q_result = mysql_query(sql_handle, query);
 
 	row_count = 0;
@@ -13831,12 +14154,307 @@ stock ShowHierarchy(playerid)
 	if(row_count > 0)
 		cache_get_value_name_int(0, "Money", money);
 
-    cache_delete(q_result);
+  cache_delete(q_result);
 	
 	format(string, sizeof(string), "\n{ffffff}Накопленная сумма комиссий рынка: {00CC00}%s$", FormatMoney(money));
 	strcat(info, string);
 
 	ShowPlayerDialog(playerid, 1, DIALOG_STYLE_TABLIST_HEADERS, "Иерархия", info, "Закрыть", "");
+}
+
+stock ShowCommandoMenu(playerid)
+{
+  new listitems[] = "Сведения об Иерархии\nСтатус голосования\nПодать заявку в Иерархию\nПроголосовать за кандидата";
+  ShowPlayerDialog(playerid, 1600, DIALOG_STYLE_TABLIST, "Командующий", listitems, "Далее", "Закрыть");
+}
+
+stock IsVoteActive()
+{
+  new query[255] = "SELECT * FROM `tournament` LIMIT 1";
+  new Cache:q_result = mysql_query(sql_handle, query);
+
+  new row_count = 0;
+  cache_get_row_count(row_count);
+  if(row_count <= 0)
+  {
+    cache_delete(q_result);
+    return false;
+  }
+
+  new active = 0;
+  cache_get_value_name_int(0, "VoteActive", active);
+
+  cache_delete(q_result);
+
+  if(active > 0)
+    return true;
+
+  return false;
+}
+
+stock GetVotesSum()
+{
+  new query[255] = "SELECT SUM(`Count`) as `sum` FROM `vote`";
+  new Cache:q_result = mysql_query(sql_handle, query);
+
+  new row_count = 0;
+  cache_get_row_count(row_count);
+  if(row_count <= 0)
+  {
+    cache_delete(q_result);
+    return 0;
+  }
+
+  new sum = 0;
+  cache_get_value_name_int(0, "sum", sum);
+
+  cache_delete(q_result);
+  return sum;
+}
+
+stock ShowVoteStatus(playerid)
+{
+  if(!IsVoteActive())
+  {
+    SendClientMessage(playerid, COLOR_GREY, "Сейчас голосование не проводится");
+    ShowCommandoMenu(playerid);
+    return;
+  }
+
+  new query[255] = "SELECT `CandidateName`, SUM(`Count`) as `sum_count` FROM `vote` GROUP BY `CandidateName` ORDER BY `sum_count` DESC";
+  new Cache:q_result = mysql_query(sql_handle, query);
+
+  new row_count = 0;
+  cache_get_row_count(row_count);
+  if(row_count <= 0)
+  {
+    SendClientMessage(playerid, COLOR_GREY, "Не зарегистрировано ни одного кандидата");
+    ShowCommandoMenu(playerid);
+    cache_delete(q_result);
+    return;
+  }
+
+  q_result = cache_save();
+	cache_unset_active();
+
+  new all_votes_count = GetVotesSum();
+
+  new result[4000] = "№ п\\п\tИмя\tРейтинг\tГолосов";
+	new string[455];
+
+	for(new i = 0; i < row_count; i++)
+	{
+		cache_set_active(q_result);
+
+		new name[255];
+		new count = 0;
+
+    cache_get_value_name(i, "CandidateName", name);
+		cache_get_value_name_int(i, "sum_count", count);
+
+		new player[pInfo];
+		player = GetPlayerByName(name);
+
+    format(string, sizeof(string), "\n{%s}%d\t{%s}%s\t{ffffff}%d\t%d%%", 
+			GetPlaceColor(i+1), i+1, GetColorByRate(player[Rate]), name, player[Rate], floatround(floatmul(100, floatdiv(count, all_votes_count)))
+		);
+		strcat(result, string);
+	}
+
+	cache_delete(q_result);
+
+  ShowPlayerDialog(playerid, 1601, DIALOG_STYLE_TABLIST_HEADERS, "Статус голосования", result, "Назад", "Закрыть");
+}
+
+stock IsPlayerInVote(playerid)
+{
+  new query[255];
+  format(query, sizeof(query), "SELECT * FROM `vote` WHERE `CandidateName` = '%s'", PlayerInfo[playerid][Name]);
+  new Cache:q_result = mysql_query(sql_handle, query);
+
+  new row_count = 0;
+  cache_get_row_count(row_count);
+  if(row_count <= 0)
+  {
+    cache_delete(q_result);
+    return false;
+  }
+
+  return true;
+}
+
+stock VoteSignUp(playerid)
+{
+  if(IsVoteActive())
+  {
+    SendClientMessage(playerid, COLOR_GREY, "Сейчас регистрация не проводится");
+    ShowCommandoMenu(playerid);
+    return;
+  }
+
+  if(IsPlayerInVote(playerid))
+  {
+    SendClientMessage(playerid, COLOR_GREY, "Вы уже зарегистрированы");
+    ShowCommandoMenu(playerid);
+    return;
+  }
+
+  new reg_price = 100000;
+
+  if(PlayerInfo[playerid][Cash] < reg_price)
+  {
+    SendClientMessage(playerid, COLOR_GREY, "Недостаточно средств");
+    ShowCommandoMenu(playerid);
+    return;
+  }
+
+  if(!HasItem(playerid, 1071, 1))
+  {
+    SendClientMessage(playerid, COLOR_GREY, "Требуется бюллетень для голосования");
+    ShowCommandoMenu(playerid);
+    return;
+  }
+
+  new bul_slot = FindItem(playerid, 1071);
+  if(bul_slot == -1)
+  {
+    SendClientMessage(playerid, COLOR_LIGHTRED, "Ошибка регистрации.");
+    return;
+  }
+
+  DeleteItem(playerid, bul_slot, 1);
+
+  PlayerInfo[playerid][Cash] -= reg_price;
+  GivePlayerCash(playerid, -reg_price);
+  GivePatriarchMoney(reg_price);
+
+  
+  new votes_count = 1;
+  if(PlayerInfo[playerid][GlobalTopPosition] > 0)
+    votes_count = MAX_PARTICIPANTS - PlayerInfo[playerid][GlobalTopPosition] + 1;
+
+
+  new query[255];
+  format(query, sizeof(query), "INSERT INTO `vote`(`VoteName`, `CandidateName`, `Count`) VALUES ('%s', '%s', %d)", PlayerInfo[playerid][Name], PlayerInfo[playerid][Name], votes_count);
+  new Cache:q_result = mysql_query(sql_handle, query);
+  cache_delete(q_result);
+
+  SendClientMessage(playerid, COLOR_GREEN, "Успешная регистрация");
+}
+
+stock ShowVoteList(playerid)
+{
+  if(!IsVoteActive())
+  {
+    SendClientMessage(playerid, COLOR_GREY, "Сейчас голосование не проводится");
+    ShowCommandoMenu(playerid);
+    return;
+  }
+
+  if(!HasItem(playerid, 1071, 1))
+  {
+    SendClientMessage(playerid, COLOR_GREY, "Нет бюллетеней для голосования");
+    ShowCommandoMenu(playerid);
+    return;
+  }
+
+  new query[255] = "SELECT `CandidateName`, SUM(`Count`) as `sum_count` FROM `vote` GROUP BY `CandidateName` ORDER BY `ID`";
+  new Cache:q_result = mysql_query(sql_handle, query);
+
+  new row_count = 0;
+  cache_get_row_count(row_count);
+  if(row_count <= 0)
+  {
+    SendClientMessage(playerid, COLOR_GREY, "Не зарегистрировано ни одного кандидата");
+    ShowCommandoMenu(playerid);
+    cache_delete(q_result);
+    return;
+  }
+
+  q_result = cache_save();
+	cache_unset_active();
+
+  new all_votes_count = GetVotesSum();
+
+  new result[4000] = "№ п\\п\tИмя\tРейтинг\tГолосов";
+	new string[455];
+
+	for(new i = 0; i < row_count; i++)
+	{
+		cache_set_active(q_result);
+
+		new name[255];
+		new count = 0;
+
+    cache_get_value_name(i, "CandidateName", name);
+		cache_get_value_name_int(i, "sum_count", count);
+
+		new player[pInfo];
+		player = GetPlayerByName(name);
+
+    format(string, sizeof(string), "\n{%s}%d\t{%s}%s\t{ffffff}%d\t%d%%", 
+			GetPlaceColor(i+1), i+1, GetColorByRate(player[Rate]), name, player[Rate], floatround(floatmul(100, floatdiv(count, all_votes_count)))
+		);
+		strcat(result, string);
+	}
+
+	cache_delete(q_result);
+
+  ShowPlayerDialog(playerid, 1602, DIALOG_STYLE_TABLIST_HEADERS, "Голосование", result, "Голосовать", "Назад");
+}
+
+stock TryVoteTo(playerid, listitem)
+{
+  new query[255] = "SELECT `CandidateName`, SUM(`Count`) as `sum_count` FROM `vote` GROUP BY `CandidateName` ORDER BY `ID`";
+  new Cache:q_result = mysql_query(sql_handle, query);
+
+  new row_count = 0;
+  cache_get_row_count(row_count);
+  if(row_count <= 0)
+  {
+    SendClientMessage(playerid, COLOR_GREY, "Не зарегистрировано ни одного кандидата");
+    ShowCommandoMenu(playerid);
+    cache_delete(q_result);
+    return;
+  }
+
+  new name[255];
+  cache_get_value_name(listitem, "CandidateName", name);
+  sscanf(name, "s[255]", CandidateNameBuffer[playerid]);
+
+  cache_delete(q_result);
+
+  new bul_slot = FindItem(playerid, 1071);
+  if(bul_slot == -1)
+  {
+    SendClientMessage(playerid, COLOR_GREY, "Нет бюллетеней для голосования");
+    ShowCommandoMenu(playerid);
+    return;
+  }
+
+  new popup_info[512];
+  format(popup_info, sizeof(popup_info), "Укажите количество голосов\nДоступно голосов: %d", PlayerInventory[playerid][bul_slot][Count]);
+
+  ShowPlayerDialog(playerid, 1603, DIALOG_STYLE_INPUT, "Голосование", popup_info, "Голосовать", "Назад");
+}
+
+stock DoVote(playerid, candidate_name[], count)
+{
+  new bul_slot = FindItem(playerid, 1071);
+  if(bul_slot == -1)
+  {
+    SendClientMessage(playerid, COLOR_LIGHTRED, "Ошибка голосования.");
+    return;
+  }
+
+  DeleteItem(playerid, bul_slot, count);
+
+  new query[255];
+  format(query, sizeof(query), "INSERT INTO `vote`(`VoteName`, `CandidateName`, `Count`) VALUES ('%s', '%s', %d)", PlayerInfo[playerid][Name], candidate_name, count);
+  new Cache:q_result = mysql_query(sql_handle, query);
+  cache_delete(q_result);
+
+  SendClientMessage(playerid, COLOR_GREEN, "Ваши голоса учтены");
 }
 
 stock ShowGlobalRatingTop(playerid)
@@ -16690,6 +17308,7 @@ stock CreatePickups()
 	Create3DTextLabel("Заведующий турнирами",0x3366FFFF,226.7674,-1837.6835,3.6120,55.0,0,1);
 	Create3DTextLabel("Почта",0x3366CCFF,212.3999,-1838.2000,3.0000,55.0,0,0);
 	Create3DTextLabel("Рынок",0xFF9900FF,231.7,-1840.6,4.2,55.0,0,0);
+	Create3DTextLabel("Командующий",0xCC0000FF,229.6244,-1834.8005,3.6818,55.0,0,0);
 
 	Actors[0] =	CreateActor(26,-2166.7527,646.0400,1052.3750,179.9041);
 	Actors[1] =	CreateActor(6,189.2644,-1825.4902,4.1411,185.0134);
@@ -16697,6 +17316,7 @@ stock CreatePickups()
 	Actors[3] =	CreateActor(249,221.0985,-1838.1259,3.6268,177.8066);
 	Actors[4] =	CreateActor(61,226.7674,-1837.6835,3.6120,188.3151);
 	Actors[5] =	CreateActor(1,218.1786,-1835.7053,3.7114,178.7002);
+	Actors[6] =	CreateActor(165,229.6244,-1834.8005,3.6818,179.0444);
 }
 
 stock CreateMap()

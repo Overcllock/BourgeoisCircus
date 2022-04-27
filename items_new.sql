@@ -473,6 +473,11 @@ VALUES (207, 1, "Кольцо мастера", 6, 4, 7, "Бижутерия ве
 INSERT INTO `items`(`ID`, `IsTradeble`, `Name`, `Type`, `Grade`, `MinRank`, `Description`, `Property`, `PropertyVal`, `Price`, `Model`, `ModelRotX`, `ModelRotY`, `ModelRotZ`) 
 VALUES (208, 1, "Амулет мастера", 7, 4, 7, "Бижутерия великих мастеров", "1 2 5", "25 25 20", 5000000, 954, 0, 0, 0);
 
+INSERT INTO `items`(`ID`, `IsTradeble`, `Name`, `Type`, `Grade`, `MinRank`, `Description`, `Property`, `PropertyVal`, `Price`, `Model`, `ModelRotX`, `ModelRotY`, `ModelRotZ`) 
+VALUES (247, 1, "Кольцо горизонта событий", 6, 6, 7, "Никто не знает когда и как это появилось на свет...", "1 5 13", "50 30 1", 27500000, 954, 0, 0, 0);
+INSERT INTO `items`(`ID`, `IsTradeble`, `Name`, `Type`, `Grade`, `MinRank`, `Description`, `Property`, `PropertyVal`, `Price`, `Model`, `ModelRotX`, `ModelRotY`, `ModelRotZ`) 
+VALUES (248, 1, "Амулет горизонта событий", 7, 6, 7, "Никто не знает когда и как это появилось на свет...", "1 2 13", "50 50 1", 27500000, 954, 0, 0, 0);
+
 ///
 
 INSERT INTO `items`(`ID`, `IsTradeble`, `Name`, `Type`, `Grade`, `MinRank`, `Description`, `Property`, `PropertyVal`, `Price`, `Model`, `ModelRotX`, `ModelRotY`, `ModelRotZ`) 
@@ -561,6 +566,80 @@ VALUES (245, 1, "Забытый автомат Древних A", 1, 5, 13, "С�
 INSERT INTO `items`(`ID`, `IsTradeble`, `Name`, `Type`, `Grade`, `MinRank`, `Description`, `Property`, `PropertyVal`, `Price`, `Model`, `ModelRotX`, `ModelRotY`, `ModelRotZ`) 
 VALUES (246, 1, "Забытый автомат Древних S", 1, 5, 14, "Смертоносное оружие, найденное в руинах Древнего народа", "1 4 8", "10 50 1", 0, 351, 0, 0, 0);
 
+INSERT INTO `items`(`ID`, `IsTradeble`, `Name`, `Type`, `Grade`, `MinRank`, `Description`, `Property`, `PropertyVal`, `Price`, `Model`, `ModelRotX`, `ModelRotY`, `ModelRotZ`) 
+VALUES (249, 1, "Огненная винтовка Великого Дракона", 1, 6, 7, "Каждая пуля, выпущенная из этого оружия смертоносна словно пламя дракона", "5 9 13", "35 1 1", 0, 355, 0, 0, -45);
+INSERT INTO `items`(`ID`, `IsTradeble`, `Name`, `Type`, `Grade`, `MinRank`, `Description`, `Property`, `PropertyVal`, `Price`, `Model`, `ModelRotX`, `ModelRotY`, `ModelRotZ`) 
+VALUES (250, 1, "Огненная винтовка Великого Дракона", 1, 6, 8, "Каждая пуля, выпущенная из этого оружия смертоносна словно пламя дракона", "5 9 13", "35 1 1", 0, 355, 0, 0, -45);
+INSERT INTO `items`(`ID`, `IsTradeble`, `Name`, `Type`, `Grade`, `MinRank`, `Description`, `Property`, `PropertyVal`, `Price`, `Model`, `ModelRotX`, `ModelRotY`, `ModelRotZ`) 
+VALUES (251, 1, "Огненная винтовка Великого Дракона", 1, 6, 9, "Каждая пуля, выпущенная из этого оружия смертоносна словно пламя дракона", "5 9 13", "35 1 1", 0, 355, 0, 0, -45);
+INSERT INTO `items`(`ID`, `IsTradeble`, `Name`, `Type`, `Grade`, `MinRank`, `Description`, `Property`, `PropertyVal`, `Price`, `Model`, `ModelRotX`, `ModelRotY`, `ModelRotZ`) 
+VALUES (252, 1, "Огненная винтовка Великого Дракона", 1, 6, 10, "Каждая пуля, выпущенная из этого оружия смертоносна словно пламя дракона", "5 9 13", "35 1 1", 0, 355, 0, 0, -45);
+INSERT INTO `items`(`ID`, `IsTradeble`, `Name`, `Type`, `Grade`, `MinRank`, `Description`, `Property`, `PropertyVal`, `Price`, `Model`, `ModelRotX`, `ModelRotY`, `ModelRotZ`) 
+VALUES (253, 1, "Огненная винтовка Великого Дракона", 1, 6, 11, "Каждая пуля, выпущенная из этого оружия смертоносна словно пламя дракона", "5 9 13", "35 1 1", 0, 355, 0, 0, -45);
+INSERT INTO `items`(`ID`, `IsTradeble`, `Name`, `Type`, `Grade`, `MinRank`, `Description`, `Property`, `PropertyVal`, `Price`, `Model`, `ModelRotX`, `ModelRotY`, `ModelRotZ`) 
+VALUES (254, 1, "Огненная винтовка Великого Дракона", 1, 6, 12, "Каждая пуля, выпущенная из этого оружия смертоносна словно пламя дракона", "5 9 13", "35 1 1", 0, 355, 0, 0, -45);
+INSERT INTO `items`(`ID`, `IsTradeble`, `Name`, `Type`, `Grade`, `MinRank`, `Description`, `Property`, `PropertyVal`, `Price`, `Model`, `ModelRotX`, `ModelRotY`, `ModelRotZ`) 
+VALUES (255, 1, "Огненная винтовка Великого Дракона", 1, 6, 13, "Каждая пуля, выпущенная из этого оружия смертоносна словно пламя дракона", "5 9 13", "35 1 1", 0, 355, 0, 0, -45);
+INSERT INTO `items`(`ID`, `IsTradeble`, `Name`, `Type`, `Grade`, `MinRank`, `Description`, `Property`, `PropertyVal`, `Price`, `Model`, `ModelRotX`, `ModelRotY`, `ModelRotZ`) 
+VALUES (256, 1, "Огненная винтовка Великого Дракона", 1, 6, 14, "Каждая пуля, выпущенная из этого оружия смертоносна словно пламя дракона", "5 9 13", "35 1 1", 0, 355, 0, 0, -45);
+
+INSERT INTO `items`(`ID`, `IsTradeble`, `Name`, `Type`, `Grade`, `MinRank`, `Description`, `Property`, `PropertyVal`, `Price`, `Model`, `ModelRotX`, `ModelRotY`, `ModelRotZ`) 
+VALUES (257, 1, "Гром Максимуса", 1, 6, 6, "Реликтовый артефакт Богов", "1 5 12", "15 30 1", 0, 355, 0, 0, -45);
+INSERT INTO `items`(`ID`, `IsTradeble`, `Name`, `Type`, `Grade`, `MinRank`, `Description`, `Property`, `PropertyVal`, `Price`, `Model`, `ModelRotX`, `ModelRotY`, `ModelRotZ`) 
+VALUES (258, 1, "Разрушитель Шажков", 1, 6, 7, "Реликтовый артефакт Богов", "1 5 12", "15 30 1", 0, 355, 0, 0, -45);
+INSERT INTO `items`(`ID`, `IsTradeble`, `Name`, `Type`, `Grade`, `MinRank`, `Description`, `Property`, `PropertyVal`, `Price`, `Model`, `ModelRotX`, `ModelRotY`, `ModelRotZ`) 
+VALUES (259, 1, "Гроза Чертил", 1, 6, 8, "Реликтовый артефакт Богов", "1 5 12", "15 30 1", 0, 355, 0, 0, -45);
+INSERT INTO `items`(`ID`, `IsTradeble`, `Name`, `Type`, `Grade`, `MinRank`, `Description`, `Property`, `PropertyVal`, `Price`, `Model`, `ModelRotX`, `ModelRotY`, `ModelRotZ`) 
+VALUES (260, 1, "Дар Буржуазии", 1, 6, 9, "Реликтовый артефакт Богов", "1 5 12", "15 30 1", 0, 355, 0, 0, -45);
+INSERT INTO `items`(`ID`, `IsTradeble`, `Name`, `Type`, `Grade`, `MinRank`, `Description`, `Property`, `PropertyVal`, `Price`, `Model`, `ModelRotX`, `ModelRotY`, `ModelRotZ`) 
+VALUES (261, 1, "Убийца жрецов", 1, 6, 10, "Реликтовый артефакт Богов", "1 5 12", "15 30 1", 0, 355, 0, 0, -45);
+INSERT INTO `items`(`ID`, `IsTradeble`, `Name`, `Type`, `Grade`, `MinRank`, `Description`, `Property`, `PropertyVal`, `Price`, `Model`, `ModelRotX`, `ModelRotY`, `ModelRotZ`) 
+VALUES (262, 1, "Великий пророк", 1, 6, 11, "Реликтовый артефакт Богов", "1 5 12", "15 30 1", 0, 355, 0, 0, -45);
+INSERT INTO `items`(`ID`, `IsTradeble`, `Name`, `Type`, `Grade`, `MinRank`, `Description`, `Property`, `PropertyVal`, `Price`, `Model`, `ModelRotX`, `ModelRotY`, `ModelRotZ`) 
+VALUES (263, 1, "Смерть раба", 1, 6, 12, "Реликтовый артефакт Богов", "1 5 12", "15 30 1", 0, 355, 0, 0, -45);
+INSERT INTO `items`(`ID`, `IsTradeble`, `Name`, `Type`, `Grade`, `MinRank`, `Description`, `Property`, `PropertyVal`, `Price`, `Model`, `ModelRotX`, `ModelRotY`, `ModelRotZ`) 
+VALUES (264, 1, "Проклятье зап-лиц", 1, 6, 13, "Реликтовый артефакт Богов", "1 5 12", "15 30 1", 0, 355, 0, 0, -45);
+INSERT INTO `items`(`ID`, `IsTradeble`, `Name`, `Type`, `Grade`, `MinRank`, `Description`, `Property`, `PropertyVal`, `Price`, `Model`, `ModelRotX`, `ModelRotY`, `ModelRotZ`) 
+VALUES (265, 1, "Гнев Богов", 1, 6, 14, "Реликтовый артефакт Богов", "1 5 12", "15 30 1", 0, 355, 0, 0, -45);
+
+INSERT INTO `items`(`ID`, `IsTradeble`, `Name`, `Type`, `Grade`, `MinRank`, `Description`, `Property`, `PropertyVal`, `Price`, `Model`, `ModelRotX`, `ModelRotY`, `ModelRotZ`) 
+VALUES (266, 1, "Благославенный смокинг", 2, 5, 6, "Хороший и уважаемый внешний вид", "5 8 0", "5 1 0", 350000, 147, 0, 0, 0);
+INSERT INTO `items`(`ID`, `IsTradeble`, `Name`, `Type`, `Grade`, `MinRank`, `Description`, `Property`, `PropertyVal`, `Price`, `Model`, `ModelRotX`, `ModelRotY`, `ModelRotZ`) 
+VALUES (267, 1, "Благославенный знак авторитета", 2, 5, 7, "Большинство людей будут проявлять уважение", "5 8 0", "5 1 0", 1100000, 127, 0, 0, 0);
+INSERT INTO `items`(`ID`, `IsTradeble`, `Name`, `Type`, `Grade`, `MinRank`, `Description`, `Property`, `PropertyVal`, `Price`, `Model`, `ModelRotX`, `ModelRotY`, `ModelRotZ`) 
+VALUES (268, 1, "Благославенный черный мафиози", 2, 5, 8, "Опознавательный знак опасных людей. Максимум уважения", "5 8 0", "5 1 0", 2000000, 126, 0, 0, 0);
+INSERT INTO `items`(`ID`, `IsTradeble`, `Name`, `Type`, `Grade`, `MinRank`, `Description`, `Property`, `PropertyVal`, `Price`, `Model`, `ModelRotX`, `ModelRotY`, `ModelRotZ`) 
+VALUES (269, 1, "Благославенный истиный буржуа", 2, 5, 9, "Одеяние самих Буржуев. Показатель власти и могущества, даже сам Шажок Всемогущий не достоин это носить", "5 8 0", "5 1 0", 3350000, 294, 0, 0, 0);
+INSERT INTO `items`(`ID`, `IsTradeble`, `Name`, `Type`, `Grade`, `MinRank`, `Description`, `Property`, `PropertyVal`, `Price`, `Model`, `ModelRotX`, `ModelRotY`, `ModelRotZ`) 
+VALUES (270, 1, "Благославенный капо Вовакио", 2, 5, 10, "Одеяние высокоставленных лиц мафии", "5 8 0", "5 1 0", 4200000, 46, 0, 0, 0);
+INSERT INTO `items`(`ID`, `IsTradeble`, `Name`, `Type`, `Grade`, `MinRank`, `Description`, `Property`, `PropertyVal`, `Price`, `Model`, `ModelRotX`, `ModelRotY`, `ModelRotZ`) 
+VALUES (271, 1, "Благославенный дон Шажковио", 2, 5, 11, "Любимый костюм самого Дона Шажковио", "5 8 0", "5 1 0", 4900000, 111, 0, 0, 0);
+INSERT INTO `items`(`ID`, `IsTradeble`, `Name`, `Type`, `Grade`, `MinRank`, `Description`, `Property`, `PropertyVal`, `Price`, `Model`, `ModelRotX`, `ModelRotY`, `ModelRotZ`) 
+VALUES (272, 1, "Благославенный приспешник Шажка", 2, 5, 12, "Шажок Всемогущий лично вручал такие доспехи своим приспешникам", "5 8 0", "5 1 0", 5700000, 164, 0, 0, 0);
+INSERT INTO `items`(`ID`, `IsTradeble`, `Name`, `Type`, `Grade`, `MinRank`, `Description`, `Property`, `PropertyVal`, `Price`, `Model`, `ModelRotX`, `ModelRotY`, `ModelRotZ`) 
+VALUES (273, 1, "Благославенная накидка зап-лиц", 2, 5, 13, "Крайне мощные доспехи, но стоит один раз надеть и ты - запрещен", "5 8 0", "5 1 0", 6700000, 84, 0, 0, 0);
+INSERT INTO `items`(`ID`, `IsTradeble`, `Name`, `Type`, `Grade`, `MinRank`, `Description`, `Property`, `PropertyVal`, `Price`, `Model`, `ModelRotX`, `ModelRotY`, `ModelRotZ`) 
+VALUES (274, 1, "Благославенная мантия Аданоса", 2, 5, 14, "Священный артефакт Аданоса", "5 8 0", "5 1 0", 8000000, 83, 0, 0, 0);
+
+INSERT INTO `items`(`ID`, `IsTradeble`, `Name`, `Type`, `Grade`, `MinRank`, `Description`, `Property`, `PropertyVal`, `Price`, `Model`, `ModelRotX`, `ModelRotY`, `ModelRotZ`) 
+VALUES (275, 1, "Благославенная ВСДД шляпа", 3, 5, 6, "Действительно создает впечатление делового клоуна", "5 8 0", "5 1 0", 350000, 19095, 0, -45, 0);
+INSERT INTO `items`(`ID`, `IsTradeble`, `Name`, `Type`, `Grade`, `MinRank`, `Description`, `Property`, `PropertyVal`, `Price`, `Model`, `ModelRotX`, `ModelRotY`, `ModelRotZ`) 
+VALUES (276, 1, "Благославенная шляпа авторитета", 3, 5, 7, "Сразу видно - уважаемый человек", "5 8 0", "5 1 0", 1100000, 18951, 0, -45, 0);
+INSERT INTO `items`(`ID`, `IsTradeble`, `Name`, `Type`, `Grade`, `MinRank`, `Description`, `Property`, `PropertyVal`, `Price`, `Model`, `ModelRotX`, `ModelRotY`, `ModelRotZ`) 
+VALUES (277, 1, "Благославенная мафиозная шляпа", 3, 5, 8, "С такими обычно не связываются", "5 8 0", "5 1 0", 2000000, 18962, 0, -45, 0);
+INSERT INTO `items`(`ID`, `IsTradeble`, `Name`, `Type`, `Grade`, `MinRank`, `Description`, `Property`, `PropertyVal`, `Price`, `Model`, `ModelRotX`, `ModelRotY`, `ModelRotZ`) 
+VALUES (278, 1, "Благославенная шляпа буржуа", 3, 5, 9, "Нужно заработать целое состояние, чтобы такое носить", "5 8 0", "5 1 0", 3350000, 18950, 0, -45, 0);
+INSERT INTO `items`(`ID`, `IsTradeble`, `Name`, `Type`, `Grade`, `MinRank`, `Description`, `Property`, `PropertyVal`, `Price`, `Model`, `ModelRotX`, `ModelRotY`, `ModelRotZ`) 
+VALUES (279, 1, "Благославенная белая шляпа Капо", 3, 5, 10, "Шляпа высокоставленных лиц мафии", "5 8 0", "5 1 0", 4200000, 19488, 0, -45, 0);
+INSERT INTO `items`(`ID`, `IsTradeble`, `Name`, `Type`, `Grade`, `MinRank`, `Description`, `Property`, `PropertyVal`, `Price`, `Model`, `ModelRotX`, `ModelRotY`, `ModelRotZ`) 
+VALUES (280, 1, "Благославенный цилиндр Дона", 3, 5, 11, "ВСДДшный цилиндр главы мафии", "5 8 0", "5 1 0", 4900000, 19487, 0, -45, 0);
+INSERT INTO `items`(`ID`, `IsTradeble`, `Name`, `Type`, `Grade`, `MinRank`, `Description`, `Property`, `PropertyVal`, `Price`, `Model`, `ModelRotX`, `ModelRotY`, `ModelRotZ`) 
+VALUES (281, 1, "Благославенная шляпа приспешника Шажка", 3, 5, 12, "Шажок лично разработал эту шляпу для своих приспешников", "5 8 0", "5 1 0", 5700000, 18971, 0, -45, 0);
+INSERT INTO `items`(`ID`, `IsTradeble`, `Name`, `Type`, `Grade`, `MinRank`, `Description`, `Property`, `PropertyVal`, `Price`, `Model`, `ModelRotX`, `ModelRotY`, `ModelRotZ`) 
+VALUES (282, 1, "Благославенная шляпа зап-лиц", 3, 5, 13, "Носить без последствий не получится", "5 8 0", "5 1 0", 6700000, 18972, 0, -45, 0);
+INSERT INTO `items`(`ID`, `IsTradeble`, `Name`, `Type`, `Grade`, `MinRank`, `Description`, `Property`, `PropertyVal`, `Price`, `Model`, `ModelRotX`, `ModelRotY`, `ModelRotZ`) 
+VALUES (283, 1, "Благославенная шляпа Шажкового гнева", 3, 5, 14, "Священный артефакт Аданоса", "5 8 0", "5 1 0", 8000000, 18973, 0, -45, 0);
+
 ///
 
 INSERT INTO `items`(`ID`, `IsTradeble`, `Name`, `Type`, `Grade`, `MinRank`, `Description`, `Property`, `PropertyVal`, `Price`, `Model`, `ModelRotX`, `ModelRotY`, `ModelRotZ`) 
@@ -577,7 +656,7 @@ VALUES (1004, 0, "Генератор неуязвимости", 8, 1, 1, "Неу
 INSERT INTO `items`(`ID`, `IsTradeble`, `Name`, `Type`, `Grade`, `MinRank`, `Description`, `Property`, `PropertyVal`, `Price`, `Model`, `ModelRotX`, `ModelRotY`, `ModelRotZ`) 
 VALUES (1005, 1, "Камень силы", 9, 1, 1, "Основной ресурс для модификации предметов", "0 0 0", "0 0 0", 1000, 3002, 0, 0, 0);
 INSERT INTO `items`(`ID`, `IsTradeble`, `Name`, `Type`, `Grade`, `MinRank`, `Description`, `Property`, `PropertyVal`, `Price`, `Model`, `ModelRotX`, `ModelRotY`, `ModelRotZ`) 
-VALUES (1006, 1, "Печать стража", 9, 3, 1, "Предотвращает потерю предмета", "0 0 0", "0 0 0", 25000, 3385, 90, 0, 0);
+VALUES (1006, 1, "Печать стража", 9, 3, 1, "Предотвращает потерю предмета", "0 0 0", "0 0 0", 17500, 3385, 90, 0, 0);
 INSERT INTO `items`(`ID`, `IsTradeble`, `Name`, `Type`, `Grade`, `MinRank`, `Description`, `Property`, `PropertyVal`, `Price`, `Model`, `ModelRotX`, `ModelRotY`, `ModelRotZ`) 
 VALUES (1007, 1, "Эликсир удачи", 9, 3, 1, "Незначительно увеличивает шанс успеха", "0 0 0", "0 0 0", 50000, 11723, 0, 0, 0);
 INSERT INTO `items`(`ID`, `IsTradeble`, `Name`, `Type`, `Grade`, `MinRank`, `Description`, `Property`, `PropertyVal`, `Price`, `Model`, `ModelRotX`, `ModelRotY`, `ModelRotZ`) 
@@ -613,7 +692,7 @@ VALUES (1022, 1, "Инструкция Шажка", 9, 5, 1, "Очень важ�
 INSERT INTO `items`(`ID`, `IsTradeble`, `Name`, `Type`, `Grade`, `MinRank`, `Description`, `Property`, `PropertyVal`, `Price`, `Model`, `ModelRotX`, `ModelRotY`, `ModelRotZ`) 
 VALUES (1023, 1, "Катализатор", 9, 3, 1, "Компонент для сложных комбинаций предметов", "0 0 0", "0 0 0", 10000, 2752, 0, 0, 0);
 INSERT INTO `items`(`ID`, `IsTradeble`, `Name`, `Type`, `Grade`, `MinRank`, `Description`, `Property`, `PropertyVal`, `Price`, `Model`, `ModelRotX`, `ModelRotY`, `ModelRotZ`) 
-VALUES (1024, 1, "Древняя печать", 9, 5, 1, "Служит для распечатки оружия Древних", "0 0 0", "0 0 0", 500000, 3385, 0, 0, 0);
+VALUES (1024, 1, "Древняя печать", 9, 5, 1, "Служит для распечатки оружия Древних", "0 0 0", "0 0 0", 500000, 3385, 90, 0, 0);
 INSERT INTO `items`(`ID`, `IsTradeble`, `Name`, `Type`, `Grade`, `MinRank`, `Description`, `Property`, `PropertyVal`, `Price`, `Model`, `ModelRotX`, `ModelRotY`, `ModelRotZ`) 
 VALUES (1025, 1, "Запечатанный автомат Древних C", 9, 5, 1, "Внутри таится сила Древних", "0 0 0", "0 0 0", 0, 356, 0, 0, -45);
 INSERT INTO `items`(`ID`, `IsTradeble`, `Name`, `Type`, `Grade`, `MinRank`, `Description`, `Property`, `PropertyVal`, `Price`, `Model`, `ModelRotX`, `ModelRotY`, `ModelRotZ`) 
@@ -700,6 +779,48 @@ VALUES (1064, 1, "Ключ к храму Аданоса", 9, 5, 1, "Ключ с 
 INSERT INTO `items`(`ID`, `IsTradeble`, `Name`, `Type`, `Grade`, `MinRank`, `Description`, `Property`, `PropertyVal`, `Price`, `Model`, `ModelRotX`, `ModelRotY`, `ModelRotZ`) 
 VALUES (1065, 1, "Хлам", 9, 1, 1, "Можно продать торговцу", "0 0 0", "0 0 0", 100, 2866, 0, 0, 0);
 INSERT INTO `items`(`ID`, `IsTradeble`, `Name`, `Type`, `Grade`, `MinRank`, `Description`, `Property`, `PropertyVal`, `Price`, `Model`, `ModelRotX`, `ModelRotY`, `ModelRotZ`) 
-VALUES (1066, 1, "Золотой слиток", 9, 4, 1, "Можно выгодно продать торговцу", "0 0 0", "0 0 0", 500000, 19941, 0, 0, 135);
+VALUES (1066, 1, "Золотой слиток", 9, 4, 1, "Можно выгодно продать торговцу", "0 0 0", "0 0 0", 700000, 19941, 0, 0, 135);
 INSERT INTO `items`(`ID`, `IsTradeble`, `Name`, `Type`, `Grade`, `MinRank`, `Description`, `Property`, `PropertyVal`, `Price`, `Model`, `ModelRotX`, `ModelRotY`, `ModelRotZ`) 
 VALUES (1067, 1, "Могущественный дар силы Шажка", 9, 5, 1, "Гарантированая заточка на любой уровень", "0 0 0", "0 0 0", 0, 1254, 0, 0, 0);
+
+INSERT INTO `items`(`ID`, `IsTradeble`, `Name`, `Type`, `Grade`, `MinRank`, `Description`, `Property`, `PropertyVal`, `Price`, `Model`, `ModelRotX`, `ModelRotY`, `ModelRotZ`) 
+VALUES (1068, 0, "Тайник с ключами", 10, 3, 1, "Возможно именно тебе достанется заветный ключ", "0 0 0", "0 0 0", 35000, 19058, 0, 0, 0);
+INSERT INTO `items`(`ID`, `IsTradeble`, `Name`, `Type`, `Grade`, `MinRank`, `Description`, `Property`, `PropertyVal`, `Price`, `Model`, `ModelRotX`, `ModelRotY`, `ModelRotZ`) 
+VALUES (1069, 0, "Ларец Шажка", 10, 5, 1, "Говорят Шажок в древние времена лично запер этот ларец и с тех пор его никто не открывал", "0 0 0", "0 0 0", 175000, 19058, 0, 0, 0);
+
+INSERT INTO `items`(`ID`, `IsTradeble`, `Name`, `Type`, `Grade`, `MinRank`, `Description`, `Property`, `PropertyVal`, `Price`, `Model`, `ModelRotX`, `ModelRotY`, `ModelRotZ`) 
+VALUES (1070, 1, "Цирковая эссенция", 9, 6, 1, "Важный компонент для усиления предметов", "0 0 0", "0 0 0", 800000, 1598, 0, 0, 0);
+INSERT INTO `items`(`ID`, `IsTradeble`, `Name`, `Type`, `Grade`, `MinRank`, `Description`, `Property`, `PropertyVal`, `Price`, `Model`, `ModelRotX`, `ModelRotY`, `ModelRotZ`) 
+VALUES (1071, 1, "Бюллетень для голосования", 9, 4, 1, "Важный документ для участия в выборах", "0 0 0", "0 0 0", 100000, 2684, 0, 0, 0);
+INSERT INTO `items`(`ID`, `IsTradeble`, `Name`, `Type`, `Grade`, `MinRank`, `Description`, `Property`, `PropertyVal`, `Price`, `Model`, `ModelRotX`, `ModelRotY`, `ModelRotZ`) 
+VALUES (1072, 1, "Кровавый эликсир удачи", 9, 4, 1, "Значительно увеличивает шанс успеха", "0 0 0", "0 0 0", 250000, 11722, 0, 0, 0);
+INSERT INTO `items`(`ID`, `IsTradeble`, `Name`, `Type`, `Grade`, `MinRank`, `Description`, `Property`, `PropertyVal`, `Price`, `Model`, `ModelRotX`, `ModelRotY`, `ModelRotZ`) 
+VALUES (1073, 1, "Реликтовый камень", 9, 6, 1, "В нем пульсирует магическая энергия", "0 0 0", "0 0 0", 750000, 2976, 0, 0, 0);
+INSERT INTO `items`(`ID`, `IsTradeble`, `Name`, `Type`, `Grade`, `MinRank`, `Description`, `Property`, `PropertyVal`, `Price`, `Model`, `ModelRotX`, `ModelRotY`, `ModelRotZ`) 
+VALUES (1074, 1, "Печать Буржуа", 9, 6, 1, "Служит для создания предметов высшего качества", "0 0 0", "0 0 0", 1250000, 3385, 90, 0, 0);
+INSERT INTO `items`(`ID`, `IsTradeble`, `Name`, `Type`, `Grade`, `MinRank`, `Description`, `Property`, `PropertyVal`, `Price`, `Model`, `ModelRotX`, `ModelRotY`, `ModelRotZ`) 
+VALUES (1075, 1, "Драконья сфера", 9, 6, 1, "Частица силы дракона", "0 0 0", "0 0 0", 1800000, 2918, 0, 0, 0);
+
+INSERT INTO `items`(`ID`, `IsTradeble`, `Name`, `Type`, `Grade`, `MinRank`, `Description`, `Property`, `PropertyVal`, `Price`, `Model`, `ModelRotX`, `ModelRotY`, `ModelRotZ`) 
+VALUES (1076, 1, "Запечатанный Гром Максимуса", 9, 6, 1, "Внутри таится сила Богов", "0 0 0", "0 0 0", 0, 351, 0, 0, 0);
+INSERT INTO `items`(`ID`, `IsTradeble`, `Name`, `Type`, `Grade`, `MinRank`, `Description`, `Property`, `PropertyVal`, `Price`, `Model`, `ModelRotX`, `ModelRotY`, `ModelRotZ`) 
+VALUES (1077, 1, "Запечатанный Разрушитель Шажков", 9, 6, 1, "Внутри таится сила Богов", "0 0 0", "0 0 0", 0, 351, 0, 0, 0);
+INSERT INTO `items`(`ID`, `IsTradeble`, `Name`, `Type`, `Grade`, `MinRank`, `Description`, `Property`, `PropertyVal`, `Price`, `Model`, `ModelRotX`, `ModelRotY`, `ModelRotZ`) 
+VALUES (1078, 1, "Запечатанный Гроза Чертил", 9, 6, 1, "Внутри таится сила Богов", "0 0 0", "0 0 0", 0, 351, 0, 0, 0);
+INSERT INTO `items`(`ID`, `IsTradeble`, `Name`, `Type`, `Grade`, `MinRank`, `Description`, `Property`, `PropertyVal`, `Price`, `Model`, `ModelRotX`, `ModelRotY`, `ModelRotZ`) 
+VALUES (1079, 1, "Запечатанный Дар Буржуазии", 9, 6, 1, "Внутри таится сила Богов", "0 0 0", "0 0 0", 0, 351, 0, 0, 0);
+INSERT INTO `items`(`ID`, `IsTradeble`, `Name`, `Type`, `Grade`, `MinRank`, `Description`, `Property`, `PropertyVal`, `Price`, `Model`, `ModelRotX`, `ModelRotY`, `ModelRotZ`) 
+VALUES (1080, 1, "Запечатанный Убийца жрецов", 9, 6, 1, "Внутри таится сила Богов", "0 0 0", "0 0 0", 0, 351, 0, 0, 0);
+INSERT INTO `items`(`ID`, `IsTradeble`, `Name`, `Type`, `Grade`, `MinRank`, `Description`, `Property`, `PropertyVal`, `Price`, `Model`, `ModelRotX`, `ModelRotY`, `ModelRotZ`) 
+VALUES (1081, 1, "Запечатанный Великий пророк", 9, 6, 1, "Внутри таится сила Богов", "0 0 0", "0 0 0", 0, 351, 0, 0, 0);
+INSERT INTO `items`(`ID`, `IsTradeble`, `Name`, `Type`, `Grade`, `MinRank`, `Description`, `Property`, `PropertyVal`, `Price`, `Model`, `ModelRotX`, `ModelRotY`, `ModelRotZ`) 
+VALUES (1082, 1, "Запечатанная Смерть раба", 9, 6, 1, "Внутри таится сила Богов", "0 0 0", "0 0 0", 0, 351, 0, 0, 0);
+INSERT INTO `items`(`ID`, `IsTradeble`, `Name`, `Type`, `Grade`, `MinRank`, `Description`, `Property`, `PropertyVal`, `Price`, `Model`, `ModelRotX`, `ModelRotY`, `ModelRotZ`) 
+VALUES (1083, 1, "Запечатанное Проклятье зап-лиц", 9, 6, 1, "Внутри таится сила Богов", "0 0 0", "0 0 0", 0, 351, 0, 0, 0);
+INSERT INTO `items`(`ID`, `IsTradeble`, `Name`, `Type`, `Grade`, `MinRank`, `Description`, `Property`, `PropertyVal`, `Price`, `Model`, `ModelRotX`, `ModelRotY`, `ModelRotZ`) 
+VALUES (1084, 1, "Запечатанный Гнев Богов", 9, 6, 1, "Внутри таится сила Богов", "0 0 0", "0 0 0", 0, 351, 0, 0, 0);
+
+INSERT INTO `items`(`ID`, `IsTradeble`, `Name`, `Type`, `Grade`, `MinRank`, `Description`, `Property`, `PropertyVal`, `Price`, `Model`, `ModelRotX`, `ModelRotY`, `ModelRotZ`) 
+VALUES (1085, 1, "Тайна горизонта событий", 10, 5, 1, "Быть может именно тебе удастся ее раскрыть?", "0 0 0", "0 0 0", 0, 19055, 0, 0, 0);
+INSERT INTO `items`(`ID`, `IsTradeble`, `Name`, `Type`, `Grade`, `MinRank`, `Description`, `Property`, `PropertyVal`, `Price`, `Model`, `ModelRotX`, `ModelRotY`, `ModelRotZ`) 
+VALUES (1086, 1, "Ключ к горизонту событий", 9, 5, 1, "Ключ с неизведанным землям", "0 0 0", "0 0 0", 0, 19341, 0, 0, 0);
