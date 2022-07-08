@@ -824,3 +824,8 @@ INSERT INTO `items`(`ID`, `IsTradeble`, `Name`, `Type`, `Grade`, `MinRank`, `Des
 VALUES (1085, 1, "Тайна горизонта событий", 10, 5, 1, "Быть может именно тебе удастся ее раскрыть?", "0 0 0", "0 0 0", 0, 19055, 0, 0, 0);
 INSERT INTO `items`(`ID`, `IsTradeble`, `Name`, `Type`, `Grade`, `MinRank`, `Description`, `Property`, `PropertyVal`, `Price`, `Model`, `ModelRotX`, `ModelRotY`, `ModelRotZ`) 
 VALUES (1086, 1, "Ключ к горизонту событий", 9, 5, 1, "Ключ с неизведанным землям", "0 0 0", "0 0 0", 0, 19341, 0, 0, 0);
+
+INSERT INTO `items`(`ID`, `IsTradeble`, `Name`, `Type`, `Grade`, `MinRank`, `Description`, `Property`, `PropertyVal`, `Price`, `Model`, `ModelRotX`, `ModelRotY`, `ModelRotZ`) 
+VALUES (1087, 0, "Зелье боевого опыта", 11, 4, 1, "Мгновенно дает +100 очков рейтинга", "0 0 0", "0 0 0", 0, 1544, 0, 0, 0);
+INSERT INTO `items`(`ID`, `IsTradeble`, `Name`, `Type`, `Grade`, `MinRank`, `Description`, `Property`, `PropertyVal`, `Price`, `Model`, `ModelRotX`, `ModelRotY`, `ModelRotZ`) 
+VALUES (1088, 0, "Награда 100го турнира", 10, 6, 1, "Уже 100 турниров прошло, а ты всё ещё КЛОУН!!!", "0 0 0", "0 0 0", 0, 19055, 0, 0, 0);

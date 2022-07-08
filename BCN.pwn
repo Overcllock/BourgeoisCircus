@@ -1,4 +1,4 @@
-//Bourgeois Circus 6.0
+//Bourgeois Circus 6.02
 
 #include <a_samp>
 #include <a_mail>
@@ -20,7 +20,7 @@
 
 #pragma dynamic 31294
 
-#define VERSION 6.001
+#define VERSION 6.021
 
 //Mysql settings
 #define SQL_HOST "212.22.93.13"
@@ -90,9 +90,9 @@
 #define MAX_ITEM_TYPES 10
 #define MAX_DUNGEON_TYPES 9
 
-#define MAX_LOOT 24
-#define MAX_WALKER_LOOT 6
-#define MAX_DUNGEON_LOOT 18
+#define MAX_LOOT 36
+#define MAX_WALKER_LOOT 10
+#define MAX_DUNGEON_LOOT 30
 
 #define MAX_LOOT_VARIANTS 60
 #define MAX_STAT_VARIANTS 60
@@ -155,6 +155,7 @@
 #define ITEMTYPE_PASSIVE 8
 #define ITEMTYPE_MATERIAL 9
 #define ITEMTYPE_BOX 10
+#define ITEMTYPE_BOOSTER 11
 
 //Item grades
 #define GRADE_N 1
@@ -238,6 +239,7 @@
 #define SPECIAL_AB_EFFECT_NONE 					0
 #define SPECIAL_AB_EFFECT_CONFUSION 		1
 #define SPECIAL_AB_EFFECT_SHAZOK_FORCE 	2
+#define SPECIAL_AB_EFFECT_DODGE 	      3
 
 //Special activites
 #define SPECIAL_ACTIVITY_NONE 			0
@@ -337,6 +339,7 @@ enum tInfo
 enum BossInfo
 {
 	ID,
+  Rank,
 	Grade,
 	Name[255],
 	RespawnTime,
@@ -1555,6 +1558,15 @@ public OnBattleEnd(winner[], finished)
 	return 1;*/
 }
 
+stock SendLogs(message[])
+{
+  new query[255];
+  format(query, sizeof(query), "INSERT INTO `logs`(`Message`) VALUES ('%s')", message);
+
+	new Cache:result = mysql_query(sql_handle, query);
+	cache_delete(result);
+}
+
 stock GetInvSelectedItemsCount(playerid)
 {
   if(!IsInvSelectionModeEnabled(playerid))
@@ -1768,9 +1780,14 @@ public OnPlayerGiveDamage(playerid, damagedid, Float:amount, weaponid, bodypart)
 	}
 
 	new is_invulnearable = GetPVarInt(damagedid, "Invulnearable");
-	new dodge = (PlayerInfo[damagedid][Dodge] - PlayerInfo[playerid][Accuracy]) / 3;
+
+  new damaged_dodge = floatround(floatmul(PlayerInfo[damagedid][Dodge], 1.3));
+  if(SpecialAbilityEffect == SPECIAL_AB_EFFECT_DODGE && GetPlayerTourTeam(damagedid) == SpecialAbilityEffectTeam)
+    damaged_dodge += 150;
+
+	new dodge = (damaged_dodge - PlayerInfo[playerid][Accuracy]) / 2;
 	if(dodge < 0) dodge = 0;
-	if(dodge > 95) dodge = 95;
+	if(dodge > 98) dodge = 98;
 	new bool:dodged = CheckChance(dodge);
 
 	new bool:is_crit = CheckChance(PlayerInfo[playerid][Crit]);
@@ -2379,6 +2396,7 @@ public OnPlayerPickUpPickup(playerid, pickupid)
 						GetColorByRate(PlayerInfo[playerid][Rate]), PlayerInfo[playerid][Name], GetGradeColor(item[Grade]), item[Name]
 					);
 					SendClientMessageToAll(0xFFFFFFFF, string);
+          SendLogs(string);
 				}
 			}
 			else
@@ -2419,6 +2437,7 @@ public OnPlayerPickUpPickup(playerid, pickupid)
 							GetColorByRate(PlayerInfo[playerid][Rate]), PlayerInfo[playerid][Name], GetGradeColor(item[Grade]), item[Name]
 						);
 						SendClientMessageToAll(0xFFFFFFFF, string);
+            SendLogs(string);
 					}
 				}
 				else
@@ -2468,6 +2487,7 @@ public OnPlayerPickUpPickup(playerid, pickupid)
 						GetColorByRate(PlayerInfo[playerid][Rate]), PlayerInfo[playerid][Name], GetGradeColor(item[Grade]), item[Name]
 					);
 					SendClientMessageToAll(0xFFFFFFFF, string);
+          SendLogs(string);
 				}
 			}
 			else
@@ -2687,7 +2707,7 @@ public OnPlayerKeyStateChange(playerid, newkeys, oldkeys)
 				ShowPlayerDialog(playerid, 1, DIALOG_STYLE_MSGBOX, "Боссы", "Сражение уже идет.", "Закрыть", "");
 				return 1;
 			}
-			new listitems[1024];
+			new listitems[2048];
 			listitems = GetBossesList();
 			ShowPlayerDialog(playerid, 800, DIALOG_STYLE_TABLIST_HEADERS, "Боссы", listitems, "Атака", "Закрыть");
 		}
@@ -3473,6 +3493,12 @@ public OnDialogResponse(playerid, dialogid, response, listitem, inputtext[])
 				if(IsBossAttacker[playerid])
 					return 0;
 
+        if(boss[Rank] > PlayerInfo[playerid][Rank])
+        {
+          SendClientMessage(playerid, COLOR_LIGHTRED, "Вы не достигли требуемого ранга для атаки этого босса.");
+          return 0;
+        }
+
 				BossAttackersCount++;
 				IsBossAttacker[playerid] = true;
 				AttackedBoss = bossid;
@@ -3503,6 +3529,12 @@ public OnDialogResponse(playerid, dialogid, response, listitem, inputtext[])
 			new boss[BossInfo];
 			boss = GetBoss(bossid);
 
+      if(boss[Rank] > PlayerInfo[playerid][Rank])
+      {
+        SendClientMessage(playerid, COLOR_LIGHTRED, "Вы не достигли требуемого ранга для атаки этого босса.");
+        return 0;
+      }
+
 			if(response)
 			{
 				PrepareBossAttackTimer = SetTimer("CancelBossAttack", 120000, false);
@@ -3527,7 +3559,7 @@ public OnDialogResponse(playerid, dialogid, response, listitem, inputtext[])
 			if(response)
 				CancelBossAttack();
 
-			new listitems[1024];
+			new listitems[2048];
 			listitems = GetBossesList();
 			ShowPlayerDialog(playerid, 800, DIALOG_STYLE_TABLIST_HEADERS, "Боссы", listitems, "Атака", "Закрыть");
 		}
@@ -4670,6 +4702,13 @@ public OnPlayerClickPlayerTextDraw(playerid, PlayerText:playertextid)
 
       ShowPlayerDialog(playerid, 1500, DIALOG_STYLE_LIST, "Инвентарь", "Открыть один\nОткрыть все", "Выбрать", "Закрыть");
 		}
+    if(IsBooster(itemid))
+    {
+      if(!TryUseBooster(playerid, itemid))
+        ShowPlayerDialog(playerid, 1, DIALOG_STYLE_MSGBOX, "Ошибка", "Применение допинга неудачно.", "Закрыть", "");
+
+      return 1;
+    }
 	}
 	else if(playertextid == ChrInfButSort[playerid])
 	{
@@ -4942,7 +4981,7 @@ stock TryUseParadoxProp(playerid)
 	if(prop <= 0)
 		return;
 	
-	if(!CheckChance(1 + prop))
+	if(!CheckChance(3 + prop))
 		return;
 	
 	for(new i = 0; i < MAX_PLAYERS; i++)
@@ -4950,11 +4989,11 @@ stock TryUseParadoxProp(playerid)
     if(!IsPlayerConnected(i) || i == playerid)
       continue;
     
-    if(GetDistanceBetweenPlayers(playerid, i) > 5)
+    if(GetDistanceBetweenPlayers(playerid, i) > 10)
       continue;
 
-    SetPlayerChatBubble(i, "Оглушение", 0x0033FFFF, 80.0, 1200);
-    SetPlayerStun(i, 3 + prop);
+    for(new count = 0; count < 2 + prop; count++)
+      OnPlayerGiveDamage(playerid, i, 0, 31, 0);
   }
 }
 
@@ -5007,7 +5046,7 @@ stock TryUseSpecialAbility(playerid, chance)
 			SpecialAbilityEffectTeam = team;
 			ResetAllTeamTargets(team);
 
-			SetPVarInt(playerid, "SpecialAbilityCooldown", 45);
+			SetPVarInt(playerid, "SpecialAbilityCooldown", 50);
 
 			new string[255];
 			format(string, sizeof(string), "{cc0000}[Патриарх] {ffffff}%s использует {cc0000}<Растерянность>", PlayerInfo[playerid][Name]);
@@ -5018,7 +5057,7 @@ stock TryUseSpecialAbility(playerid, chance)
 			//ядерная бомба
 			new team = GetPlayerTourTeam(playerid);
 			ExplodeNuclearBomb(team);
-			SetPVarInt(playerid, "SpecialAbilityCooldown", 60);
+			SetPVarInt(playerid, "SpecialAbilityCooldown", 65);
 
 			new string[255];
 			format(string, sizeof(string), "{674ea7}[Архонт] {ffffff}%s использует {674ea7}<Ядерная ракета>", PlayerInfo[playerid][Name]);
@@ -5034,7 +5073,7 @@ stock TryUseSpecialAbility(playerid, chance)
 			SpecialAbilityEffectTime = 7;
 			SpecialAbilityEffectTeam = team;
 
-			SetPVarInt(playerid, "SpecialAbilityCooldown", 45);
+			SetPVarInt(playerid, "SpecialAbilityCooldown", 35);
 
 			new string[255];
 			format(string, sizeof(string), "{0000ff}[Атакующий] {ffffff}%s использует {0000ff}<Сила великого Шажка>", PlayerInfo[playerid][Name]);
@@ -5045,7 +5084,7 @@ stock TryUseSpecialAbility(playerid, chance)
 			//доспехи Бога
 			new team = GetPlayerTourTeam(playerid);
 			SetAllTeamInvulnearable(team, 5);
-			SetPVarInt(playerid, "SpecialAbilityCooldown", 45);
+			SetPVarInt(playerid, "SpecialAbilityCooldown", 40);
 
 			new string[255];
 			format(string, sizeof(string), "{e69138}[Защитник] {ffffff}%s использует {e69138}<Доспехи Бога>", PlayerInfo[playerid][Name]);
@@ -5055,8 +5094,15 @@ stock TryUseSpecialAbility(playerid, chance)
 		{
 			//целитель
 			new team = GetPlayerTourTeam(playerid);
+
 			HealAllTeam(team);
-			SetPVarInt(playerid, "SpecialAbilityCooldown", 35);
+
+      IsSpecialAbilityUsed = true;
+			SpecialAbilityEffect = SPECIAL_AB_EFFECT_DODGE;
+			SpecialAbilityEffectTime = 7;
+			SpecialAbilityEffectTeam = team;
+
+			SetPVarInt(playerid, "SpecialAbilityCooldown", 45);
 
 			new string[255];
 			format(string, sizeof(string), "{c27ba0}[Поддержка] {ffffff}%s использует {c27ba0}<Целитель>", PlayerInfo[playerid][Name]);
@@ -5110,13 +5156,6 @@ public TickSecond(playerid)
 	if(!IsTourStarted)
 		RegeneratePlayerHP(playerid);
 
-	TryUseHealProp(playerid);
-	TryUseInvulProp(playerid);
-	TryUseRegenProp(playerid);
-
-	if(FCNPC_IsValid(playerid) && !FCNPC_IsDead(playerid))
-		TryUseSpecialAbility(playerid, 15);
-
 	new inv_time = GetPVarInt(playerid, "Invulnearable");
 	if(inv_time > 0)
 	{
@@ -5161,6 +5200,14 @@ public TickSecond(playerid)
 		sp_cooldown--;
 		SetPVarInt(playerid, "SpecialAbilityCooldown", sp_cooldown);
 	}
+
+  TryUseHealProp(playerid);
+	TryUseInvulProp(playerid);
+	TryUseRegenProp(playerid);
+  TryUseParadoxProp(playerid);
+
+	if(FCNPC_IsValid(playerid) && !FCNPC_IsDead(playerid))
+		TryUseSpecialAbility(playerid, 15);
 }
 
 public TickSecondGlobal()
@@ -6465,49 +6512,49 @@ stock GiveTournamentRewards()
 			{
 				reward[ItemID] = 1036;
 				reward[ItemsCount] = 20;
-				money = 14000;
+				money = 1400;
 			}
 			case 2:
 			{
 				reward[ItemID] = 1036;
 				reward[ItemsCount] = 17;
-				money = 13000;
+				money = 1300;
 			}
 			case 3:
 			{
 				reward[ItemID] = 1036;
 				reward[ItemsCount] = 15;
-				money = 12000;
+				money = 1200;
 			}
 			case 4..5:
 			{
 				reward[ItemID] = 1036;
 				reward[ItemsCount] = 12;
-				money = 10500;
+				money = 1050;
 			}
 			case 6..8:
 			{
 				reward[ItemID] = 1035;
 				reward[ItemsCount] = 20;
-				money = 9000;
+				money = 900;
 			}
 			case 9..12:
 			{
 				reward[ItemID] = 1035;
 				reward[ItemsCount] = 16;
-				money = 8000;
+				money = 800;
 			}
 			case 13..16:
 			{
 				reward[ItemID] = 1035;
 				reward[ItemsCount] = 12;
-				money = 7000;
+				money = 700;
 			}
 			default:
 			{
 				reward[ItemID] = 1035;
 				reward[ItemsCount] = 8;
-				money = 5000;
+				money = 500;
 			}
 		}
 
@@ -6970,8 +7017,9 @@ stock RegisterMarketItem(playerid, category)
   }
 
   new item_str[255];
-  format(item_str, sizeof(item_str), "[Рынок]: Зарегистрирован новый предмет: %s", buf);
+  format(item_str, sizeof(item_str), "{ffcc66}[Рынок]: Зарегистрирован новый предмет: %s", buf);
 	SendClientMessageToAll(0xFFCC66FF, item_str);
+  SendLogs(item_str);
 
 	MarketSellingItem[playerid] = EmptyMarketSellingItem;
 	UpdateMarketSellWindow(playerid);
@@ -7354,14 +7402,14 @@ stock GetTourReward(tour, place, name[])
 	new rank = GetPlayerRankOffline(name);
 	switch(place)
 	{
-		case 1: money = 1900;
-		case 2: money = 1740; 
-		case 3: money = 1580;
-		case 4..5: money = 1080;
-		case 6..8: money = 840;
-		case 9..12: money = 560;
-		case 13..16: money = 480;
-		case 17..20: money = 340;
+		case 1: money = 190;
+		case 2: money = 174; 
+		case 3: money = 158;
+		case 4..5: money = 108;
+		case 6..8: money = 84;
+		case 9..12: money = 56;
+		case 13..16: money = 48;
+		case 17..20: money = 34;
 	}
 
 	money = money * floatround(floatpower(rank + tour, 2));
@@ -8656,7 +8704,7 @@ stock GetAvailableDungeonsList(playerid)
 	new query[255];
 	new Cache:q_result;
 	new itemid = 0;
-	new string[64];
+	new string[255];
 
 	for(new i = 0; i < MAX_DUNGEONS; i++)
 		AvailableDungeons[playerid][i] = -1;
@@ -8691,11 +8739,14 @@ stock GetAvailableDungeonsList(playerid)
 		AvailableDungeons[playerid][itemid] = dungeon_id;
 		itemid++;
 
-		format(string, sizeof(string), "\n{%s}Территория войны [%d]\t{ffffff}%d", GetGradeColor(dungeon_type), dungeon_rank, keys_count);
+    new item[BaseItem];
+    item = GetItem(cur_id);
+
+		format(string, sizeof(string), "\n{%s}%s\t{%s}%s\t{ffffff}%d", GetGradeColor(dungeon_type), item[Name], GetColorByRank(dungeon_rank), GetRankInterval(dungeon_rank), keys_count);
 		strcat(listitems, string);
 	}
 	
-	new header[32] = "Имя\tКлючей";
+	new header[64] = "Имя\tМин. ранг\tКлючей";
 	if(itemid > 0) strins(listitems, header, 0);
 
 	return listitems;
@@ -8708,6 +8759,12 @@ stock EnterToDungeon(playerid, dungeonid)
 
 	new slotid = FindItem(playerid, dungeon[KeyID]);
 	if(slotid == -1) return;
+
+  if(dungeon[Rank] > PlayerInfo[playerid][Rank])
+  {
+    SendClientMessage(playerid, COLOR_LIGHTRED, "Вы не достигли требуемого ранга для этой территории войны.");
+    return;
+  }
 
 	DeleteItem(playerid, slotid, 1);
 	SetPVarInt(playerid, "ActiveDungeon", dungeonid);
@@ -8918,6 +8975,7 @@ stock ClaimDungeonReward(playerid, dungeonid)
 				GetColorByRate(PlayerInfo[playerid][Rate]), PlayerInfo[playerid][Name], GetGradeColor(item[Grade]), item[Name]
 			);
 			SendClientMessageToAll(0xFFFFFFFF, string);
+      SendLogs(string);
 		}
 	}
 	else
@@ -8980,7 +9038,7 @@ public bool:IsPlayerInDungeon(playerid)
 
 stock GetBossesList()
 {
-	new listitems[1024] = "Босс\tСостояние";
+	new listitems[2048] = "Босс\tМин. ранг\tСостояние";
 	new query[255] = "SELECT * FROM `bosses` ORDER BY `ID`";
 	new Cache:q_result = mysql_query(sql_handle, query);
 
@@ -9001,22 +9059,24 @@ stock GetBossesList()
 	{
 		new bossid = -1;
 		new resp_time = -1;
+    new rank = 1;
 		cache_set_active(q_result);
 		cache_get_value_name_int(i, "ID", bossid);
 		cache_get_value_name_int(i, "RespawnTime", resp_time);
+    cache_get_value_name_int(i, "Rank", rank);
 		cache_unset_active();
 
 		if(bossid == -1 || resp_time == -1) continue;
 		new boss[BossInfo];
 		boss = GetBoss(bossid);
 		if(bossid == AttackedBoss && IsBossHelpRequred)
-			format(bossinfo, sizeof(bossinfo), "\n{%s}%s\t{FFCC00}Идет сбор", GetGradeColor(boss[Grade]), boss[Name]);
+			format(bossinfo, sizeof(bossinfo), "\n{%s}%s\t{%s}%s\t{FFCC00}Идет сбор", GetGradeColor(boss[Grade]), boss[Name], GetColorByRank(rank), GetRankInterval(rank));
 		else if(bossid == AttackedBoss && !IsBossHelpRequred)
-			format(bossinfo, sizeof(bossinfo), "\n{%s}%s\t{FFCC00}Идет атака", GetGradeColor(boss[Grade]), boss[Name]);
+			format(bossinfo, sizeof(bossinfo), "\n{%s}%s\t{%s}%s\t{FFCC00}Идет атака", GetGradeColor(boss[Grade]), boss[Name], GetColorByRank(rank), GetRankInterval(rank));
 		else if(resp_time == 0)
-			format(bossinfo, sizeof(bossinfo), "\n{%s}%s\t{66CC00}Можно атаковать", GetGradeColor(boss[Grade]), boss[Name]);
+			format(bossinfo, sizeof(bossinfo), "\n{%s}%s\t{%s}%s\t{66CC00}Можно атаковать", GetGradeColor(boss[Grade]), boss[Name], GetColorByRank(rank), GetRankInterval(rank));
 		else
-			format(bossinfo, sizeof(bossinfo), "\n{%s}%s\t{CC3333}Ждать минут: %d", GetGradeColor(boss[Grade]), boss[Name], resp_time);
+			format(bossinfo, sizeof(bossinfo), "\n{%s}%s\t{%s}%s\t{CC3333}Ждать минут: %d", GetGradeColor(boss[Grade]), boss[Name], GetColorByRank(rank), GetRankInterval(rank), resp_time);
 		strcat(listitems, bossinfo);
 	}
 
@@ -9422,6 +9482,10 @@ stock RollBossLoot()
 	new loot_mult = 2;
 
 	new iterations = random(MAX_LOOT / loot_mult) + MAX_LOOT / loot_mult + 1;
+
+  if(BossAttackersCount == 1)
+    iterations = floatround(floatmul(iterations, 0.7));
+
 	for(new i = 0; i < iterations; i++)
 	{
 		new loot[LootInfo];
@@ -9598,15 +9662,15 @@ stock UpdatePlayerSkin(playerid)
 		case 40..42: PlayerInfo[playerid][Skin] = PlayerInfo[playerid][Sex] == 0 ? 167 : 205;
 		case 43..45: PlayerInfo[playerid][Skin] = PlayerInfo[playerid][Sex] == 0 ? 70 : 219;
 		case 46..48: PlayerInfo[playerid][Skin] = PlayerInfo[playerid][Sex] == 0 ? 310 : 309;
-		case 49..52: PlayerInfo[playerid][Skin] = PlayerInfo[playerid][Sex] == 0 ? 147 : 141;
-		case 53..56: PlayerInfo[playerid][Skin] = PlayerInfo[playerid][Sex] == 0 ? 127 : 150;
-		case 57..60: PlayerInfo[playerid][Skin] = PlayerInfo[playerid][Sex] == 0 ? 126 : 93;
-		case 61..64: PlayerInfo[playerid][Skin] = PlayerInfo[playerid][Sex] == 0 ? 294 : 214;
-		case 65: PlayerInfo[playerid][Skin] = PlayerInfo[playerid][Sex] == 0 ? 46 : 224;
-		case 66: PlayerInfo[playerid][Skin] = PlayerInfo[playerid][Sex] == 0 ? 111 : 298;
-		case 67: PlayerInfo[playerid][Skin] = PlayerInfo[playerid][Sex] == 0 ? 164 : 169;
-		case 68: PlayerInfo[playerid][Skin] = PlayerInfo[playerid][Sex] == 0 ? 84 : 12;
-		case 69: PlayerInfo[playerid][Skin] = PlayerInfo[playerid][Sex] == 0 ? 83 : 216;
+		case 49..52,266: PlayerInfo[playerid][Skin] = PlayerInfo[playerid][Sex] == 0 ? 147 : 141;
+		case 53..56,267: PlayerInfo[playerid][Skin] = PlayerInfo[playerid][Sex] == 0 ? 127 : 150;
+		case 57..60,268: PlayerInfo[playerid][Skin] = PlayerInfo[playerid][Sex] == 0 ? 126 : 93;
+		case 61..64,269: PlayerInfo[playerid][Skin] = PlayerInfo[playerid][Sex] == 0 ? 294 : 214;
+		case 65,270: PlayerInfo[playerid][Skin] = PlayerInfo[playerid][Sex] == 0 ? 46 : 224;
+		case 66,271: PlayerInfo[playerid][Skin] = PlayerInfo[playerid][Sex] == 0 ? 111 : 298;
+		case 67,272: PlayerInfo[playerid][Skin] = PlayerInfo[playerid][Sex] == 0 ? 164 : 169;
+		case 68,273: PlayerInfo[playerid][Skin] = PlayerInfo[playerid][Sex] == 0 ? 84 : 12;
+		case 69,274: PlayerInfo[playerid][Skin] = PlayerInfo[playerid][Sex] == 0 ? 83 : 216;
 		default: PlayerInfo[playerid][Skin] = PlayerInfo[playerid][Sex] == 0 ? DEFAULT_SKIN_MALE : DEFAULT_SKIN_FEMALE;
 	}
 
@@ -11076,6 +11140,7 @@ stock GetBoss(id)
 	cache_get_value_name_int(0, "Accuracy", boss[Accuracy]);
 	cache_get_value_name_int(0, "Dodge", boss[Dodge]);
 	cache_get_value_name_int(0, "HP", boss[HP]);
+  cache_get_value_name_int(0, "Rank", boss[Rank]);
 
 	cache_delete(q_result);
 	return boss;
@@ -11233,6 +11298,36 @@ stock IsLockbox(item_id)
 	return item[Type] == ITEMTYPE_BOX;
 }
 
+stock IsBooster(item_id)
+{
+  if(item_id == -1)
+		return false;
+	
+	new item[BaseItem];
+	item = GetItem(item_id);
+	return item[Type] == ITEMTYPE_BOOSTER;
+}
+
+stock TryUseBooster(playerid, itemid)
+{
+  switch(itemid)
+  {
+    case 1087: 
+    {
+      new slot = FindItem(playerid, itemid);
+      if (slot == -1)
+        return false;
+
+      DeleteItem(playerid, slot);
+      GivePlayerRate(playerid, 100);
+
+      return true;
+    }
+  }
+
+  return false;
+}
+
 stock IsPlayerParticipant(playerid)
 {
 	return IsParticipant[playerid];
@@ -11365,6 +11460,7 @@ stock ResolveItemType(type)
 		case ITEMTYPE_RING: string = "Кольцо";
 		case ITEMTYPE_BOX: string = "Коробка";
 		case ITEMTYPE_PASSIVE: string = "Пассивный предмет";
+    case ITEMTYPE_BOOSTER: string = "Расходный предмет";
 		default: string = "Материал";
 	}
 	return string;
@@ -12452,6 +12548,7 @@ stock UpStage(playerid)
         GetColorByRate(PlayerInfo[playerid][Rate]), PlayerInfo[playerid][Name], GetGradeColor(item[Grade]), current_stage + 1, PlayerInventory[playerid][CmbItemInvSlot[playerid][0]][Mod], item[Name]
       );
       SendClientMessageToAll(0xFFFFFFFF, string);
+      SendLogs(string);
     }
 	}
 	else
@@ -12559,6 +12656,7 @@ stock CombineItems(playerid)
 					GetColorByRate(PlayerInfo[playerid][Rate]), PlayerInfo[playerid][Name], GetGradeColor(eq_item[Grade]), eq_item[Name]
 				);
 				SendClientMessageToAll(0xFFFFFFFF, string);
+        SendLogs(string);
 			}
 		}
 		else
@@ -12665,6 +12763,7 @@ stock UpgradeItem(playerid, itemslot, potionid = -1, bool:is_safe = false)
 				GetColorByRate(PlayerInfo[playerid][Rate]), name, GetGradeColor(item[Grade]), PlayerInventory[playerid][itemslot][Stage], level, item[Name]
 			);
 			SendClientMessageToAll(COLOR_LIGHTRED, cng_string);
+      SendLogs(cng_string);
 		}
 		SetPVarInt(playerid, "ModMsgSuccess", 1);
 		UpdatePlayerEffects(playerid);
@@ -14299,7 +14398,7 @@ stock VoteSignUp(playerid)
     return;
   }
 
-  new reg_price = 100000;
+  new reg_price = 10000;
 
   if(PlayerInfo[playerid][Cash] < reg_price)
   {
