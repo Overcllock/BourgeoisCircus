@@ -294,6 +294,7 @@ forward TickHour();
 forward OnSpecialActivityStart(activityid);
 forward OnSpecialActivityEnd(win);
 forward bool:IsPlayerInDungeon(playerid);
+forward GivePlayerCustomDamage(playerid, damagedid, death_allowed);
 
 /* Variables */
 
@@ -1875,6 +1876,135 @@ public OnPlayerGiveDamage(playerid, damagedid, Float:amount, weaponid, bodypart)
 	return 1;
 }
 
+public GivePlayerCustomDamage(playerid, damagedid, death_allowed)
+{
+  if(GetPlayerHP(damagedid) < 5 && death_allowed == 0)
+  {
+    return 0;
+  }
+
+  if(GetPlayerHPPercent(damagedid) <= 5 && death_allowed == 0)
+  {
+    return 0;
+  }
+
+  if(!IsBoss[damagedid] && !IsWalker[damagedid] && !IsDungeonBoss[damagedid] && !IsDungeonMob[damagedid] && 
+		GetPlayerTourTeam(damagedid) != NO_TEAM && GetPlayerTourTeam(playerid) == GetPlayerTourTeam(damagedid))
+	{
+		return 0;
+	}
+
+	if(IsBossAttacker[playerid] && IsBossAttacker[damagedid])
+	{
+		return 0;
+	}
+
+	if(IsWalker[playerid] && IsWalker[damagedid])
+	{
+		return 0;
+	}
+
+	if(IsDungeonMob[playerid] && (IsDungeonMob[damagedid] || IsDungeonBoss[damagedid]))
+	{
+		return 0;
+	}
+
+	if(IsDungeonBoss[playerid] && (IsDungeonMob[damagedid] || IsDungeonBoss[damagedid]))
+	{
+		return 0;
+	}
+
+	new is_invulnearable = GetPVarInt(damagedid, "Invulnearable");
+
+  new damaged_dodge = floatround(floatmul(PlayerInfo[damagedid][Dodge], 1.3));
+  if(SpecialAbilityEffect == SPECIAL_AB_EFFECT_DODGE && GetPlayerTourTeam(damagedid) == SpecialAbilityEffectTeam)
+    damaged_dodge += 150;
+
+	new dodge = (damaged_dodge - PlayerInfo[playerid][Accuracy]) / 2;
+	if(dodge < 0) dodge = 0;
+	if(dodge > 98) dodge = 98;
+	new bool:dodged = CheckChance(dodge);
+
+	new bool:is_crit = CheckChance(PlayerInfo[playerid][Crit]);
+	if(IsTourStarted && SpecialAbilityEffect == SPECIAL_AB_EFFECT_SHAZOK_FORCE && GetPlayerTourTeam(playerid) == SpecialAbilityEffectTeam)
+		is_crit = true;
+
+	new damage;
+	if(dodged || is_invulnearable > 0)
+		damage = 0;
+	else
+		damage = PlayerInfo[playerid][DamageMin] + random(PlayerInfo[playerid][DamageMax]-PlayerInfo[playerid][DamageMin]+1);
+
+  if(is_crit)
+  {
+    new Float:mult;
+		mult = floatsub(floatdiv(PlayerInfo[playerid][CritMult], 100), floatdiv(PlayerInfo[damagedid][CritMultReduction], 100));
+		if(mult <= 0)
+			mult = 0.01;
+
+		damage = floatround(floatmul(floatmul(damage, mult), floatsub(1.0, floatdiv(PlayerInfo[damagedid][CritReduction], 100))));
+		if(damage <= 0)
+			damage = 1;
+  }
+	
+	new Float:defense_mul = GetDefenseMul(PlayerInfo[damagedid][Defense]);
+	damage = floatround(floatmul(damage, defense_mul));
+
+	if(IsTourStarted && SpecialAbilityEffect == SPECIAL_AB_EFFECT_SHAZOK_FORCE && GetPlayerTourTeam(playerid) == SpecialAbilityEffectTeam)
+		damage = damage * 2;
+
+	new real_damage;
+	if(floatsub(GetPlayerHP(damagedid), damage) < 0)
+	{
+		real_damage = floatround(GetPlayerHP(damagedid)) + 1;
+		if(real_damage < 0)
+			real_damage = 0;
+
+    if(death_allowed == 0)
+      real_damage = floatround(floatmul(real_damage, 0.95));
+	}
+	else
+		real_damage = damage;
+
+	if(IsTourStarted)
+	{
+		new damagerid = GetPvpIndex(playerid);
+		if(damagerid != -1 && damagerid < MAX_PARTICIPANTS)
+			DmgInfo[damagedid][damagerid] += real_damage;
+	}
+
+	if(IsWalker[damagedid])
+	{
+		new d_idx = GetWalkerIdx(damagedid);
+		if(d_idx != -1)
+			WalkersDamagers[d_idx][playerid] += real_damage;
+	}
+
+	if(dodged)
+		SetPlayerChatBubble(damagedid, "Уклонение", 0x66CCCCFF, 80.0, 1200);
+	else if(is_invulnearable > 0)
+		SetPlayerChatBubble(damagedid, "Неуязвимость", 0x9933FFFF, 80.0, 1200);
+	else
+	{
+		new dmginf[32];
+		format(dmginf, sizeof(dmginf), "%d", real_damage);
+		SetPlayerChatBubble(damagedid, dmginf, is_crit ? 0xFFCC00FF : 0xFFFFFFFF, 80.0, 1200);
+	}
+
+	new Float:new_hp;
+	new_hp = GetPVarFloat(damagedid, "HP");
+	new_hp = floatsub(new_hp, real_damage);
+
+  if(death_allowed == 0 && new_hp < 2)
+    new_hp = 2;
+
+	SetPVarFloat(damagedid, "HP", new_hp);
+	if(IsNuclearBombExplodes || IsTeamHealing)
+		SetPlayerHP(damagedid, new_hp);
+
+	return 1;
+}
+
 public OnPlayerDisconnect(playerid, reason)
 {
 	HideHUD(playerid);
@@ -2162,6 +2292,10 @@ public OnPlayerDeath(playerid, killerid, reason)
 						SendClientMessage(killerid, COLOR_LIGHTRED, "Достигнут лимит прохожих.");
 				}
 			}
+      else
+      {
+        RollWalkerLoot(playerid, -1);
+      }
 
 			return 1;
 		}
@@ -4993,7 +5127,12 @@ stock TryUseParadoxProp(playerid)
       continue;
 
     for(new count = 0; count < 2 + prop; count++)
-      OnPlayerGiveDamage(playerid, i, 0, 31, 0);
+    {
+      if(GetPlayerHPPercent(i) <= 5)
+        break;
+
+      GivePlayerCustomDamage(playerid, i, 0);
+    }
   }
 }
 
@@ -9455,8 +9594,6 @@ stock RollDungeonLoot(npcid, playerid)
 
 stock RollWalkerLoot(walkerid, killerid)
 {
-	if(killerid == -1 || killerid == INVALID_PLAYER_ID) return;
-
 	new loot_mult = 2;
 
 	new iterations = random(MAX_WALKER_LOOT / loot_mult) + MAX_WALKER_LOOT / loot_mult + 1;
