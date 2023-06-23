@@ -1,4 +1,4 @@
-//Bourgeois Circus 6.02
+//Bourgeois Circus 7.0
 
 #include <a_samp>
 #include <a_mail>
@@ -20,13 +20,13 @@
 
 #pragma dynamic 31294
 
-#define VERSION 6.021
+#define VERSION 7.001
 
 //Mysql settings
-#define SQL_HOST "212.22.93.13"
-#define SQL_USER "nilzjciu"
-#define SQL_DB "nilzjciu_33518"
-#define SQL_PASS "21510055"
+#define SQL_HOST "127.0.0.1"
+#define SQL_USER "gs213189"
+#define SQL_DB "gs213189"
+#define SQL_PASS "2BBLF8S86MLa"
 
 //Data types
 #define TYPE_INT 0x01
@@ -70,8 +70,8 @@
 
 //Limits
 #define MAX_TOUR 5
-#define MAX_PARTICIPANTS 20
-#define MAX_OWNERS 2
+#define MAX_PARTICIPANTS 30
+#define MAX_OWNERS 3
 #define MAX_TEAMCOLORS 5
 #define MAX_SLOTS 294
 #define MAX_PAGE_SLOTS 42
@@ -90,9 +90,9 @@
 #define MAX_ITEM_TYPES 10
 #define MAX_DUNGEON_TYPES 9
 
-#define MAX_LOOT 36
-#define MAX_WALKER_LOOT 10
-#define MAX_DUNGEON_LOOT 30
+#define MAX_LOOT 20
+#define MAX_WALKER_LOOT 6
+#define MAX_DUNGEON_LOOT 16
 
 #define MAX_LOOT_VARIANTS 60
 #define MAX_STAT_VARIANTS 60
@@ -729,7 +729,7 @@ new CooperateMessages[MAX_COOPERATE_MSGS][64] = {
 };
 
 new GlobalRatingTop[MAX_PARTICIPANTS][TopItem];
-new LocalRatingTop[MAX_PLAYERS][MAX_PARTICIPANTS / 2][TopItem];
+new LocalRatingTop[MAX_PLAYERS][MAX_PARTICIPANTS / MAX_OWNERS][TopItem];
 
 new RateColors[MAX_RANK][16] = {
 	{"85200c"},
@@ -1448,7 +1448,7 @@ public OnTourEnd(finished)
 			UpdateTourParticipants();
 			for(new i = 0; i < MAX_OWNERS; i++)
 			{
-                if(PlayerInfo[TourPlayers[i]][IsWatcher] != 0)
+        if(PlayerInfo[TourPlayers[i]][IsWatcher] != 0)
 					continue;
 				if(IsTourParticipant(PlayerInfo[TourPlayers[i]][ID]))
 					SendClientMessage(TourPlayers[i], COLOR_GREEN, "Вы прошли в следующий тур.");
@@ -3638,7 +3638,7 @@ public OnDialogResponse(playerid, dialogid, response, listitem, inputtext[])
 				AttackedBoss = bossid;
 
 				new msg[255];
-				if(BossAttackersCount >= MAX_OWNERS)
+				if(BossAttackersCount >= 2)
 				{
 					format(msg, sizeof(msg), "Появляется %s!", boss[Name]);
 					SendClientMessageToAll(0x990099FF, msg);
@@ -6650,40 +6650,46 @@ stock GiveTournamentRewards()
 			case 1:
 			{
 				reward[ItemID] = 1036;
-				reward[ItemsCount] = 20;
-				money = 1400;
+				reward[ItemsCount] = 25;
+				money = 2300;
 			}
 			case 2:
 			{
 				reward[ItemID] = 1036;
-				reward[ItemsCount] = 17;
-				money = 1300;
+				reward[ItemsCount] = 22;
+				money = 2100;
 			}
 			case 3:
 			{
 				reward[ItemID] = 1036;
-				reward[ItemsCount] = 15;
-				money = 1200;
+				reward[ItemsCount] = 18;
+				money = 1800;
 			}
 			case 4..5:
 			{
 				reward[ItemID] = 1036;
-				reward[ItemsCount] = 12;
-				money = 1050;
+				reward[ItemsCount] = 15;
+				money = 1400;
 			}
-			case 6..8:
+			case 6..10:
+			{
+				reward[ItemID] = 1036;
+				reward[ItemsCount] = 8;
+				money = 1200;
+			}
+			case 11..16:
 			{
 				reward[ItemID] = 1035;
 				reward[ItemsCount] = 20;
-				money = 900;
+				money = 1000;
 			}
-			case 9..12:
+			case 17..22:
 			{
 				reward[ItemID] = 1035;
 				reward[ItemsCount] = 16;
-				money = 800;
+				money = 900;
 			}
-			case 13..16:
+      case 23..26:
 			{
 				reward[ItemID] = 1035;
 				reward[ItemsCount] = 12;
@@ -7542,13 +7548,15 @@ stock GetTourReward(tour, place, name[])
 	switch(place)
 	{
 		case 1: money = 190;
-		case 2: money = 174; 
-		case 3: money = 158;
-		case 4..5: money = 108;
-		case 6..8: money = 84;
-		case 9..12: money = 56;
-		case 13..16: money = 48;
-		case 17..20: money = 34;
+		case 2: money = 180; 
+		case 3: money = 170;
+		case 4..5: money = 128;
+		case 6..8: money = 104;
+		case 9..12: money = 86;
+		case 13..16: money = 68;
+		case 17..20: money = 54;
+    case 21..25: money = 36;
+    case 26..9999: money = 24;
 	}
 
 	money = money * floatround(floatpower(rank + tour, 2));
@@ -7891,25 +7899,35 @@ stock GetRateDifference(playerid, tour, pos, up_mid_rate, down_mid_rate)
 			switch(pos)
 			{
 				case 1: rate = 15;
-				case 2: rate = 13;
-				case 3: rate = 12;
-				case 4: rate = 10;
-				case 5: rate = 7;
-				case 6: rate = 6;
-				case 7: rate = 5;
-				case 8: rate = 4;
-				case 9: rate = 3;
-				case 10: rate = 1;
-				case 11: rate = -1;
-				case 12: rate = -2;
-				case 13: rate = -4;
-				case 14: rate = -5;
-				case 15: rate = -7;
-				case 16: rate = -9;
-				case 17: rate = -11;
-				case 18: rate = -13;
-				case 19: rate = -14;
-				case 20: rate = -15;
+				case 2: rate = 14;
+				case 3: rate = 13;
+				case 4: rate = 12;
+				case 5: rate = 11;
+				case 6: rate = 10;
+				case 7: rate = 9;
+				case 8: rate = 8;
+				case 9: rate = 7;
+				case 10: rate = 6;
+				case 11: rate = 5;
+				case 12: rate = 4;
+				case 13: rate = 3;
+				case 14: rate = 2;
+				case 15: rate = 1;
+				case 16: rate = -1;
+				case 17: rate = -2;
+				case 18: rate = -3;
+				case 19: rate = -4;
+				case 20: rate = -5;
+				case 21: rate = -6;
+				case 22: rate = -7;
+				case 23: rate = -8;
+				case 24: rate = -9;
+				case 25: rate = -10;
+				case 26: rate = -11;
+				case 27: rate = -12;
+				case 28: rate = -13;
+				case 29: rate = -14;
+				case 30: rate = -15;
 			}
 		}
 		case 2:
@@ -7919,19 +7937,27 @@ stock GetRateDifference(playerid, tour, pos, up_mid_rate, down_mid_rate)
 				case 1: rate = 18;
 				case 2: rate = 17;
 				case 3: rate = 15;
-				case 4: rate = 13;
-				case 5: rate = 11;
-				case 6: rate = 8;
-				case 7: rate = 6;
-				case 8: rate = 3;
-				case 9: rate = 1;
-				case 10: rate = -1;
-				case 11: rate = -2;
-				case 12: rate = -5;
-				case 13: rate = -7;
-				case 14: rate = -9;
-				case 15: rate = -11;
-				case 16: rate = -14;
+				case 4: rate = 14;
+				case 5: rate = 13;
+				case 6: rate = 11;
+				case 7: rate = 9;
+				case 8: rate = 7;
+				case 9: rate = 5;
+				case 10: rate = 4;
+				case 11: rate = 3;
+				case 12: rate = 2;
+				case 13: rate = 1;
+				case 14: rate = -1;
+				case 15: rate = -2;
+				case 16: rate = -4;
+        case 17: rate = -6;
+				case 18: rate = -7;
+				case 19: rate = -8;
+				case 20: rate = -10;
+				case 21: rate = -12;
+				case 22: rate = -13;
+				case 23: rate = -14;
+				case 24: rate = -15;
 			}
 		}
 		case 3:
@@ -7941,15 +7967,21 @@ stock GetRateDifference(playerid, tour, pos, up_mid_rate, down_mid_rate)
 				case 1: rate = 24;
 				case 2: rate = 22;
 				case 3: rate = 20;
-				case 4: rate = 17;
-				case 5: rate = 14;
-				case 6: rate = 10;
-				case 7: rate = 6;
-				case 8: rate = 1;
-				case 9: rate = -2;
-				case 10: rate = -4;
-				case 11: rate = -7;
-				case 12: rate = -12;
+				case 4: rate = 18;
+				case 5: rate = 16;
+				case 6: rate = 14;
+				case 7: rate = 10;
+				case 8: rate = 6;
+				case 9: rate = 4;
+				case 10: rate = 2;
+				case 11: rate = -1;
+				case 12: rate = -3;
+        case 13: rate = -4;
+				case 14: rate = -5;
+				case 15: rate = -7;
+				case 16: rate = -9;
+				case 17: rate = -11;
+				case 18: rate = -13;
 			}
 		}
 		case 4:
@@ -7958,12 +7990,16 @@ stock GetRateDifference(playerid, tour, pos, up_mid_rate, down_mid_rate)
 			{
 				case 1: rate = 28;
 				case 2: rate = 26;
-				case 3: rate = 23;
-				case 4: rate = 19;
-				case 5: rate = 13;
-				case 6: rate = 4;
-				case 7: rate = -3;
-				case 8: rate = -7;
+				case 3: rate = 24;
+				case 4: rate = 21;
+				case 5: rate = 17;
+				case 6: rate = 12;
+				case 7: rate = 7;
+				case 8: rate = 3;
+        case 9: rate = -1;
+				case 10: rate = -3;
+				case 11: rate = -6;
+				case 12: rate = -9;
 			}
 		}
 		case 5:
@@ -7971,9 +8007,11 @@ stock GetRateDifference(playerid, tour, pos, up_mid_rate, down_mid_rate)
 			switch(pos)
 			{
 				case 1: rate = 35;
-				case 2: rate = 30;
-				case 3: rate = 20;
-				case 4: rate = 5;
+				case 2: rate = 32;
+				case 3: rate = 25;
+				case 4: rate = 15;
+        case 5: rate = 8;
+				case 6: rate = 4;
 			}
 		}
 	}
@@ -7985,8 +8023,8 @@ stock GetRateDifference(playerid, tour, pos, up_mid_rate, down_mid_rate)
 	if(up_rate_diff < 0)
 		rate += up_rate_diff / 30;
 
-	if(rate > 50) rate = 50;
-	if(rate < -70) rate = -70;
+	if(rate > 100) rate = 100;
+	if(rate < -100) rate = -100;
 
 	return rate;
 }
@@ -8282,6 +8320,15 @@ stock GenerateLoot(playerid, lockboxid)
 
 stock OpenLockbox(playerid, lockboxid)
 {
+  switch(lockboxid)
+  {
+    case 1090..1092:
+    {
+      OpenMultipleLockbox(playerid, lockboxid);
+      return;
+    }
+  }
+
 	new loot[LootInfo];
 	loot = GenerateLoot(playerid, lockboxid);
 
@@ -8312,6 +8359,39 @@ stock OpenLockbox(playerid, lockboxid)
 		GetGradeColor(item[Grade]), item[Name], loot[Count]
 	);
 	SendClientMessage(playerid, 0xFFFFFFFF, string);
+}
+
+stock OpenMultipleLockbox(playerid, lockboxid)
+{
+  new query[255];
+  format(query, sizeof(query), "SELECT * FROM `lootboxes` WHERE `BoxID` = '%d'", lockboxid);
+  new Cache:result = mysql_query(sql_handle, query);
+      
+  new rows = 0;
+  cache_get_row_count(rows);
+  if(rows <= 0)
+  {
+    cache_delete(result);
+    return;
+  }
+
+  result = cache_save();
+  cache_unset_active();
+
+  for(new i = 0; i < rows; i++)
+  {
+    new tmp_loot[LootInfo];
+    cache_set_active(result);
+
+    cache_get_value_name_int(i, "ItemID", tmp_loot[ItemID]);
+    cache_get_value_name_int(i, "ItemsCount", tmp_loot[Count]);
+    
+    cache_unset_active();
+
+    PendingItem(PlayerInfo[playerid][Name], tmp_loot[ItemID], "Предмет из сундука", STATS_CLEAR, tmp_loot[Count]);
+  }
+  
+  cache_delete(result);
 }
 
 stock SwitchToWatcher(playerid)
@@ -11570,7 +11650,7 @@ stock TeleportToRandomArenaPos(playerid)
 stock ConnectParticipants(playerid)
 {
 	new query[255];
-	format(query, sizeof(query), "SELECT * FROM `players` WHERE `Owner` = '%s' AND `IsWatcher`=0 LIMIT 20", AccountLogin[playerid]);
+	format(query, sizeof(query), "SELECT * FROM `players` WHERE `Owner` = '%s' AND `IsWatcher`=0 LIMIT 30", AccountLogin[playerid]);
 	new Cache:q_result = mysql_query(sql_handle, query);
 
 	cache_get_row_count(ParticipantsCount[playerid]);
@@ -13370,6 +13450,8 @@ stock GetPlaceColor(place)
 		case 6..8: color = "CC33FF";
 		case 9..12: color = "6666FF";
 		case 13..16: color = "66CC33";
+    case 17..20: color = "99CCCC";
+    case 21..25: color = "CCCC99";
 		default: color = "CCCCCC";
 	}
 	return color;
@@ -13402,6 +13484,8 @@ stock GetHexPlaceColor(place)
 		case 6..8: color = 0xCC33FFFF;
 		case 9..12: color = 0x6666FFFF;
 		case 13..16: color = 0x66CC33FF;
+    case 17..20: color = 0x99CCCCFF;
+    case 21..25: color = 0xCCCC99FF;
 		default: color = 0xCCCCCCFF;
 	}
 	return color;
@@ -13577,7 +13661,7 @@ stock LoadTournamentInfo()
 
 	new string[255];
 	cache_get_value_name(0, "Participants", string);
-	sscanf(string, "a<i>[20]", Tournament[ParticipantsIDs]);
+	sscanf(string, "a<i>[30]", Tournament[ParticipantsIDs]);
 
 	cache_delete(q_result);
 
