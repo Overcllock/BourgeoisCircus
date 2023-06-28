@@ -5,7 +5,7 @@ VALUES (35, 0, "Одежда бомжа", 2, 1, 1, "Одежда с помойк
 INSERT INTO `items`(`ID`, `IsTradeble`, `Name`, `Type`, `Grade`, `MinRank`, `Description`, `Property`, `PropertyVal`, `Price`, `Model`, `ModelRotX`, `ModelRotY`, `ModelRotZ`) 
 VALUES (70, 0, "Шапка бомжа", 3, 1, 1, "Шапка с помойки", "0 0 0", "0 0 0", 0, 18921, 0, -45, 0);
 
-///
+/* */
 
 INSERT INTO `items`(`ID`, `IsTradeble`, `Name`, `Type`, `Grade`, `MinRank`, `Description`, `Property`, `PropertyVal`, `Price`, `Model`, `ModelRotX`, `ModelRotY`, `ModelRotZ`) 
 VALUES (1, 1, "Винтовка бичей", 1, 1, 1, "Улучшенный вариант классической винтовки с помойки", "0 0 0", "0 0 0", 15, 346, 0, 0, 0);
@@ -85,7 +85,7 @@ VALUES (33, 1, "Инквизитор", 1, 5, 13, "Автомат для бойц
 INSERT INTO `items`(`ID`, `IsTradeble`, `Name`, `Type`, `Grade`, `MinRank`, `Description`, `Property`, `PropertyVal`, `Price`, `Model`, `ModelRotX`, `ModelRotY`, `ModelRotZ`) 
 VALUES (34, 1, "Тёмная мощь", 1, 5, 14, "Носитель этого оружия навсегда подчинит себе силы Тьмы", "0 0 0", "0 0 0", 4423023, 351, 0, 0, 0);
 
-///
+/* */
 
 INSERT INTO `items`(`ID`, `IsTradeble`, `Name`, `Type`, `Grade`, `MinRank`, `Description`, `Property`, `PropertyVal`, `Price`, `Model`, `ModelRotX`, `ModelRotY`, `ModelRotZ`) 
 VALUES (36, 1, "Гоп-костюм", 2, 1, 1, "Можно смело передвигаться в этом на районе", "0 0 0", "0 0 0", 15, 22, 0, 0, 0);
@@ -165,7 +165,7 @@ VALUES (68, 1, "Могучая накидка зап-лиц", 2, 4, 13, "Кра�
 INSERT INTO `items`(`ID`, `IsTradeble`, `Name`, `Type`, `Grade`, `MinRank`, `Description`, `Property`, `PropertyVal`, `Price`, `Model`, `ModelRotX`, `ModelRotY`, `ModelRotZ`) 
 VALUES (69, 1, "Могучая мантия Аданоса", 2, 4, 14, "Священный артефакт Аданоса", "0 0 0", "0 0 0", 4423023, 83, 0, 0, 0);
 
-///
+/* */
 
 INSERT INTO `items`(`ID`, `IsTradeble`, `Name`, `Type`, `Grade`, `MinRank`, `Description`, `Property`, `PropertyVal`, `Price`, `Model`, `ModelRotX`, `ModelRotY`, `ModelRotZ`) 
 VALUES (71, 1, "Шапка гопника", 3, 1, 1, "Шапка пацана с района", "0 0 0", "0 0 0", 15, 19554, 0, -45, 0);
@@ -245,7 +245,7 @@ VALUES (103, 1, "Могучая шляпа зап-лиц", 3, 4, 13, "Носит
 INSERT INTO `items`(`ID`, `IsTradeble`, `Name`, `Type`, `Grade`, `MinRank`, `Description`, `Property`, `PropertyVal`, `Price`, `Model`, `ModelRotX`, `ModelRotY`, `ModelRotZ`) 
 VALUES (104, 1, "Могучая шляпа Шажкового гнева", 3, 4, 14, "Священный артефакт Аданоса", "0 0 0", "0 0 0", 4423023, 18973, 0, -45, 0);
 
-///
+/* */
 
 INSERT INTO `items`(`ID`, `IsTradeble`, `Name`, `Type`, `Grade`, `MinRank`, `Description`, `Property`, `PropertyVal`, `Price`, `Model`, `ModelRotX`, `ModelRotY`, `ModelRotZ`) 
 VALUES (105, 1, "Очки дурака", 4, 4, 1, "Адекватный человек не будет носить такие очки", "10 1 4", "100 5 5", 30000, 19011, 0, -45, 135);
@@ -295,7 +295,7 @@ VALUES (126, 1, "Священные очки зап-лиц", 4, 5, 13, "Стои
 INSERT INTO `items`(`ID`, `IsTradeble`, `Name`, `Type`, `Grade`, `MinRank`, `Description`, `Property`, `PropertyVal`, `Price`, `Model`, `ModelRotX`, `ModelRotY`, `ModelRotZ`) 
 VALUES (127, 1, "Священные очки Шажкового гнева", 4, 5, 14, "Говорят, в стекла этих очков иногда можно увидеть великого Шажка", "10 1 4", "11200 64 64", 75000000, 19028, 0, -45, 135);
 
-///
+/* */
 
 INSERT INTO `items`(`ID`, `IsTradeble`, `Name`, `Type`, `Grade`, `MinRank`, `Description`, `Property`, `PropertyVal`, `Price`, `Model`, `ModelRotX`, `ModelRotY`, `ModelRotZ`) 
 VALUES (128, 1, "Часы с рынка", 5, 4, 1, "Себестоимость равна нулю, кто-то нашел на помойке", "10 5 4", "50 5 5", 15000, 19046, 0, -45, 0);
@@ -344,7 +344,7 @@ VALUES (149, 1, "Священные часы зап-лиц", 5, 5, 13, "Если
 INSERT INTO `items`(`ID`, `IsTradeble`, `Name`, `Type`, `Grade`, `MinRank`, `Description`, `Property`, `PropertyVal`, `Price`, `Model`, `ModelRotX`, `ModelRotY`, `ModelRotZ`) 
 VALUES (150, 1, "Священные часы Шажкового гнева", 5, 5, 14, "В эти часы запечатан гнев великого Шажка", "10 5 4", "11100 62 62", 68000000, 19053, 0, -45, 0);
 
-///
+/* */
 
 INSERT INTO `items`(`ID`, `IsTradeble`, `Name`, `Type`, `Grade`, `MinRank`, `Description`, `Property`, `PropertyVal`, `Price`, `Model`, `ModelRotX`, `ModelRotY`, `ModelRotZ`) 
 VALUES (151, 1, "Кольцо Едемского", 6, 2, 1, "Природа происхождения этой бижутерии намекает на худшее", "3 0 0", "5 0 0", 500, 954, 0, 0, 0);
@@ -478,7 +478,7 @@ VALUES (247, 1, "Кольцо горизонта событий", 6, 6, 7, "Ни
 INSERT INTO `items`(`ID`, `IsTradeble`, `Name`, `Type`, `Grade`, `MinRank`, `Description`, `Property`, `PropertyVal`, `Price`, `Model`, `ModelRotX`, `ModelRotY`, `ModelRotZ`) 
 VALUES (248, 1, "Амулет горизонта событий", 7, 6, 7, "Никто не знает когда и как это появилось на свет...", "1 2 13", "50 50 1", 27500000, 954, 0, 0, 0);
 
-///
+/* */
 
 INSERT INTO `items`(`ID`, `IsTradeble`, `Name`, `Type`, `Grade`, `MinRank`, `Description`, `Property`, `PropertyVal`, `Price`, `Model`, `ModelRotX`, `ModelRotY`, `ModelRotZ`) 
 VALUES (209, 1, "Легендарная винтовка Шажка N0", 1, 5, 1, "Сам Шажок Всемогущий лично собирал по кусочкам это оружие", "1 2 4", "10 10 10", 25000, 346, 0, 0, 0);
@@ -659,7 +659,7 @@ VALUES (291, 1, "Алмазная винтовка Школы Кота", 1, 4, 8
 INSERT INTO `items`(`ID`, `IsTradeble`, `Name`, `Type`, `Grade`, `MinRank`, `Description`, `Property`, `PropertyVal`, `Price`, `Model`, `ModelRotX`, `ModelRotY`, `ModelRotZ`) 
 VALUES (292, 1, "Бриллиантовая винтовка Школы Кота", 1, 4, 9, "Великие повелители катто создали это оружие для своих учеников", "5 3 0", "5 50 0", 4800000, 355, 0, 0, -45);
 
-///
+/* */
 
 INSERT INTO `items`(`ID`, `IsTradeble`, `Name`, `Type`, `Grade`, `MinRank`, `Description`, `Property`, `PropertyVal`, `Price`, `Model`, `ModelRotX`, `ModelRotY`, `ModelRotZ`) 
 VALUES (1000, 0, "Генератор HP", 8, 1, 1, "Дополнительно восстанавливает 1% HP/сек. Действует 1 турнир", "0 0 0", "0 0 0", 25000, 1240, 0, 0, 0);

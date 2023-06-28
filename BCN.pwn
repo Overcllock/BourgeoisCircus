@@ -23,10 +23,10 @@
 #define VERSION 7.001
 
 //Mysql settings
-#define SQL_HOST "127.0.0.1"
-#define SQL_USER "gs213189"
-#define SQL_DB "gs213189"
-#define SQL_PASS "2BBLF8S86MLa"
+#define SQL_HOST "46.174.50.7"
+#define SQL_USER "u34924_root"
+#define SQL_DB "u34924_circus"
+#define SQL_PASS "TEFpArvRz.F8HcL"
 
 //Data types
 #define TYPE_INT 0x01
@@ -72,7 +72,7 @@
 #define MAX_TOUR 5
 #define MAX_PARTICIPANTS 30
 #define MAX_OWNERS 3
-#define MAX_TEAMCOLORS 5
+#define MAX_TEAMCOLORS 3
 #define MAX_SLOTS 294
 #define MAX_PAGE_SLOTS 42
 #define MAX_SLOTS_X 6
@@ -564,7 +564,7 @@ new CmbItemInvSlot[MAX_PLAYERS][MAX_CMB_ITEMS];
 new MarketSellingItem[MAX_PLAYERS][MarketItem];
 
 new IsTourStarted = false;
-new TourPlayers[MAX_OWNERS] = -1;
+new TourPlayers[MAX_OWNERS] = INVALID_PLAYER_ID;
 new TourEndTimer = -1;
 new PvpTableUpdTimer = -1;
 new DeadCheckTimer[MAX_PLAYERS] = -1;
@@ -774,9 +774,7 @@ new HexGradeColors[MAX_GRADES][1] = {
 new HexTeamColors[MAX_TEAMCOLORS][1] = {
 	{0x339999FF},
 	{0xFF0099FF},
-	{0xFFCC00FF},
-	{0x33CC00FF},
-	{0xCC6600FF}
+	{0xFF99CCFF}
 };
 
 new Float:WatchersPositions[MAX_WATCHERS_POSITIONS][3] = {
@@ -1418,13 +1416,21 @@ public OnTourEnd(finished)
 			if(IsValidTimer(DeadCheckTimer[i]))
 				KillTimer(DeadCheckTimer[i]);
 			for(new j = 0; j < MAX_OWNERS; j++)
+      {
+        if(TourPlayers[j] == INVALID_PLAYER_ID)
+          continue;
+
 				FCNPC_HideInTabListForPlayer(i, TourPlayers[j]);
+      }
 			FCNPC_Destroy(i);
 			ResetPlayerVariables(i);
 		}
 	}
 	for(new i = 0; i < MAX_OWNERS; i++)
 	{
+    if(TourPlayers[i] == INVALID_PLAYER_ID)
+        continue;
+
 		SetPvpTableVisibility(TourPlayers[i], false);
 		TeleportToHome(TourPlayers[i]);
 		UpdatePlayerVisual(TourPlayers[i]);
@@ -1440,7 +1446,12 @@ public OnTourEnd(finished)
 		GiveTourRewards(Tournament[Tour]);
 		Tournament[Tour]++;
 		for(new i = 0; i < MAX_OWNERS; i++)
+    {
+      if(TourPlayers[i] == INVALID_PLAYER_ID)
+        continue;
+
 			ShowTournamentTab(TourPlayers[i]);
+    }
 		if(Tournament[Tour] > MAX_TOUR)
 			OnTournamentEnd();
 		else
@@ -1448,6 +1459,8 @@ public OnTourEnd(finished)
 			UpdateTourParticipants();
 			for(new i = 0; i < MAX_OWNERS; i++)
 			{
+        if(TourPlayers[i] == INVALID_PLAYER_ID)
+          continue;
         if(PlayerInfo[TourPlayers[i]][IsWatcher] != 0)
 					continue;
 				if(IsTourParticipant(PlayerInfo[TourPlayers[i]][ID]))
@@ -1676,6 +1689,9 @@ public UpdatePvpTable()
 
 	for(new j = 0; j < MAX_OWNERS; j++)
 	{
+    if(TourPlayers[j] == INVALID_PLAYER_ID)
+      continue;
+
 		new InitID = TourPlayers[j];
 		if(!IsPlayerConnected(InitID)) continue;
 
@@ -3078,7 +3094,9 @@ public OnDialogResponse(playerid, dialogid, response, listitem, inputtext[])
 							SendClientMessage(playerid, COLOR_GREY, "Фаза войны уже идет.");
 							return 1;
 						}
-						for(new i = 0; i < MAX_OWNERS; i++)
+
+            new i, j;
+						for(i = 0; i < MAX_OWNERS; i++)
 						{
 							if(ReadyIDs[i] == playerid)
 							{
@@ -3096,13 +3114,26 @@ public OnDialogResponse(playerid, dialogid, response, listitem, inputtext[])
 								break;
 							}
 						}
-						for(new i = 0; i < MAX_OWNERS; i++)
-							if(ReadyIDs[i] == -1) return 1;
+
+            for(i = 0, j = 0; i < MAX_PLAYERS && j < MAX_OWNERS; i++)
+            {
+              if(FCNPC_IsValid(i) || !IsPlayerConnected(i))
+              {
+                j++;
+                continue;
+              }
+
+              if (ReadyIDs[j] == -1) return 1;
+
+              j++;
+            }
+
 						SendClientMessageToAll(COLOR_LIGHTRED, "Начинается фаза войны!");
 						Tournament[Phase] = PHASE_WAR;
 						OnPhaseChanged(PHASE_PEACE, PHASE_WAR);
 						SaveTournamentInfo();
-						for(new i = 0; i < MAX_OWNERS; i++)
+
+						for(i = 0; i < MAX_OWNERS; i++)
 							ReadyIDs[i] = -1;
 					}
 				}
@@ -6041,7 +6072,12 @@ stock InitTourNPC(npcid)
 	PlayerInfo[npcid][TeamColor] = teamcolor;
 
 	for(new i = 0; i < MAX_OWNERS; i++)
+  {
+    if(TourPlayers[i] == INVALID_PLAYER_ID)
+      continue;
+
 		FCNPC_ShowInTabListForPlayer(npcid, TourPlayers[i]);
+  }
 
 	FCNPC_SetInvulnerable(npcid, false);
 	FCNPC_SetInterior(npcid, 0);
@@ -7781,7 +7817,7 @@ stock UpdateTourParticipants()
 	}
 	else
 	{
-		new ejected_count = is_bns_mode > 0 ? 5 : 4;
+		new ejected_count = is_bns_mode > 0 ? 5 : MAX_OWNERS * 2;
 		new p_count = MAX_PARTICIPANTS - (ejected_count * (Tournament[Tour]-1));
     if(is_bns_mode > 0 && Tournament[Tour] == 5)
     {
@@ -7863,6 +7899,12 @@ stock UpdateTournamentTable()
 stock FillTourPlayers()
 {
 	new i, j;
+
+  for(i = 0; i < MAX_OWNERS; i++)
+  {
+    TourPlayers[i] = INVALID_PLAYER_ID;
+  }
+
 	for(i = 0, j = 0; i < MAX_PLAYERS && j < MAX_OWNERS; i++)
 	{
 		if(IsPlayerInRangeOfPoint(i,3.0,204.7617,-1831.6539,4.1772) && (IsTourParticipant(PlayerInfo[i][ID]) || PlayerInfo[i][IsWatcher] != 0))
@@ -7872,7 +7914,7 @@ stock FillTourPlayers()
 		}
 	}
 
-	if(j == MAX_OWNERS) return true;
+	if(j > 0) return true;
 	return false;
 }
 
@@ -7881,8 +7923,12 @@ stock IsAnyPlayersInRangeOfPoint(max_count, Float:range, Float:x, Float:y, Float
 	new count = 0;
 	for(new i = 0; i < MAX_PLAYERS && count < max_count; i++)
 	{
-		if(!IsPlayerConnected(i)) continue;
-		if(IsPlayerInRangeOfPoint(i, range, x, y, z)) count++;
+    count++;
+
+		if(FCNPC_IsValid(i) || !IsPlayerConnected(i)) 
+      continue;
+
+		if(!IsPlayerInRangeOfPoint(i, range, x, y, z)) count--;
 	}
 
 	if(count >= max_count) return true;
@@ -14377,7 +14423,7 @@ stock UpdateLocalRatingTop(playerid)
 	cache_get_value_name(0, "Owner", owner);
 	cache_delete(q_result);
 
-  format(query, sizeof(query), "SELECT * FROM `players` WHERE `Owner` = '%s' AND `IsWatcher`=0 ORDER BY `Rate` DESC LIMIT %d", owner, MAX_PARTICIPANTS / 2);
+  format(query, sizeof(query), "SELECT * FROM `players` WHERE `Owner` = '%s' AND `IsWatcher`=0 ORDER BY `Rate` DESC LIMIT %d", owner, MAX_PARTICIPANTS / MAX_OWNERS);
 	q_result = mysql_query(sql_handle, query);
 
 	row_count = 0;
@@ -14795,7 +14841,7 @@ stock ShowLocalRatingTop(playerid)
 {
 	new top[4000] = "№ п\\п\tИмя\tРейтинг";
 	new string[455];
-	for (new i = 0; i < MAX_PARTICIPANTS / 2; i++) 
+	for (new i = 0; i < MAX_PARTICIPANTS / MAX_OWNERS; i++) 
 	{
 		format(string, sizeof(string), "\n{%s}%d\t{%s}%s\t%d", 
 			GetPlaceColor(i+1), i+1, GetColorByRate(LocalRatingTop[playerid][i][Rate]), LocalRatingTop[playerid][i][Name], LocalRatingTop[playerid][i][Rate]
