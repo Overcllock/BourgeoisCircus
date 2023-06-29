@@ -23,10 +23,10 @@
 #define VERSION 7.001
 
 //Mysql settings
-#define SQL_HOST "46.174.50.7"
-#define SQL_USER "u34924_root"
-#define SQL_DB "u34924_circus"
-#define SQL_PASS "TEFpArvRz.F8HcL"
+#define SQL_HOST "127.0.0.1"
+#define SQL_USER "admin"
+#define SQL_DB "circus"
+#define SQL_PASS "h21510055"
 
 //Data types
 #define TYPE_INT 0x01
@@ -8116,14 +8116,15 @@ stock SetPvpTableVisibility(playerid, bool:value)
 
 stock GenerateLoot(playerid, lockboxid)
 {
+  new loot[LootInfo];
+	loot[ItemID] = -1;
+
 	new chance = random(1001);
 	new loot_variants_count = 0;
 	new loot_variants[MAX_LOOT_VARIANTS][LootInfo];
-	new loot[LootInfo];
-	loot[ItemID] = -1;
 
 	new rank = 1;
-	if(playerid != INVALID_PLAYER_ID)
+	if(playerid != INVALID_PLAYER_ID && playerid != -1)
 		rank = PlayerInfo[playerid][Rank];
 
 	switch(lockboxid)
@@ -13184,6 +13185,16 @@ stock GetWeaponBaseDamage(weaponid, stage)
 		case 263: { damage[0] = 567; damage[1] = 642; }
 		case 264: { damage[0] = 673; damage[1] = 757; }
     case 265: { damage[0] = 799; damage[1] = 884; }
+
+    case 284: { damage[0] = 38; damage[1] = 49; }
+		case 285: { damage[0] = 51; damage[1] = 63; }
+		case 286: { damage[0] = 65; damage[1] = 80; }
+		case 287: { damage[0] = 81; damage[1] = 97; }
+		case 288: { damage[0] = 109; damage[1] = 130; }
+		case 289: { damage[0] = 144; damage[1] = 170; }
+		case 290: { damage[0] = 192; damage[1] = 224; }
+		case 291: { damage[0] = 225; damage[1] = 260; }
+    case 292: { damage[0] = 267; damage[1] = 310; }
 
 		default: { damage[0] = 13; damage[1] = 15; }
 	}
