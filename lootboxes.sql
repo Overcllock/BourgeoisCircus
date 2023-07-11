@@ -99,7 +99,7 @@ INSERT INTO `lootboxes`(`BoxID`, `ItemID`, `ItemsCount`, `Chance`) VALUES (1068,
 INSERT INTO `lootboxes`(`BoxID`, `ItemID`, `ItemsCount`, `Chance`) VALUES (1068, 1057, 1, 200);
 INSERT INTO `lootboxes`(`BoxID`, `ItemID`, `ItemsCount`, `Chance`) VALUES (1068, 1007, 5, 400);
 INSERT INTO `lootboxes`(`BoxID`, `ItemID`, `ItemsCount`, `Chance`) VALUES (1068, 1006, 10, 400);
-INSERT INTO `lootboxes`(`BoxID`, `ItemID`, `ItemsCount`, `Chance`) VALUES (1068, 1066, 50, 50);
+INSERT INTO `lootboxes`(`BoxID`, `ItemID`, `ItemsCount`, `Chance`) VALUES (1068, 1066, 30, 20);
 INSERT INTO `lootboxes`(`BoxID`, `ItemID`, `ItemsCount`, `Chance`) VALUES (1068, 1065, 500, 1000);
 
 INSERT INTO `lootboxes`(`BoxID`, `ItemID`, `ItemsCount`, `Chance`) VALUES (1069, 1067, 1, 10);

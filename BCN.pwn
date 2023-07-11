@@ -1,4 +1,4 @@
-//Bourgeois Circus 7.0
+//Bourgeois Circus 7.01
 
 #include <a_samp>
 #include <a_mail>
@@ -20,7 +20,7 @@
 
 #pragma dynamic 31294
 
-#define VERSION 7.001
+#define VERSION 7.011
 
 //Mysql settings
 #define SQL_HOST "127.0.0.1"
@@ -367,6 +367,7 @@ enum pvpInf
 {
 	ID,
 	Name[255],
+  Rank,
 	Kills,
 	Deaths,
   Assists,
@@ -3397,7 +3398,6 @@ public OnDialogResponse(playerid, dialogid, response, listitem, inputtext[])
 					ShowPlayerDialog(playerid, 1, DIALOG_STYLE_MSGBOX, "Ошибка", "Не удалось купить предмет.", "Закрыть", "");
 					return 0;
 				}
-				SetPVarInt(playerid, "BuyedItemID", itemid);
 
 				new item[BaseItem];
 				item = GetItem(itemid);
@@ -3408,31 +3408,88 @@ public OnDialogResponse(playerid, dialogid, response, listitem, inputtext[])
 					return 0;
 				}
 
+        new available_count = PlayerInfo[playerid][Cash] / item[Price];
+
+        SetPVarInt(playerid, "BuyedItemID", itemid);
+        SetPVarInt(playerid, "BuyedItemPrice", item[Price]);
+
 				new text[255];
-				format(text, sizeof(text), "{ffffff}[{%s}%s{ffffff}] - купить?", GetGradeColor(item[Grade]), item[Name]);
-				ShowPlayerDialog(playerid, 501, DIALOG_STYLE_MSGBOX, "Подтверждение", text, "ОК", "Отмена");
+				format(text, sizeof(text), "Укажите количество.\nВы можете купить: %d", available_count);
+				ShowPlayerDialog(playerid, 501, DIALOG_STYLE_INPUT, "Покупка", text, "Купить", "Отмена");
 			}	
 			return 1;
 		}
 		case 501:
 		{
-			if(response)
+      if(response)
+			{
+				new itemid = GetPVarInt(playerid, "BuyedItemID");
+				if(itemid == -1)
+				{
+					ShowPlayerDialog(playerid, 1, DIALOG_STYLE_MSGBOX, "Ошибка", "Не удалось купить предмет.", "Закрыть", "");
+					return 0;
+				}
+
+				new count = strval(inputtext);
+				if(count <= 0)
+				{
+					ShowPlayerDialog(playerid, 1, DIALOG_STYLE_MSGBOX, "Ошибка", "Неверное количество.", "Закрыть", "");
+					return 0;
+				}
+
+				new item[BaseItem];
+				item = GetItem(itemid);
+
+        new price = GetPVarInt(playerid, "BuyedItemPrice");
+        if(PlayerInfo[playerid][Cash] < price * count)
+        {
+          ShowPlayerDialog(playerid, 1, DIALOG_STYLE_MSGBOX, "Ошибка", "Недостаточно денег.", "Закрыть", "");
+          return 0;
+        }
+
+        SetPVarInt(playerid, "BuyedItemCount", count);
+
+        new text[255];
+        format(text, sizeof(text), "{ffffff}[{%s}%s{ffffff}] x%d - купить?", GetGradeColor(item[Grade]), item[Name], count);
+        ShowPlayerDialog(playerid, 502, DIALOG_STYLE_MSGBOX, "Подтверждение", text, "ОК", "Отмена");
+			}
+		}
+    case 502:
+    {
+      if(response)
 			{
 				if(IsInventoryFull(playerid))
 				{
 					ShowPlayerDialog(playerid, 1, DIALOG_STYLE_MSGBOX, "Ошибка", "Инвентарь полон.", "Закрыть", "");
 					return 0;
 				}
+
 				new itemid = GetPVarInt(playerid, "BuyedItemID");
+				new count = GetPVarInt(playerid, "BuyedItemCount");
 				new item[BaseItem];
 				item = GetItem(itemid);
-				PlayerInfo[playerid][Cash] -= item[Price];
-				GivePlayerCash(playerid, -item[Price]);
-				AddEquip(playerid, itemid, STATS_CLEAR);
+
+        new price = GetPVarInt(playerid, "BuyedItemPrice");
+				new final_price = price * count;
+
+				PlayerInfo[playerid][Cash] -= final_price;
+				GivePlayerCash(playerid, -final_price);
+
+        for (new i = 0; i < count; i++)
+        {
+          if(IsInventoryFull(playerid))
+          {
+            PendingItem(PlayerInfo[playerid][Name], itemid, "Ваша покупка", STATS_CLEAR, 1);
+            continue;
+          }
+
+          AddEquip(playerid, itemid, STATS_CLEAR);
+        }
+
 				ShowPlayerDialog(playerid, 1, DIALOG_STYLE_MSGBOX, "Покупка", "{66CC00}Предмет куплен.", "Закрыть", "");
 			}
 			return 1;
-		}
+    }
 		//портной
 		case 600:
 		{
@@ -3461,7 +3518,6 @@ public OnDialogResponse(playerid, dialogid, response, listitem, inputtext[])
 					ShowPlayerDialog(playerid, 1, DIALOG_STYLE_MSGBOX, "Ошибка", "Не удалось купить предмет.", "Закрыть", "");
 					return 0;
 				}
-				SetPVarInt(playerid, "BuyedItemID", itemid);
 
 				new item[BaseItem];
 				item = GetItem(itemid);
@@ -3472,9 +3528,14 @@ public OnDialogResponse(playerid, dialogid, response, listitem, inputtext[])
 					return 0;
 				}
 
+        new available_count = PlayerInfo[playerid][Cash] / item[Price];
+
+        SetPVarInt(playerid, "BuyedItemID", itemid);
+        SetPVarInt(playerid, "BuyedItemPrice", item[Price]);
+
 				new text[255];
-				format(text, sizeof(text), "{ffffff}[{%s}%s{ffffff}] - купить?", GetGradeColor(item[Grade]), item[Name]);
-				ShowPlayerDialog(playerid, 601, DIALOG_STYLE_MSGBOX, "Подтверждение", text, "ОК", "Отмена");
+				format(text, sizeof(text), "Укажите количество.\nВы можете купить: %d", available_count);
+				ShowPlayerDialog(playerid, 601, DIALOG_STYLE_INPUT, "Покупка", text, "Купить", "Отмена");
 			}	
 			return 1;
 		}
@@ -3482,21 +3543,73 @@ public OnDialogResponse(playerid, dialogid, response, listitem, inputtext[])
 		{
 			if(response)
 			{
+				new itemid = GetPVarInt(playerid, "BuyedItemID");
+				if(itemid == -1)
+				{
+					ShowPlayerDialog(playerid, 1, DIALOG_STYLE_MSGBOX, "Ошибка", "Не удалось купить предмет.", "Закрыть", "");
+					return 0;
+				}
+
+				new count = strval(inputtext);
+				if(count <= 0)
+				{
+					ShowPlayerDialog(playerid, 1, DIALOG_STYLE_MSGBOX, "Ошибка", "Неверное количество.", "Закрыть", "");
+					return 0;
+				}
+
+				new item[BaseItem];
+				item = GetItem(itemid);
+
+        new price = GetPVarInt(playerid, "BuyedItemPrice");
+        if(PlayerInfo[playerid][Cash] < price * count)
+        {
+          ShowPlayerDialog(playerid, 1, DIALOG_STYLE_MSGBOX, "Ошибка", "Недостаточно денег.", "Закрыть", "");
+          return 0;
+        }
+
+        SetPVarInt(playerid, "BuyedItemCount", count);
+
+        new text[255];
+        format(text, sizeof(text), "{ffffff}[{%s}%s{ffffff}] x%d - купить?", GetGradeColor(item[Grade]), item[Name], count);
+        ShowPlayerDialog(playerid, 602, DIALOG_STYLE_MSGBOX, "Подтверждение", text, "ОК", "Отмена");
+			}
+			return 1;
+		}
+    case 602:
+    {
+      if(response)
+			{
 				if(IsInventoryFull(playerid))
 				{
 					ShowPlayerDialog(playerid, 1, DIALOG_STYLE_MSGBOX, "Ошибка", "Инвентарь полон.", "Закрыть", "");
 					return 0;
 				}
+
 				new itemid = GetPVarInt(playerid, "BuyedItemID");
+				new count = GetPVarInt(playerid, "BuyedItemCount");
 				new item[BaseItem];
 				item = GetItem(itemid);
-				PlayerInfo[playerid][Cash] -= item[Price];
-				GivePlayerCash(playerid, -item[Price]);
-				AddEquip(playerid, itemid, STATS_CLEAR);
+
+        new price = GetPVarInt(playerid, "BuyedItemPrice");
+				new final_price = price * count;
+
+				PlayerInfo[playerid][Cash] -= final_price;
+				GivePlayerCash(playerid, -final_price);
+
+        for (new i = 0; i < count; i++)
+        {
+          if(IsInventoryFull(playerid))
+          {
+            PendingItem(PlayerInfo[playerid][Name], itemid, "Ваша покупка", STATS_CLEAR, 1);
+            continue;
+          }
+
+          AddEquip(playerid, itemid, STATS_CLEAR);
+        }
+
 				ShowPlayerDialog(playerid, 1, DIALOG_STYLE_MSGBOX, "Покупка", "{66CC00}Предмет куплен.", "Закрыть", "");
 			}
-			return 1;
-		}
+    }
 		//расходники
 		case 700:
 		{
@@ -5743,6 +5856,7 @@ stock StartTour()
 	{
 		new name[255];
 		PvpInfo[i][ID] = -1;
+    PvpInfo[i][Rank] = 1;
 		PvpInfo[i][Name] = name;
 		PvpInfo[i][Score] = 0;
 		PvpInfo[i][Kills] = 0;
@@ -5764,6 +5878,7 @@ stock StartTour()
 		if(playerid != -1 && !FCNPC_IsValid(playerid))
 		{
 			PvpInfo[i][ID] = playerid;
+      PvpInfo[i][Rank] = PlayerInfo[playerid][Rank];
 			format(PvpInfo[i][Name], 255, "%s", player[Name]);
 			TeleportToRandomArenaPos(playerid);
 			SetPlayerColor(playerid, HexTeamColors[PlayerInfo[playerid][TeamColor]][0]);
@@ -5784,6 +5899,7 @@ stock StartTour()
 
 		InitTourNPC(npcid);
 		PvpInfo[i][ID] = npcid;
+    PvpInfo[i][Rank] = PlayerInfo[npcid][Rank];
 		format(PvpInfo[i][Name], 255, "%s", player[Name]);
 		TeleportToRandomArenaPos(npcid);
 	}
@@ -7879,9 +7995,11 @@ stock UpdateTourParticipants()
 
 stock UpdateTournamentTable()
 {
-	new query[255] = "DELETE FROM `tournament_tab` WHERE 1";
+	new query[4096] = "DELETE FROM `tournament_tab` WHERE 1";
 	new Cache:q_result = mysql_query(sql_handle, query);
 	cache_delete(q_result);
+
+  new string[4096] = "№ п/п/tИмя/tK/D/A/tОчки/tРейтинг";
 
 	for(new i = 0; i < MAX_PARTICIPANTS; i++)
 	{
@@ -7893,7 +8011,42 @@ stock UpdateTournamentTable()
 		);
 		new Cache:q_res = mysql_query(sql_handle, query);
 		cache_delete(q_res);
+
+    new rate_color[255];
+		new rate_str[32];
+		new rate_diff = PvpInfo[i][RateDiff];
+		if(rate_diff >= 0)
+		{
+		  rate_color = "33CC00";
+			format(rate_str, sizeof(rate_str), "+%d", rate_diff);
+		}
+		else
+		{
+		  rate_color = "CC0000";
+			format(rate_str, sizeof(rate_str), "%d", rate_diff);
+		}
+
+    new buffer[255];
+    format(buffer, sizeof(buffer), "/n{%s}%d/t{%s}%s/t{00CC00}%d{ffffff}/{CC0000}%d{ffffff}/{FFCC00}%d/t{9900CC}%d/t{%s}%s{ffffff}",
+      GetPlaceColor(i+1), i+1, GetColorByRank(PvpInfo[i][Rank]), PvpInfo[i][Name],
+			PvpInfo[i][Kills], PvpInfo[i][Deaths], PvpInfo[i][Assists], PvpInfo[i][Score], rate_color, rate_str
+    );
+
+    strcat(string, buffer);
 	}
+
+  new year, month, day;
+  new date_str[128];
+
+  getdate(year, month, day);
+  format(date_str, sizeof(date_str), "%d.%d.%d", day, month, year);
+
+  format(query, sizeof(query), "INSERT INTO `tournament_history`(`Data`, `Date`, `TourIndex`, `TournamentIndex`) VALUES ('%s','%s','%d','%d')",
+    string, date_str, Tournament[Tour], Tournament[Number]
+  );
+
+  new Cache:qq_res = mysql_query(sql_handle, query);
+  cache_delete(qq_res);
 }
 
 stock FillTourPlayers()
@@ -13128,30 +13281,30 @@ stock GetWeaponBaseDamage(weaponid, stage)
 		case 33: { damage[0] = 470; damage[1] = 532; }
 		case 34: { damage[0] = 557; damage[1] = 631; }
 
-		case 209: { damage[0] = 17; damage[1] = 28; }
-		case 210: { damage[0] = 17; damage[1] = 28; }
-		case 211: { damage[0] = 17; damage[1] = 28; }
-		case 212: { damage[0] = 25; damage[1] = 39; }
-		case 213: { damage[0] = 25; damage[1] = 39; }
-		case 214: { damage[0] = 25; damage[1] = 39; }
-		case 215: { damage[0] = 41; damage[1] = 71; }
-		case 216: { damage[0] = 41; damage[1] = 71; }
-		case 217: { damage[0] = 41; damage[1] = 71; }
-		case 218: { damage[0] = 69; damage[1] = 109; }
-		case 219: { damage[0] = 69; damage[1] = 109; }
-		case 220: { damage[0] = 69; damage[1] = 109; }
-		case 221: { damage[0] = 95; damage[1] = 143; }
-		case 222: { damage[0] = 95; damage[1] = 143; }
-		case 223: { damage[0] = 95; damage[1] = 143; }
-		case 224: { damage[0] = 134; damage[1] = 188; }
-		case 225: { damage[0] = 134; damage[1] = 188; }
-		case 226: { damage[0] = 134; damage[1] = 188; }
-		case 227: { damage[0] = 176; damage[1] = 224; }
-		case 228: { damage[0] = 176; damage[1] = 224; }
-		case 229: { damage[0] = 176; damage[1] = 224; }
-		case 230: { damage[0] = 211; damage[1] = 298; }
-		case 231: { damage[0] = 211; damage[1] = 298; }
-		case 232: { damage[0] = 211; damage[1] = 298; }
+		case 209: { damage[0] = 20; damage[1] = 32; }
+		case 210: { damage[0] = 20; damage[1] = 32; }
+		case 211: { damage[0] = 20; damage[1] = 32; }
+		case 212: { damage[0] = 28; damage[1] = 45; }
+		case 213: { damage[0] = 28; damage[1] = 45; }
+		case 214: { damage[0] = 28; damage[1] = 45; }
+		case 215: { damage[0] = 47; damage[1] = 81; }
+		case 216: { damage[0] = 47; damage[1] = 81; }
+		case 217: { damage[0] = 47; damage[1] = 81; }
+		case 218: { damage[0] = 79; damage[1] = 125; }
+		case 219: { damage[0] = 79; damage[1] = 125; }
+		case 220: { damage[0] = 79; damage[1] = 125; }
+		case 221: { damage[0] = 109; damage[1] = 164; }
+		case 222: { damage[0] = 109; damage[1] = 164; }
+		case 223: { damage[0] = 109; damage[1] = 164; }
+		case 224: { damage[0] = 154; damage[1] = 216; }
+		case 225: { damage[0] = 154; damage[1] = 216; }
+		case 226: { damage[0] = 154; damage[1] = 216; }
+		case 227: { damage[0] = 202; damage[1] = 257; }
+		case 228: { damage[0] = 202; damage[1] = 257; }
+		case 229: { damage[0] = 202; damage[1] = 257; }
+		case 230: { damage[0] = 242; damage[1] = 342; }
+		case 231: { damage[0] = 242; damage[1] = 342; }
+		case 232: { damage[0] = 242; damage[1] = 342; }
 		case 233: { damage[0] = 446; damage[1] = 515; }
 		case 234: { damage[0] = 531; damage[1] = 609; }
 		case 235: { damage[0] = 636; damage[1] = 724; }
@@ -13186,15 +13339,15 @@ stock GetWeaponBaseDamage(weaponid, stage)
 		case 264: { damage[0] = 673; damage[1] = 757; }
     case 265: { damage[0] = 799; damage[1] = 884; }
 
-    case 284: { damage[0] = 38; damage[1] = 49; }
-		case 285: { damage[0] = 51; damage[1] = 63; }
-		case 286: { damage[0] = 65; damage[1] = 80; }
-		case 287: { damage[0] = 81; damage[1] = 97; }
-		case 288: { damage[0] = 109; damage[1] = 130; }
-		case 289: { damage[0] = 144; damage[1] = 170; }
-		case 290: { damage[0] = 192; damage[1] = 224; }
-		case 291: { damage[0] = 225; damage[1] = 260; }
-    case 292: { damage[0] = 267; damage[1] = 310; }
+    case 284: { damage[0] = 42; damage[1] = 55; }
+		case 285: { damage[0] = 57; damage[1] = 71; }
+		case 286: { damage[0] = 73; damage[1] = 90; }
+		case 287: { damage[0] = 91; damage[1] = 109; }
+		case 288: { damage[0] = 122; damage[1] = 148; }
+		case 289: { damage[0] = 163; damage[1] = 189; }
+		case 290: { damage[0] = 211; damage[1] = 250; }
+		case 291: { damage[0] = 251; damage[1] = 289; }
+    case 292: { damage[0] = 303; damage[1] = 350; }
 
 		default: { damage[0] = 13; damage[1] = 15; }
 	}
