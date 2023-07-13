@@ -1,0 +1,439 @@
+../run.sh: line 3: ulimit: open files: cannot modify limit: Operation not permitted
+../run.sh: line 22:  1359 Segmentation fault      $3 -game gta-samp -sampqf
+Interrupt
+../run.sh: line 3: ulimit: open files: cannot modify limit: Operation not permitted
+../run.sh: line 22:  1463 Segmentation fault      $3 -game gta-samp -sampqf
+Interrupt
+../run.sh: line 3: ulimit: open files: cannot modify limit: Operation not permitted
+
+Started server on 37.230.137.200:7777, with maxplayers: 500 lanmode is OFF.
+
+pure virtual method called
+terminate called without an active exception
+../run.sh: line 22:  1547 Segmentation fault      $3 -game gta-samp -sampqf
+Killed
+../run.sh: line 3: ulimit: open files: cannot modify limit: Operation not permitted
+
+Started server on 37.230.137.200:7777, with maxplayers: 500 lanmode is OFF.
+
+pure virtual method called
+terminate called without an active exception
+../run.sh: line 22:  1690 Segmentation fault      $3 -game gta-samp -sampqf
+Killed
+../run.sh: line 3: ulimit: open files: cannot modify limit: Operation not permitted
+
+Started server on 37.230.137.200:7777, with maxplayers: 500 lanmode is OFF.
+
+pure virtual method called
+terminate called without an active exception
+../run.sh: line 22:  1764 Segmentation fault      $3 -game gta-samp -sampqf
+Killed
+../run.sh: line 3: ulimit: open files: cannot modify limit: Operation not permitted
+
+Started server on 37.230.137.200:7777, with maxplayers: 500 lanmode is OFF.
+
+pure virtual method called
+terminate called without an active exception
+../run.sh: line 22:  1822 Segmentation fault      $3 -game gta-samp -sampqf
+Killed
+../run.sh: line 3: ulimit: open files: cannot modify limit: Operation not permitted
+
+Started server on 37.230.137.200:7777, with maxplayers: 500 lanmode is OFF.
+
+
+
+[log-core] fatal signal '11' (SIGSEGV) catched   
+
+
+Started server on 37.230.137.200:7777, with maxplayers: 500 lanmode is OFF.
+
+
+
+[log-core] fatal signal '11' (SIGSEGV) catched   
+
+
+Started server on 37.230.137.200:7777, with maxplayers: 500 lanmode is OFF.
+
+
+
+[log-core] fatal signal '11' (SIGSEGV) catched   
+
+
+Started server on 37.230.137.200:7777, with maxplayers: 500 lanmode is OFF.
+
+
+
+[log-core] fatal signal '11' (SIGSEGV) catched   
+
+
+Started server on 37.230.137.200:7777, with maxplayers: 500 lanmode is OFF.
+
+
+
+[log-core] fatal signal '11' (SIGSEGV) catched   
+
+
+Started server on 37.230.137.200:7777, with maxplayers: 500 lanmode is OFF.
+
+
+
+[log-core] fatal signal '2' (SIGINT) catched   
+
+Killed
+../run.sh: line 3: ulimit: open files: cannot modify limit: Operation not permitted
+
+Started server on 37.230.137.200:7777, with maxplayers: 500 lanmode is OFF.
+
+../run.sh: line 3: ulimit: open files: cannot modify limit: Operation not permitted
+
+Started server on 37.230.137.200:7777, with maxplayers: 500 lanmode is OFF.
+
+
+
+[log-core] fatal signal '11' (SIGSEGV) catched   
+
+../run.sh: line 3: ulimit: open files: cannot modify limit: Operation not permitted
+
+Started server on 37.230.137.200:7777, with maxplayers: 500 lanmode is OFF.
+
+
+
+[log-core] fatal signal '11' (SIGSEGV) catched   
+
+../run.sh: line 3: ulimit: open files: cannot modify limit: Operation not permitted
+
+Started server on 37.230.137.200:7777, with maxplayers: 500 lanmode is OFF.
+
+
+
+[log-core] fatal signal '11' (SIGSEGV) catched   
+
+../run.sh: line 3: ulimit: open files: cannot modify limit: Operation not permitted
+
+Started server on 37.230.137.200:7777, with maxplayers: 500 lanmode is OFF.
+
+
+
+[log-core] fatal signal '11' (SIGSEGV) catched   
+
+../run.sh: line 3: ulimit: open files: cannot modify limit: Operation not permitted
+
+Started server on 37.230.137.200:7777, with maxplayers: 500 lanmode is OFF.
+
+
+
+[log-core] fatal signal '11' (SIGSEGV) catched   
+
+../run.sh: line 3: ulimit: open files: cannot modify limit: Operation not permitted
+
+Started server on 37.230.137.200:7777, with maxplayers: 500 lanmode is OFF.
+
+
+
+[log-core] fatal signal '2' (SIGINT) catched   
+
+Killed
+../run.sh: line 3: ulimit: open files: cannot modify limit: Operation not permitted
+
+Started server on 37.230.137.200:7777, with maxplayers: 500 lanmode is OFF.
+
+
+
+[log-core] fatal signal '2' (SIGINT) catched   
+
+Killed
+../run.sh: line 3: ulimit: open files: cannot modify limit: Operation not permitted
+
+Started server on 37.230.137.200:7777, with maxplayers: 500 lanmode is OFF.
+
+../run.sh: line 3: ulimit: open files: cannot modify limit: Operation not permitted
+
+Started server on 37.230.137.200:7777, with maxplayers: 500 lanmode is OFF.
+
+
+
+[log-core] fatal signal '2' (SIGINT) catched   
+
+Killed
+../run.sh: line 3: ulimit: open files: cannot modify limit: Operation not permitted
+
+Started server on 37.230.137.200:7777, with maxplayers: 500 lanmode is OFF.
+
+
+
+[log-core] fatal signal '2' (SIGINT) catched   
+
+Killed
+../run.sh: line 3: ulimit: open files: cannot modify limit: Operation not permitted
+
+Started server on 37.230.137.200:7777, with maxplayers: 500 lanmode is OFF.
+
+
+
+[log-core] fatal signal '2' (SIGINT) catched   
+
+Killed
+../run.sh: line 3: ulimit: open files: cannot modify limit: Operation not permitted
+
+Started server on 37.230.137.200:7777, with maxplayers: 500 lanmode is OFF.
+
+
+
+[log-core] fatal signal '2' (SIGINT) catched   
+
+Killed
+../run.sh: line 3: ulimit: open files: cannot modify limit: Operation not permitted
+
+Started server on 37.230.137.200:7777, with maxplayers: 500 lanmode is OFF.
+
+
+
+[log-core] fatal signal '2' (SIGINT) catched   
+
+Killed
+../run.sh: line 3: ulimit: open files: cannot modify limit: Operation not permitted
+
+Started server on 37.230.137.200:7777, with maxplayers: 500 lanmode is OFF.
+
+
+
+[log-core] fatal signal '2' (SIGINT) catched   
+
+Killed
+../run.sh: line 3: ulimit: open files: cannot modify limit: Operation not permitted
+
+Started server on 37.230.137.200:7777, with maxplayers: 500 lanmode is OFF.
+
+
+
+[log-core] fatal signal '2' (SIGINT) catched   
+
+Killed
+../run.sh: line 3: ulimit: open files: cannot modify limit: Operation not permitted
+
+Started server on 37.230.137.200:7777, with maxplayers: 500 lanmode is OFF.
+
+
+
+[log-core] fatal signal '11' (SIGSEGV) catched   
+
+../run.sh: line 3: ulimit: open files: cannot modify limit: Operation not permitted
+
+Started server on 37.230.137.200:7777, with maxplayers: 500 lanmode is OFF.
+
+
+
+[log-core] fatal signal '2' (SIGINT) catched   
+
+Killed
+../run.sh: line 3: ulimit: open files: cannot modify limit: Operation not permitted
+
+Started server on 37.230.137.200:7777, with maxplayers: 500 lanmode is OFF.
+
+
+
+[log-core] fatal signal '2' (SIGINT) catched   
+
+Killed
+../run.sh: line 3: ulimit: open files: cannot modify limit: Operation not permitted
+
+Started server on 37.230.137.200:7777, with maxplayers: 500 lanmode is OFF.
+
+
+
+[log-core] fatal signal '2' (SIGINT) catched   
+
+Killed
+../run.sh: line 3: ulimit: open files: cannot modify limit: Operation not permitted
+
+Started server on 37.230.137.200:7777, with maxplayers: 500 lanmode is OFF.
+
+
+
+[log-core] fatal signal '2' (SIGINT) catched   
+
+Killed
+../run.sh: line 3: ulimit: open files: cannot modify limit: Operation not permitted
+
+Started server on 37.230.137.200:7777, with maxplayers: 500 lanmode is OFF.
+
+
+
+[log-core] fatal signal '2' (SIGINT) catched   
+
+Killed
+../run.sh: line 3: ulimit: open files: cannot modify limit: Operation not permitted
+
+Started server on 37.230.137.200:7777, with maxplayers: 500 lanmode is OFF.
+
+
+
+[log-core] fatal signal '2' (SIGINT) catched   
+
+Killed
+../run.sh: line 3: ulimit: open files: cannot modify limit: Operation not permitted
+
+Started server on 37.230.137.200:7777, with maxplayers: 500 lanmode is OFF.
+
+
+
+[log-core] fatal signal '2' (SIGINT) catched   
+
+Killed
+../run.sh: line 3: ulimit: open files: cannot modify limit: Operation not permitted
+
+Started server on 37.230.137.200:7777, with maxplayers: 500 lanmode is OFF.
+
+
+
+[log-core] fatal signal '2' (SIGINT) catched   
+
+Killed
+../run.sh: line 3: ulimit: open files: cannot modify limit: Operation not permitted
+
+Started server on 37.230.137.200:7777, with maxplayers: 500 lanmode is OFF.
+
+
+
+[log-core] fatal signal '2' (SIGINT) catched   
+
+Killed
+../run.sh: line 3: ulimit: open files: cannot modify limit: Operation not permitted
+
+Started server on 37.230.137.200:7777, with maxplayers: 500 lanmode is OFF.
+
+
+
+[log-core] fatal signal '2' (SIGINT) catched   
+
+Killed
+../run.sh: line 3: ulimit: open files: cannot modify limit: Operation not permitted
+
+Started server on 37.230.137.200:7777, with maxplayers: 500 lanmode is OFF.
+
+
+
+[log-core] fatal signal '2' (SIGINT) catched   
+
+Killed
+../run.sh: line 3: ulimit: open files: cannot modify limit: Operation not permitted
+
+Started server on 37.230.137.200:7777, with maxplayers: 500 lanmode is OFF.
+
+
+
+[log-core] fatal signal '2' (SIGINT) catched   
+
+Killed
+../run.sh: line 3: ulimit: open files: cannot modify limit: Operation not permitted
+
+Started server on 37.230.137.200:7777, with maxplayers: 500 lanmode is OFF.
+
+
+
+[log-core] fatal signal '2' (SIGINT) catched   
+
+Killed
+../run.sh: line 3: ulimit: open files: cannot modify limit: Operation not permitted
+
+Started server on 37.230.137.200:7777, with maxplayers: 500 lanmode is OFF.
+
+
+
+[log-core] fatal signal '2' (SIGINT) catched   
+
+Killed
+../run.sh: line 3: ulimit: open files: cannot modify limit: Operation not permitted
+
+Started server on 37.230.137.200:7777, with maxplayers: 500 lanmode is OFF.
+
+
+
+[log-core] fatal signal '2' (SIGINT) catched   
+
+Killed
+../run.sh: line 3: ulimit: open files: cannot modify limit: Operation not permitted
+
+Started server on 37.230.137.200:7777, with maxplayers: 500 lanmode is OFF.
+
+
+
+[log-core] fatal signal '2' (SIGINT) catched   
+
+Killed
+../run.sh: line 3: ulimit: open files: cannot modify limit: Operation not permitted
+
+Started server on 37.230.137.200:7777, with maxplayers: 500 lanmode is OFF.
+
+
+
+[log-core] fatal signal '2' (SIGINT) catched   
+
+Killed
+../run.sh: line 3: ulimit: open files: cannot modify limit: Operation not permitted
+
+Started server on 37.230.137.200:7777, with maxplayers: 500 lanmode is OFF.
+
+
+
+[log-core] fatal signal '2' (SIGINT) catched   
+
+Killed
+../run.sh: line 3: ulimit: open files: cannot modify limit: Operation not permitted
+
+Started server on 37.230.137.200:7777, with maxplayers: 500 lanmode is OFF.
+
+
+
+[log-core] fatal signal '2' (SIGINT) catched   
+
+Killed
+../run.sh: line 3: ulimit: open files: cannot modify limit: Operation not permitted
+
+Started server on 37.230.137.200:7777, with maxplayers: 500 lanmode is OFF.
+
+
+
+[log-core] fatal signal '2' (SIGINT) catched   
+
+Killed
+../run.sh: line 3: ulimit: open files: cannot modify limit: Operation not permitted
+
+Started server on 37.230.137.200:7777, with maxplayers: 500 lanmode is OFF.
+
+
+
+[log-core] fatal signal '2' (SIGINT) catched   
+
+Killed
+../run.sh: line 3: ulimit: open files: cannot modify limit: Operation not permitted
+
+Started server on 37.230.137.200:7777, with maxplayers: 500 lanmode is OFF.
+
+
+
+[log-core] fatal signal '2' (SIGINT) catched   
+
+Killed
+../run.sh: line 3: ulimit: open files: cannot modify limit: Operation not permitted
+
+Started server on 37.230.137.200:7777, with maxplayers: 500 lanmode is OFF.
+
+
+
+[log-core] fatal signal '2' (SIGINT) catched   
+
+Killed
+../run.sh: line 3: ulimit: open files: cannot modify limit: Operation not permitted
+
+Started server on 37.230.137.200:7777, with maxplayers: 500 lanmode is OFF.
+
+
+
+[log-core] fatal signal '2' (SIGINT) catched   
+
+Killed
+../run.sh: line 3: ulimit: open files: cannot modify limit: Operation not permitted
+
+Started server on 37.230.137.200:7777, with maxplayers: 500 lanmode is OFF.
+

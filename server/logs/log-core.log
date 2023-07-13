@@ -1,0 +1,8 @@
+[07/10/23 11:12:54] [ERROR] signal 2 (SIGINT) catched; shutting log-core down (errno: 0, signal code: 0, exit status: 0)
+[07/10/23 11:23:45] [ERROR] signal 2 (SIGINT) catched; shutting log-core down (errno: 0, signal code: 0, exit status: 1280)
+[07/10/23 12:07:18] [ERROR] signal 2 (SIGINT) catched; shutting log-core down (errno: 0, signal code: 0, exit status: 1280)
+[07/10/23 12:15:07] [ERROR] signal 2 (SIGINT) catched; shutting log-core down (errno: 0, signal code: 0, exit status: 174)
+[07/11/23 05:00:02] [ERROR] signal 2 (SIGINT) catched; shutting log-core down (errno: 0, signal code: 0, exit status: 174)
+[07/11/23 11:27:39] [ERROR] signal 2 (SIGINT) catched; shutting log-core down (errno: 0, signal code: 0, exit status: 178332680)
+[07/12/23 05:00:01] [ERROR] signal 2 (SIGINT) catched; shutting log-core down (errno: 0, signal code: 0, exit status: 165250056)
+[07/13/23 05:00:02] [ERROR] signal 2 (SIGINT) catched; shutting log-core down (errno: 0, signal code: 0, exit status: 151348232)

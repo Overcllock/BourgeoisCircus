@@ -17,6 +17,7 @@
 #include <vnpc>
 #include <progress2>
 #include <sampp>
+//#include <textdraw-streamer>
 
 #pragma dynamic 31294
 
@@ -24,9 +25,9 @@
 
 //Mysql settings
 #define SQL_HOST "127.0.0.1"
-#define SQL_USER "admin"
+#define SQL_USER "circus"
 #define SQL_DB "circus"
-#define SQL_PASS "h21510055"
+#define SQL_PASS "21510055"
 
 //Data types
 #define TYPE_INT 0x01
@@ -4696,6 +4697,16 @@ public OnPlayerUpdate(playerid)
 public OnPlayerClickPlayer(playerid, clickedplayerid, source)
 {
 	return 1;
+}
+
+public OnClickDynamicTextDraw(playerid, Text:textid)
+{
+  OnPlayerClickTextDraw(playerid, textid);
+}
+
+public OnClickDynamicPlayerTextDraw(playerid, PlayerText:textid)
+{
+  OnPlayerClickPlayerTextDraw(playerid, textid);
 }
 
 public OnPlayerClickTextDraw(playerid, Text:clickedid)

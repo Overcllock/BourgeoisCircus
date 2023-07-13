@@ -1,4 +1,4 @@
-// Copyright (C) 2013-2015 Zeex
+// Copyright (C) 2018 Y_Less
 //
 // Permission is hereby granted, free of charge, to any person obtaining a
 // copy of this software and associated documentation files (the "Software"),
@@ -23,46 +23,10 @@
 #endif
 #define JIT_INC
 
-//
-// This variable will be set to true if the JIT plugin is loaded.
-//
-public const bool:__JIT = false;
-
-//
-// OnJITCompile() is called when the script is about to be compiled by
-// the JIT plugin
-//
-forward OnJITCompile();
-
-//
-// OnJITError() is called when an error occurs during JIT compilation.
-// See your server log for additional error information.
-//
-forward OnJITError();
-
-//
-// Checks if the script is currently running in JIT mode. This function
-// will return false in OnJITCompile().
-//
 stock bool:IsJITPresent() {
 	#emit zero.pri
 	#emit lctrl 7
 	#emit retn
-	return false; // make compiler happy
-}
-
-//
-// Checks if the JIT plugin supports the fast jumps feature that was added
-// in version 2.1.
-//
-// https://github.com/Zeex/samp-plugin-jit/issues/51
-//
-stock bool:IsJITASMJumpCapable() {
-	#emit lctrl 6
-	#emit move.alt
-	#emit lctrl 8
-	#emit neq
-	#emit retn
-	return false; // make compiler happy
+	return false;
 }
 
