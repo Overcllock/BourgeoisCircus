@@ -1,4 +1,4 @@
-//Bourgeois Circus 7.01
+//Bourgeois Circus 7.02
 
 #include <a_samp>
 #include <a_mail>
@@ -17,11 +17,11 @@
 #include <vnpc>
 #include <progress2>
 #include <sampp>
-//#include <textdraw-streamer>
+#include <requests>
 
 #pragma dynamic 31294
 
-#define VERSION 7.011
+#define VERSION 7.021
 
 //Mysql settings
 #define SQL_HOST "127.0.0.1"
@@ -516,6 +516,8 @@ enum wInfo
 };
 
 //Global
+new RequestsClient:req_client;
+
 new is_bns_mode = IS_BNS_MODE;
 
 new ItemsDatabase[MAX_ITEM_ID][BaseItem];
@@ -943,10 +945,25 @@ main()
 	new str[64];
 	format(str, sizeof(str), "Bourgeois Circus ver. %.2f", VERSION);
 	print(str);
+
+  req_client = RequestsClient("https://circus-circus.amvera.io");
 }
 
 /* Commands */
 //GM commands
+cmd:tgtest(playerid, params[])
+{
+  if(PlayerInfo[playerid][Admin] == 0)
+		return 0;
+
+  Request(
+    req_client,
+    "/api/telegram",
+    HTTP_METHOD_GET,
+    "OnPostJson"
+  );
+}
+
 cmd:tp1(playerid, params[])
 {
 	if(PlayerInfo[playerid][Admin] == 0)
@@ -1149,6 +1166,20 @@ cmd:arena(playerid, params[])
 }
 
 /* Callbacks */
+public OnRequestFailure(Request:id, errorCode, errorMessage[], len) 
+{
+    printf("Request %d failed with %d: '%s'", _:id, errorCode, errorMessage);
+}
+
+public OnPostJson(Request:id, E_HTTP_STATUS:status, data[], dataLen)
+{
+  SendClientMessageToAll(COLOR_LIGHTRED, "GG!");
+
+  new response[255];
+  format(response, sizeof(response), "GG! %d, data: %s", status, data);
+  SendClientMessageToAll(COLOR_LIGHTRED, response);
+}
+
 public OnGameModeInit()
 {
 	new mode_txt[64];
@@ -4699,16 +4730,6 @@ public OnPlayerClickPlayer(playerid, clickedplayerid, source)
 	return 1;
 }
 
-public OnClickDynamicTextDraw(playerid, Text:textid)
-{
-  OnPlayerClickTextDraw(playerid, textid);
-}
-
-public OnClickDynamicPlayerTextDraw(playerid, PlayerText:textid)
-{
-  OnPlayerClickPlayerTextDraw(playerid, textid);
-}
-
 public OnPlayerClickTextDraw(playerid, Text:clickedid)
 {
 	if(clickedid == MpBtn[playerid])
@@ -8017,8 +8038,8 @@ stock UpdateTournamentTable()
 		new id = PvpInfo[i][ID];
 		if(id == -1) break;
 		
-		format(query, sizeof(query), "INSERT INTO `tournament_tab`(`ID`, `Name`, `Score`, `Kills`, `Deaths`, `Assists`, `Owner`, `RateDiff`) VALUES ('%d','%s','%d','%d','%d','%d','%s','%d')",
-			PlayerInfo[id][ID], PlayerInfo[id][Name], PvpInfo[i][Score], PvpInfo[i][Kills], PvpInfo[i][Deaths], PvpInfo[i][Assists], PlayerInfo[id][Owner], PvpInfo[i][RateDiff]
+		format(query, sizeof(query), "INSERT INTO `tournament_tab`(`ID`, `Name`, `Score`, `Kills`, `Deaths`, `Assists`, `Owner`, `RateDiff`, `TournamentIndex`, `TourIndex`) VALUES ('%d','%s','%d','%d','%d','%d','%s','%d', '%d', '%d')",
+			PlayerInfo[id][ID], PlayerInfo[id][Name], PvpInfo[i][Score], PvpInfo[i][Kills], PvpInfo[i][Deaths], PvpInfo[i][Assists], PlayerInfo[id][Owner], PvpInfo[i][RateDiff], Tournament[Number], Tournament[Tour]
 		);
 		new Cache:q_res = mysql_query(sql_handle, query);
 		cache_delete(q_res);
@@ -8058,6 +8079,13 @@ stock UpdateTournamentTable()
 
   new Cache:qq_res = mysql_query(sql_handle, query);
   cache_delete(qq_res);
+
+  Request(
+    req_client,
+    "/api/telegram",
+    HTTP_METHOD_GET,
+    "OnPostJson"
+  );
 }
 
 stock FillTourPlayers()
@@ -9110,6 +9138,24 @@ stock SortArrayAscending(Float:array[], const size = sizeof(array))
 			array[j + 1] = array[j];
 		array[j + 1] = key;
 	}
+}
+
+stock string_replace(inputvar[], const searchstring[], const replacestring[])
+{
+  if(strfind(replacestring, searchstring, true) != -1) return -1;
+
+  new pos = strfind(inputvar, searchstring, true);
+  if (pos == -1) return 0;
+
+  while(pos != -1)
+  {
+    strdel(inputvar, pos, pos + strlen(searchstring));
+    strins(inputvar, replacestring, pos, strlen(inputvar));
+
+    pos = strfind(inputvar, searchstring, true);
+  }
+
+  return 1;
 }
 
 stock DestroyBoss()
@@ -13292,18 +13338,18 @@ stock GetWeaponBaseDamage(weaponid, stage)
 		case 33: { damage[0] = 470; damage[1] = 532; }
 		case 34: { damage[0] = 557; damage[1] = 631; }
 
-		case 209: { damage[0] = 20; damage[1] = 32; }
-		case 210: { damage[0] = 20; damage[1] = 32; }
-		case 211: { damage[0] = 20; damage[1] = 32; }
-		case 212: { damage[0] = 28; damage[1] = 45; }
-		case 213: { damage[0] = 28; damage[1] = 45; }
-		case 214: { damage[0] = 28; damage[1] = 45; }
-		case 215: { damage[0] = 47; damage[1] = 81; }
-		case 216: { damage[0] = 47; damage[1] = 81; }
-		case 217: { damage[0] = 47; damage[1] = 81; }
-		case 218: { damage[0] = 79; damage[1] = 125; }
-		case 219: { damage[0] = 79; damage[1] = 125; }
-		case 220: { damage[0] = 79; damage[1] = 125; }
+		case 209: { damage[0] = 24; damage[1] = 36; }
+		case 210: { damage[0] = 24; damage[1] = 36; }
+		case 211: { damage[0] = 24; damage[1] = 36; }
+		case 212: { damage[0] = 35; damage[1] = 53; }
+		case 213: { damage[0] = 35; damage[1] = 53; }
+		case 214: { damage[0] = 35; damage[1] = 53; }
+		case 215: { damage[0] = 50; damage[1] = 85; }
+		case 216: { damage[0] = 50; damage[1] = 85; }
+		case 217: { damage[0] = 50; damage[1] = 85; }
+		case 218: { damage[0] = 88; damage[1] = 137; }
+		case 219: { damage[0] = 88; damage[1] = 137; }
+		case 220: { damage[0] = 88; damage[1] = 137; }
 		case 221: { damage[0] = 109; damage[1] = 164; }
 		case 222: { damage[0] = 109; damage[1] = 164; }
 		case 223: { damage[0] = 109; damage[1] = 164; }
@@ -14899,7 +14945,7 @@ stock ShowVoteList(playerid)
     return;
   }
 
-  new query[255] = "SELECT `CandidateName`, SUM(`Count`) as `sum_count` FROM `vote` GROUP BY `CandidateName` ORDER BY `ID`";
+  new query[512] = "SELECT `CandidateName`, SUM(`Count`) as `sum_count` FROM `vote` GROUP BY `CandidateName` ORDER BY MAX(`ID`);";
   new Cache:q_result = mysql_query(sql_handle, query);
 
   new row_count = 0;
@@ -14946,7 +14992,7 @@ stock ShowVoteList(playerid)
 
 stock TryVoteTo(playerid, listitem)
 {
-  new query[255] = "SELECT `CandidateName`, SUM(`Count`) as `sum_count` FROM `vote` GROUP BY `CandidateName` ORDER BY `ID`";
+  new query[512] = "SELECT `CandidateName`, SUM(`Count`) as `sum_count` FROM `vote` GROUP BY `CandidateName` ORDER BY MAX(`ID`);";
   new Cache:q_result = mysql_query(sql_handle, query);
 
   new row_count = 0;
