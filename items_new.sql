@@ -857,3 +857,8 @@ INSERT INTO `items`(`ID`, `IsTradeble`, `Name`, `Type`, `Grade`, `MinRank`, `Des
 VALUES (1091, 0, "Стартовый набор пролетария", 10, 3, 1, "Ну хоть не бич", "0 0 0", "0 0 0", 0, 19055, 0, 0, 0);
 INSERT INTO `items`(`ID`, `IsTradeble`, `Name`, `Type`, `Grade`, `MinRank`, `Description`, `Property`, `PropertyVal`, `Price`, `Model`, `ModelRotX`, `ModelRotY`, `ModelRotZ`) 
 VALUES (1092, 0, "Стартовый набор буржуа", 10, 4, 1, "Ну ты и буржуй!!!", "0 0 0", "0 0 0", 0, 19055, 0, 0, 0);
+
+INSERT INTO `items`(`ID`, `IsTradeble`, `Name`, `Type`, `Grade`, `MinRank`, `Description`, `Property`, `PropertyVal`, `Price`, `Model`, `ModelRotX`, `ModelRotY`, `ModelRotZ`) 
+VALUES (1093, 0, "Награда охотника", 10, 4, 1, "Генерирует награды за убийство прохожих", "0 0 0", "0 0 0", 0, 19056, 0, 0, 0);
+INSERT INTO `items`(`ID`, `IsTradeble`, `Name`, `Type`, `Grade`, `MinRank`, `Description`, `Property`, `PropertyVal`, `Price`, `Model`, `ModelRotX`, `ModelRotY`, `ModelRotZ`) 
+VALUES (1094, 0, "Награда убийцы", 10, 5, 1, "Генерирует награды за убийство боссов", "0 0 0", "0 0 0", 0, 19056, 0, 0, 0);
